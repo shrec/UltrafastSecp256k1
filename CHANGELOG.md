@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Quick performance smoke no longer blocks releases on shared-runner noise.**
   Push-time benchmark JSON validation and alerts remain, while release-grade
   regression decisions stay tied to controlled local benchmark evidence.
+- **Static CAAS bundle verification is checkout-resilient.** The PR/push gate now
+  verifies the committed external audit bundle via explicit workspace paths and
+  falls back to the `HEAD` tree when a runner checkout misses the baseline file,
+  while still failing closed if the committed baseline is absent or invalid.
 
 ### Security
 

@@ -406,14 +406,32 @@ jobs:
         # allowance here, then produce and verify a current-run bundle below.
         # Audit-fix: removed || true + continue-on-error so a bundle with
         # mismatched hashes actually blocks the gate (was silently passing).
+        # CI-016: use an absolute workspace path and, if a runner checkout exposes
+        # the commit tree but misses the workspace file, materialize the committed
+        # baseline from HEAD before verification. Absence from HEAD remains a hard
+        # failure.
         id: static_bundle_verify
         if: always()
         run: |
-          if [ -f docs/EXTERNAL_AUDIT_BUNDLE.json ]; then
-            python3 ci/verify_external_audit_bundle.py --json --allow-commit-mismatch \
+          BUNDLE="${GITHUB_WORKSPACE}/docs/EXTERNAL_AUDIT_BUNDLE.json"
+          DIGEST="${GITHUB_WORKSPACE}/docs/EXTERNAL_AUDIT_BUNDLE.sha256"
+          if { [ ! -f "$BUNDLE" ] || [ ! -f "$DIGEST" ]; } &&
+             git cat-file -e HEAD:docs/EXTERNAL_AUDIT_BUNDLE.json &&
+             git cat-file -e HEAD:docs/EXTERNAL_AUDIT_BUNDLE.sha256; then
+            echo "::warning::workspace audit bundle missing; materializing committed baseline from HEAD"
+            mkdir -p "${GITHUB_WORKSPACE}/docs"
+            git show HEAD:docs/EXTERNAL_AUDIT_BUNDLE.json > "$BUNDLE"
+            git show HEAD:docs/EXTERNAL_AUDIT_BUNDLE.sha256 > "$DIGEST"
+          fi
+          if [ -f "$BUNDLE" ] && [ -f "$DIGEST" ]; then
+            python3 ci/verify_external_audit_bundle.py \
+              --bundle "$BUNDLE" \
+              --digest "$DIGEST" \
+              --json \
+              --allow-commit-mismatch \
               > caas_bundle_verify_static.json
           else
-            echo "::error::docs/EXTERNAL_AUDIT_BUNDLE.json not present — bundle integrity cannot be verified"
+            echo "::error::docs/EXTERNAL_AUDIT_BUNDLE.json or .sha256 not present in workspace/HEAD — bundle integrity cannot be verified"
             exit 1
           fi
 
