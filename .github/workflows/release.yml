@@ -919,9 +919,13 @@ jobs:
         run: |
           set -euo pipefail
           artifacts=()
-          while IFS= read -r f; do
-            artifacts+=("$f")
-          done < <(find native-dist -type f \( -name '*.zip' -o -name '*.tar.gz' \) | sort)
+          for platform in linux-x64 linux-arm64 macos-arm64 win-x64 win-arm64; do
+            artifact_dir="native-dist/UltrafastSecp256k1-${RELEASE_TAG}-${platform}"
+            [ -d "$artifact_dir" ] || continue
+            while IFS= read -r f; do
+              artifacts+=("$f")
+            done < <(find "$artifact_dir" -maxdepth 1 -type f \( -name '*.zip' -o -name '*.tar.gz' \) | sort)
+          done
           test "${#artifacts[@]}" -gt 0
           python3 ci/check_release_package_contents.py "${artifacts[@]}"
 
@@ -1029,9 +1033,13 @@ jobs:
         run: |
           set -euo pipefail
           artifacts=()
-          while IFS= read -r f; do
-            artifacts+=("$f")
-          done < <(find native-dist -type f \( -name '*.zip' -o -name '*.tar.gz' \) | sort)
+          for platform in linux-x64 linux-arm64 macos-arm64 win-x64 win-arm64; do
+            artifact_dir="native-dist/UltrafastSecp256k1-${RELEASE_TAG}-${platform}"
+            [ -d "$artifact_dir" ] || continue
+            while IFS= read -r f; do
+              artifacts+=("$f")
+            done < <(find "$artifact_dir" -maxdepth 1 -type f \( -name '*.zip' -o -name '*.tar.gz' \) | sort)
+          done
           test "${#artifacts[@]}" -gt 0
           python3 ci/check_release_package_contents.py "${artifacts[@]}"
 
