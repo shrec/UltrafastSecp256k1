@@ -57,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and public header propagation are now covered for standalone consumers.
 - **OpenCL/Metal public-operation parity regressions.** Public GPU operation
   drift is now covered by regression tests and the parity gate.
+- **Quick performance smoke no longer blocks releases on shared-runner noise.**
+  Push-time benchmark JSON validation and alerts remain, while release-grade
+  regression decisions stay tied to controlled local benchmark evidence.
 
 ### Security
 

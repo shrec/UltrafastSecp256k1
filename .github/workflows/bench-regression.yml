@@ -11,14 +11,15 @@
 # CLAUDE.md: CPU-pinned, turbo off, >=11 IQR-trimmed passes, controlled
 # before/after comparison on the same machine.
 # ============================================================================
-# Performance Regression Gate -- Per-Commit Benchmark Check
+# Performance Smoke Alert -- Per-Commit Quick Benchmark Check
 # ============================================================================
 # Runs benchmarks on every push to main/dev and on PRs that touch perf-sensitive
-# paths. Fails if any operation regresses >100% (i.e. is more than 2x slower)
-# compared to the previous stored baseline.
+# paths. Emits an alert if any operation is >100% slower (i.e. more than 2x)
+# compared to the previous stored baseline, but does not fail push CI because
+# quick mode runs on shared GitHub runners and is not release-grade evidence.
 #
-# Separate from benchmark.yml (dashboard) -- this one BLOCKS merges.
-# Uses github-action-benchmark with fail-on-alert: true.
+# Separate from benchmark.yml (dashboard). Release-grade regression decisions
+# use the local controlled bench_unified protocol documented in CLAUDE.md.
 # ============================================================================
 
 name: Performance Smoke Test (quick mode -- not a regression gate)
@@ -166,7 +167,7 @@ jobs:
           fi
         fi
 
-    - name: Store baseline + check regression (push to main/dev or manual dispatch)
+    - name: Store smoke result + advisory alert (push to main/dev or manual dispatch)
       # CI-006 floating baseline note: auto-push is DISABLED. The stored baseline
       # can become stale (e.g., from a slow build months ago). If the baseline is
       # >30 days old, trigger workflow_dispatch on a known-good commit to refresh it.
@@ -174,12 +175,11 @@ jobs:
       # A quick-mode baseline (±30% noise) masks regressions < 50% — not a real gate.
       # For production evidence use the local CLAUDE.md §Performance protocol.
       #
-      # 2026-05-23: alert-threshold raised 150%→200% to match the workflow's
-      # documented design intent (header comment line 7) and eliminate noise-
-      # threshold false positives. Quick-mode runs on GitHub's shared runners
-      # have ±15-30% inherent variance; a 1.5× threshold trips on noise (run
-      # 26345101570: 180.7→271.7 = 1.50×, just over threshold). 2× catches
-      # only genuine regressions.
+      # 2026-07-07: fail-on-alert is false on push because this workflow is a
+      # quick smoke, not a regression gate. It still posts an alert/comment and
+      # validates non-corrupt benchmark JSON, but shared-runner quick-mode noise
+      # must not block releases. Controlled regression decisions use the local
+      # bench_unified full protocol documented in CLAUDE.md.
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
       with:
@@ -190,7 +190,7 @@ jobs:
         auto-push: false
         alert-threshold: '200%'
         comment-on-alert: true
-        fail-on-alert: true
+        fail-on-alert: false
         benchmark-data-dir-path: 'dev/bench-gate'
 
     - name: PR comparison (alert + block on regression)
