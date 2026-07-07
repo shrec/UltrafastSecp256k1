@@ -1,8 +1,8 @@
 {
   "schema_version": "1.0.0",
-  "run_id": "audit_gate-863620e308-20260707T202646",
+  "run_id": "audit_gate-863620e308-20260707T214143",
   "runner": "audit_gate",
-  "generated_at": "2026-07-07T20:26:46.401659+00:00",
+  "generated_at": "2026-07-07T21:41:43.136972+00:00",
   "commit": {
     "value": {
       "sha": "863620e308e0e58e1390abf7b37dc4f715dd70e3",
@@ -15,7 +15,7 @@
   },
   "platform": "Linux",
   "provenance": {
-    "collected_at": "2026-07-07T20:26:46.401581+00:00",
+    "collected_at": "2026-07-07T21:41:43.136892+00:00",
     "version": "4.5.0",
     "git": {
       "sha": "863620e308e0e58e1390abf7b37dc4f715dd70e3",
@@ -35,8 +35,18 @@
       "ninja": "1.13.2"
     },
     "build_flags": {
-      "available": false,
-      "reason": "no CMakeCache.txt found"
+      "available": true,
+      "build_dir": "/home/runner/work/UltrafastSecp256k1/UltrafastSecp256k1/build-audit",
+      "flags": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "/usr/bin/cc",
+        "CMAKE_CXX_COMPILER": "/usr/bin/g++-14",
+        "CMAKE_C_FLAGS": "",
+        "CMAKE_CXX_FLAGS": "",
+        "CMAKE_C_FLAGS_RELEASE": "-O3 -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG"
+      },
+      "flags_hash": "f6054a07e934d755"
     },
     "platform": {
       "system": "Linux",
@@ -45,14 +55,14 @@
       "python": "3.12.3"
     }
   },
-  "verdict": "FAIL",
-  "audit_verdict": "FAIL",
+  "verdict": "PASS with advisory",
+  "audit_verdict": "PASS with advisory",
   "summary": {
-    "total_findings": 121,
-    "blocking": 2,
-    "advisory": 60,
+    "total_findings": 123,
+    "blocking": 0,
+    "advisory": 62,
     "warnings": 7,
-    "info": 53,
+    "info": 55,
     "skipped_sections": 0,
     "sections": 34
   },
@@ -87,21 +97,29 @@
     },
     {
       "name": "P0: Invalid-Input Grammar",
-      "status": "FAIL",
+      "status": "PASS",
       "findings": [
         {
-          "severity": "FAIL",
-          "message": "Invalid-input grammar harness did not produce JSON: ERROR: Cannot locate a loadable ufsecp shared library (searched .so/.dll/.dylib across build trees).\nBuild it (e.g. CMake target ufsecp_shared) or pass --lib /path/to/libufsecp.so.3 explicitly.\n"
+          "severity": "INFO",
+          "message": "Invalid-input grammar counts: cases=37, passed=37, failed=0"
+        },
+        {
+          "severity": "PASS",
+          "message": "Structured invalid inputs correctly rejected (37 cases)"
         }
       ]
     },
     {
       "name": "P0: Stateful Sequence Integrity",
-      "status": "FAIL",
+      "status": "PASS",
       "findings": [
         {
-          "severity": "FAIL",
-          "message": "Stateful sequence harness did not produce JSON: ERROR: Cannot locate a loadable ufsecp shared library (searched .so/.dll/.dylib across build trees).\nBuild it (e.g. CMake target ufsecp_shared) or pass --lib /path/to/libufsecp.so.3 explicitly.\n"
+          "severity": "INFO",
+          "message": "Stateful sequence counts: passed=121, failed=0, count=24"
+        },
+        {
+          "severity": "PASS",
+          "message": "Stateful sequence harness passed (121 checks)"
         }
       ]
     },
@@ -185,7 +203,7 @@
       "findings": [
         {
           "severity": "PASS",
-          "message": "Graph is fresh (built: 2026-07-07T20:26:31)"
+          "message": "Graph is fresh (built: 2026-07-07T21:41:30)"
         }
       ]
     },
@@ -379,11 +397,11 @@
       "findings": [
         {
           "severity": "INFO",
-          "message": "Mutation report age: 84.5 days (threshold: 14)"
+          "message": "Mutation report age: 84.6 days (threshold: 14)"
         },
         {
           "severity": "WARN",
-          "message": "Mutation report is stale (84.5 > 14 days) \u2014 rerun recommended"
+          "message": "Mutation report is stale (84.6 > 14 days) \u2014 rerun recommended"
         }
       ]
     },
@@ -781,23 +799,33 @@
     },
     {
       "name": "P0: Invalid-Input Grammar",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "findings": [
         {
           "check_id": "p0__invalid-input_grammar",
-          "severity": "blocking:critical",
-          "title": "Invalid-input grammar harness did not produce JSON: ERROR: Cannot locate a loadable ufsecp shared library (searched .so/.dll/.dylib across build trees).\nBuild it (e.g. CMake target ufsecp_shared) or pass --lib /path/to/libufsecp.so.3 explicitly.\n"
+          "severity": "info",
+          "title": "Invalid-input grammar counts: cases=37, passed=37, failed=0"
+        },
+        {
+          "check_id": "p0__invalid-input_grammar",
+          "severity": "pass",
+          "title": "Structured invalid inputs correctly rejected (37 cases)"
         }
       ]
     },
     {
       "name": "P0: Stateful Sequence Integrity",
-      "verdict": "FAIL",
+      "verdict": "PASS",
       "findings": [
         {
           "check_id": "p0__stateful_sequence_integrity",
-          "severity": "blocking:critical",
-          "title": "Stateful sequence harness did not produce JSON: ERROR: Cannot locate a loadable ufsecp shared library (searched .so/.dll/.dylib across build trees).\nBuild it (e.g. CMake target ufsecp_shared) or pass --lib /path/to/libufsecp.so.3 explicitly.\n"
+          "severity": "info",
+          "title": "Stateful sequence counts: passed=121, failed=0, count=24"
+        },
+        {
+          "check_id": "p0__stateful_sequence_integrity",
+          "severity": "pass",
+          "title": "Stateful sequence harness passed (121 checks)"
         }
       ]
     },
@@ -890,7 +918,7 @@
         {
           "check_id": "p6__graph_freshness",
           "severity": "pass",
-          "title": "Graph is fresh (built: 2026-07-07T20:26:31)"
+          "title": "Graph is fresh (built: 2026-07-07T21:41:30)"
         }
       ]
     },
@@ -1125,12 +1153,12 @@
         {
           "check_id": "p2__mutation_evidence_freshness",
           "severity": "info",
-          "title": "Mutation report age: 84.5 days (threshold: 14)"
+          "title": "Mutation report age: 84.6 days (threshold: 14)"
         },
         {
           "check_id": "p2__mutation_evidence_freshness",
           "severity": "advisory:medium",
-          "title": "Mutation report is stale (84.5 > 14 days) \u2014 rerun recommended"
+          "title": "Mutation report is stale (84.6 > 14 days) \u2014 rerun recommended"
         }
       ]
     },
