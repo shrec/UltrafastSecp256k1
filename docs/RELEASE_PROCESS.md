@@ -53,6 +53,10 @@ Mandatory rules:
 | `CHANGELOG.md` | Add release section with date, summary, breaking changes |
 | Binding manifests** | Update version where needed: `Cargo.toml`, `package.json`, **`conanfile.py`**, **`vcpkg.json`** (these hardcode `4.0.0` — must be bumped manually alongside `VERSION.txt`) |
 
+Release automation runs `ci/stamp_changelog.py` as a safety net. If the
+versioned section already exists, the script must no-op instead of stamping the
+empty `[Unreleased]` header into a duplicate release section.
+
 **Single commit**: `release: vX.Y.Z` on `dev`.
 
 ### 2.3 Testing Gate

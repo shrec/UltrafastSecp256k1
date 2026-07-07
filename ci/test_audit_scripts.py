@@ -71,6 +71,7 @@ AUDIT_SCRIPTS = [
     "sync_module_count.py",
     "test_sync_module_count.py",
     "sync_version_refs.py",
+    "stamp_changelog.py",
     "validate_assurance.py",
     "verify_slsa_provenance.py",
     "check_abi_version_sync.py",
@@ -814,6 +815,83 @@ def check_research_monitor_resilience() -> None:
             return
 
         ok(tag, "ePrint RSS, term boundaries, PQ noise discard, report rendering, and issue escalation fallbacks are covered")
+    except Exception as exc:
+        fail(tag, str(exc))
+
+
+def check_stamp_changelog_no_duplicate() -> None:
+    """Release regression: pre-stamped changelogs must not get duplicate version sections."""
+    tag = "REL:stamp_changelog_no_duplicate"
+    path = SCRIPT_DIR / "stamp_changelog.py"
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            changelog = Path(tmpdir) / "CHANGELOG.md"
+            changelog.write_text(
+                "\n".join([
+                    "# Changelog",
+                    "",
+                    "## [Unreleased]",
+                    "",
+                    "## [4.5.0] - 2026-07-07",
+                    "",
+                    "### Fixed",
+                    "",
+                    "- Existing release notes.",
+                    "",
+                    "## [4.4.0] - 2026-06-19",
+                    "",
+                ]),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, str(path), "--version", "4.5.0", "--changelog", str(changelog)],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                cwd=str(LIB_ROOT),
+            )
+            if result.returncode != 0:
+                fail(tag, f"expected exit 0, got {result.returncode}: {result.stderr[:200]}")
+                return
+            text = changelog.read_text(encoding="utf-8")
+            if text.count("## [4.5.0]") != 1:
+                fail(tag, f"duplicate 4.5.0 section after stamp: {text}")
+                return
+            if "## [Unreleased]" not in text:
+                fail(tag, "pre-stamped changelog lost [Unreleased] header")
+                return
+
+            unstamped = Path(tmpdir) / "UNSTAMPED.md"
+            unstamped.write_text(
+                "\n".join([
+                    "# Changelog",
+                    "",
+                    "## [Unreleased]",
+                    "",
+                    "### Added",
+                    "",
+                    "- New release note.",
+                    "",
+                    "## [4.4.0] - 2026-06-19",
+                    "",
+                ]),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, str(path), "--version", "4.5.0", "--changelog", str(unstamped)],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                cwd=str(LIB_ROOT),
+            )
+            if result.returncode != 0:
+                fail(tag, f"unstamped changelog failed: {result.returncode}: {result.stderr[:200]}")
+                return
+            text = unstamped.read_text(encoding="utf-8")
+            if text.count("## [4.5.0]") != 1 or "### Added" not in text:
+                fail(tag, f"unstamped changelog was not stamped correctly: {text}")
+                return
+        ok(tag, "pre-stamped changelog is no-op; unstamped changelog still stamps")
     except Exception as exc:
         fail(tag, str(exc))
 
@@ -3024,6 +3102,7 @@ def main() -> int:
     check_preflight_step_count()
     check_caas_integrity_json_purity()
     check_research_monitor_resilience()
+    check_stamp_changelog_no_duplicate()
     check_p21_semantic_requirement_map()
     check_audit_sla_pre_alert_and_block()
     check_audit_sla_build_report_not_tracked()

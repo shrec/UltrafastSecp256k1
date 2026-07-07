@@ -22,6 +22,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
+def version_section_exists(text: str, version: str) -> bool:
+    """Return true when CHANGELOG already has a section for this release."""
+    pattern = re.compile(rf"^## \[{re.escape(version)}\](?:\s|$)", re.MULTILINE)
+    return pattern.search(text) is not None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Stamp CHANGELOG.md [Unreleased] → version")
     parser.add_argument("--version", help="Version string (e.g. 3.62.0). Default: read VERSION.txt")
@@ -44,6 +50,10 @@ def main() -> int:
             return 0
 
     text = changelog.read_text(encoding="utf-8")
+
+    if version_section_exists(text, version):
+        print(f"stamp_changelog: [{version}] section already exists — nothing to stamp")
+        return 0
 
     # Match ## [Unreleased] (case-insensitive, optional trailing text)
     pattern = re.compile(r"^(## \[)[Uu]nreleased\](.*)$", re.MULTILINE)
