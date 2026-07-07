@@ -1,6 +1,17 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-06-17 | **Version**: 4.4.0
+**Last updated**: 2026-06-17 | **Version**: 4.5.0
+
+### 2026-06-22 - CPU batch-verify pool + decompress: verify-path only, no secret lifecycle change
+
+The persistent worker pool (`detail::batch_worker_pool`), the fused parse+verify in
+`ufsecp_ecdsa_verify_opaque_rows_mt`, and the FE52/point-only pubkey decompress
+(`pubkey33_to_point`) added on this date touch the unity root
+(`src/cpu/src/ufsecp_impl.cpp`) and the ECDSA/Schnorr **batch-verify** paths only. These
+process exclusively PUBLIC data (public keys, signatures, message hashes) — no private key,
+nonce, or signing share flows through them. No secret zeroization surface, key-erasure
+sequence, or `secure_erase` call site was added, removed, or reordered. The pool worker
+`thread_local` scratch holds only `ECDSABatchEntry` (public points/signatures), never secrets.
 
 ### 2026-06-18 - Bech32 address encoder allocation reduction: public-data only
 

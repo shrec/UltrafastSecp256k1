@@ -146,15 +146,45 @@ static inline void ecdsa_sig_write_opaque(
     opaque_scalar_write(sig.s, opaque64 + 32);
 }
 
+// Point-only decompress: recover the curve point from a 33-byte compressed pubkey
+// WITHOUT building the cached GLV verify tables. The batch path uses only the point
+// (dual_scalar_mul_gen_point builds its own GLV decomposition), so ecdsa_pubkey_parse's
+// build_schnorr_verify_tables (~1.95us/key) was pure waste here and dominated the
+// per-row parse (~2.6x libsecp's decompress). Mirrors the len==33 branch of
+// ecdsa_pubkey_parse (src/cpu/src/ecdsa.cpp) without the table build.
+static inline bool pubkey33_to_point(const uint8_t pubkey33[33],
+                                     secp256k1::fast::Point& out) noexcept {
+    using secp256k1::fast::FieldElement;
+    using secp256k1::fast::FieldElement52;
+    using secp256k1::fast::Point;
+    if (pubkey33[0] != 0x02 && pubkey33[0] != 0x03) return false;
+    FieldElement x;
+    if (!FieldElement::parse_bytes_strict(pubkey33 + 1, x)) return false;
+    // The dominant cost is the field sqrt. Do it in FE52 (5x52): its mul/sqr are ~3x
+    // faster than the 4x64 fast::FieldElement, and FE52 is the representation the verify
+    // (dual_scalar_mul_gen_point) uses internally anyway. y = sqrt(x^3 + 7); the QR
+    // self-check (y^2 == x^3+7) rejects x values that are not on the curve.
+    const FieldElement52 x52 = FieldElement52::from_fe(x);
+    static const std::uint64_t k7[4] = {7u, 0u, 0u, 0u};
+    const FieldElement52 y2  = x52.square() * x52 + FieldElement52::from_4x64_limbs(k7);
+    const FieldElement52 y52 = y2.sqrt();
+    if (!(y52.square() == y2)) return false;   // not on curve
+    FieldElement y = y52.to_fe();              // FE52 -> 4x64 (normalizes)
+    const bool y_is_odd = (y.limbs()[0] & 1u) != 0;
+    const bool want_odd = (pubkey33[0] == 0x03);
+    if (y_is_odd != want_odd) y = FieldElement::zero() - y;
+    out = Point::from_affine(x, y);
+    return !out.is_infinity();
+}
+
 static inline bool ecdsa_entry_from_opaque(
     const uint8_t msg32[32],
     const uint8_t pubkey33[33],
     const uint8_t opaque64[64],
     secp256k1::ECDSABatchEntry& out) noexcept {
     std::memcpy(out.msg_hash.data(), msg32, 32);
-    secp256k1::EcdsaPublicKey parsed{};
-    if (!secp256k1::ecdsa_pubkey_parse(parsed, pubkey33, 33)) return false;
-    out.public_key = parsed.point;
+    // Point-only decompress (no wasted GLV table build — batch builds its own GLV).
+    if (!pubkey33_to_point(pubkey33, out.public_key)) return false;
     return ecdsa_sig_parse_opaque(opaque64, out.signature, true);
 }
 
@@ -409,6 +439,83 @@ ufsecp_error_t ufsecp_ecdsa_verify_opaque_rows(
             return UFSECP_OK;
         }
 
+        for (size_t i = 0; i < count; ++i) {
+            const uint8_t* row = rows + i * stride;
+            secp256k1::ECDSABatchEntry one{};
+            const bool ok =
+                ecdsa_entry_from_opaque(row, row + 32, row + 65, one) &&
+                secp256k1::ecdsa_batch_verify(&one, 1);
+            out_results[i] = ok ? 1u : 0u;
+        }
+        return UFSECP_OK;
+    } UFSECP_CATCH_RETURN(ctx)
+}
+
+// Multi-threaded twin of ufsecp_ecdsa_verify_opaque_rows: identical marshalling
+// and per-row semantics; only the all-valid fast check fans across the engine's
+// multi-threaded path. The per-row locate fallback (run only after a failure)
+// stays serial. max_threads: 0 => auto, 1 => serial.
+ufsecp_error_t ufsecp_ecdsa_verify_opaque_rows_mt(
+    ufsecp_ctx* ctx,
+    const uint8_t* rows,
+    size_t stride,
+    size_t count,
+    uint8_t* out_results,
+    size_t max_threads) {
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (SECP256K1_UNLIKELY(!rows || !out_results)) return UFSECP_ERR_NULL_ARG;
+    if (stride < 129u) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "opaque row stride < 129");
+    if (count > kMaxBatchN) return ctx_set_err(ctx, UFSECP_ERR_BAD_INPUT, "batch count too large");
+    ctx_clear_err(ctx);
+    std::memset(out_results, 0, count);
+
+    try {
+        // Fused parallel parse + verify: each worker parses AND batch-verifies its own
+        // chunk of raw opaque rows in one parallel region. The previous version parsed
+        // ALL rows serially (per-row pubkey curve-check) before the parallel verify,
+        // making the serial parse an Amdahl ceiling (~28% of runtime at 50k rows) that
+        // kept the bridge slower than libsecp regardless of core count. libbitcoin runs
+        // the libsecp path with std::for_each(par) — parse+verify parallel together —
+        // so this matches that model. Thread/steal sizing mirrors ecdsa_batch_verify_mt.
+        static constexpr std::size_t kMinRowsPerThread = 128;
+        static constexpr std::size_t kStealFloor = 64;   // >= batch-inversion cutoff (8)
+        auto& wpool = secp256k1::detail::batch_worker_pool();
+        const unsigned hw = wpool.size();
+        const unsigned want = (max_threads == 0)
+            ? hw
+            : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
+        const std::size_t by_work = std::max<std::size_t>(1, count / kMinRowsPerThread);
+        const unsigned n_threads = static_cast<unsigned>(std::min<std::size_t>(
+            static_cast<std::size_t>(want), by_work));
+        const std::size_t steal = (n_threads <= 1)
+            ? count
+            : std::clamp<std::size_t>(count / (static_cast<std::size_t>(n_threads) * 4),
+                                      kStealFloor, std::size_t{4096});
+
+        // Fused parse+verify per chunk on the PERSISTENT pool: no per-call thread spawn,
+        // and the thread_local scratch below stays warm across calls (one block per call
+        // during IBD). Returns false as soon as any chunk has a bad parse or verify.
+        const bool all_valid = wpool.run(count, steal, n_threads,
+            [&](std::size_t start, std::size_t end) -> bool {
+                static thread_local std::vector<secp256k1::ECDSABatchEntry> local;
+                local.clear();
+                local.resize(end - start);
+                for (std::size_t i = start; i < end; ++i) {
+                    const uint8_t* row = rows + i * stride;
+                    if (!ecdsa_entry_from_opaque(row, row + 32, row + 65, local[i - start]))
+                        return false;
+                }
+                return secp256k1::ecdsa_batch_verify(local.data(), end - start);
+            });
+
+        if (all_valid) {
+            std::memset(out_results, 1, count);
+            return UFSECP_OK;
+        }
+
+        // Mixed/invalid batch: serial per-row locate so the caller learns exactly which
+        // rows failed (fail-closed). Only runs after the fast path reported a failure.
         for (size_t i = 0; i < count; ++i) {
             const uint8_t* row = rows + i * stride;
             secp256k1::ECDSABatchEntry one{};

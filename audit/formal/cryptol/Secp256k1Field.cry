@@ -52,25 +52,33 @@ P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2F
 // Basic modular reduction using the Solinas form p = 2^256 - 2^32 - 977
 // This matches the lazy-reduction strategy used in the C implementation.
 reduce_naive : [Width+1] -> FieldElement
-reduce_naive x = (drop`{1} x) % P  // reference: correct but not constant-time
+reduce_naive x = drop`{1} (x % ((zero : [1]) # P))  // reduce the full [Width+1] then narrow
 
 // ---------------------------------------------------------------------------
 // Field operations (modular, all values in [0, P-1])
 // ---------------------------------------------------------------------------
 
+// Zero-extend by one bit so a+b (< 2P) does not wrap mod 2^Width before reduction.
 field_add : FieldElement -> FieldElement -> FieldElement
-field_add a b = (a + b) % P
+field_add a b = drop`{1} ((ext a + ext b) % ext P)
+  where ext x = (zero : [1]) # x   // [Width+1]
 
+// a + P - b is in (0, 2P); the +1 bit prevents wrap, and a+P >= b avoids underflow.
 field_sub : FieldElement -> FieldElement -> FieldElement
-field_sub a b = (a + P - b) % P
+field_sub a b = drop`{1} ((ext a + ext P - ext b) % ext P)
+  where ext x = (zero : [1]) # x   // [Width+1]
 
+// Full-width modular multiply. Cryptol's (*) on [Width] is multiplication
+// modulo 2^Width (it truncates the high half), so a and b are first zero-extended
+// to 2*Width — the product a*b < (2^Width)^2 then fits without wrapping. Reduce
+// mod P and drop back to Width (the result is < P < 2^Width, so the high half is 0).
 field_mul : FieldElement -> FieldElement -> FieldElement
-field_mul a b = (((zero : [Width]) # a) * ((zero : [Width]) # b)) % ((zero : [Width]) # P)
-               where result_wide = a * b  // 512-bit intermediate
+field_mul a b = drop`{Width} ((ext a * ext b) % ext P)
+  where ext x = (zero : [Width]) # x   // [2*Width]
 
-// Simpler correct version for property checking:
+// Alias: the property names and call sites use the "_ref" spelling. Same correct op.
 field_mul_ref : FieldElement -> FieldElement -> FieldElement
-field_mul_ref a b = (a * b) % P  // Cryptol handles arbitrary-width automatically
+field_mul_ref = field_mul
 
 field_neg : FieldElement -> FieldElement
 field_neg a = if a == 0 then 0 else P - a
@@ -84,20 +92,22 @@ field_inv : FieldElement -> FieldElement
 field_inv a =
     if a == 0
     then 0  // 0 has no inverse; convention: return 0
-    else pow_mod a (P - 2) P
+    else pow_mod a (P - 2)
 
-// Modular exponentiation (square-and-multiply): for spec use only
-pow_mod : FieldElement -> FieldElement -> FieldElement -> FieldElement
-pow_mod base exp modulus = pow_loop base exp modulus 1
+// Modular exponentiation (square-and-multiply) mod P: for spec use only.
+// All field operations reduce mod P (field_mul_ref), so this is exponentiation
+// in GF(p). The exponent is concrete at every call site (P-2, (P+1)/4, (P-1)/2),
+// so the recursion unrolls deterministically (Width steps).
+pow_mod : FieldElement -> FieldElement -> FieldElement
+pow_mod base exp = pow_loop base exp 1
   where
-    pow_loop b e m acc =
+    pow_loop b e acc =
         if e == 0
         then acc
-        else pow_loop (field_mul_ref b b `{p=modulus})
+        else pow_loop (field_mul_ref b b)
                       (e >> 1)
-                      m
                       (if e ! 0
-                       then field_mul_ref acc b `{p=modulus}
+                       then field_mul_ref acc b
                        else acc)
     // Note: Cryptol's recursion here is for spec clarity, not CT
 
@@ -106,13 +116,13 @@ field_div a b = field_mul_ref a (field_inv b)
 
 // Square root: a^((P+1)/4) mod P  (P ≡ 3 mod 4 for secp256k1)
 field_sqrt : FieldElement -> FieldElement
-field_sqrt a = pow_mod a ((P + 1) / 4) P
+field_sqrt a = pow_mod a ((P + 1) / 4)
 
 // Legendre symbol: 1 if a is QR, -1 if NR, 0 if a=0
 field_is_square : FieldElement -> Bit
 field_is_square a =
     if a == 0 then True
-    else pow_mod a ((P - 1) / 2) P == 1
+    else pow_mod a ((P - 1) / 2) == 1
 
 // ---------------------------------------------------------------------------
 // Field invariant predicates
@@ -179,9 +189,9 @@ property field_mul_inverse a =
 // Square root: sqrt(a)^2 == a for quadratic residues
 property field_sqrt_correct a =
     (a < P /\ field_is_square a) ==>
-    let s = field_sqrt a
-    in  field_mul_ref s s == a \/ field_mul_ref (field_neg s) (field_neg s) == a
+    (field_mul_ref s s == a \/ field_mul_ref (field_neg s) (field_neg s) == a)
     // sqrt may return either square root; both are valid
+    where s = field_sqrt a
 
 // Square consistency
 property field_sqr_eq_mul_self a =

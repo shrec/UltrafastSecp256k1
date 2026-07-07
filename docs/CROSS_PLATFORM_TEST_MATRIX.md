@@ -34,7 +34,7 @@
 | 20 | gpu_audit              | GPU                 | ~300   | CUDA GPU unified audit (all modules)                             |
 | 21 | gpu_ct_smoke           | GPU                 | ~9     | CUDA CT smoke: ZK knowledge + DLEQ prove/verify                 |
 | 22 | opencl_selftest        | GPU                 | ~50    | OpenCL GPU kernel selftest                                       |
-| 23 | opencl_audit           | GPU                 | ~300   | OpenCL GPU unified audit ( 430 modules, 8 sections)               |
+| 23 | opencl_audit           | GPU                 | ~300   | OpenCL GPU unified audit ( 436 modules, 8 sections)               |
 | 24 | ct_sidechannel         | Constant-Time       | ~300   | Full CT: dudect Welch t-test, 600s timeout                      |
 | 25 | ct_sidechannel_smoke   | Constant-Time       | ~100   | CT smoke: basic correctness, 120s CI-safe                       |
 | 26 | differential           | Differential Test   | ~200   | Differential testing: fast vs CT layer output equivalence        |
@@ -52,7 +52,7 @@
 | 38 | fiat_crypto_linkage    | Differential        | ~50    | Independent reference linkage verification                       |
 | 39 | audit_fuzz             | Fuzz Testing        | ~500   | Fuzz-derived audit: random inputs through all paths              |
 | 40 | diag_scalar_mul        | Diagnostics         | ~50    | Scalar multiplication step-by-step diagnostic                    |
-| 41 | unified_audit          | Full Audit          | 419 modules | Unified audit runner: 149 non-exploit modules + 269 exploit PoCs in a single binary |
+| 41 | unified_audit          | Full Audit          | 419 modules | Unified audit runner: 149 non-exploit modules + 270 exploit PoCs in a single binary |
 
 ---
 
@@ -178,7 +178,7 @@ Individual check counts:
   fiat_crypto_linkage ....... ~50  checks
   audit_fuzz ................ ~500 checks
   diag_scalar_mul ........... ~50  checks
-  unified_audit ............. 430 modules (161 non-exploit + 269 exploit PoCs)
+  unified_audit ............. 436 modules (166 non-exploit + 270 exploit PoCs)
   -----------------------------------------
   TOTAL (estimated):         ~6400+ individual assertions
 ```

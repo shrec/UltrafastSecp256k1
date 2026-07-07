@@ -84,7 +84,9 @@
 | `ufsecp_ecdsa_verify_opaque` | Y | - | Y (opaque parse + low-S normalize) | Y (libbitcoin/libsecp wrapper parity) | N/A (public verify) | - | Y (block 704789 tuple via verify path) | N/A |
 | `ufsecp_ecdsa_verify_opaque_batch` | Y | - | Y (invalid row result isolation) | Y (compact batch parity) | N/A (public verify) | - | - | N/A |
 | `ufsecp_ecdsa_batch_verify_mt` | Y (regression_ecdsa_batch_verify_mt) | - | Y (single-sig corruption at every thread count) | Y (MT==serial parity {0,1,2,4,8,64} + multi-chunk propagation) | N/A (public verify — threading no side-channel) | - | - | N/A |
+| `ufsecp_schnorr_batch_verify_mt` | Y (test_lbtc_bridge MT parity) | - | Y (n=0/null via test_c_abi_negative) | Y (MT==serial parity {0,1,2,8} via libbitcoin bridge) | N/A (public verify — threading no side-channel) | - | - | N/A |
 | `ufsecp_ecdsa_verify_opaque_rows` | Y | - | Y (stride/null/invalid rows) | Y (libbitcoin row parity) | N/A (public verify) | - | - | N/A |
+| `ufsecp_ecdsa_verify_opaque_rows_mt` | Y (test_lbtc_bridge MT parity) | - | Y (stride/null via test_c_abi_negative) | Y (MT==serial libbitcoin row parity {0,1,2,8} + 4096-boundary) | N/A (public verify — threading no side-channel) | - | - | N/A |
 | `ufsecp_ecdsa_sign_recoverable` | Y | Y | Y (edge recids) | Y | Y (CT sign) | Y (CUDA `recovery.cuh`) | - | Y |
 | `ufsecp_ecdsa_recover` | Y | Y | Y (recid=4, wrong) | Y | N/A (public) | Y (CUDA `recovery.cuh`) | - | N/A |
 
@@ -587,7 +589,7 @@ closure pass on 2026-04-06.
 
 ---
 
-## 30. GPU C ABI (`ufsecp_gpu_*`) -- 37 functions
+## 30. GPU C ABI (`ufsecp_gpu_*`) -- 39 functions
 
 Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque context (`ufsecp_gpu_ctx*`).
 
@@ -616,8 +618,8 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_ecdsa_verify_opaque_rows` | Y | Y | Y | Y (GPU==CPU opaque row) | Strided `hash|pubkey|opaque-sig|tail` rows; parses copied libsecp-compatible signature storage in-kernel |
 | `ufsecp_gpu_ecdsa_verify_lbtc_rows` | Y | Y | Y | Y (alias parity) | Libbitcoin compatibility alias for opaque ECDSA rows; fail-closed null/stride checks before forwarding |
 | `ufsecp_gpu_schnorr_verify_batch` | Y | Y | Y | - | BIP-340 batch verify |
-| `ufsecp_gpu_ecdsa_verify_collect` | fb | Y | fb | Y (GPU==CPU==libsecp) | libbitcoin collect: CUDA native kernel; OpenCL/Metal host-collapse fallback |
-| `ufsecp_gpu_schnorr_verify_collect` | fb | Y | fb | Y (GPU==CPU==libsecp) | libbitcoin collect: CUDA native kernel; OpenCL/Metal host-collapse fallback |
+| `ufsecp_gpu_ecdsa_verify_collect` | Y | Y | Y | Y (GPU==CPU==libsecp) | libbitcoin collect: native on-device kernel on all 3 backends (verbatim clone of `*_verify_lbtc_columns` verify, collect output store). OpenCL verified on-device (NVIDIA); Metal native, runtime parity pending Apple validation |
+| `ufsecp_gpu_schnorr_verify_collect` | Y | Y | Y | Y (GPU==CPU==libsecp) | libbitcoin collect: native on-device kernel on all 3 backends (verbatim clone of `*_verify_lbtc_columns` verify, collect output store). OpenCL verified on-device (NVIDIA); Metal native, runtime parity pending Apple validation |
 | `ufsecp_gpu_ecdh_batch` | Y | Y | Y | - | SECRET-BEARING |
 | `ufsecp_gpu_hash160_pubkey_batch` | Y | Y | Y | - | SHA-256+RIPEMD-160 |
 | `ufsecp_gpu_msm` | Y | Y | Y | - | Multi-scalar multiplication |
@@ -627,6 +629,9 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_pubkey_validate` | fb | Y | fb | Y (GPU==shim ec_pubkey_parse) | libbitcoin: batch full compressed-pubkey validation; CUDA native kernel, OpenCL/Metal CPU fallback |
 | `ufsecp_gpu_tagged_hash_var` | fb | Y | fb | Y (GPU==shim tagged_sha256) | libbitcoin: TapLeaf per-item-length tagged hash; CUDA native kernel, OpenCL/Metal CPU fallback |
 | `ufsecp_gpu_hash256` | fb | Y | fb | Y (GPU==SHA256d ref) | libbitcoin: batch HASH256 / merkle node hashing; CUDA native kernel, OpenCL/Metal CPU fallback |
+| `ufsecp_gpu_hash256_var` | Y | Y | Y | Y (GPU==SHA256d ref, cross-backend parity) | libbitcoin: batch variable-length HASH256 (txid/wtxid preimage primitive, no tag prefix, no tx parsing); CUDA/OpenCL/Metal native block-streaming SHA-256 kernels (no fixed-buffer cap); stride <= kMaxHash256VarStride (4 MiB); host-validates per-row input_lens[i] in [1,stride] |
+| `ufsecp_gpu_ecdsa_verify_lbtc_columns` | Y | Y | Y | Y (GPU==CPU lbtc columns) | libbitcoin: batch ECDSA column verify (digests32 | pubkeys33 | opaque-LE sig64); Structure-of-Arrays layout |
+| `ufsecp_gpu_schnorr_verify_lbtc_columns` | Y | Y | Y | Y (GPU==CPU lbtc columns) | libbitcoin: batch Schnorr column verify (digests32 | xonly32 | BIP-340 sig64); Structure-of-Arrays layout |
 | `ufsecp_gpu_frost_verify_partial_batch` | Y | Y | Y | - | Batch FROST partial verification |
 | `ufsecp_gpu_ecrecover_batch` | Y | Y | Y | - | Recover compressed pubkeys from recoverable ECDSA sigs |
 | `ufsecp_gpu_zk_knowledge_verify_batch` | - | - | - | CUDA only | Batch ZK knowledge proof verification |
@@ -639,7 +644,8 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_bip352_scan_batch` | Y | Y | Y | CUDA+OpenCL | BIP-352 Silent Payment GPU batch scan; scan_privkey SECRET-BEARING |
 
 **Test file:** `audit/test_gpu_abi_gate.cpp` (opaque-row alias negative tests),
-`audit/test_gpu_ops_equivalence.cpp`, `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp`
+`audit/test_gpu_ops_equivalence.cpp`, `audit/test_gpu_lbtc_columns_diff.cpp`,
+`compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp`
 
 ---
 
@@ -687,6 +693,22 @@ Files with `secure_erase` for secret data cleanup:
 **Implementation:** `secp256k1::detail::secure_erase` (compiler-barrier-protected memset that cannot be optimized away).
 
 ---
+
+## Informational: header-only libbitcoin public-data batch ops (non-ABI)
+
+The six `ufsecp::lbtc::*` public-data batch ops added 2026-07-04 —
+`xonly_validate_batch`, `pubkey_validate_batch`,
+`taproot_commitment_verify_batch`, `tagged_hash_batch`, `tagged_hash_var_batch`,
+`hash256_batch` — are **header-only C++ inline functions** in
+`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`, NOT `UFSECP_API`
+C-ABI (`ufsecp_*`) exports. They therefore carry **no ABI ledger-row
+obligation**: `ci/validate_assurance.py` mandates rows only for `UFSECP_API
+ufsecp_*` declarations, and zero such declarations are added (no C ABI, no new
+`GpuBackend` virtual). Their assurance is carried by the `lbtc_direct_verify`
+CTest (success + hostile-caller coverage per op) and the six rows in
+`docs/BACKEND_ASSURANCE_MATRIX.md` (§ *libbitcoin public-data batch ops*).
+All six are PUBLIC-DATA / variable-time — no secret is touched, so the CT-path
+and Zeroization columns are N/A.
 
 ## Summary Statistics
 

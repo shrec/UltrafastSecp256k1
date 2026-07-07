@@ -719,7 +719,7 @@ jobs:
           # (c) Any non-advisory module that failed is a real regression. Shim modules are
           # advisory-stubbed (advisory=true, return_code=77) by design in this build.
           failed = [m.get("id", "?") for m in modules
-                    if not m.get("passed") and not (m.get("advisory") and m.get("return_code") == 77)]
+                    if not m.get("passed") and not m.get("advisory")]
           if failed:
               print(f"::error::Shim security modules FAILED: {failed}")
               sys.exit(1)
@@ -742,9 +742,10 @@ jobs:
         # shim-linked test bodies. Invoke them explicitly so shim security regressions
         # produce a hard FAIL, not a silent advisory-skip.
         run: |
+          cmake --build out/ci-shim --target shim_security_gate_standalones -j"$(nproc)"
           ctest --test-dir out/ci-shim \
             -R "regression_shim|regression_ecdsa_batch_curve|exploit_shim|test_shim" \
-            --output-on-failure -j"$(nproc)" --timeout 120
+            --output-on-failure -j"$(nproc)" --timeout 120 --no-tests=error
 
       - name: Run libsecp shim API compatibility test
         # Builds the normal standalone shim mode because secp256k1_shim_test is

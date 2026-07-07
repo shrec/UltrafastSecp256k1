@@ -12,13 +12,13 @@
 
 ## Scope
 
-This report covers **UltrafastSecp256k1 v4.4.0+** internal verification results.
+This report covers **UltrafastSecp256k1 v4.5.0+** internal verification results.
 All data below can be independently reproduced
 from source using the commands in [How to Reproduce](#how-to-reproduce).
 
 | | |
 |---|---|
-| Version | 4.4.0 |
+| Version | 4.5.0 |
 | Branch | `dev` |
 | Report Date | 2026-04-09 |
 | Methodology | Automated deterministic + statistical |
@@ -277,7 +277,7 @@ and all language bindings (Python, Rust, Go, C#, Node.js, etc.).
 - 0 crashes across ~580K+ fuzz iterations (11 libFuzzer harnesses + 2 structured suites)
 - Three-tier CT verification: ct-verif (LLVM IR, CI), Valgrind CT (CI), dudect (statistical, CI) — all passing
 - Cryptol algebraic specifications for field, point, ECDSA, and Schnorr (QuickCheck validated)
-- 269 exploit PoCs security probes covering 20+ CVE/attack classes — all passing
+- 270 exploit PoCs security probes covering 20+ CVE/attack classes — all passing
 - 108 mathematical invariants cataloged, 107 fully verified
 - 263 unified audit modules across 9 failure classes — single-command reproducible
 - 14 CI workflows enforcing the above on every commit
@@ -315,7 +315,7 @@ cmake -S . -B out/release -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DSECP256K1_BUILD_PROTOCOL_TESTS=ON
 cmake --build out/release -j
 
-# === ONE-COMMAND FULL AUDIT ( 430 modules, 9 failure classes, ~10 min) ===
+# === ONE-COMMAND FULL AUDIT ( 436 modules, 9 failure classes, ~10 min) ===
 ./build/audit/unified_audit_runner
 
 # === Individual verification paths ===
@@ -332,7 +332,7 @@ ctest --test-dir build -R test_cross_libsecp256k1 -V
 # dudect side-channel (smoke)
 ctest --test-dir build -R ct_sidechannel_smoke -V
 
-# Exploit PoC security probes (269 probes)
+# Exploit PoC security probes (270 probes)
 ctest --test-dir build -R exploit -V
 
 # Machine-readable assurance artifact
@@ -369,5 +369,5 @@ ctest --test-dir build-san --output-on-failure
 
 ---
 
-*UltrafastSecp256k1 v4.4.0 -- Verification Transparency Report*
+*UltrafastSecp256k1 v4.5.0 -- Verification Transparency Report*
 *CAAS evidence is published for independent replay and review.*

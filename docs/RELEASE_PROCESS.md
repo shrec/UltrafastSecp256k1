@@ -53,6 +53,10 @@ Mandatory rules:
 | `CHANGELOG.md` | Add release section with date, summary, breaking changes |
 | Binding manifests** | Update version where needed: `Cargo.toml`, `package.json`, **`conanfile.py`**, **`vcpkg.json`** (these hardcode `4.0.0` — must be bumped manually alongside `VERSION.txt`) |
 
+Release automation runs `ci/stamp_changelog.py` as a safety net. If the
+versioned section already exists, the script must no-op instead of stamping the
+empty `[Unreleased]` header into a duplicate release section.
+
 **Single commit**: `release: vX.Y.Z` on `dev`.
 
 ### 2.3 Testing Gate
@@ -136,6 +140,14 @@ Build platform binaries:
 | WASM | Emscripten 3.1+ | `ufsecp.wasm`, `ufsecp.js` |
 
 > **Future**: Deterministic Docker builds (task 2.5.1), signed binaries (task 2.5.3).
+
+Desktop and native Linux ARM64 package archives are product-library
+allowlisted. `lib/static` and `lib/shared` may contain only `ufsecp*` native ABI
+libraries and `ultrafast_secp256k1*` libsecp256k1-compatible ABI libraries.
+CI/audit/test artifacts such as `test_*_standalone.lib`, `test_exploit_*`, fuzz,
+benchmark, or internal helper libraries are build-tree artifacts only and must
+not ship in a consumer archive. The release workflow enforces this with
+`ci/check_release_package_contents.py` before archiving.
 
 ### 3.5 GitHub Release
 

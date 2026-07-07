@@ -776,6 +776,108 @@ static void test_musig_keyagg_cross(const secp256k1_context* ctx) {
     std::printf("    %d checks OK\n\n", g_pass);
 }
 
+// -- Test 13: Adversarial consensus parity ------------------------------------
+// Compares the engine's accept/reject DECISION against libsecp256k1 on adversarial
+// inputs (malleability, boundary, random). It does NOT assume an outcome — any
+// disagreement is a consensus divergence. Both libraries receive the identical
+// (reduced) (r,s)/(rx,s) bytes.
+static bool ref_ecdsa_accepts(const secp256k1_context* ctx,
+                              const std::array<uint8_t, 32>& msg,
+                              const uint8_t* sk,
+                              const std::array<uint8_t, 64>& compact) {
+    secp256k1_ecdsa_signature rs;
+    if (secp256k1_ecdsa_signature_parse_compact(ctx, &rs, compact.data()) != 1) return false;
+    secp256k1_pubkey rpk;
+    if (secp256k1_ec_pubkey_create(ctx, &rpk, sk) != 1) return false;
+    return secp256k1_ecdsa_verify(ctx, &rs, msg.data(), &rpk) == 1;
+}
+
+static void test_adversarial_consensus(const secp256k1_context* ctx) {
+    const int N = SCALED(400, 40) * g_multiplier;
+    std::printf("[13] Adversarial consensus parity (high-S, zero r/s, random) (%d rounds)\n", N);
+
+    int hi_s_checked = 0, zero_checked = 0, rand_checked = 0, schnorr_checked = 0;
+
+    for (int i = 0; i < N; ++i) {
+        auto sk_bytes = random_seckey(ctx);
+        auto msg = random_bytes32(rng);
+        auto uf_sk = scalar_from_bytes32(sk_bytes.data());
+        auto uf_pk = uf::Point::generator().scalar_mul(uf_sk);
+        auto base = secp256k1::ecdsa_sign(msg, uf_sk);  // canonical low-S
+
+        // --- A. high-S: the raw-math CORE secp256k1::ecdsa_verify accepts both s and
+        //     n-s by design (documented in ecdsa.cpp). libsecp's verify REJECTS high-S;
+        //     the libsecp-compatible shim secp256k1_ecdsa_verify and the native
+        //     ufsecp_ecdsa_verify enforce BIP-62 low-S (covered by the shim regression
+        //     test test_regression_shim_ecdsa_high_s). So here we only pin the documented
+        //     core behavior — it intentionally differs from upstream at this layer. ---
+        {
+            secp256k1::ECDSASignature hi = base;
+            hi.s = base.s.negate();
+            CHECK(secp256k1::ecdsa_verify(msg, uf_pk, hi),
+                  "ECDSA high-S: raw-math core accepts by design (shim/ufsecp enforce low-S)");
+            ++hi_s_checked;
+        }
+
+        // --- B. zero r and zero s: both MUST reject ---
+        {
+            secp256k1::ECDSASignature z0 = base; z0.r = uf::Scalar::zero();
+            secp256k1::ECDSASignature z1 = base; z1.s = uf::Scalar::zero();
+            for (auto* z : { &z0, &z1 }) {
+                bool eng = secp256k1::ecdsa_verify(msg, uf_pk, *z);
+                bool ref = ref_ecdsa_accepts(ctx, msg, sk_bytes.data(), z->to_compact());
+                CHECK(eng == ref, "ECDSA zero r/s: engine vs libsecp accept-parity");
+                ++zero_checked;
+            }
+        }
+
+        // --- C. random (mostly-invalid) sig: reject-parity sweep ---
+        {
+            auto rb = random_bytes32(rng);
+            auto sb = random_bytes32(rng);
+            secp256k1::ECDSASignature rnd;
+            rnd.r = uf::Scalar::from_bytes(rb);
+            rnd.s = uf::Scalar::from_bytes(sb);
+            // canonicalize libsecp side with the SAME reduced (r,s) the engine holds
+            std::array<uint8_t, 64> compact{};
+            auto rr = rnd.r.to_bytes(); auto ss = rnd.s.to_bytes();
+            std::memcpy(compact.data(), rr.data(), 32);
+            std::memcpy(compact.data() + 32, ss.data(), 32);
+            bool eng = secp256k1::ecdsa_verify(msg, uf_pk, rnd);
+            bool ref = ref_ecdsa_accepts(ctx, msg, sk_bytes.data(), compact);
+            CHECK(eng == ref, "ECDSA random sig: engine vs libsecp accept-parity");
+            ++rand_checked;
+        }
+
+        // --- D. Schnorr high-S/tamper reject-parity (x-only pubkey) ---
+        {
+            std::array<uint8_t, 32> aux{};
+            auto kp = secp256k1::schnorr_keypair_create(uf_sk);
+            auto px = secp256k1::schnorr_pubkey(uf_sk);
+            auto sig = secp256k1::schnorr_sign(kp, msg, aux);
+            // tamper: s' = n - s  (must reject)
+            secp256k1::SchnorrSignature t = sig;
+            t.s = sig.s.negate();
+            bool eng = secp256k1::schnorr_verify(px.data(), msg.data(), t);
+            // libsecp side: 64-byte (rx || s'), x-only pubkey px
+            std::array<uint8_t, 64> sig64{};
+            std::memcpy(sig64.data(), t.r.data(), 32);
+            auto ts = t.s.to_bytes();
+            std::memcpy(sig64.data() + 32, ts.data(), 32);
+            secp256k1_xonly_pubkey xpk;
+            bool ref = false;
+            if (secp256k1_xonly_pubkey_parse(ctx, &xpk, px.data()) == 1) {
+                ref = secp256k1_schnorrsig_verify(ctx, sig64.data(), msg.data(), 32, &xpk) == 1;
+            }
+            CHECK(eng == ref, "Schnorr tampered-s: engine vs libsecp accept-parity");
+            CHECK(!eng, "Schnorr tampered-s: engine REJECTS");
+            ++schnorr_checked;
+        }
+    }
+    std::printf("    %d checks OK  (high-S:%d zero:%d random:%d schnorr:%d)\n\n",
+                g_pass, hi_s_checked, zero_checked, rand_checked, schnorr_checked);
+}
+
 int main(int argc, char* argv[]) {
     if (argc > 1) {
         g_multiplier = std::atoi(argv[1]);
@@ -809,6 +911,7 @@ int main(int argc, char* argv[]) {
     test_extended_edge_cases(ctx);        // [10] overflow/doubling/mutation
     test_ecdh_cross(ctx);                 // [11] ECDH shared secret
     test_musig_keyagg_cross(ctx);         // [12] MuSig2 key aggregation
+    test_adversarial_consensus(ctx);      // [13] adversarial accept/reject parity
 
     secp256k1_context_destroy(ctx);
 

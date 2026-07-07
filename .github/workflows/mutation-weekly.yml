@@ -59,6 +59,12 @@ jobs:
         id: mutation
         env:
           THRESHOLD: ${{ github.event.inputs.threshold || '75' }}
+          # issue #313: the baseline `unified_audit` run timed out at the 90s
+          # default before any mutant was tested, and the timeout was reported
+          # as a kill-rate regression. Give the full suite a deterministic,
+          # generous baseline/per-mutation timeout suitable for weekly CI.
+          UFSECP_MUTATION_BUILD_TIMEOUT: '900'
+          UFSECP_MUTATION_TEST_TIMEOUT: '900'
         run: |
           set +e
           python3 ci/mutation_kill_rate.py \
@@ -68,7 +74,9 @@ jobs:
           rc=$?
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           echo "report:"
-          python3 -c "import json; r=json.load(open('mutation_report.json')); print(json.dumps({k:r.get(k) for k in ('kill_rate_percent','threshold','total_mutants','killed','survived')}, indent=2))" || true
+          # Use real schema keys (kill_rate_pct/threshold_pct/total), not the
+          # old invented names that rendered as None (issue #313).
+          python3 -c "import json; r=json.load(open('mutation_report.json')); print(json.dumps({k:r.get(k) for k in ('failure_class','kill_rate_pct','threshold_pct','total','testable','killed','survived','baseline_build_ok','baseline_test_ok')}, indent=2))" || true
           exit 0
 
       - name: Upload mutation report
@@ -84,22 +92,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -e
-          TITLE='mutation-kill-rate-regression'
-          BODY=$(python3 -c "
-          import json
-          r=json.load(open('mutation_report.json'))
-          print(f\"Weekly mutation gate failed.\\n\\n\"
-                f\"- kill_rate_percent: {r.get('kill_rate_percent')}\\n\"
-                f\"- threshold: {r.get('threshold')}\\n\"
-                f\"- total_mutants: {r.get('total_mutants')}\\n\"
-                f\"- survived: {r.get('survived')}\\n\\n\"
-                f\"See workflow run for full report. CAAS H-4.\")
-          ")
+          # Visibility step — must never red the advisory job (see header).
+          # Tolerate missing labels / API hiccups: warn, never fail.
+          set +e
+          # The issue body is rendered by the harness (single tested source of
+          # truth) so a baseline timeout is labelled as an infrastructure
+          # failure and no metric renders as None (issue #313). Title reflects
+          # the failure_class so a baseline failure is not filed as a regression.
+          BODY=$(python3 ci/mutation_kill_rate.py --render-issue-body mutation_report.json)
+          KIND=$(python3 -c "import json;print(json.load(open('mutation_report.json')).get('failure_class') or 'kill_rate_regression')" 2>/dev/null || echo 'kill_rate_regression')
+          if [ "$KIND" = "baseline_infrastructure" ]; then
+            TITLE='mutation-weekly-baseline-failure'
+            LABELS='mutation,infrastructure'
+          else
+            TITLE='mutation-kill-rate-regression'
+            LABELS='regression,mutation'
+          fi
           # Reuse one open issue rather than spamming a new one each week.
           existing=$(gh issue list --search "$TITLE in:title" --state open --json number --jq '.[0].number' || echo '')
           if [ -n "$existing" ]; then
-            gh issue comment "$existing" --body "$BODY"
+            gh issue comment "$existing" --body "$BODY" \
+              || echo "::warning::failed to comment on issue #$existing (non-fatal)"
           else
-            gh issue create --title "$TITLE" --body "$BODY" --label "regression,mutation"
+            gh issue create --title "$TITLE" --body "$BODY" --label "$LABELS" \
+              || echo "::warning::failed to open regression issue (non-fatal)"
           fi
+          exit 0

@@ -36,6 +36,22 @@ macro(audit_target_defaults target_name)
     if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND WIN32))
         target_link_options(${target_name} PRIVATE "LINKER:/STACK:8388608")
     endif()
+    # Drop the GPU column-verify provider retention anchor for standalone audit
+    # binaries that compile src/cpu/src/ufsecp_gpu_impl.cpp as a raw source WITHOUT
+    # the provider TU (src/gpu/src/gpu_engine_hook.cpp, which defines the exported
+    # secp256k1_gpu_columns_provider_anchor). ufsecp_gpu_impl.cpp holds a STRONG
+    # link-retention reference to that anchor; on the CPU-only (GitHub) CI no GPU
+    # host is built, so libufsecp carries no ufsecp_gpu_impl.o / anchor and the
+    # raw-source copy compiled here has an undefined reference that breaks the link
+    # (anchor-link regression). These standalone tests never exercise the transparent
+    # GPU column-verify dispatch, so dropping the self-install retention is a no-op
+    # (UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR — see src/cpu/src/ufsecp_gpu_impl.cpp).
+    # The unified audit runner lists gpu_engine_hook.cpp among its own sources, so the
+    # guard below leaves the anchor enabled there (provider present, resolves cleanly).
+    get_target_property(_atd_sources ${target_name} SOURCES)
+    if(_atd_sources MATCHES "ufsecp_gpu_impl" AND NOT _atd_sources MATCHES "gpu_engine_hook")
+        target_compile_definitions(${target_name} PRIVATE UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR)
+    endif()
 endmacro()
 
 # ===========================================================================
@@ -236,6 +252,33 @@ if(TARGET secp256k1_gpu_host AND (TARGET ufsecp_shared OR TARGET ufsecp_static))
     add_test(NAME gpu_abi_gate COMMAND test_gpu_abi_gate)
     set_tests_properties(gpu_abi_gate PROPERTIES TIMEOUT 60)
 
+    # -- GPU libbitcoin column verify differential (GPU columns vs CPU per-row) --
+    add_executable(test_gpu_lbtc_columns_diff test_gpu_lbtc_columns_diff.cpp)
+    target_link_libraries(test_gpu_lbtc_columns_diff PRIVATE ${UFSECP_GPU_TEST_LIB})
+    target_include_directories(test_gpu_lbtc_columns_diff PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_BINARY_DIR}/include/ufsecp
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include  # secp256k1/batch_verify.hpp (engine hook + columns entrypoints)
+    )
+    target_compile_definitions(test_gpu_lbtc_columns_diff PRIVATE STANDALONE_TEST)
+    add_test(NAME lbtc_gpu_columns_diff COMMAND test_gpu_lbtc_columns_diff)
+    set_tests_properties(lbtc_gpu_columns_diff PROPERTIES
+        TIMEOUT 120
+        LABELS "gpu;libbitcoin;columns;differential")
+
+    # -- GPU collect-verify parity (native collect verdict == verify_batch verdict) --
+    add_executable(test_gpu_collect_verify_parity test_gpu_collect_verify_parity.cpp)
+    target_link_libraries(test_gpu_collect_verify_parity PRIVATE ${UFSECP_GPU_TEST_LIB})
+    target_include_directories(test_gpu_collect_verify_parity PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_BINARY_DIR}/include/ufsecp
+    )
+    target_compile_definitions(test_gpu_collect_verify_parity PRIVATE STANDALONE_TEST)
+    add_test(NAME gpu_collect_verify_parity COMMAND test_gpu_collect_verify_parity)
+    set_tests_properties(gpu_collect_verify_parity PROPERTIES
+        TIMEOUT 120
+        LABELS "gpu;libbitcoin;collect;differential")
+
     # -- GPU ops equivalence (GPU vs CPU reference) --
     add_executable(test_gpu_ops_equivalence test_gpu_ops_equivalence.cpp)
     target_link_libraries(test_gpu_ops_equivalence PRIVATE ${UFSECP_GPU_TEST_LIB})
@@ -318,6 +361,7 @@ if(TARGET secp256k1_gpu_host AND (TARGET ufsecp_shared OR TARGET ufsecp_static))
             test_gpu_host_api_negative test_gpu_backend_matrix
             test_gpu_ecdsa_snark_witness test_gpu_bip352_scan
             test_gpu_zk_prove_verify_differential
+            test_gpu_collect_verify_parity
             PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE
         )
     endif()
@@ -3667,8 +3711,17 @@ add_executable(unified_audit_runner
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp
+    # Engine GPU column-verify provider: defines secp256k1_gpu_columns_provider_anchor
+    # (ODR-used by ufsecp_gpu_impl.cpp above) and self-installs the engine hook so the
+    # gpu_lbtc_columns_diff dispatcher check sees a non-null provider. Without this TU
+    # the runner fails to link (undefined reference to the anchor).
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_engine_hook.cpp
     test_gpu_host_api_negative.cpp
     test_gpu_abi_gate.cpp
+    # GPU vs CPU libbitcoin column verify + engine-dispatcher CPU-fallback contract
+    test_gpu_lbtc_columns_diff.cpp
+    # Native GPU collect verdict == verify_batch verdict per-row (null-ctx contract runs CPU-only)
+    test_gpu_collect_verify_parity.cpp
     # CPU range-proof → GPU Bulletproof poly-check consistency (advisory; skips w/o GPU/ZK)
     test_gpu_zk_prove_verify_differential.cpp
     # -- field representation tests --
@@ -4582,8 +4635,11 @@ message(STATUS "  Full audit script (Linux):   audit/run_full_audit.sh")
 find_package(Python3 QUIET COMPONENTS Interpreter)
 if(Python3_FOUND)
     set(_py_scripts_dir "${CMAKE_CURRENT_SOURCE_DIR}/../ci")
-    set(_uf_lib "$<TARGET_FILE:ufsecp_shared>")
     set(_py_env "PYTHONPATH=${_py_scripts_dir}")
+    set(_python_ctypes_audit_tests_registered OFF)
+
+    if(TARGET ufsecp_shared)
+    set(_uf_lib "$<TARGET_FILE:ufsecp_shared>")
 
     add_test(NAME py_differential_crossimpl
         COMMAND ${Python3_EXECUTABLE} "${_py_scripts_dir}/differential_cross_impl.py"
@@ -4679,6 +4735,11 @@ if(Python3_FOUND)
         LABELS "audit;python;stateful"
         ENVIRONMENT "${_py_env}")
 
+    set(_python_ctypes_audit_tests_registered ON)
+    else()
+        message(STATUS "  Python ctypes audit scripts: SKIPPED (ufsecp_shared target not available)")
+    endif()
+
     # Static dev-bug scanner — no library needed, scans C++ source files for classic
     # development bugs: sizeof(ptr), off-by-one, signed/unsigned, truncation, null-after-deref, etc.
     # Runs at MEDIUM level and emits a JSON report; does NOT fail CI so it serves as a
@@ -4713,7 +4774,11 @@ if(Python3_FOUND)
         LABELS "audit;python;static_analysis;performance"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
 
-    message(STATUS "  Python audit scripts: 10 tests registered (py_differential_crossimpl, py_nonce_bias, py_bip32_cka, py_rfc6979_spec, py_glv_exhaustive, py_semantic_props, py_invalid_input_grammar, py_stateful_sequences, py_dev_bug_scan, py_hot_path_alloc_scan)")
+    if(_python_ctypes_audit_tests_registered)
+        message(STATUS "  Python audit scripts: 10 tests registered (py_differential_crossimpl, py_nonce_bias, py_bip32_cka, py_rfc6979_spec, py_glv_exhaustive, py_semantic_props, py_invalid_input_grammar, py_stateful_sequences, py_dev_bug_scan, py_hot_path_alloc_scan)")
+    else()
+        message(STATUS "  Python audit scripts: 2 static-analysis tests registered (shared-library ctypes tests skipped)")
+    endif()
 else()
     message(STATUS "  Python3 not found — skipping Python audit scripts")
 endif()
@@ -5767,6 +5832,127 @@ add_test(NAME regression_shim_rfc6979_compat
 set_tests_properties(regression_shim_rfc6979_compat PROPERTIES TIMEOUT 30
     LABELS "audit;regression;shim;rfc6979;nonce;compat")
 target_sources(unified_audit_runner PRIVATE test_regression_shim_rfc6979_compat.cpp)
+
+# FE52-compute verify differential (2026-06-23): pairs commit 875d5bee
+# (SECP256K1_FE52_COMPUTE). advisory=false: CPU C++ API only, no GPU/shim dependency.
+add_executable(test_fe52_compute_verify_standalone
+    test_fe52_compute_verify.cpp)
+audit_target_defaults(test_fe52_compute_verify_standalone)
+target_compile_definitions(test_fe52_compute_verify_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME fe52_compute_verify
+    COMMAND test_fe52_compute_verify_standalone)
+set_tests_properties(fe52_compute_verify PROPERTIES TIMEOUT 60
+    LABELS "audit;differential;verify;fe52;perf")
+target_sources(unified_audit_runner PRIVATE test_fe52_compute_verify.cpp)
+
+# hash256_var batch structural/boundary KAT vs SHA256::hash256 CPU oracle.
+# advisory=false: CPU/GPU C ABI only (ufsecp_gpu.h), no shim dependency;
+# on-device checks self-skip when no GPU backend/device is available.
+add_executable(test_regression_hash256_var_batch_standalone
+    test_regression_hash256_var_batch.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_regression_hash256_var_batch_standalone)
+target_include_directories(test_regression_hash256_var_batch_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+)
+target_compile_definitions(test_regression_hash256_var_batch_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME regression_hash256_var_batch
+    COMMAND test_regression_hash256_var_batch_standalone)
+set_tests_properties(regression_hash256_var_batch PROPERTIES TIMEOUT 60
+    LABELS "audit;differential;gpu;hash256;hash256-var")
+target_sources(unified_audit_runner PRIVATE test_regression_hash256_var_batch.cpp)
+
+# hash256_var cross-backend (CUDA/OpenCL/Metal) byte-identical parity vs the
+# CPU oracle. advisory=false: self-skips cleanly (zero on-device assertions
+# is not a failure) when no GPU backend/device is available.
+add_executable(test_regression_hash256_var_parity_standalone
+    test_regression_hash256_var_parity.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_regression_hash256_var_parity_standalone)
+target_include_directories(test_regression_hash256_var_parity_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+)
+target_compile_definitions(test_regression_hash256_var_parity_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME regression_hash256_var_parity
+    COMMAND test_regression_hash256_var_parity_standalone)
+set_tests_properties(regression_hash256_var_parity PROPERTIES TIMEOUT 60
+    LABELS "audit;differential;gpu;hash256;hash256-var;parity")
+target_sources(unified_audit_runner PRIVATE test_regression_hash256_var_parity.cpp)
+
+# hash256_var hostile-input / bounds exploit coverage (ctx-null, n=0 no-op,
+# oversize n/stride, per-row length, NULL pointer isolation).
+# advisory=false: CPU/GPU C ABI only, no shim dependency; ctx-dependent checks
+# self-skip when no GPU backend/device is available.
+add_executable(test_exploit_hash256_var_bounds_standalone
+    test_exploit_hash256_var_bounds.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_hash256_var_bounds_standalone)
+target_include_directories(test_exploit_hash256_var_bounds_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+)
+target_compile_definitions(test_exploit_hash256_var_bounds_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_hash256_var_bounds
+    COMMAND test_exploit_hash256_var_bounds_standalone)
+set_tests_properties(exploit_hash256_var_bounds PROPERTIES TIMEOUT 30
+    LABELS "audit;exploit_poc;gpu;hash256;hash256-var;bounds")
+target_sources(unified_audit_runner PRIVATE test_exploit_hash256_var_bounds.cpp)
+
+# Aggregate target used by .github/workflows/gate.yml's shim security job. The
+# ctest -R expression there matches test names, not build target names, so the
+# binaries must be built explicitly before ctest runs. Keep this list aligned
+# with that workflow regex: regression_shim|regression_ecdsa_batch_curve|
+# exploit_shim|test_shim.
+set(_shim_security_gate_standalone_targets
+    test_exploit_shim_noncefp_bypass_standalone
+    test_exploit_shim_der_bip66_standalone
+    test_exploit_shim_musig_secnonce_standalone
+    test_exploit_shim_musig_ka_cap_standalone
+    test_regression_shim_static_ctx_standalone
+    test_exploit_shim_recovery_null_arg_standalone
+    test_exploit_shim_pubkey_ct_standalone
+    test_regression_shim_context_erase_standalone
+    test_regression_shim_keypair_null_cb_standalone
+    test_regression_shim_null_arg_cb_standalone
+    test_regression_shim_security_v8_standalone
+    test_regression_ecdsa_batch_curve_check_standalone
+    test_regression_shim_divergence_fixes_standalone
+    test_regression_shim_tweak_recover_null_cb_standalone
+    test_regression_shim_perf_correctness_standalone
+    test_regression_shim_high_s_verify_standalone
+    test_regression_shim_pubkey_sort_standalone
+    test_regression_shim_per_context_blinding_standalone
+    test_regression_shim_musig_null_ctx_standalone
+    test_regression_shim_seckey_erase_standalone
+    test_regression_shim_null_callback_standalone
+    test_regression_shim_xonly_parse_standalone
+    test_regression_shim_security_v9_standalone
+    test_regression_shim_rgrind_functional_standalone
+    test_regression_shim_preallocated_ctx_standalone
+    test_regression_shim_rfc6979_compat_standalone
+)
+add_custom_target(shim_security_gate_standalones)
+foreach(_shim_gate_target IN LISTS _shim_security_gate_standalone_targets)
+    if(TARGET ${_shim_gate_target})
+        add_dependencies(shim_security_gate_standalones ${_shim_gate_target})
+    endif()
+endforeach()
+unset(_shim_gate_target)
+unset(_shim_security_gate_standalone_targets)
 
 # ---------------------------------------------------------------------------
 # Per-file -Wno-deprecated-declarations suppression for tests that

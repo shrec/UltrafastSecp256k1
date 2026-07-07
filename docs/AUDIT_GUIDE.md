@@ -17,7 +17,7 @@ The security model is CAAS-first: claims are strengthened by executable
 evidence and permanent regression tests.
 Internal audit is part of normal development and is expected to run on every build and every commit through the CI and local audit workflow.
 
-### What It Tests ( 161 non-exploit modules + 269 exploit PoC tests + standalone audit surfaces)
+### What It Tests ( 166 non-exploit modules + 270 exploit PoC tests + standalone audit surfaces)
 
 | Section | Modules | Focus |
 |---------|---------|-------|
@@ -29,7 +29,7 @@ Internal audit is part of normal development and is expected to run on every bui
 | 6. Zero-Knowledge | 6 | knowledge, DLEQ, range proof, serialization, rejection |
 | 7. Parse Strictness | 1 | public parse path strictness |
 | 8. Cross-Platform Evidence | separate standalone tests | Wycheproof, Fiat-Crypto, differential, FFI, protocol vectors |
-| **Exploit PoC Suite** | **269 exploit-PoC modules** | ECDSA malleability, ECDH degenerate, GLV decomposition, BIP-32 overflow, MuSig2 nonce reuse, FROST Byzantine, AEAD integrity, Taproot, ElligatorSwift, CT systematic, and more (14 categories) |
+| **Exploit PoC Suite** | **270 exploit-PoC modules** | ECDSA malleability, ECDH degenerate, GLV decomposition, BIP-32 overflow, MuSig2 nonce reuse, FROST Byzantine, AEAD integrity, Taproot, ElligatorSwift, CT systematic, and more (14 categories) |
 
 ### Platform Validation Matrix
 
@@ -132,7 +132,7 @@ stream between `JSON_BEGIN` and `JSON_END` markers.
 ```json
 {
   "framework_version": "2.0.0",
-  "library_version": "4.4.0",
+  "library_version": "4.5.0",
   "git_hash": "3d6b540...",
   "timestamp": "2026-03-01T12:00:00Z",
   "platform": {
@@ -220,7 +220,7 @@ In addition to the CPU `unified_audit_runner`, each GPU backend has its own
 audit runner that exercises GPU kernel correctness. These are separate from
 the CPU audit and test GPU-specific code paths.
 
-### OpenCL Audit Runner ( 430 modules, 8 sections)
+### OpenCL Audit Runner ( 436 modules, 8 sections)
 
 ```bash
 # Build
@@ -234,7 +234,7 @@ Output: `ocl_audit_report.json` + `ocl_audit_report.txt`
 
 Requires an OpenCL-capable GPU (NVIDIA, AMD, Intel).
 
-### Metal Audit Runner ( 430 modules, 8 sections)
+### Metal Audit Runner ( 436 modules, 8 sections)
 
 ```bash
 # Build (macOS only)
@@ -363,8 +363,8 @@ to compare both paths on the same inputs.
 | `tests/esp32_audit/` | ESP32-S3 port of the audit |
 | `docker/Dockerfile.ci` | CI container for automated auditing |
 | `.github/workflows/audit-report.yml` | GitHub Actions audit workflow |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL GPU audit runner ( 430 modules) |
-| `metal/src/metal_audit_runner.mm` | Metal GPU audit runner ( 430 modules) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL GPU audit runner ( 436 modules) |
+| `metal/src/metal_audit_runner.mm` | Metal GPU audit runner ( 436 modules) |
 | `metal/CMakeLists.txt` | Metal build config (incl. audit runner target) |
 | `ci/security_autonomy_check.py` | Master Security Autonomy orchestrator (10 gates, score 0-100) |
 | `docs/SECURITY_AUTONOMY_PLAN.md` | 30-day security autonomy framework and phase plan |

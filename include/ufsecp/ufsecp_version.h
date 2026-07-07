@@ -28,7 +28,7 @@ extern "C" {
  * stay in sync. Keep this file updated to match ufsecp_version.h.in. */
 
 #define UFSECP_VERSION_MAJOR   4
-#define UFSECP_VERSION_MINOR   4
+#define UFSECP_VERSION_MINOR   5
 #define UFSECP_VERSION_PATCH   0
 
 /** Packed: (major << 16) | (minor << 8) | patch.  Compare with >= for compat.
@@ -38,7 +38,7 @@ extern "C" {
      ((unsigned int)UFSECP_VERSION_MINOR <<  8) | \
       (unsigned int)UFSECP_VERSION_PATCH)
 
-#define UFSECP_VERSION_STRING  "4.4.0"
+#define UFSECP_VERSION_STRING  "4.5.0"
 
 /* -- ABI version (incremented ONLY on binary-incompatible changes) ---------- */
 
@@ -48,10 +48,15 @@ extern "C" {
 
 #ifndef UFSECP_API
   #if defined(_WIN32) || defined(__CYGWIN__)
-    #ifdef UFSECP_BUILDING
-      #define UFSECP_API __declspec(dllexport)
-    #elif defined(UFSECP_STATIC_LIB)
+    /* A static-lib / single-TU build defines BOTH UFSECP_STATIC_LIB and
+     * UFSECP_BUILDING (the latter to compile the engine sources). STATIC_LIB must
+     * win so the static build emits NO dllexport: a static archive needs none, and
+     * clang-cl rejects a `static thread_local` inside a dllexport'd function
+     * (MSVC cl tolerates it), which broke the libbitcoin/static + bench builds. */
+    #ifdef UFSECP_STATIC_LIB
       #define UFSECP_API
+    #elif defined(UFSECP_BUILDING)
+      #define UFSECP_API __declspec(dllexport)
     #else
       #define UFSECP_API __declspec(dllimport)
     #endif

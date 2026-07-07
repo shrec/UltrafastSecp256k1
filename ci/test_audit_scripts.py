@@ -69,7 +69,9 @@ AUDIT_SCRIPTS = [
     "sync_audit_report_version.py",
     "sync_docs.py",
     "sync_module_count.py",
+    "test_sync_module_count.py",
     "sync_version_refs.py",
+    "stamp_changelog.py",
     "validate_assurance.py",
     "verify_slsa_provenance.py",
     "check_abi_version_sync.py",
@@ -86,6 +88,7 @@ AUDIT_SCRIPTS = [
     "check_research_signal_matrix.py",
     "check_evidence_refresh_coverage.py",
     "check_package_provenance_binding.py",
+    "check_release_package_contents.py",
     "check_libbitcoin_perf_matrix.py",
     "test_caas_integrity.py",
     "test_audit_scripts.py",
@@ -102,6 +105,7 @@ HELPABLE_SCRIPTS = [
     "export_assurance.py",
     "preflight.py",
     "run_code_quality.py",
+    "check_release_package_contents.py",
 ]
 
 # ANSI
@@ -815,6 +819,83 @@ def check_research_monitor_resilience() -> None:
         fail(tag, str(exc))
 
 
+def check_stamp_changelog_no_duplicate() -> None:
+    """Release regression: pre-stamped changelogs must not get duplicate version sections."""
+    tag = "REL:stamp_changelog_no_duplicate"
+    path = SCRIPT_DIR / "stamp_changelog.py"
+    try:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            changelog = Path(tmpdir) / "CHANGELOG.md"
+            changelog.write_text(
+                "\n".join([
+                    "# Changelog",
+                    "",
+                    "## [Unreleased]",
+                    "",
+                    "## [4.5.0] - 2026-07-07",
+                    "",
+                    "### Fixed",
+                    "",
+                    "- Existing release notes.",
+                    "",
+                    "## [4.4.0] - 2026-06-19",
+                    "",
+                ]),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, str(path), "--version", "4.5.0", "--changelog", str(changelog)],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                cwd=str(LIB_ROOT),
+            )
+            if result.returncode != 0:
+                fail(tag, f"expected exit 0, got {result.returncode}: {result.stderr[:200]}")
+                return
+            text = changelog.read_text(encoding="utf-8")
+            if text.count("## [4.5.0]") != 1:
+                fail(tag, f"duplicate 4.5.0 section after stamp: {text}")
+                return
+            if "## [Unreleased]" not in text:
+                fail(tag, "pre-stamped changelog lost [Unreleased] header")
+                return
+
+            unstamped = Path(tmpdir) / "UNSTAMPED.md"
+            unstamped.write_text(
+                "\n".join([
+                    "# Changelog",
+                    "",
+                    "## [Unreleased]",
+                    "",
+                    "### Added",
+                    "",
+                    "- New release note.",
+                    "",
+                    "## [4.4.0] - 2026-06-19",
+                    "",
+                ]),
+                encoding="utf-8",
+            )
+            result = subprocess.run(
+                [sys.executable, str(path), "--version", "4.5.0", "--changelog", str(unstamped)],
+                capture_output=True,
+                text=True,
+                timeout=15,
+                cwd=str(LIB_ROOT),
+            )
+            if result.returncode != 0:
+                fail(tag, f"unstamped changelog failed: {result.returncode}: {result.stderr[:200]}")
+                return
+            text = unstamped.read_text(encoding="utf-8")
+            if text.count("## [4.5.0]") != 1 or "### Added" not in text:
+                fail(tag, f"unstamped changelog was not stamped correctly: {text}")
+                return
+        ok(tag, "pre-stamped changelog is no-op; unstamped changelog still stamps")
+    except Exception as exc:
+        fail(tag, str(exc))
+
+
 def check_preflight_step_count() -> None:
     """Verify preflight.py uses contiguous [i/N] step markers."""
     tag = "STEPS"
@@ -1201,11 +1282,16 @@ def check_rule16_json_smoke() -> None:
             clean = root / "clean.json"
             clean.write_text(json.dumps({"sections": [{"modules": [
                 {"id": "test_exploit_cuda_key_erase", "advisory": True, "passed": False, "return_code": 77},
+                {"id": "cryptol_specs", "advisory": True, "passed": False, "return_code": 1},
                 {"id": "test_ecdsa_sign", "advisory": False, "passed": True, "return_code": 0},
             ]}]}), encoding="utf-8")
             bad = root / "bad.json"
             bad.write_text(json.dumps({"sections": [{"modules": [
                 {"id": "test_exploit_cuda_key_erase", "advisory": True, "passed": True, "return_code": 0},
+            ]}]}), encoding="utf-8")
+            non_advisory_bad = root / "non_advisory_bad.json"
+            non_advisory_bad.write_text(json.dumps({"sections": [{"modules": [
+                {"id": "test_ecdsa_sign", "advisory": False, "passed": False, "return_code": 1},
             ]}]}), encoding="utf-8")
 
             def run(arg: Path) -> int:
@@ -1216,13 +1302,17 @@ def check_rule16_json_smoke() -> None:
 
             rc_clean = run(clean)
             rc_bad = run(bad)
+            rc_non_advisory_bad = run(non_advisory_bad)
         if rc_clean != 0:
-            fail(tag, f"clean report should pass (exit 0), got {rc_clean}")
+            fail(tag, f"clean/advisory-degraded report should pass (exit 0), got {rc_clean}")
             return
         if rc_bad != 1:
             fail(tag, f"GPU advisory false-PASS (0 not 77) should fail (exit 1), got {rc_bad}")
             return
-        ok(tag, "clean report passes; GPU advisory false-PASS is caught (Rule 16 enforced)")
+        if rc_non_advisory_bad != 1:
+            fail(tag, f"non-advisory failure should fail (exit 1), got {rc_non_advisory_bad}")
+            return
+        ok(tag, "advisory-degraded report passes; false-PASS and non-advisory failures are caught")
     except subprocess.TimeoutExpired:
         fail(tag, "timed out")
     except Exception as exc:
@@ -1435,6 +1525,46 @@ def check_audit_sla_pre_alert_and_block() -> None:
         fail(tag, "; ".join(failures))
     else:
         ok(tag, "SLA blocks at deadline, pre-alerts in buffer window, reports days_until_block")
+
+
+def check_audit_sla_build_report_not_tracked() -> None:
+    """B3 regression: risk_surface_report is a build-scoped generated artifact.
+
+    It must not be committed under out/reports/, otherwise audit_sla_check.py
+    evaluates the git commit date instead of current build evidence and the
+    autonomy gate can fall from 100 to 90 when a stale generated file crosses
+    the freshness threshold.
+    """
+    tag = "B3:audit_sla_build_report_untracked"
+    rel = "out/reports/risk_surface_report.json"
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", rel],
+        cwd=str(LIB_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--", rel],
+        cwd=str(LIB_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    ignored = subprocess.run(
+        ["git", "check-ignore", "--no-index", "-q", rel],
+        cwd=str(LIB_ROOT),
+        capture_output=True,
+        text=True,
+    )
+    failures = []
+    pending_delete = status.stdout.startswith("D ") or status.stdout.startswith(" D")
+    if tracked.returncode == 0 and not pending_delete:
+        failures.append(f"{rel} is tracked but must remain build-only")
+    if ignored.returncode != 0:
+        failures.append(f"{rel} is not covered by .gitignore")
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "build-scoped risk report is ignored and not tracked")
 
 
 def check_external_audit_bundle_negative_fixtures() -> None:
@@ -2589,6 +2719,60 @@ def check_package_provenance_binding_fixtures() -> None:
                 "release-marked-current / unknown workflow all fail; real dev manifest passes")
 
 
+def check_release_package_contents_fixtures() -> None:
+    """Release packages must contain only product libraries. Test/audit/exploit
+    standalone .lib/.a artifacts may exist in the build tree for CI, but the
+    release archive must fail closed if any of them is copied into lib/static or
+    lib/shared."""
+    tag = "REL:package_contents"
+    try:
+        mod = _load_ci_module("check_release_package_contents.py", "release_contents_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    failures = []
+    with tempfile.TemporaryDirectory() as d:
+        root = Path(d)
+        good = root / "good"
+        (good / "lib" / "static").mkdir(parents=True)
+        (good / "lib" / "shared").mkdir(parents=True)
+        (good / "lib" / "static" / "ultrafast_secp256k1.lib").write_bytes(b"x")
+        (good / "lib" / "static" / "ufsecp_s.lib").write_bytes(b"x")
+        (good / "lib" / "shared" / "ufsecp.dll").write_bytes(b"x")
+        if not mod.scan_package(good)["overall_pass"]:
+            failures.append("valid product-only package did not pass")
+
+        bad = root / "bad"
+        (bad / "lib" / "static").mkdir(parents=True)
+        (bad / "lib" / "static" / "ultrafast_secp256k1.lib").write_bytes(b"x")
+        (bad / "lib" / "static" / "test_exploit_batch_sign_standalone.lib").write_bytes(b"x")
+        rep = mod.scan_package(bad)
+        if rep["overall_pass"]:
+            failures.append("test/exploit standalone library did not fail")
+        if not any(v["problem"] == "forbidden_test_or_audit_library" for v in rep["violations"]):
+            failures.append("forbidden standalone library was not classified")
+
+        unexpected = root / "unexpected"
+        (unexpected / "lib" / "static").mkdir(parents=True)
+        (unexpected / "lib" / "static" / "ultrafast_secp256k1.lib").write_bytes(b"x")
+        (unexpected / "lib" / "static" / "internal_helper.lib").write_bytes(b"x")
+        rep = mod.scan_package(unexpected)
+        if rep["overall_pass"] or not any(v["problem"] == "unexpected_library" for v in rep["violations"]):
+            failures.append("unexpected internal library did not fail")
+
+        empty = root / "empty"
+        (empty / "lib" / "static").mkdir(parents=True)
+        rep = mod.scan_package(empty)
+        if rep["overall_pass"] or not any(v["problem"] == "missing_product_library" for v in rep["violations"]):
+            failures.append("empty lib package did not fail")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "product-only package passes; test/exploit/internal/empty library packages fail closed")
+
+
 def check_libbitcoin_perf_matrix_fixtures() -> None:
     """B21: the libbitcoin performance matrix gate must fail missing surfaces,
     wrong target_context, missing evidence, native-hardware overclaim, and missing
@@ -2673,6 +2857,125 @@ def check_libbitcoin_perf_matrix_fixtures() -> None:
                 "missing JSON artifact contract all fail; real manifest passes")
 
 
+def check_gpu_backend_parity_fixtures() -> None:
+    """The GPU backend native-parity gate must classify native/fallback/stub/
+    missing overrides correctly on synthetic fixtures (proof-it-blocks), and
+    must not silently pass when docs overclaim parity or an operation has no
+    ABI mapping. Also pins the checker's result against the real repo so a
+    NEW violation trips this test -- the repo is expected to be fully clean
+    (zero violations) as of the hash160_pubkey_batch/OpenCL native-kernel fix."""
+    tag = "GPU-PARITY:backend_parity_fixtures"
+    try:
+        mod = _load_ci_module("check_gpu_backend_parity.py", "gpu_backend_parity_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    failures = []
+
+    # --- classify_override(): each forbidden gap class + the success case ---
+    native_cuda_body = "{ my_kernel<<<blocks, threads>>>(a, b, c); }"
+    if mod.classify_override(native_cuda_body, "cuda") != "native":
+        failures.append("CUDA kernel-launch body not classified as native")
+
+    native_opencl_body = "{ clEnqueueNDRangeKernel(queue, k, 1, nullptr, &global, nullptr, 0, nullptr, nullptr); }"
+    if mod.classify_override(native_opencl_body, "opencl") != "native":
+        failures.append("OpenCL clEnqueueNDRangeKernel body not classified as native")
+
+    native_metal_body = "{ runtime_->dispatch_sync(pipe, (uint32_t)count, 64u, {&buf}); }"
+    if mod.classify_override(native_metal_body, "metal") != "native":
+        failures.append("Metal dispatch_sync body not classified as native")
+
+    fallback_body = "{ for (size_t i = 0; i < count; ++i) { host_fn(i); } }"
+    if mod.classify_override(fallback_body, "opencl") != "fallback_only":
+        failures.append("pure CPU loop body not classified as fallback_only")
+
+    stub_body = "{ (void)a; (void)b; return GpuError::Unsupported; }"
+    if mod.classify_override(stub_body, "cuda") != "stub_unsupported":
+        failures.append("bare return-Unsupported body not classified as stub_unsupported")
+
+    if mod.classify_override(None, "cuda") != "missing_no_override":
+        failures.append("absent override not classified as missing_no_override")
+
+    if mod.classify_override(stub_body, "cuda", is_lifecycle=True) != "lifecycle_present":
+        failures.append("lifecycle op with a found body not classified as lifecycle_present")
+
+    # --- parse_gpu_backend_operations(): pure-virtual + virtual-with-default ---
+    synthetic_hpp = """
+    class GpuBackend {
+    public:
+        virtual ~GpuBackend() = default;
+        virtual uint32_t backend_id() const = 0;
+        virtual GpuError widget_batch(const uint8_t* in, size_t n, uint8_t* out)
+        {
+            (void)in; (void)n; (void)out;
+            return GpuError::Unsupported;
+        }
+    };
+    """
+    ops = mod.parse_gpu_backend_operations(synthetic_hpp)
+    op_names = {op["name"] for op in ops}
+    if op_names != {"backend_id", "widget_batch"}:
+        failures.append(f"header parser found wrong op set: {sorted(op_names)}")
+    else:
+        by_name = {op["name"]: op for op in ops}
+        if not by_name["backend_id"]["pure_virtual"]:
+            failures.append("pure-virtual op misclassified as having a default body")
+        if by_name["widget_batch"]["pure_virtual"] or not by_name["widget_batch"]["has_default_body"]:
+            failures.append("virtual-with-default op misclassified as pure virtual / no body")
+
+    # --- parse_permanent_exceptions(): doc-ledger exception lookup ---
+    synthetic_doc = """
+## Permanent Architecture Exceptions
+
+| Operation | Backend | Reason |
+|---|---|---|
+| `widget_batch` | OpenCL | Synthetic fixture exception for the self-test. |
+
+---
+"""
+    exceptions = mod.parse_permanent_exceptions(synthetic_doc)
+    if ("widget_batch", "opencl") not in exceptions:
+        failures.append("Permanent Architecture Exceptions table row not parsed into the ledger")
+
+    # --- check_abi_exposure(): missing ABI mapping / missing ABI symbol fail closed ---
+    fake_ops = [{"name": "hash256", "return_type": "GpuError", "pure_virtual": False, "has_default_body": True}]
+    abi_present = mod.check_abi_exposure("GpuError ufsecp_gpu_hash256(...);", fake_ops)
+    if abi_present:
+        failures.append("present ABI symbol incorrectly flagged as missing")
+    abi_absent = mod.check_abi_exposure("GpuError ufsecp_gpu_something_else(...);", fake_ops)
+    if not any(v["kind"] == "abi_missing" for v in abi_absent):
+        failures.append("absent ABI symbol did not fail closed")
+
+    # --- cross_check_docs(): doc overclaim must fail, honest claim must not ---
+    doc_rows = {"ufsecp_gpu_hash256": {"cuda": "Y", "opencl": "Y", "metal": "Y"}}
+    status_all_native = {("hash256", "cuda"): "native", ("hash256", "opencl"): "native", ("hash256", "metal"): "native"}
+    if mod.cross_check_docs(doc_rows, status_all_native):
+        failures.append("honest doc claim (matches code) incorrectly flagged as overclaim")
+    status_opencl_gap = dict(status_all_native)
+    status_opencl_gap[("hash256", "opencl")] = "fallback_only"
+    overclaim = mod.cross_check_docs(doc_rows, status_opencl_gap)
+    if not any(v["kind"] == "doc_overclaim" and v["backend"] == "opencl" for v in overclaim):
+        failures.append("doc claiming Y where code is non-native did not fail (doc-overclaim)")
+
+    # --- real repo: pin the currently-known violation set (regression guard) ---
+    report = mod.evaluate()
+    real_ops_with_violations = {v["op"] for v in report.get("violations", [])}
+    known_gap_ops: set[str] = set()
+    if real_ops_with_violations - known_gap_ops:
+        failures.append(
+            f"real repo has NEW unexpected GPU backend parity violation(s): "
+            f"{sorted(real_ops_with_violations - known_gap_ops)}"
+        )
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "native/fallback/stub/missing/lifecycle classification, header parsing, "
+                "exception-ledger lookup, ABI fail-closed check, and doc-overclaim check "
+                "all correct; real repo has zero GPU backend parity violations")
+
+
 def check_caas_dashboard_evidence_browser() -> None:
     """The CAAS dashboard must expose the committed evidence/status manifests in
     one central browser. This prevents the UI from regressing into scattered
@@ -2751,7 +3054,9 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "check_research_signal_matrix.py": "check_research_signal_matrix_fixtures",
         "check_evidence_refresh_coverage.py": "check_evidence_refresh_coverage_fixtures",
         "check_package_provenance_binding.py": "check_package_provenance_binding_fixtures",
+        "check_release_package_contents.py": "check_release_package_contents_fixtures",
         "check_libbitcoin_perf_matrix.py": "check_libbitcoin_perf_matrix_fixtures",
+        "check_gpu_backend_parity.py": "check_gpu_backend_parity_fixtures",
     }
     g = globals()
     missing = [f"{gate} -> {fn}" for gate, fn in required.items()
@@ -2797,8 +3102,10 @@ def main() -> int:
     check_preflight_step_count()
     check_caas_integrity_json_purity()
     check_research_monitor_resilience()
+    check_stamp_changelog_no_duplicate()
     check_p21_semantic_requirement_map()
     check_audit_sla_pre_alert_and_block()
+    check_audit_sla_build_report_not_tracked()
     check_external_audit_bundle_negative_fixtures()
     check_ct_independence_negative_fixtures()
     check_multi_ci_repro_negative_fixtures()
@@ -2816,7 +3123,9 @@ def main() -> int:
     check_research_signal_matrix_fixtures()
     check_evidence_refresh_coverage_fixtures()
     check_package_provenance_binding_fixtures()
+    check_release_package_contents_fixtures()
     check_libbitcoin_perf_matrix_fixtures()
+    check_gpu_backend_parity_fixtures()
     check_caas_dashboard_evidence_browser()
     check_caas_gate_negative_fixture_coverage()
     check_secret_path_before_sha_fallback()

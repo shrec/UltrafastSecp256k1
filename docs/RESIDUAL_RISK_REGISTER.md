@@ -268,6 +268,30 @@ classes, not the 48 estimated when the residual was filed.)*
 
 ---
 
+## RR-GPU-OCL-01 — No white-box CT measurement gate for OpenCL / Metal (source-CT only)
+
+**Type:** CT-measurement tooling gap (the underlying leaks are fixed)
+**Status:** **Source fixed for all backends; runtime CT-measurement gate is CUDA-only**
+**Severity:** Informational (no known residual leak; verification-depth gap)
+**Scope:** OpenCL (NVIDIA + portable `#else`) and Metal signing CT measurement
+
+**Description (updated 2026-06-22):**
+All four GPU signing reductions are now branchless: CUDA (already CT — ncu gate 5/5),
+NVIDIA OpenCL `reduce_512_to_256_32_ocl` + scalar add/sub (`opencl_test` 44/44), the
+portable `#else` `field_reduce` (`if (temp[4]!=0)` / `if (carry)` made unconditional /
+masked — CPU equivalence 5,000,000 random+edge inputs, 0 mismatches vs the original),
+and Metal `field_reduce_512` (`while (acc[8]!=0)` → fixed 2 iterations —
+`test_exploit_metal_field_reduce` 14/14 vs an independent reference, incl. issue #226).
+Metal scalar add/sub and the field final-subtract were already branchless.
+
+**Remaining gap:** there is **no ncu-equivalent white-box CT gate for OpenCL or Metal**
+(`ci/check_gpu_ct_uniformity.py` is CUDA-only). So OpenCL/Metal CT rests on source-level
+branchlessness + correctness equivalence, not a fixed-vs-random branch-uniformity
+*measurement*. Runtime CT confirmation on actual AMD/Intel (OpenCL `#else`) and Apple
+(Metal) hardware, and a white-box CT gate for those backends, are standing follow-ups.
+
+---
+
 ## Review Rule
 
 When a residual risk becomes blocking, partially covered, or fully closed:

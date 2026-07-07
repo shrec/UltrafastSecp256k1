@@ -365,14 +365,21 @@ FORCE_INLINE_STATIC void reduce_512_to_256_32_ocl(uint t32[16], FieldElement* r)
         : "+l"(r0),"+l"(r1),"+l"(r2),"+l"(r3),"=l"(c)
         : "l"(ek_lo),"l"(ek_hi)
     );
-    if (c) {
+    // CONSTANT-TIME rare-carry fold: was `if (c) { add SECP256K1_K }` — a
+    // data-dependent branch on a secret-derived carry. Now always execute the add
+    // with a masked addend (0 when c==0 -> no-op), so wavefront execution is
+    // uniform. Mirrors the CUDA reduce_512_to_256_32 (proven CT via ncu).
+    {
+        ulong cmask = (ulong)0 - (ulong)(c != 0UL);
+        __asm volatile("" : "+l"(cmask));   // value barrier
+        ulong cfold = (ulong)SECP256K1_K & cmask;
         __asm volatile(
             "add.cc.u64  %0, %0, %4;\n\t"
             "addc.cc.u64 %1, %1, 0;\n\t"
             "addc.cc.u64 %2, %2, 0;\n\t"
             "addc.u64    %3, %3, 0;\n\t"
             : "+l"(r0),"+l"(r1),"+l"(r2),"+l"(r3)
-            : "l"((ulong)SECP256K1_K)
+            : "l"(cfold)
         );
     }
 
@@ -388,10 +395,17 @@ FORCE_INLINE_STATIC void reduce_512_to_256_32_ocl(uint t32[16], FieldElement* r)
         : "l"(r0),"l"(r1),"l"(r2),"l"(r3),
           "l"(SECP256K1_P0),"l"(SECP256K1_P1),"l"(SECP256K1_P2),"l"(SECP256K1_P3)
     );
-    if (borrow == 0) {
-        r->limbs[0]=s0; r->limbs[1]=s1; r->limbs[2]=s2; r->limbs[3]=s3;
-    } else {
-        r->limbs[0]=r0; r->limbs[1]=r1; r->limbs[2]=r2; r->limbs[3]=r3;
+    // CONSTANT-TIME final reduction: was `if (borrow==0) r=s; else r=r;` — a
+    // data-dependent branch (borrow==0 <=> r >= P). Now branchless cmov: select
+    // the subtracted limbs s iff r >= P, else keep r, via a value-barriered mask.
+    // Mirrors the CUDA reduce_512_to_256_32 (proven CT via ncu).
+    {
+        ulong mask = (ulong)0 - (ulong)(borrow == 0UL);
+        __asm volatile("" : "+l"(mask));   // value barrier
+        r->limbs[0] = (s0 & mask) | (r0 & ~mask);
+        r->limbs[1] = (s1 & mask) | (r1 & ~mask);
+        r->limbs[2] = (s2 & mask) | (r2 & ~mask);
+        r->limbs[3] = (s3 & mask) | (r3 & ~mask);
     }
 }
 
@@ -446,8 +460,12 @@ FORCE_INLINE void field_reduce(FieldElement* r, const ulong* a8) {
     c1 += (temp[3] < prod.x) ? 1UL : 0UL;
     temp[4] = c1 + prod.y;
 
-    // Second reduction: if temp[4] > 0, fold it in
-    if (temp[4] != 0) {
+    // Second reduction: fold temp[4]. CONSTANT-TIME: was `if (temp[4] != 0)` with a
+    // nested `if (carry)` — data-dependent branches on a secret-derived overflow
+    // during signing. Now ALWAYS folded (temp[4]==0 -> K*0=0 -> no-op) and the rare
+    // carry fold is masked (mirrors the CUDA/Metal masked rare-carry fold; the
+    // per-limb `? :` carries are branchless selects, not branches).
+    {
         prod = mul64_full(SECP256K1_K, temp[4]);
         temp[0] += prod.x;
         carry = (temp[0] < prod.x) ? 1UL : 0UL;
@@ -462,17 +480,16 @@ FORCE_INLINE void field_reduce(FieldElement* r, const ulong* a8) {
         temp[3] += carry;
         carry = (temp[3] < carry) ? 1UL : 0UL;
 
-        // Rare carry overflow (probability ~2^{-190}): fold residual carry.
-        // Matches CUDA reduce_512_to_256 step 4 and Metal while-loop.
-        if (carry) {
-            temp[0] += SECP256K1_K;
-            ulong c2 = (temp[0] < SECP256K1_K) ? 1UL : 0UL;
-            temp[1] += c2;
-            c2 = (temp[1] < c2) ? 1UL : 0UL;
-            temp[2] += c2;
-            c2 = (temp[2] < c2) ? 1UL : 0UL;
-            temp[3] += c2;
-        }
+        // Rare carry overflow (~2^-190): fold residual carry branchlessly (0 when carry==0).
+        ulong cmask = (ulong)0 - (ulong)(carry != 0UL);
+        ulong kfold = (ulong)SECP256K1_K & cmask;
+        temp[0] += kfold;
+        ulong c2 = (temp[0] < kfold) ? 1UL : 0UL;
+        temp[1] += c2;
+        c2 = (temp[1] < c2) ? 1UL : 0UL;
+        temp[2] += c2;
+        c2 = (temp[2] < c2) ? 1UL : 0UL;
+        temp[3] += c2;
     }
 
     // Final reduction: if result >= p, subtract p

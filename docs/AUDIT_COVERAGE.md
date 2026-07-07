@@ -9,8 +9,8 @@
 |------|---------|
 | Audit checks per run | ~1,000,000+ |
 | Nightly random checks | ~1,300,000+ |
-| Audit modules | 430 across 9 failure classes |
-| Exploit PoC tests | 269 exploit-PoC modules, 200+ attack vectors |
+| Audit modules | 436 across 9 failure classes |
+| Exploit PoC tests | 270 exploit-PoC modules, 200+ attack vectors |
 | Platforms | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm (16 configurations) |
 | Fuzz inputs | seed corpus: ~530K entries (runtime corpus grows dynamically) |
 | CI workflows | 57 GitHub Actions workflows |
@@ -34,7 +34,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 
 **Version**: v4.1.0
 **Audit Runner**: `unified_audit_runner`
-**Verdict**: **CAAS Self-Audit Verdict: AUDIT-READY (self-generated continuous audit; no external third-party security audit has been completed)** -- 430 modules, 9 failure classes
+**Verdict**: **CAAS Self-Audit Verdict: AUDIT-READY (self-generated continuous audit; no external third-party security audit has been completed)** -- 436 modules, 9 failure classes
 **Total Checks**: ~1,000,000+ (audit) + 1.3M+ (nightly differential)
 **CT Verification**: Three-tier -- ct-verif (LLVM IR) + Valgrind CT + dudect (available as `workflow_dispatch` GitHub Actions + local dudect; triggered manually, **not** on every commit push -- matches README "Constant-time verification pipelines" row)
 
@@ -45,8 +45,8 @@ This system continuously verifies correctness across math, protocol, constant-ti
 | Metric               | Value                                       |
 |----------------------|---------------------------------------------|
 | Audit Sections       | 8                                           |
-| Audit Modules        | 161 (non-exploit modules) |
-| **Exploit PoC Tests** | **269 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
+| Audit Modules        | 166 (non-exploit modules) |
+| **Exploit PoC Tests** | **270 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
 | Audit assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ZK ~1.5K, ...) |
 | Nightly differential | ~1,300,000+ additional random checks (daily) |
 | CI Workflows         | 57 GitHub Actions workflows                 |
@@ -772,6 +772,12 @@ silently succeed) when called with:
 - **Truncated / garbage DER** → `UFSECP_ERR_BAD_INPUT`
 - **Output buffer too small** → `UFSECP_ERR_BUF_TOO_SMALL`
 - **BIP-32 seed length < 16 bytes** → `UFSECP_ERR_BAD_INPUT`
+- **GPU column-verify ABI** (`ufsecp_gpu_ecdsa_verify_lbtc_columns` /
+  `ufsecp_gpu_schnorr_verify_lbtc_columns`) → null ctx / null input buffer / null output
+  → `UFSECP_ERR_NULL_ARG` (out sentinel left untouched, fail-closed); count=0 no-op;
+  oversized/invalid count (`> 1<<26`) → `UFSECP_ERR_BAD_INPUT`. Full hostile-caller
+  quartet in NEG-24 (null-ctx contract) + NEG-25 (`run_neg25_gpu_columns_hostile`),
+  keeping both public GPU ABI exports at ≥3 negative tests for the misuse-resistance gate.
 
 Covers 12 function groups: context, seckey, pubkey, ECDSA, Schnorr, ECDH,
 hashing, addresses, WIF, BIP-32, Taproot, pubkey arithmetic.
@@ -1230,4 +1236,4 @@ valgrind --leak-check=full --error-exitcode=1 ./build_rel/audit/unified_audit_ru
 
 ---
 
-*Generated from unified_audit_runner v4.4.0 output + CI workflow analysis. Last updated 2026-04-01.*
+*Generated from unified_audit_runner v4.5.0 output + CI workflow analysis. Last updated 2026-04-01.*

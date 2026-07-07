@@ -82,6 +82,20 @@ release artifact is never a dev template.)
 - It does not decide *when* a package is shipped — only *whether a shipped
   artifact may call itself audited*.
 
+
+## Package content boundary
+
+Provenance binding proves which commit produced an artifact; the release content
+guard proves the archive contains only product payload. Desktop archives are
+checked by `ci/check_release_package_contents.py`, which rejects build-tree
+libraries from audit, exploit, fuzz, benchmark, standalone test, or unexpected
+internal targets. Those libraries may exist in CI build directories, but only the
+native `ufsecp*` ABI libraries and the `ultrafast_secp256k1*`
+libsecp256k1-compatible ABI libraries may appear under `lib/static` or
+`lib/shared` in a shipped release package. Binding package jobs re-check the
+downloaded native archives before copying libraries into wheels or npm
+prebuilds, so contamination cannot propagate into downstream packages.
+
 When the owner runs a real release/package workflow, that workflow is expected to
 substitute the sentinels with the build's real commit, the committed CAAS bundle
 digest, the `audit_gate` verdict, the artifact hash, and the run id — moving the

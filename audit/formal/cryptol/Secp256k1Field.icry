@@ -1,0 +1,6 @@
+// Cryptol property-check runner for the field spec. Loads the module (parse +
+// type-check) and randomized-checks every property. Driven by the CAAS formal gate
+// (ci/run_formal_verification.py). All 15 properties are tractable at the default
+// test count.
+:load Secp256k1Field.cry
+:check

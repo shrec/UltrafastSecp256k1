@@ -94,6 +94,14 @@ jobs:
       - name: Assurance docs validation (hard-fail)
         run: python3 ci/validate_assurance.py
 
+      - name: GPU backend parity gate (CUDA/OpenCL/Metal, hard-fail)
+        # Enforces the owner rule that any GpuBackend operation must be native
+        # on CUDA, OpenCL, and Metal (plus required C ABI exposure), unless a
+        # documented owner-approved exception exists in
+        # docs/BACKEND_ASSURANCE_MATRIX.md's "Permanent Architecture
+        # Exceptions" table. Pure static source scan, no GPU hardware needed.
+        run: python3 ci/check_gpu_backend_parity.py
+
       # -----------------------------------------------------------------------
       # CAAS gates — all four stages run here as a fast preflight guard.
       # The dedicated caas.yml workflow runs them as separate blocking jobs;

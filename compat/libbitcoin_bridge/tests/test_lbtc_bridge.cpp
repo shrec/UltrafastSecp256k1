@@ -12,6 +12,8 @@
  */
 #include "ufsecp_libbitcoin.h"
 #include "ufsecp.h"
+#include "secp256k1/fast.hpp"    /* issue #312: golden-vector check for match_silent_prefixes */
+#include "secp256k1/sha256.hpp"
 
 #include <cstdint>
 #include <cstdio>
@@ -188,6 +190,16 @@ InvalidInfo invalids(const std::vector<uint8_t>& res) {
     for (size_t i = 0; i < res.size(); ++i)
         if (res[i] == 0) { if (r.first == (size_t)-1) r.first = i; ++r.count; }
     return r;
+}
+
+struct CancelAfter {
+    size_t calls;
+    size_t trip;
+};
+
+int cancel_after(const void* user) noexcept {
+    auto* state = const_cast<CancelAfter*>(static_cast<const CancelAfter*>(user));
+    return state->calls++ >= state->trip ? 1 : 0;
 }
 
 } // namespace
@@ -422,6 +434,43 @@ int main() {
         CHECK(invalids(res).count == 1 && res[3] == 0, "wrapper: corruption detected, row 3 marked");
     }
 
+    /* --- caller-driven cancellation token --- */
+    {
+        const size_t N = 16;
+        auto rows = build_ecdsa(sctx, N, 0);
+        std::vector<uint8_t> res(N, 0xAA);
+        size_t invalid_count = 99;
+        CancelAfter state{0, 0}; /* cancel on first poll, before processing */
+        ufsecp_cancel_token token{cancel_after, &state, 1};
+        auto rc = ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, 0, res.data(),
+                                           nullptr, 0, &invalid_count, &token);
+        CHECK(rc == UFSECP_ERR_CANCELLED, "cancel: immediate token returns UFSECP_ERR_CANCELLED");
+        CHECK(std::strcmp(ufsecp_error_str(rc), "operation cancelled") == 0,
+              "cancel: error string is mapped");
+        CHECK(res[0] == 0xAA && invalid_count == 0,
+              "cancel: immediate cancel leaves caller outputs untrusted/untouched");
+    }
+
+    {
+        const size_t N = 16;
+        auto rows = build_ecdsa(sctx, N, 0);
+        std::vector<uint8_t> res(N, 0xAA);
+        CancelAfter state{0, 1}; /* process one 8-row interval, then cancel */
+        ufsecp_cancel_token token{cancel_after, &state, 8};
+        auto rc = ufsecp_lbtc_verify_ecdsa(ctrl, rows.data(), N, 0, res.data(),
+                                           nullptr, 0, nullptr, &token);
+        CHECK(rc == UFSECP_ERR_CANCELLED, "cancel: mid-batch token returns UFSECP_ERR_CANCELLED");
+        CHECK(state.calls >= 2,
+              "cancel: token is polled across chunk boundaries before stopping");
+
+        ufsecp::lbtc::Controller wrap;
+        CancelAfter wrap_state{0, 0};
+        ufsecp_cancel_token wrap_token{cancel_after, &wrap_state, 1};
+        auto wrap_rc = wrap.verify_ecdsa(rows.data(), N, 0, res.data(), &wrap_token);
+        CHECK(wrap_rc == UFSECP_ERR_CANCELLED,
+              "cancel: C++ wrapper returns cancellation status");
+    }
+
     /* --- typed-span overload: pass a packed struct span; count + key_size are both
      *     recovered from the element type, NOTHING about size is restated at the call
      *     site. Mirrors libbitcoin's `secp256k1::ecdsa::triple` (#pragma pack(1):
@@ -453,11 +502,152 @@ int main() {
         CHECK(res[6] == 1, "span<Triple>: high-S row remains valid beside corruption");
     }
 
+    /* --- Multi-threaded (_mt) variants: per-row verdict parity across thread
+     *     counts {0,1,2,8}, large-batch locate, invalid_idx/count, cancellation,
+     *     degenerate. Exercises the new engine MT leaves through the real path. --- */
+    {
+        const size_t threads[] = {0, 1, 2, 8};
+
+        /* ECDSA opaque rows: a valid high-S row + one corrupted row; the per-row
+         * verdict from each thread count must equal the serial reference. */
+        const size_t N = 200;
+        auto rows = build_ecdsa(sctx, N, 0);
+        make_lbtc_high_s(rows.data() + 17 * UFSECP_LBTC_ECDSA_RECORD + 65); /* valid high-S */
+        rows[123 * UFSECP_LBTC_ECDSA_RECORD + 65] ^= 0x01;                  /* corrupt row 123 */
+
+        std::vector<uint8_t> ref(N, 0xAA);
+        ufsecp_lbtc_verify_ecdsa_opaque(ctrl, rows.data(), N, 0, ref.data(), nullptr, 0, nullptr);
+        CHECK(invalids(ref).count == 1 && invalids(ref).first == 123,
+              "mt: serial reference pinpoints the corrupted row 123");
+
+        for (size_t t : threads) {
+            std::vector<uint8_t> res(N, 0xAA);
+            size_t idx[4] = {99, 99, 99, 99}, inv = 0;
+            auto rc = ufsecp_lbtc_verify_ecdsa_opaque_mt(ctrl, rows.data(), N, 0,
+                                                         res.data(), idx, 4, &inv, t, nullptr);
+            char lbl[112];
+            std::snprintf(lbl, sizeof lbl, "mt: ecdsa_opaque_mt(threads=%zu) verdict == serial", t);
+            CHECK(rc == UFSECP_OK && res == ref, lbl);
+            std::snprintf(lbl, sizeof lbl, "mt: ecdsa_opaque_mt(threads=%zu) invalid_idx/count == {123,1}", t);
+            CHECK(inv == 1 && idx[0] == 123, lbl);
+        }
+
+        std::vector<uint8_t> r_alias(N, 0xAA);
+        ufsecp_lbtc_verify_ecdsa_mt(ctrl, rows.data(), N, 0, r_alias.data(), nullptr, 0, nullptr, 0, nullptr);
+        CHECK(r_alias == ref, "mt: ufsecp_lbtc_verify_ecdsa_mt == _opaque_mt");
+    }
+
+    {
+        /* Schnorr _mt: per-row verdict parity across thread counts. */
+        const size_t threads[] = {0, 1, 2, 8};
+        const size_t N = 160;
+        auto rows = build_schnorr(sctx, N, 0);
+        rows[55 * UFSECP_LBTC_SCHNORR_RECORD + 64] ^= 0x01; /* corrupt row 55 */
+        std::vector<uint8_t> ref(N, 0xAA);
+        ufsecp_lbtc_verify_schnorr(ctrl, rows.data(), N, 0, ref.data(), nullptr, 0, nullptr);
+        CHECK(invalids(ref).count == 1 && invalids(ref).first == 55, "mt: schnorr serial reference == row 55");
+        for (size_t t : threads) {
+            std::vector<uint8_t> res(N, 0xAA);
+            auto rc = ufsecp_lbtc_verify_schnorr_mt(ctrl, rows.data(), N, 0, res.data(),
+                                                    nullptr, 0, nullptr, t, nullptr);
+            char lbl[112];
+            std::snprintf(lbl, sizeof lbl, "mt: schnorr_mt(threads=%zu) verdict == serial", t);
+            CHECK(rc == UFSECP_OK && res == ref, lbl);
+        }
+    }
+
+    {
+        /* Large batch crossing the engine's 4096-row chunk, MT (auto), one bad row
+         * exactly at the chunk boundary — the locate fallback must still find it. */
+        const size_t N = 8200;
+        auto rows = build_ecdsa(sctx, N, 0);
+        rows[4096 * UFSECP_LBTC_ECDSA_RECORD + 65] ^= 0x01;
+        std::vector<uint8_t> res(N, 0xAA);
+        size_t inv = 0;
+        auto rc = ufsecp_lbtc_verify_ecdsa_opaque_mt(ctrl, rows.data(), N, 0, res.data(),
+                                                     nullptr, 0, &inv, 0 /*auto*/, nullptr);
+        CHECK(rc == UFSECP_OK && inv == 1 && res[4096] == 0 && res[4095] == 1 && res[4097] == 1,
+              "mt: large batch (n=8200) locates the single bad row at the 4096 boundary");
+    }
+
+    {
+        /* Cancellation still works under _mt; degenerate inputs behave like serial. */
+        const size_t N = 64;
+        auto rows = build_ecdsa(sctx, N, 0);
+        std::vector<uint8_t> res(N, 0xAA);
+        CancelAfter state{0, 0}; /* cancel on first poll */
+        ufsecp_cancel_token token{cancel_after, &state, 1};
+        auto rc = ufsecp_lbtc_verify_ecdsa_opaque_mt(ctrl, rows.data(), N, 0, res.data(),
+                                                     nullptr, 0, nullptr, 0, &token);
+        CHECK(rc == UFSECP_ERR_CANCELLED, "mt: cancellation returns UFSECP_ERR_CANCELLED under _mt");
+
+        auto rc0 = ufsecp_lbtc_verify_schnorr_mt(ctrl, rows.data(), 0, 0, res.data(),
+                                                 nullptr, 0, nullptr, 0, nullptr);
+        CHECK(rc0 == UFSECP_OK, "mt: n==0 is a vacuous no-op under _mt");
+        auto rcn = ufsecp_lbtc_verify_ecdsa_opaque_mt(nullptr, rows.data(), N, 0, res.data(),
+                                                      nullptr, 0, nullptr, 0, nullptr);
+        CHECK(rcn == UFSECP_ERR_NULL_ARG, "mt: NULL ctrl returns UFSECP_ERR_NULL_ARG under _mt");
+    }
+
+    /* --- collect _mt: valid rows zero their key cell, parity with serial collect --- */
+    {
+        const size_t N = 96, KS = 4;
+        auto rows_s = build_ecdsa(sctx, N, KS);
+        const size_t stride = UFSECP_LBTC_ECDSA_RECORD + KS;
+        rows_s[40 * stride + 65] ^= 0x01;        // corrupt row 40
+        auto rows_m = rows_s;                    // identical copy for the _mt run
+        ufsecp_lbtc_verify_ecdsa_collect(ctrl, rows_s.data(), N, KS, nullptr);
+        ufsecp_lbtc_verify_ecdsa_collect_mt(ctrl, rows_m.data(), N, KS, 0 /*auto*/, nullptr);
+        CHECK(rows_s == rows_m, "mt: ecdsa_collect_mt key cells identical to serial collect");
+        bool z0 = true;     for (size_t k = 0; k < KS; ++k) z0     &= rows_m[0  * stride + UFSECP_LBTC_ECDSA_RECORD + k] == 0;
+        bool kept40 = false; for (size_t k = 0; k < KS; ++k) kept40 |= rows_m[40 * stride + UFSECP_LBTC_ECDSA_RECORD + k] != 0;
+        CHECK(z0 && kept40, "mt: ecdsa_collect_mt zeroes valid key, keeps invalid (row 40)");
+    }
+
     /* --- empty batch (no-op; results untouched) --- */
     {
         std::vector<uint8_t> res(1, 0xAA);
         ufsecp_lbtc_verify_ecdsa(ctrl, nullptr, 0, 0, res.data(), nullptr, 0, nullptr);
         CHECK(res[0] == 0xAA, "empty batch is a no-op (results untouched)");
+    }
+
+    /* --- issue #312: ufsecp_lbtc_match_silent_prefixes (BIP-352 scan + 8-byte prefix match) ---
+     * Golden vector: replicate bench_bip352's deterministic tweak #9999 and confirm we reproduce
+     * its validated prefix 0xb63b4601066a6971 (cross-checked there against libsecp256k1 / CUDA /
+     * OpenCL). Inputs use the DuckDB-extension byte layout (64-byte uncompressed LE points). */
+    {
+        using namespace secp256k1::fast;
+        auto to_le64 = [](const Point& p, uint8_t* out) {
+            auto unc = p.to_uncompressed();  /* [0x04 | x_be | y_be] */
+            for (int k = 0; k < 32; ++k) { out[k] = unc[32 - k]; out[32 + k] = unc[64 - k]; }
+        };
+        static const uint8_t SCAN_KEY[32] = {
+            0xc4,0x23,0x9f,0xd6,0xfc,0x3d,0xb6,0xe2,0x2b,0x8b,0xed,0x6a,0x49,0x21,0x9e,0x4e,
+            0x30,0xd7,0xd6,0xa3,0xb9,0x82,0x94,0xb1,0x38,0xaf,0x4a,0xd3,0x00,0xda,0x1a,0x42};
+        auto seed = secp256k1::SHA256::hash(reinterpret_cast<const uint8_t*>("bench_bip352_seed"), 17);
+        uint8_t buf[36]; std::memcpy(buf, seed.data(), 32);
+        const int i = 9999;
+        buf[32]=(uint8_t)(i>>24); buf[33]=(uint8_t)(i>>16); buf[34]=(uint8_t)(i>>8); buf[35]=(uint8_t)i;
+        auto sb = secp256k1::SHA256::hash(buf, 36);
+        Point tweak = Point::generator().scalar_mul(Scalar::from_bytes(sb.data()));
+        auto spend_priv =
+            secp256k1::SHA256::hash(reinterpret_cast<const uint8_t*>("bench_bip352_spend_key"), 22);
+        Point spend = Point::generator().scalar_mul(Scalar::from_bytes(spend_priv.data()));
+        uint8_t tweak64[64], spend64[64], scan_le[32];
+        to_le64(tweak, tweak64); to_le64(spend, spend64);
+        for (int k = 0; k < 32; ++k) scan_le[k] = SCAN_KEY[31 - k];
+
+        const uint64_t GOLDEN = 0xb63b4601066a6971ull;
+        uint8_t m = 0xEE;
+        int r = ufsecp_lbtc_match_silent_prefixes(scan_le, spend64, tweak64, &GOLDEN, 1, &m);
+        CHECK(r == 1 && m == 1, "match_silent_prefixes: tweak#9999 reproduces bench 0xb63b4601066a6971");
+        const uint64_t wrong = GOLDEN ^ 1ull;
+        ufsecp_lbtc_match_silent_prefixes(scan_le, spend64, tweak64, &wrong, 1, &m);
+        CHECK(m == 0, "match_silent_prefixes: wrong target -> 0");
+        CHECK(ufsecp_lbtc_match_silent_prefixes(nullptr, spend64, tweak64, &GOLDEN, 1, &m) == -1,
+              "match_silent_prefixes: NULL scan_key -> -1");
+        CHECK(ufsecp_lbtc_match_silent_prefixes(scan_le, spend64, tweak64, &GOLDEN, 0, &m) == 0,
+              "match_silent_prefixes: count 0 -> 0");
     }
 
     ufsecp_ctx_destroy(sctx);

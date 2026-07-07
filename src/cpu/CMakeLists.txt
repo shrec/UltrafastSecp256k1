@@ -515,6 +515,11 @@ if(NOT TARGET ${SECP256K1_LIB_NAME})
         add_library(${SECP256K1_LIB_NAME} STATIC ${SECP256K1_SOURCES})
     endif()
     add_library(secp256k1::fast ALIAS ${SECP256K1_LIB_NAME})
+    # Stable, fully-qualified alias matching the installed export name:
+    # install(EXPORT secp256k1-fast-targets NAMESPACE secp256k1::) exports
+    # `fastsecp256k1` as `secp256k1::fastsecp256k1`, so build-tree and installed
+    # consumers (e.g. the libbitcoin direct integration) link the same name.
+    add_library(secp256k1::fastsecp256k1 ALIAS ${SECP256K1_LIB_NAME})
 
     # Expose generated features header to build-tree consumers.
     # $<BUILD_INTERFACE:> prevents the binary-dir path from leaking into

@@ -7,8 +7,12 @@ BLOCKING gate: ALL three tools MUST be present and pass.
   Lean 4   — machine-checks SafeGCD theorems via native_decide
   Cryptol  — proves GF(p) field + EC group + ECDSA + Schnorr arithmetic
 
-If any tool is absent or fails → exit 1 (hard failure).
-Cryptol absent = primitive correctness unverified = FAIL.
+Z3 or Lean absent or failing → exit 1 (hard failure).
+Cryptol present: each audit/formal/cryptol/*.icry runner `:load`s its spec
+(parse + type-check) and `:check`s the curated properties; a type error or a
+property counterexample → exit 1 (blocking). Cryptol absent → advisory skip (77)
+per CAAS guardrail #16 (CI runners may lack it) — provision cryptol to make it
+unconditionally blocking. The full sign/verify equivalences are SAW :prove targets.
 
 Tools:
   Z3 SMT    — audit/formal/safegcd_z3_proof.py   (~2s, pip install z3-solver)
@@ -130,9 +134,30 @@ def main() -> int:
         if rc == 0:
             rc = 77
     else:
-        for cry_file in sorted(cryptol_dir.glob("*.cry")):
-            if run_tool(f"cryptol/{cry_file.name}", ["cryptol", "-b", str(cry_file)]) != 0:
-                rc = 1
+        # Run each .icry runner: it `:load`s the module (parse + type-check) and then
+        # `:check`s the curated, tractable properties. `cryptol -b` exits non-zero on any
+        # parse/type error OR a property counterexample, so the process exit code IS the
+        # verdict (no output parsing needed). `:check` is randomized property testing — it
+        # evaluates the spec, so no SMT solver is required here; the heavy full sign/verify
+        # equivalences (256-bit scalar mul, abstract SHA-256) are SAW :prove targets.
+        # cwd = cryptol_dir so the bare `:load Name.cry` and inter-module imports resolve.
+        #
+        # NOTE: running the raw `cryptol -b Name.cry` (the previous behaviour) executes the
+        # file as a REPL command batch — top-level definitions do NOT persist and NO property
+        # is ever checked (it silently "passed"). The .icry runners are what actually exercise
+        # the properties, turning this into a real blocking gate when cryptol is present.
+        runners = sorted(cryptol_dir.glob("*.icry"))
+        if not runners:
+            print("  [cryptol] no .icry runners found — falling back to type-check only")
+            for cry_file in sorted(cryptol_dir.glob("*.cry")):
+                if run_tool(f"cryptol/{cry_file.name}",
+                            ["cryptol", "-b", cry_file.name], cwd=cryptol_dir) != 0:
+                    rc = 1
+        else:
+            for runner in runners:
+                if run_tool(f"cryptol/{runner.name}",
+                            ["cryptol", "-b", runner.name], cwd=cryptol_dir) != 0:
+                    rc = 1
 
     print()
     print(f"Result: {g_pass} proved, {g_fail} failed, {g_skip} skipped")

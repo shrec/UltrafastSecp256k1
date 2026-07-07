@@ -72,6 +72,16 @@ STANDARD_VERIFIERS = {
                                                    # the shim test shim_batch_mt (MT == single across thread
                                                    # counts {0,1,2,8,64} + per-row results), same class as
                                                    # ecdsa_batch_verify_mt
+    "ecdsa_batch_verify_opaque_rows",              # libbitcoin row-layout adapter: parses PUBLIC
+                                                   # (digest,pubkey,sig) rows, then delegates to
+                                                   # ecdsa_batch_verify plus per-row ecdsa fallback.
+    "ecdsa_batch_verify_opaque_columns",           # libbitcoin column-layout twin of the same standard
+                                                   # ECDSA batch verifier surface.
+    "schnorr_batch_verify_bip340_rows",            # BIP-340 row-layout adapter: parses PUBLIC
+                                                   # (msg,xonly,sig) rows, then delegates to
+                                                   # schnorr_batch_verify plus canonical schnorr_verify.
+    "schnorr_batch_verify_bip340_columns",         # BIP-340 column-layout twin of the same standard
+                                                   # Schnorr batch verifier surface.
     "bitcoin_verify_message", "eth_personal_verify",  # message-sig = ecdsa recover + compare
     "eip55_verify",                               # address checksum, not curve soundness
     "poly1305_verify",                            # MAC tag compare, not EC soundness

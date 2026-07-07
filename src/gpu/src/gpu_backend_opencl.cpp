@@ -149,6 +149,53 @@ struct OclMsmPool {
     }
 };
 
+/* libbitcoin columnar verify persistent buffer pool — grow-only, reused across
+ * engine calls so the hot verify loop performs no per-call/per-chunk
+ * clCreateBuffer (acceptance A6). Holds PUBLIC verify data only (digests,
+ * pubkeys, signatures, verdicts) — no secret material, so no pre-release
+ * zeroing is required. One capacity (in rows) backs the widest column set: the
+ * pubkey/xonly span is sized at 33 B/row so it serves both ECDSA (33) and
+ * Schnorr (32) without a second buffer. */
+struct OclColumnsPool {
+    cl_mem d_dig = nullptr;   // capacity × 32  (digests)
+    cl_mem d_key = nullptr;   // capacity × 33  (ecdsa pubkeys33 / schnorr xonly32)
+    cl_mem d_sig = nullptr;   // capacity × 64  (opaque-LE / BIP-340 sigs)
+    cl_mem d_res = nullptr;   // capacity × sizeof(int)  (column verdicts, WRITE_ONLY)
+    cl_mem d_keys = nullptr;  // capacity × 1  (collect verdict channel, READ_WRITE:
+                              //   host SEEDs caller markers in, kernel writes 0 on VALID)
+    size_t capacity = 0;
+
+    bool ensure(size_t n, cl_context ctx) {
+        if (n <= capacity) return true;
+        free_all();
+        cl_int err = CL_SUCCESS;
+        d_dig = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n * 32,          nullptr, &err);
+        d_key = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n * 33,          nullptr, &err);
+        d_sig = clCreateBuffer(ctx, CL_MEM_READ_ONLY,  n * 64,          nullptr, &err);
+        d_res = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY, n * sizeof(int), nullptr, &err);
+        // Collect verdict buffer must be READ_WRITE — the host seeds the caller's
+        // non-zero markers before launch and the kernel clears valid rows to 0.
+        // d_res (WRITE_ONLY) cannot be seed-written, so a separate buffer is used.
+        d_keys = clCreateBuffer(ctx, CL_MEM_READ_WRITE, n,              nullptr, &err);
+        if (d_dig && d_key && d_sig && d_res && d_keys) { capacity = n; return true; }
+        free_all();
+        return false;
+    }
+
+    void free_all() {
+        if (d_dig) { clReleaseMemObject(d_dig); d_dig = nullptr; }
+        if (d_key) { clReleaseMemObject(d_key); d_key = nullptr; }
+        if (d_sig) { clReleaseMemObject(d_sig); d_sig = nullptr; }
+        if (d_res) { clReleaseMemObject(d_res); d_res = nullptr; }
+        if (d_keys) { clReleaseMemObject(d_keys); d_keys = nullptr; }
+        capacity = 0;
+    }
+
+    ~OclColumnsPool() { free_all(); }
+};
+
+static thread_local OclColumnsPool g_ocl_columns_pool;
+
 } // anonymous namespace
 
 namespace secp256k1 {
@@ -230,6 +277,17 @@ public:
         if (ext_ecdsa_verify_)   { clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr; }
         if (ext_ecdsa_verify_compressed_) { clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr; }
         if (ext_ecdsa_lbtc_)     { clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr; }
+        if (ext_ecdsa_lbtc_columns_)   { clReleaseKernel(ext_ecdsa_lbtc_columns_);   ext_ecdsa_lbtc_columns_   = nullptr; }
+        if (ext_schnorr_lbtc_columns_) { clReleaseKernel(ext_schnorr_lbtc_columns_); ext_schnorr_lbtc_columns_ = nullptr; }
+        if (ext_ecdsa_lbtc_collect_)   { clReleaseKernel(ext_ecdsa_lbtc_collect_);   ext_ecdsa_lbtc_collect_   = nullptr; }
+        if (ext_schnorr_lbtc_collect_) { clReleaseKernel(ext_schnorr_lbtc_collect_); ext_schnorr_lbtc_collect_ = nullptr; }
+        if (ext_xonly_validate_)       { clReleaseKernel(ext_xonly_validate_);       ext_xonly_validate_       = nullptr; }
+        if (ext_pubkey_validate_)      { clReleaseKernel(ext_pubkey_validate_);      ext_pubkey_validate_      = nullptr; }
+        if (ext_commitment_verify_)    { clReleaseKernel(ext_commitment_verify_);    ext_commitment_verify_    = nullptr; }
+        if (ext_tagged_hash_)          { clReleaseKernel(ext_tagged_hash_);          ext_tagged_hash_          = nullptr; }
+        if (ext_tagged_hash_var_)      { clReleaseKernel(ext_tagged_hash_var_);      ext_tagged_hash_var_      = nullptr; }
+        if (ext_hash256_)              { clReleaseKernel(ext_hash256_);              ext_hash256_              = nullptr; }
+        if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
@@ -241,6 +299,9 @@ public:
         if (frost_kernel_)       { clReleaseKernel(frost_kernel_);       frost_kernel_       = nullptr; }
         if (frost_program_)      { clReleaseProgram(frost_program_);     frost_program_      = nullptr; }
         frost_init_attempted_ = false;
+        if (hash160_kernel_)     { clReleaseKernel(hash160_kernel_);     hash160_kernel_     = nullptr; }
+        if (hash160_program_)    { clReleaseProgram(hash160_program_);   hash160_program_    = nullptr; }
+        hash160_init_attempted_ = false;
         if (zk_knowledge_verify_) { clReleaseKernel(zk_knowledge_verify_); zk_knowledge_verify_ = nullptr; }
         if (zk_dleq_verify_)      { clReleaseKernel(zk_dleq_verify_);     zk_dleq_verify_      = nullptr; }
         if (bp_poly_batch_)       { clReleaseKernel(bp_poly_batch_);       bp_poly_batch_       = nullptr; }
@@ -548,6 +609,672 @@ public:
         return GpuError::Ok;
     }
 
+    /* Memory-aware chunk size for the column paths: bound per-chunk rows by the
+     * device's max single-allocation (largest column buffer is 64 B/row) and a
+     * hard cap, so a huge batch cannot force a giant one-shot allocation.
+     * UFSECP_GPU_COLUMNS_CHUNK is an internal/test knob — never caller-facing. */
+    size_t lbtc_columns_chunk(cl_command_queue queue, size_t count) const {
+        size_t cap = (static_cast<size_t>(4) << 20);
+        cl_device_id dev = nullptr;
+        cl_ulong max_alloc = 0;
+        if (clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(dev), &dev, nullptr) == CL_SUCCESS && dev)
+            clGetDeviceInfo(dev, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(max_alloc), &max_alloc, nullptr);
+        if (max_alloc > 0) {
+            const size_t by_mem = static_cast<size_t>(max_alloc) / 64u;
+            if (by_mem < cap) cap = by_mem;
+        }
+        if (const char* e = std::getenv("UFSECP_GPU_COLUMNS_CHUNK")) {
+            const unsigned long long v = std::strtoull(e, nullptr, 10);
+            if (v > 0 && static_cast<size_t>(v) < cap) cap = static_cast<size_t>(v);
+        }
+        if (cap < 1) cap = 1;
+        return (count < cap) ? count : cap;
+    }
+
+    GpuError ecdsa_verify_lbtc_columns(
+        const uint8_t* digests32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!digests32 || !pubkeys33 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Fail-closed: initialise the whole result buffer to invalid (0) up front,
+        // so any early non-OK return (Unsupported/alloc/launch/read) leaves no stale
+        // or partial verdict behind. On success every row is overwritten below.
+        std::memset(out_results, 0, count);
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_ecdsa_lbtc_columns_)
+            return set_error(GpuError::Unsupported, "ecdsa_verify_lbtc_columns kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+        const size_t chunk = lbtc_columns_chunk(queue, count);
+        // Reusable, grow-only device + host staging (acceptance A6): the four
+        // column buffers persist across engine calls and chunks — no per-call or
+        // per-chunk clCreateBuffer on the hot loop. Each chunk re-uploads exactly
+        // n rows (in-order queue orders the writes before the kernel) so no stale
+        // data from a larger prior batch is ever read.
+        if (!g_ocl_columns_pool.ensure(chunk, cl_ctx))
+            return set_error(GpuError::Memory, "lbtc ecdsa columns device alloc");
+        cl_mem d_dig = g_ocl_columns_pool.d_dig;
+        cl_mem d_pub = g_ocl_columns_pool.d_key;
+        cl_mem d_sig = g_ocl_columns_pool.d_sig;
+        cl_mem d_res = g_ocl_columns_pool.d_res;
+        g_opencl_batch_scratch.ensure_results(chunk);
+        int* const h_res = g_opencl_batch_scratch.results.data();
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            if (clEnqueueWriteBuffer(queue, d_dig, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(digests32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_pub, CL_FALSE, 0, 33 * n,
+                    const_cast<uint8_t*>(pubkeys33 + off * 33), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
+                    const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS)
+                return set_error(GpuError::Memory, "ecdsa columns upload failed");
+
+            cl_uint cl_count = static_cast<cl_uint>(n);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 0, sizeof(cl_mem), &d_dig);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 1, sizeof(cl_mem), &d_pub);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 2, sizeof(cl_mem), &d_sig);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 3, sizeof(cl_mem), &d_res);
+            clSetKernelArg(ext_ecdsa_lbtc_columns_, 4, sizeof(cl_uint), &cl_count);
+
+            size_t global = n;
+            clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_lbtc_columns_, 1, nullptr,
+                                           &global, nullptr, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "ecdsa columns kernel launch failed");
+            clFinish(queue);
+            clerr = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, sizeof(int) * n, h_res, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Memory, "ecdsa columns result read failed");
+            for (size_t i = 0; i < n; ++i)
+                out_results[off + i] = h_res[i] ? 1 : 0;
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* ====================================================================
+     * libbitcoin COLLECT verify — native OpenCL siblings of the *_lbtc_columns
+     * overrides above, mirroring the CUDA reference (gpu_backend_cuda.cu
+     * @1230/@1290). Same verdict, different output convention: key_buffer is a
+     * 1-byte-per-row verdict channel PRE-SEEDED non-zero by the caller. VALID
+     * rows are cleared to 0; INVALID rows are left seeded so a rejected id
+     * survives (fail-closed collect contract). CRITICAL differences vs the
+     * column clone:
+     *   (1) NO up-front memset(key_buffer, 0) — 0 == VALID here, so zeroing up
+     *       front would be a mass false-accept. Any early non-Ok return leaves
+     *       the caller's non-zero seed (all-rejected == fail-closed).
+     *   (2) The device verdict channel is SEEDED from key_buffer before launch
+     *       (d_keys, READ_WRITE) and read back VERBATIM (no ?1:0 normalisation).
+     *   (3) Any operational fault (alloc/enqueue/finish/read, or a missing
+     *       kernel while a device is present) returns a non-Ok GpuError WITHOUT
+     *       zeroing key_buffer, so the engine falls back and never sees an
+     *       all-zero or a zeroed-invalid buffer. All inputs public → VT.
+     * ==================================================================== */
+
+    GpuError ecdsa_verify_collect(
+        const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* key_buffer) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msg_hashes32 || !pubkeys33 || !sigs64 || !key_buffer)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        // NO up-front memset: 0 == VALID for collect. Leaving key_buffer untouched
+        // on any early non-Ok return preserves the caller's non-zero seed
+        // (all-rejected == fail-closed).
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_ecdsa_lbtc_collect_)
+            return set_error(GpuError::Unsupported, "ecdsa_verify_lbtc_collect kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+        const size_t chunk = lbtc_columns_chunk(queue, count);
+        if (!g_ocl_columns_pool.ensure(chunk, cl_ctx))
+            return set_error(GpuError::Memory, "lbtc ecdsa collect device alloc");
+        cl_mem d_dig  = g_ocl_columns_pool.d_dig;
+        cl_mem d_pub  = g_ocl_columns_pool.d_key;
+        cl_mem d_sig  = g_ocl_columns_pool.d_sig;
+        cl_mem d_keys = g_ocl_columns_pool.d_keys;
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            // Seed the verdict channel from the caller's non-zero markers and
+            // upload the public columns. In-order queue orders all writes before
+            // the kernel; each chunk re-uploads exactly n rows (no stale reads).
+            if (clEnqueueWriteBuffer(queue, d_dig, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(msg_hashes32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_pub, CL_FALSE, 0, 33 * n,
+                    const_cast<uint8_t*>(pubkeys33 + off * 33), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
+                    const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_keys, CL_FALSE, 0, n,
+                    key_buffer + off, 0, nullptr, nullptr) != CL_SUCCESS)
+                return set_error(GpuError::Memory, "ecdsa collect upload failed");
+
+            cl_uint cl_count = static_cast<cl_uint>(n);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 0, sizeof(cl_mem), &d_dig);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 1, sizeof(cl_mem), &d_pub);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 2, sizeof(cl_mem), &d_sig);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 3, sizeof(cl_mem), &d_keys);
+            clSetKernelArg(ext_ecdsa_lbtc_collect_, 4, sizeof(cl_uint), &cl_count);
+
+            size_t global = n;
+            clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_lbtc_collect_, 1, nullptr,
+                                           &global, nullptr, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "ecdsa collect kernel launch failed");
+            clFinish(queue);
+            // Read the verdict channel back VERBATIM — valid rows are now 0,
+            // invalid rows retain the caller's seed.
+            clerr = clEnqueueReadBuffer(queue, d_keys, CL_TRUE, 0, n, key_buffer + off, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Memory, "ecdsa collect result read failed");
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError schnorr_verify_collect(
+        const uint8_t* msg_hashes32, const uint8_t* pubkeys_x32,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* key_buffer) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msg_hashes32 || !pubkeys_x32 || !sigs64 || !key_buffer)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        // NO up-front memset (0 == VALID for collect); see ecdsa_verify_collect.
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_schnorr_lbtc_collect_)
+            return set_error(GpuError::Unsupported, "schnorr_verify_lbtc_collect kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+        const size_t chunk = lbtc_columns_chunk(queue, count);
+        if (!g_ocl_columns_pool.ensure(chunk, cl_ctx))
+            return set_error(GpuError::Memory, "lbtc schnorr collect device alloc");
+        cl_mem d_dig  = g_ocl_columns_pool.d_dig;
+        cl_mem d_xon  = g_ocl_columns_pool.d_key;  // 33 B/row buffer backs 32 B x-only
+        cl_mem d_sig  = g_ocl_columns_pool.d_sig;
+        cl_mem d_keys = g_ocl_columns_pool.d_keys;
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            if (clEnqueueWriteBuffer(queue, d_dig, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(msg_hashes32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_xon, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(pubkeys_x32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
+                    const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_keys, CL_FALSE, 0, n,
+                    key_buffer + off, 0, nullptr, nullptr) != CL_SUCCESS)
+                return set_error(GpuError::Memory, "schnorr collect upload failed");
+
+            cl_uint cl_count = static_cast<cl_uint>(n);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 0, sizeof(cl_mem), &d_dig);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 1, sizeof(cl_mem), &d_xon);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 2, sizeof(cl_mem), &d_sig);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 3, sizeof(cl_mem), &d_keys);
+            clSetKernelArg(ext_schnorr_lbtc_collect_, 4, sizeof(cl_uint), &cl_count);
+
+            size_t global = n;
+            clerr = clEnqueueNDRangeKernel(queue, ext_schnorr_lbtc_collect_, 1, nullptr,
+                                           &global, nullptr, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "schnorr collect kernel launch failed");
+            clFinish(queue);
+            clerr = clEnqueueReadBuffer(queue, d_keys, CL_TRUE, 0, n, key_buffer + off, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Memory, "schnorr collect result read failed");
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* ====================================================================
+     * libbitcoin-bridge PUBLIC-DATA ops — native OpenCL overrides mirroring
+     * the CUDA reference (gpu_backend_cuda.cu @1529-1722) bit-for-bit:
+     * bad-arg contract (Device / Ok-no-write / NullArg / BadInput), fail-
+     * closed (validate ops memset results to 0 up front; any operational
+     * fault returns non-Ok so the libbitcoin engine hook declines to CPU
+     * rather than reading a partial/garbage buffer as valid). A missing
+     * kernel returns Launch (NOT Unsupported) because a device is present.
+     * All inputs are public → variable-time; no secret, no secure-erase.
+     * results/out buffers are uchar to match the CUDA uint8_t layout.
+     * ==================================================================== */
+
+    GpuError xonly_validate(
+        const uint8_t* keys32, size_t n, uint8_t* results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!keys32 || !results) return set_error(GpuError::NullArg, "NULL buffer");
+        std::memset(results, 0, n);
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_xonly_validate_)
+            return set_error(GpuError::Launch, "lbtc_xonly_validate kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int e;
+        cl_mem d_keys = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       n * 32, const_cast<uint8_t*>(keys32), &e);
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "xonly_validate d_keys");
+        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n, nullptr, &e);
+        if (e != CL_SUCCESS) { clReleaseMemObject(d_keys); return set_error(GpuError::Memory, "xonly_validate d_res"); }
+
+        cl_uint cl_count = static_cast<cl_uint>(n);
+        clSetKernelArg(ext_xonly_validate_, 0, sizeof(cl_mem), &d_keys);
+        clSetKernelArg(ext_xonly_validate_, 1, sizeof(cl_mem), &d_res);
+        clSetKernelArg(ext_xonly_validate_, 2, sizeof(cl_uint), &cl_count);
+        size_t global = n;
+        e = clEnqueueNDRangeKernel(queue, ext_xonly_validate_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (e != CL_SUCCESS) { clReleaseMemObject(d_res); clReleaseMemObject(d_keys);
+            return set_error(GpuError::Launch, "xonly_validate kernel launch failed"); }
+        clFinish(queue);
+        e = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, n, results, 0, nullptr, nullptr);
+        clReleaseMemObject(d_res);
+        clReleaseMemObject(d_keys);
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "xonly_validate result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError pubkey_validate(
+        const uint8_t* pubkeys33, size_t n, uint8_t* results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!pubkeys33 || !results) return set_error(GpuError::NullArg, "NULL buffer");
+        std::memset(results, 0, n);
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_pubkey_validate_)
+            return set_error(GpuError::Launch, "lbtc_pubkey_validate kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int e;
+        cl_mem d_pk = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                     n * 33, const_cast<uint8_t*>(pubkeys33), &e);
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "pubkey_validate d_pk");
+        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n, nullptr, &e);
+        if (e != CL_SUCCESS) { clReleaseMemObject(d_pk); return set_error(GpuError::Memory, "pubkey_validate d_res"); }
+
+        cl_uint cl_count = static_cast<cl_uint>(n);
+        clSetKernelArg(ext_pubkey_validate_, 0, sizeof(cl_mem), &d_pk);
+        clSetKernelArg(ext_pubkey_validate_, 1, sizeof(cl_mem), &d_res);
+        clSetKernelArg(ext_pubkey_validate_, 2, sizeof(cl_uint), &cl_count);
+        size_t global = n;
+        e = clEnqueueNDRangeKernel(queue, ext_pubkey_validate_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (e != CL_SUCCESS) { clReleaseMemObject(d_res); clReleaseMemObject(d_pk);
+            return set_error(GpuError::Launch, "pubkey_validate kernel launch failed"); }
+        clFinish(queue);
+        e = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, n, results, 0, nullptr, nullptr);
+        clReleaseMemObject(d_res);
+        clReleaseMemObject(d_pk);
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "pubkey_validate result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError commitment_verify(
+        const uint8_t* internal_x32, const uint8_t* tweak32,
+        const uint8_t* tweaked_x32, const uint8_t* parity,
+        size_t n, uint8_t* results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!internal_x32 || !tweak32 || !tweaked_x32 || !parity || !results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        std::memset(results, 0, n);
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_commitment_verify_)
+            return set_error(GpuError::Launch, "lbtc_commitment_verify kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int e;
+        cl_mem d_ix = nullptr, d_tw = nullptr, d_tx = nullptr, d_par = nullptr, d_res = nullptr;
+        auto release_all = [&]() {
+            if (d_res) clReleaseMemObject(d_res);
+            if (d_par) clReleaseMemObject(d_par);
+            if (d_tx)  clReleaseMemObject(d_tx);
+            if (d_tw)  clReleaseMemObject(d_tw);
+            if (d_ix)  clReleaseMemObject(d_ix);
+        };
+        d_ix = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              n * 32, const_cast<uint8_t*>(internal_x32), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_ix"); }
+        d_tw = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              n * 32, const_cast<uint8_t*>(tweak32), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_tw"); }
+        d_tx = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              n * 32, const_cast<uint8_t*>(tweaked_x32), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_tx"); }
+        d_par = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                               n, const_cast<uint8_t*>(parity), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_par"); }
+        d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n, nullptr, &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_res"); }
+
+        cl_uint cl_count = static_cast<cl_uint>(n);
+        clSetKernelArg(ext_commitment_verify_, 0, sizeof(cl_mem), &d_ix);
+        clSetKernelArg(ext_commitment_verify_, 1, sizeof(cl_mem), &d_tw);
+        clSetKernelArg(ext_commitment_verify_, 2, sizeof(cl_mem), &d_tx);
+        clSetKernelArg(ext_commitment_verify_, 3, sizeof(cl_mem), &d_par);
+        clSetKernelArg(ext_commitment_verify_, 4, sizeof(cl_mem), &d_res);
+        clSetKernelArg(ext_commitment_verify_, 5, sizeof(cl_uint), &cl_count);
+        size_t global = n;
+        e = clEnqueueNDRangeKernel(queue, ext_commitment_verify_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "commitment_verify kernel launch failed"); }
+        clFinish(queue);
+        e = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, n, results, 0, nullptr, nullptr);
+        release_all();
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "commitment_verify result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError tagged_hash(
+        const uint8_t* tag_hash32, const uint8_t* msgs,
+        size_t msg_len, size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!tag_hash32 || !msgs || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (msg_len == 0 || msg_len > 256) return set_error(GpuError::BadInput, "msg_len out of range");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_tagged_hash_)
+            return set_error(GpuError::Launch, "lbtc_tagged_hash kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int e;
+        cl_mem d_th = nullptr, d_msgs = nullptr, d_out = nullptr;
+        auto release_all = [&]() {
+            if (d_out)  clReleaseMemObject(d_out);
+            if (d_msgs) clReleaseMemObject(d_msgs);
+            if (d_th)   clReleaseMemObject(d_th);
+        };
+        d_th = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              32, const_cast<uint8_t*>(tag_hash32), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagged d_th"); }
+        d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                n * msg_len, const_cast<uint8_t*>(msgs), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagged d_msgs"); }
+        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagged d_out"); }
+
+        cl_uint cl_count = static_cast<cl_uint>(n);
+        cl_uint cl_ml = static_cast<cl_uint>(msg_len);
+        clSetKernelArg(ext_tagged_hash_, 0, sizeof(cl_mem), &d_th);
+        clSetKernelArg(ext_tagged_hash_, 1, sizeof(cl_mem), &d_msgs);
+        clSetKernelArg(ext_tagged_hash_, 2, sizeof(cl_uint), &cl_ml);
+        clSetKernelArg(ext_tagged_hash_, 3, sizeof(cl_mem), &d_out);
+        clSetKernelArg(ext_tagged_hash_, 4, sizeof(cl_uint), &cl_count);
+        size_t global = n;
+        e = clEnqueueNDRangeKernel(queue, ext_tagged_hash_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "tagged_hash kernel launch failed"); }
+        clFinish(queue);
+        e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
+        release_all();
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "tagged_hash result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError tagged_hash_var(
+        const uint8_t* tag_hash32, const uint8_t* msgs, const uint32_t* msg_lens,
+        size_t stride, size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!tag_hash32 || !msgs || !msg_lens || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (stride == 0 || stride > 256) return set_error(GpuError::BadInput, "stride out of range");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_tagged_hash_var_)
+            return set_error(GpuError::Launch, "lbtc_tagged_hash_var kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int e;
+        cl_mem d_th = nullptr, d_msgs = nullptr, d_lens = nullptr, d_out = nullptr;
+        auto release_all = [&]() {
+            if (d_out)  clReleaseMemObject(d_out);
+            if (d_lens) clReleaseMemObject(d_lens);
+            if (d_msgs) clReleaseMemObject(d_msgs);
+            if (d_th)   clReleaseMemObject(d_th);
+        };
+        d_th = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              32, const_cast<uint8_t*>(tag_hash32), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagvar d_th"); }
+        d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                n * stride, const_cast<uint8_t*>(msgs), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagvar d_msgs"); }
+        d_lens = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                n * sizeof(cl_uint), const_cast<uint32_t*>(msg_lens), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagvar d_lens"); }
+        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagvar d_out"); }
+
+        cl_uint cl_count = static_cast<cl_uint>(n);
+        cl_uint cl_stride = static_cast<cl_uint>(stride);
+        clSetKernelArg(ext_tagged_hash_var_, 0, sizeof(cl_mem), &d_th);
+        clSetKernelArg(ext_tagged_hash_var_, 1, sizeof(cl_mem), &d_msgs);
+        clSetKernelArg(ext_tagged_hash_var_, 2, sizeof(cl_mem), &d_lens);
+        clSetKernelArg(ext_tagged_hash_var_, 3, sizeof(cl_uint), &cl_stride);
+        clSetKernelArg(ext_tagged_hash_var_, 4, sizeof(cl_mem), &d_out);
+        clSetKernelArg(ext_tagged_hash_var_, 5, sizeof(cl_uint), &cl_count);
+        size_t global = n;
+        e = clEnqueueNDRangeKernel(queue, ext_tagged_hash_var_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "tagged_hash_var kernel launch failed"); }
+        clFinish(queue);
+        e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
+        release_all();
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "tagged_hash_var result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError hash256(
+        const uint8_t* inputs, size_t input_len, size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!inputs || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (input_len == 0 || input_len > 320) return set_error(GpuError::BadInput, "input_len out of range");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_hash256_)
+            return set_error(GpuError::Launch, "lbtc_hash256 kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int e;
+        cl_mem d_in = nullptr, d_out = nullptr;
+        auto release_all = [&]() {
+            if (d_out) clReleaseMemObject(d_out);
+            if (d_in)  clReleaseMemObject(d_in);
+        };
+        d_in = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              n * input_len, const_cast<uint8_t*>(inputs), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256 d_in"); }
+        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256 d_out"); }
+
+        cl_uint cl_count = static_cast<cl_uint>(n);
+        cl_uint cl_il = static_cast<cl_uint>(input_len);
+        clSetKernelArg(ext_hash256_, 0, sizeof(cl_mem), &d_in);
+        clSetKernelArg(ext_hash256_, 1, sizeof(cl_uint), &cl_il);
+        clSetKernelArg(ext_hash256_, 2, sizeof(cl_mem), &d_out);
+        clSetKernelArg(ext_hash256_, 3, sizeof(cl_uint), &cl_count);
+        size_t global = n;
+        e = clEnqueueNDRangeKernel(queue, ext_hash256_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "hash256 kernel launch failed"); }
+        clFinish(queue);
+        e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
+        release_all();
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "hash256 result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* Generic batch variable-length double-SHA256. Row i is
+     * inputs[i*stride .. i*stride+input_lens[i]); bytes beyond input_lens[i]
+     * up to stride are ignored padding. out32[i*32..i*32+32) =
+     * SHA256(SHA256(row_i)). Public-data hashing only, no tag prefix, no
+     * transaction parsing. Unlike hash256() (fixed input_len, host-capped at
+     * 320 B), rows here are read directly from __global memory on-device via
+     * sha256_update_global, so stride is not capped — real multi-MB Bitcoin
+     * transactions are supported. */
+    GpuError hash256_var(
+        const uint8_t* inputs, const uint32_t* input_lens,
+        size_t stride, size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!inputs || !input_lens || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+        if (stride == 0) return set_error(GpuError::BadInput, "stride out of range");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_hash256_var_)
+            return set_error(GpuError::Launch, "lbtc_hash256_var kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int e;
+        cl_mem d_in = nullptr, d_lens = nullptr, d_out = nullptr;
+        auto release_all = [&]() {
+            if (d_out)  clReleaseMemObject(d_out);
+            if (d_lens) clReleaseMemObject(d_lens);
+            if (d_in)   clReleaseMemObject(d_in);
+        };
+        d_in = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                              n * stride, const_cast<uint8_t*>(inputs), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256_var d_in"); }
+        d_lens = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                n * sizeof(cl_uint), const_cast<uint32_t*>(input_lens), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256_var d_lens"); }
+        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256_var d_out"); }
+
+        cl_uint cl_count = static_cast<cl_uint>(n);
+        cl_uint cl_stride = static_cast<cl_uint>(stride);
+        clSetKernelArg(ext_hash256_var_, 0, sizeof(cl_mem), &d_in);
+        clSetKernelArg(ext_hash256_var_, 1, sizeof(cl_mem), &d_lens);
+        clSetKernelArg(ext_hash256_var_, 2, sizeof(cl_uint), &cl_stride);
+        clSetKernelArg(ext_hash256_var_, 3, sizeof(cl_mem), &d_out);
+        clSetKernelArg(ext_hash256_var_, 4, sizeof(cl_uint), &cl_count);
+        size_t global = n;
+        e = clEnqueueNDRangeKernel(queue, ext_hash256_var_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "hash256_var kernel launch failed"); }
+        clFinish(queue);
+        e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
+        release_all();
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "hash256_var result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    GpuError schnorr_verify_lbtc_columns(
+        const uint8_t* digests32, const uint8_t* xonly32,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!digests32 || !xonly32 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Fail-closed: initialise the whole result buffer to invalid (0) up front,
+        // so any early non-OK return leaves no stale or partial verdict behind.
+        // On success every row is overwritten below.
+        std::memset(out_results, 0, count);
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_schnorr_lbtc_columns_)
+            return set_error(GpuError::Unsupported, "schnorr_verify_lbtc_columns kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+        const size_t chunk = lbtc_columns_chunk(queue, count);
+        // Reusable, grow-only device + host staging (acceptance A6): persistent
+        // across engine calls and chunks — no per-call/per-chunk clCreateBuffer.
+        // Each chunk re-uploads exactly n rows (in-order queue orders the writes
+        // before the kernel) so no stale data from a larger prior batch is read.
+        if (!g_ocl_columns_pool.ensure(chunk, cl_ctx))
+            return set_error(GpuError::Memory, "lbtc schnorr columns device alloc");
+        cl_mem d_dig = g_ocl_columns_pool.d_dig;
+        cl_mem d_xon = g_ocl_columns_pool.d_key;
+        cl_mem d_sig = g_ocl_columns_pool.d_sig;
+        cl_mem d_res = g_ocl_columns_pool.d_res;
+        g_opencl_batch_scratch.ensure_results(chunk);
+        int* const h_res = g_opencl_batch_scratch.results.data();
+
+        for (size_t off = 0; off < count; off += chunk) {
+            const size_t n = (count - off < chunk) ? (count - off) : chunk;
+            if (clEnqueueWriteBuffer(queue, d_dig, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(digests32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_xon, CL_FALSE, 0, 32 * n,
+                    const_cast<uint8_t*>(xonly32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
+                clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
+                    const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS)
+                return set_error(GpuError::Memory, "schnorr columns upload failed");
+
+            cl_uint cl_count = static_cast<cl_uint>(n);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 0, sizeof(cl_mem), &d_dig);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 1, sizeof(cl_mem), &d_xon);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 2, sizeof(cl_mem), &d_sig);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 3, sizeof(cl_mem), &d_res);
+            clSetKernelArg(ext_schnorr_lbtc_columns_, 4, sizeof(cl_uint), &cl_count);
+
+            size_t global = n;
+            clerr = clEnqueueNDRangeKernel(queue, ext_schnorr_lbtc_columns_, 1, nullptr,
+                                           &global, nullptr, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "schnorr columns kernel launch failed");
+            clFinish(queue);
+            clerr = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, sizeof(int) * n, h_res, 0, nullptr, nullptr);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Memory, "schnorr columns result read failed");
+            for (size_t i = 0; i < n; ++i)
+                out_results[off + i] = h_res[i] ? 1 : 0;
+        }
+        clear_error();
+        return GpuError::Ok;
+    }
+
     GpuError ecdh_batch(
         const uint8_t* privkeys32, const uint8_t* peer_pubkeys33,
         size_t count, uint8_t* out_secrets32) override
@@ -661,11 +1388,45 @@ public:
         return set_error(GpuError::Unsupported, "GPU HASH160 module disabled at build time");
 #endif
 
-        /* CPU-side SIMD-accelerated Hash160 */
-        for (size_t i = 0; i < count; ++i) {
-            secp256k1::hash::hash160_33(pubkeys33 + i * 33,
-                                        out_hash160 + i * 20);
+        auto err = ensure_hash160_kernel();
+        if (err != GpuError::Ok) return err;
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int clerr;
+
+        cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                       33 * count, const_cast<uint8_t*>(pubkeys33), &clerr);
+        if (clerr != CL_SUCCESS)
+            return set_error(GpuError::Memory, "hash160 pubkeys buffer alloc");
+
+        cl_mem d_hash = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, 20 * count, nullptr, &clerr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_pubs);
+            return set_error(GpuError::Memory, "hash160 output buffer alloc");
         }
+
+        cl_uint cl_stride = 33;
+        cl_uint cl_count = static_cast<cl_uint>(count);
+        clSetKernelArg(hash160_kernel_, 0, sizeof(cl_mem),  &d_pubs);
+        clSetKernelArg(hash160_kernel_, 1, sizeof(cl_mem),  &d_hash);
+        clSetKernelArg(hash160_kernel_, 2, sizeof(cl_uint), &cl_stride);
+        clSetKernelArg(hash160_kernel_, 3, sizeof(cl_uint), &cl_count);
+
+        size_t global = count;
+        clerr = clEnqueueNDRangeKernel(queue, hash160_kernel_, 1, nullptr,
+                               &global, nullptr, 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS) {
+            clReleaseMemObject(d_hash);
+            clReleaseMemObject(d_pubs);
+            return set_error(GpuError::Launch, "hash160_batch kernel launch failed");
+        }
+        clFinish(queue);
+
+        clEnqueueReadBuffer(queue, d_hash, CL_TRUE, 0, 20 * count, out_hash160, 0, nullptr, nullptr);
+
+        clReleaseMemObject(d_hash);
+        clReleaseMemObject(d_pubs);
 
         clear_error();
         return GpuError::Ok;
@@ -2041,6 +2802,18 @@ private:
     cl_kernel  ext_ecdsa_verify_           = nullptr;
     cl_kernel  ext_ecdsa_verify_compressed_ = nullptr;
     cl_kernel  ext_ecdsa_lbtc_             = nullptr;
+    cl_kernel  ext_ecdsa_lbtc_columns_     = nullptr;
+    cl_kernel  ext_schnorr_lbtc_columns_   = nullptr;
+    cl_kernel  ext_ecdsa_lbtc_collect_     = nullptr;  /* collect verdict channel */
+    cl_kernel  ext_schnorr_lbtc_collect_   = nullptr;
+    /* libbitcoin-bridge PUBLIC-DATA ops (native OpenCL; lazy-loaded with the rest) */
+    cl_kernel  ext_xonly_validate_         = nullptr;
+    cl_kernel  ext_pubkey_validate_        = nullptr;
+    cl_kernel  ext_commitment_verify_      = nullptr;
+    cl_kernel  ext_tagged_hash_            = nullptr;
+    cl_kernel  ext_tagged_hash_var_        = nullptr;
+    cl_kernel  ext_hash256_                = nullptr;
+    cl_kernel  ext_hash256_var_            = nullptr;
     cl_kernel  ext_schnorr_verify_         = nullptr;
     cl_kernel  ext_ecrecover_       = nullptr;
     cl_kernel  ext_ecdsa_snark_            = nullptr;
@@ -2053,6 +2826,11 @@ private:
     cl_program frost_program_       = nullptr;
     cl_kernel  frost_kernel_        = nullptr;
     bool       frost_init_attempted_ = false;
+
+    /* Hash160 kernel handle (lazy-loaded via secp256k1_hash160.cl) */
+    cl_program hash160_program_        = nullptr;
+    cl_kernel  hash160_kernel_         = nullptr;
+    bool       hash160_init_attempted_ = false;
 
     /* ZK proof kernel handles (lazy-loaded via secp256k1_zk.cl) */
     cl_program zk_program_            = nullptr;
@@ -2107,7 +2885,10 @@ private:
     GpuError ensure_extended_kernels() {
         if (ext_ecdsa_verify_ && ext_ecdsa_verify_compressed_ && ext_ecdsa_lbtc_ && ext_schnorr_verify_ &&
             ext_ecrecover_ && ext_ecdsa_snark_ && ext_ecdsa_snark_compressed_ &&
-            ext_ecdh_scalar_mul_compressed_ && ext_schnorr_snark_)
+            ext_ecdh_scalar_mul_compressed_ && ext_schnorr_snark_ &&
+            ext_xonly_validate_ && ext_pubkey_validate_ && ext_commitment_verify_ &&
+            ext_tagged_hash_ && ext_tagged_hash_var_ && ext_hash256_ && ext_hash256_var_ &&
+            ext_ecdsa_lbtc_collect_ && ext_schnorr_lbtc_collect_)
             return GpuError::Ok;
         if (ext_init_attempted_)
             return set_error(GpuError::Launch, "extended kernel init previously failed");
@@ -2253,6 +3034,89 @@ private:
             return set_error(GpuError::Launch, "schnorr_snark_witness_batch kernel not found");
         }
 
+        // libbitcoin column verify kernels (Structure-of-Arrays). Native OpenCL
+        // path; reuse the same device parse/verify as the row kernel.
+        ext_ecdsa_lbtc_columns_ = clCreateKernel(ext_program_, "ecdsa_verify_lbtc_columns", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_schnorr_snark_);  ext_schnorr_snark_ = nullptr;
+            clReleaseKernel(ext_ecdh_scalar_mul_compressed_); ext_ecdh_scalar_mul_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_snark_compressed_); ext_ecdsa_snark_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr;
+            clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
+            clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
+            clReleaseProgram(ext_program_);       ext_program_        = nullptr;
+            return set_error(GpuError::Launch, "ecdsa_verify_lbtc_columns kernel not found");
+        }
+
+        ext_schnorr_lbtc_columns_ = clCreateKernel(ext_program_, "schnorr_verify_lbtc_columns", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(ext_ecdsa_lbtc_columns_); ext_ecdsa_lbtc_columns_ = nullptr;
+            clReleaseKernel(ext_schnorr_snark_);  ext_schnorr_snark_ = nullptr;
+            clReleaseKernel(ext_ecdh_scalar_mul_compressed_); ext_ecdh_scalar_mul_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_snark_compressed_); ext_ecdsa_snark_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr;
+            clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr;
+            clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr;
+            clReleaseKernel(ext_ecdsa_lbtc_);     ext_ecdsa_lbtc_     = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr;
+            clReleaseKernel(ext_ecdsa_verify_);   ext_ecdsa_verify_   = nullptr;
+            clReleaseProgram(ext_program_);       ext_program_        = nullptr;
+            return set_error(GpuError::Launch, "schnorr_verify_lbtc_columns kernel not found");
+        }
+
+        // libbitcoin-bridge PUBLIC-DATA ops (native OpenCL). Created last; on any
+        // failure release every extended kernel + the program. Guarded releases
+        // (each handle is nullptr until created) make one shared cleanup safe
+        // regardless of which clCreateKernel failed — no double-release.
+        auto release_all_extended = [&]() {
+            if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
+            if (ext_hash256_)              { clReleaseKernel(ext_hash256_);              ext_hash256_              = nullptr; }
+            if (ext_tagged_hash_var_)      { clReleaseKernel(ext_tagged_hash_var_);      ext_tagged_hash_var_      = nullptr; }
+            if (ext_tagged_hash_)          { clReleaseKernel(ext_tagged_hash_);          ext_tagged_hash_          = nullptr; }
+            if (ext_commitment_verify_)    { clReleaseKernel(ext_commitment_verify_);    ext_commitment_verify_    = nullptr; }
+            if (ext_pubkey_validate_)      { clReleaseKernel(ext_pubkey_validate_);      ext_pubkey_validate_      = nullptr; }
+            if (ext_xonly_validate_)       { clReleaseKernel(ext_xonly_validate_);       ext_xonly_validate_       = nullptr; }
+            if (ext_schnorr_lbtc_collect_) { clReleaseKernel(ext_schnorr_lbtc_collect_); ext_schnorr_lbtc_collect_ = nullptr; }
+            if (ext_ecdsa_lbtc_collect_)   { clReleaseKernel(ext_ecdsa_lbtc_collect_);   ext_ecdsa_lbtc_collect_   = nullptr; }
+            if (ext_schnorr_lbtc_columns_) { clReleaseKernel(ext_schnorr_lbtc_columns_); ext_schnorr_lbtc_columns_ = nullptr; }
+            if (ext_ecdsa_lbtc_columns_)   { clReleaseKernel(ext_ecdsa_lbtc_columns_);   ext_ecdsa_lbtc_columns_   = nullptr; }
+            if (ext_schnorr_snark_)        { clReleaseKernel(ext_schnorr_snark_);        ext_schnorr_snark_        = nullptr; }
+            if (ext_ecdh_scalar_mul_compressed_) { clReleaseKernel(ext_ecdh_scalar_mul_compressed_); ext_ecdh_scalar_mul_compressed_ = nullptr; }
+            if (ext_ecdsa_snark_compressed_) { clReleaseKernel(ext_ecdsa_snark_compressed_); ext_ecdsa_snark_compressed_ = nullptr; }
+            if (ext_ecdsa_snark_)          { clReleaseKernel(ext_ecdsa_snark_);          ext_ecdsa_snark_          = nullptr; }
+            if (ext_ecrecover_)            { clReleaseKernel(ext_ecrecover_);            ext_ecrecover_            = nullptr; }
+            if (ext_schnorr_verify_)       { clReleaseKernel(ext_schnorr_verify_);       ext_schnorr_verify_       = nullptr; }
+            if (ext_ecdsa_lbtc_)           { clReleaseKernel(ext_ecdsa_lbtc_);           ext_ecdsa_lbtc_           = nullptr; }
+            if (ext_ecdsa_verify_compressed_) { clReleaseKernel(ext_ecdsa_verify_compressed_); ext_ecdsa_verify_compressed_ = nullptr; }
+            if (ext_ecdsa_verify_)         { clReleaseKernel(ext_ecdsa_verify_);         ext_ecdsa_verify_         = nullptr; }
+            clReleaseProgram(ext_program_); ext_program_ = nullptr;
+        };
+
+        ext_xonly_validate_ = clCreateKernel(ext_program_, "lbtc_xonly_validate", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_xonly_validate kernel not found"); }
+        ext_pubkey_validate_ = clCreateKernel(ext_program_, "lbtc_pubkey_validate", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_pubkey_validate kernel not found"); }
+        ext_commitment_verify_ = clCreateKernel(ext_program_, "lbtc_commitment_verify", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_commitment_verify kernel not found"); }
+        ext_tagged_hash_ = clCreateKernel(ext_program_, "lbtc_tagged_hash", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_tagged_hash kernel not found"); }
+        ext_tagged_hash_var_ = clCreateKernel(ext_program_, "lbtc_tagged_hash_var", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_tagged_hash_var kernel not found"); }
+        ext_hash256_ = clCreateKernel(ext_program_, "lbtc_hash256", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_hash256 kernel not found"); }
+        ext_hash256_var_ = clCreateKernel(ext_program_, "lbtc_hash256_var", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_hash256_var kernel not found"); }
+
+        // libbitcoin COLLECT verify kernels (native OpenCL). Same device parse/
+        // verify as the column kernels; only the output convention differs.
+        ext_ecdsa_lbtc_collect_ = clCreateKernel(ext_program_, "ecdsa_verify_lbtc_collect", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "ecdsa_verify_lbtc_collect kernel not found"); }
+        ext_schnorr_lbtc_collect_ = clCreateKernel(ext_program_, "schnorr_verify_lbtc_collect", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "schnorr_verify_lbtc_collect kernel not found"); }
+
         return GpuError::Ok;
     }
 
@@ -2318,6 +3182,72 @@ private:
         if (err != CL_SUCCESS) {
             clReleaseProgram(frost_program_); frost_program_ = nullptr;
             return set_error(GpuError::Launch, "frost_verify_partial kernel not found");
+        }
+
+        return GpuError::Ok;
+    }
+
+    GpuError ensure_hash160_kernel() {
+        if (hash160_kernel_) return GpuError::Ok;
+        if (hash160_init_attempted_)
+            return set_error(GpuError::Launch, "hash160 kernel init previously failed");
+        hash160_init_attempted_ = true;
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        cl_device_id device = nullptr;
+        clGetContextInfo(cl_ctx, CL_CONTEXT_DEVICES, sizeof(device), &device, nullptr);
+        if (!device)
+            return set_error(GpuError::Launch, "no OpenCL device found in context");
+
+        const char* search_paths[] = {
+            "../../opencl/kernels/secp256k1_hash160.cl",
+            "../opencl/kernels/secp256k1_hash160.cl",
+            "../../../opencl/kernels/secp256k1_hash160.cl",
+            "opencl/kernels/secp256k1_hash160.cl",
+            "kernels/secp256k1_hash160.cl",
+            "../kernels/secp256k1_hash160.cl",
+        };
+
+        std::string src;
+        std::string kernel_dir;
+        for (auto* p : search_paths) {
+            src = load_file_to_string(p);
+            if (!src.empty()) {
+                std::filesystem::path fp(p);
+                kernel_dir = fp.parent_path().string();
+                break;
+            }
+        }
+        if (src.empty())
+            return set_error(GpuError::Launch, "secp256k1_hash160.cl not found");
+
+        const char* src_ptr = src.c_str();
+        size_t src_len = src.size();
+        cl_int err;
+        hash160_program_ = clCreateProgramWithSource(cl_ctx, 1, &src_ptr, &src_len, &err);
+        if (err != CL_SUCCESS)
+            return set_error(GpuError::Launch, "hash160 clCreateProgramWithSource failed");
+
+        std::string opts = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable";
+        if (!kernel_dir.empty())
+            opts += " -I " + kernel_dir;
+
+        err = clBuildProgram(hash160_program_, 1, &device, opts.c_str(), nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            size_t log_len = 0;
+            clGetProgramBuildInfo(hash160_program_, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_len);
+            std::string log(log_len, '\0');
+            clGetProgramBuildInfo(hash160_program_, device, CL_PROGRAM_BUILD_LOG, log_len, log.data(), nullptr);
+            clReleaseProgram(hash160_program_);
+            hash160_program_ = nullptr;
+            std::string msg = "secp256k1_hash160.cl build failed: " + log;
+            return set_error(GpuError::Launch, msg.c_str());
+        }
+
+        hash160_kernel_ = clCreateKernel(hash160_program_, "hash160_batch", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseProgram(hash160_program_); hash160_program_ = nullptr;
+            return set_error(GpuError::Launch, "hash160_batch kernel not found");
         }
 
         return GpuError::Ok;

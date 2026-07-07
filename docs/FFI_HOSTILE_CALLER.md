@@ -1,6 +1,17 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-06-13 | **Version**: 4.4.0
+**Last updated**: 2026-06-13 | **Version**: 4.5.0
+
+### 2026-06-22 - CPU batch-verify pool + decompress: no new secret-bearing ABI boundary
+
+The 2026-06-22 batch-verify changes (persistent worker pool, fused parse+verify, FE52
+point-only decompress) touch internal verify implementation only — no new ABI export and no
+change to any secret-bearing boundary. Hostile-caller coverage for the affected verify entry
+points (`ufsecp_ecdsa_verify_opaque_rows_mt` and the `ufsecp_lbtc_verify_*_mt` bridge
+wrappers) is unchanged: NULL ctx/rows/results, `n == 0`, oversized counts, off-curve /
+out-of-range public keys, and malformed signatures are all rejected fail-closed, and per-row
+verdicts under `_mt` are bit-identical to serial at every thread count (covered by
+`test_lbtc_bridge`).
 
 ### 2026-06-13 - Opaque ECDSA ABI compatibility
 
@@ -289,6 +300,7 @@ shallow batch-verify paths. All gaps are closed by `test_i1_*`–`test_i5_*` in
 | I.4 | `ufsecp_ecdsa_sign_verified`, `ufsecp_schnorr_sign_verified` | NULL guards, zero privkey, output verified via ecdsa_verify / schnorr_verify |
 | I.5 | `ufsecp_schnorr_batch_verify`, `ufsecp_ecdsa_batch_verify`, `ufsecp_batch_identify_invalid` | Valid entry passes, tampered sig fails, identify_invalid returns correct index, count=0 vacuously OK |
 | I.5a | `ufsecp_ecdsa_batch_verify_mt` | NULL ctx/entries rejected; valid batch passes (smoke) and result is identical to serial for every thread count, including counts above the former 64-thread cap (no arbitrary upper limit; dynamic `std::vector<std::thread>` pool, reduced only to `hardware_concurrency`); tampered/invalid sig fails; count=0 (n=0) vacuously OK; max_threads=0 auto, 1 serial — public-data variable-time verify, threading has no side-channel relevance |
+| I.5b | `ufsecp_schnorr_batch_verify_mt`, `ufsecp_ecdsa_verify_opaque_rows_mt` | Schnorr / opaque-row MT twins of I.5a: NULL ctx/entries/rows rejected; count=0 (n=0) vacuously OK; stride<129 (opaque-rows) → `UFSECP_ERR_BAD_INPUT`; valid batch result identical to the serial `ufsecp_schnorr_batch_verify` / `ufsecp_ecdsa_verify_opaque_rows` for every thread count; max_threads=0 auto, 1 serial — public-data variable-time verify, threading has no side-channel relevance (negatives in `test_c_abi_negative`; MT per-row parity + 4096-boundary in `test_lbtc_bridge`) |
 | I.6 | `ufsecp_context_randomize` | NULL ctx rejected; zero-seed (all-zero 32 bytes) accepted — clears/resets blinding; valid random seed succeeds (smoke); signing after randomize produces valid signature |
 | I.7 | `ufsecp_ecdsa_sign` with non-NULL `noncefp` | NULL noncefp treated as RFC 6979 default; custom noncefp returning valid scalar succeeds; custom noncefp returning zero scalar triggers retry; output valid after custom nonce |
 
@@ -325,14 +337,26 @@ copied libsecp-compatible ECDSA opaque scalar storage). Hostile-caller quartet i
 | `ufsecp_gpu_ecdsa_verify_opaque_rows` | NULL ctx / NULL rows / NULL output → `UFSECP_ERR_NULL_ARG` | count=0 → no-op OK (zero-edge) | stride < 129 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid opaque row returns result 1 (success, when GPU present) |
 | `ufsecp_gpu_ecdsa_verify_lbtc_rows` | NULL ctx / NULL rows / NULL output → `UFSECP_ERR_NULL_ARG` | count=0 → no-op OK (zero-edge) | stride < 129 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | alias of `ufsecp_gpu_ecdsa_verify_opaque_rows`; same valid-row smoke path |
 
+**J.lbtc-columns — `ufsecp_gpu_ecdsa_verify_lbtc_columns` /
+`ufsecp_gpu_schnorr_verify_lbtc_columns`** (PUBLIC-DATA; column-major libbitcoin
+batch layout — digests / pubkeys-or-xonly / signatures in separate parallel arrays,
+no secret material). Guard order is `ctx` → `count==0` → `count>cap` → clear-output →
+`NULL` buffers. Hostile-caller matrix in `test_c_abi_negative.cpp` (NEG-24 pins the
+null-ctx fail-closed contract; NEG-25 adds the full quartet across both symbols):
+
+| Function | null | zero | invalid | smoke |
+|----------|------|------|---------|-------|
+| `ufsecp_gpu_ecdsa_verify_lbtc_columns`   | NULL ctx / NULL digests / NULL output → `UFSECP_ERR_NULL_ARG`, out sentinel left untouched (fail-closed) | count=0 → no-op OK (zero-edge; `NULL_ARG` when no ctx can be created) | oversized count > cap (`1<<26`) → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid column batch verified when a GPU backend is present (smoke) |
+| `ufsecp_gpu_schnorr_verify_lbtc_columns` | NULL ctx / NULL digests / NULL output → `UFSECP_ERR_NULL_ARG`, out sentinel left untouched (fail-closed) | count=0 → no-op OK (zero-edge; `NULL_ARG` when no ctx can be created) | oversized count > cap (`1<<26`) → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid x-only column batch verified when a GPU backend is present (smoke) |
+
 For the collect APIs, backends without a native collect kernel (OpenCL/Metal)
 return `Unsupported`; the libbitcoin bridge then falls back to the host-collapse
 path (consensus-identical).
 
 **J.lbtc-batch — `ufsecp_gpu_xonly_validate` / `ufsecp_gpu_commitment_verify` /
 `ufsecp_gpu_tagged_hash`** (libbitcoin bridge, PUBLIC-DATA; no secret material on
-these paths). CUDA-native per-item kernels; OpenCL/Metal return `Unsupported` and the
-bridge falls back to its threaded CPU path (consensus-identical). Hostile-caller
+these paths). CUDA, OpenCL, and Metal each dispatch native per-item on-device
+kernels for all six ops in this family (no host-CPU fallback). Hostile-caller
 quartet cross-checked against the libsecp shim in `tests/test_lbtc_commitment.cpp`
 (section 9: GPU verdict == shim per row/key):
 
@@ -344,6 +368,14 @@ quartet cross-checked against the libsecp shim in `tests/test_lbtc_commitment.cp
 | `ufsecp_gpu_pubkey_validate`   | NULL ctx / NULL buffer → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | bad prefix / x ≥ p / off-curve → result 0 (invalid/reject), matches shim ec_pubkey_parse | valid compressed pubkey succeeds (smoke, GPU present) |
 | `ufsecp_gpu_tagged_hash_var`   | NULL ctx / NULL msgs / NULL lens → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | stride 0 or > 256 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid TapLeaf per-item digest succeeds (smoke); matches shim tagged_sha256 |
 | `ufsecp_gpu_hash256`           | NULL ctx / NULL inputs → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | input_len 0 or > 320 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid SHA256d digest succeeds (smoke); matches SHA256d reference |
+| `ufsecp_gpu_hash256_var`       | NULL ctx / NULL inputs / NULL input_lens → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | stride 0 or > 4 MiB (`kMaxHash256VarStride`), or any `input_lens[i]==0`/`>stride` → `UFSECP_ERR_BAD_INPUT` (invalid/reject); out32 never partial/stale on reject | valid variable-length SHA256d digest succeeds (smoke, CUDA+OpenCL native); matches SHA256d reference (`audit/test_regression_hash256_var_batch.cpp`, `audit/test_exploit_hash256_var_bounds.cpp`) |
+
+**2026-07-06 — `ufsecp_gpu_hash256_var` added, no new secret-bearing surface**: this
+function shares the `include/ufsecp/ufsecp_gpu.h` header file with secret-bearing
+GPU ops (e.g. `ufsecp_gpu_ecdh_batch`), which is why this doc is touched, but
+`hash256_var` itself is PUBLIC-DATA only (Bitcoin tx/merkle-tree preimages) — no
+private key, nonce, or scalar is ever passed through it, and it introduces no new
+secret-bearing ABI boundary.
 
 ---
 
@@ -406,3 +438,4 @@ paths — including validation failure — to prevent nonce reuse even when the 
 
 <!-- 2026-04-28: ufsecp_gpu.h docstring corrected — ufsecp_gpu_context_create → ufsecp_gpu_ctx_create. Phantom export removed from misuse_resistance gate. No hostile-caller contract changes. -->
 <!-- 2026-05-12: SEC-001 fix — ufsecp_musig2_partial_sign_v2 added (Section L). Hostile-caller quartet documented above. -->
+<!-- 2026-07-06: ufsecp_gpu.h section banner above the six J.lbtc-batch ops (xonly_validate, commitment_verify, tagged_hash, pubkey_validate, tagged_hash_var, hash256) corrected: CUDA, OpenCL, and Metal all provide native on-device implementations, no host-CPU fallback — matches the gpu_backend.hpp/BACKEND_ASSURANCE_MATRIX.md fix in the same-day AUDIT_CHANGELOG entry. Comment-only; no ABI/dispatch change. All six remain PUBLIC-DATA — hostile-caller quartet above is unaffected. -->

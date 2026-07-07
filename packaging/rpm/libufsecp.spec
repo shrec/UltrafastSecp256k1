@@ -1,7 +1,7 @@
 %global soversion 4
 
 Name:           libufsecp
-Version:        4.4.0
+Version:        4.5.0
 Release:        1%{?dist}
 Summary:        High-performance secp256k1 elliptic curve cryptography library
 License:        MIT

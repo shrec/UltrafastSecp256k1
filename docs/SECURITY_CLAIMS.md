@@ -1,6 +1,53 @@
 # Security Claims & API Contract
 
-**UltrafastSecp256k1 v4.4.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+**UltrafastSecp256k1 v4.5.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+
+### 2026-07-06 - `ufsecp_gpu_hash256_var` added: batch variable-length HASH256, no new secret-bearing surface
+
+Added `GpuBackend::hash256_var` / C ABI `ufsecp_gpu_hash256_var` (native CUDA, OpenCL,
+and Metal kernels) and the bridge-free libbitcoin-direct wrapper `hash256_var_batch`.
+Row `i` is `inputs[i*stride .. i*stride+input_lens[i])` with no BIP-340 tag prefix and
+no GPU-side transaction parsing — this is the primitive a future libbitcoin
+`txid_batch`/`wtxid_batch` wrapper will compose with CPU-side BIP141 serialization.
+**Security claim: PUBLIC-DATA / variable-time only.** Every input (transaction/merkle
+preimage bytes) is public on-chain data; no private key, nonce, signing share, or ECDH
+scalar is ever passed through this path, so no `ct::*` boundary applies (see the
+CT-vs-VT boundary rule). `include/ufsecp/ufsecp_gpu.h` is touched only because it is
+the shared header for both secret-bearing GPU ops (e.g. `ufsecp_gpu_ecdh_batch`) and
+this public-data op — this change adds no new secret-bearing ABI boundary. Fail-closed
+contract: `ctx==NULL`/null buffer with `n>0` -> `UFSECP_ERR_NULL_ARG`; `n==0` -> no-op
+`UFSECP_OK`; `stride==0`/`>kMaxHash256VarStride` (4 MiB) or any `input_lens[i]==0`/
+`>stride` -> `UFSECP_ERR_BAD_INPUT`; `out32` is never left holding a partial or stale
+digest on any rejected call. Covered by `audit/test_regression_hash256_var_batch.cpp`,
+`audit/test_regression_hash256_var_parity.cpp` (cross-backend byte-identical output),
+and `audit/test_exploit_hash256_var_bounds.cpp` (hostile-input bounds).
+
+### 2026-07-06 - `ufsecp_gpu.h` C ABI banner corrected for the six lbtc-batch ops (doc-only, no claim change)
+
+The `include/ufsecp/ufsecp_gpu.h` section banner above `ufsecp_gpu_xonly_validate`,
+`ufsecp_gpu_commitment_verify`, `ufsecp_gpu_tagged_hash`, `ufsecp_gpu_pubkey_validate`,
+`ufsecp_gpu_tagged_hash_var`, and `ufsecp_gpu_hash256` carried a stale "CUDA
+implemented; OpenCL/Metal return `UFSECP_ERR_GPU_UNSUPPORTED`" claim. It has been
+rewritten to state CUDA, OpenCL, and Metal all dispatch native on-device kernels for
+these six ops (no host-CPU fallback), matching the same correction already applied to
+`src/gpu/include/gpu_backend.hpp` and `docs/BACKEND_ASSURANCE_MATRIX.md`. The stale
+"OpenCL/Metal `Unsupported` -> CPU fallback" wording in the "GPU per-item batch ABI"
+claim below (unchanged since 2026-06-08) is corrected in the same pass. This is
+comment/doc-only: no C ABI signature, enum, macro, dispatch logic, or the PUBLIC-DATA
+/ no-CT-boundary claim for these six ops changed. See `docs/AUDIT_CHANGELOG.md`
+(2026-07-06, "doc-only follow-up: `ufsecp_gpu.h` C ABI banner corrected for the same
+six ops") for full detail.
+
+### 2026-06-22 - CPU batch-verify throughput: persistent pool + FE52 decompress (verify-path only)
+
+Reworked the CPU multi-threaded batch-verify paths (`ecdsa_batch_verify_mt`,
+`schnorr_batch_verify_mt`, `ufsecp_ecdsa_verify_opaque_rows_mt`) to run on a persistent
+worker pool and to use a faster FE52/point-only pubkey decompress. These are **verify**
+paths over PUBLIC data; the security contract is unchanged and no signing/secret-bearing ABI
+was added or altered. The decompress keeps the same prefix / x-range / on-curve (QR) /
+parity validation as the tested `ecdsa_pubkey_parse`, so off-curve and out-of-range public
+keys are still rejected (fail-closed). The multi-threaded verdict is bit-identical to the
+serial path (verification is over public data and variable-time by design).
 
 ### 2026-06-18 - Bech32 address encoder allocation reduction
 
@@ -44,6 +91,31 @@ owned signatures and rows are not mutated.
 Validation: `audit/test_ffi_round_trip.cpp`,
 `audit/test_c_abi_negative.cpp`, `audit/test_gpu_abi_gate.cpp`, and
 `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp`.
+
+### 2026-06-22 - MuSig2 partial-verify accepts both pubkey Y-parities (by design)
+
+`musig2_partial_verify` (`src/musig2.cpp`, exposed as `ufsecp_musig2_partial_verify`)
+verifies a partial signature against BOTH Y-parities of the signer's public key
+(`sG == R_eff + ea*P_i` OR `sG == R_eff + ea*(-P_i)`). This is intentional and
+required for self-consistency: this library's `musig2_partial_sign` takes a RAW
+32-byte secret key (its original parity), not an x-only key, so the signer's `P_i`
+may have either Y parity (BIP-327 signing uses `d_i` directly, with no per-signer
+parity flip). Tightening verify to a single parity would reject valid partial
+signatures produced by this library's own signer for odd-Y keys.
+
+**Scope / impact:** partial-verify is a coordinator diagnostic to locate a
+misbehaving signer before aggregation — it is NOT the consensus verifier. The
+both-parity acceptance is a bounded verify-laxity (a partial sig valid under the
+opposite signer-key parity is also accepted); it does **not** enable
+aggregate-signature forgery — the aggregate is still checked by the standard
+x-only Schnorr verifier, which fixes the parity. The divergence from strict
+BIP-327 `PartialSigVerify` (which consumes the x-only individual key) is therefore
+intentional and safe.
+
+**Claim:** the both-parity acceptance is a deliberate consequence of the raw-seckey
+partial-sign API and does not weaken aggregate unforgeability. kb
+`MUSIG2-PVERIFY-PARITY`. Validation: MuSig2 sign->partial_verify roundtrip tests
+(`audit/test_fuzz_musig2_frost.cpp::test_musig2_partial_verify_random`).
 
 ### 2026-06-11 - MuSig2 partial-sign secret-erasure hardening
 
@@ -1211,6 +1283,22 @@ the same guarantees the existing parallel sign batch relies on. The serial
 `ufsecp_ecdsa_batch_verify` is unchanged; integrators choose. Hostile-caller
 quartet: see [FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section I.5.
 
+The same public-data MT model extends (2026-06-22) to **`ufsecp_schnorr_batch_verify_mt`**
+and **`ufsecp_ecdsa_verify_opaque_rows_mt`**, and to the libbitcoin-bridge packed-row
+verify twins `ufsecp_lbtc_verify_{ecdsa[_opaque|_compact],schnorr}_mt`. These reuse the
+audited serial marshalling and only swap the all-valid fast check to
+`secp256k1::{ecdsa,schnorr}_batch_verify_mt`; the per-row locate fallback stays serial.
+All inputs remain **public data** (message hashes, x-only/compressed public keys,
+signatures), so no secret material is processed, the CT-vs-variable-time boundary does
+not apply, and threading has **zero side-channel relevance**. In the bridge the GPU path
+is unaffected (`max_threads` governs the CPU fallback only) and the cancellation token is
+still polled between chunks. Per-row verdicts are bit-identical to serial for any thread
+count (parity across {0,1,2,8} plus a 4096-chunk-boundary corruption case in
+`test_lbtc_bridge`; hostile-caller negatives in `test_c_abi_negative`, Section I.5b). The
+single-threaded functions are unchanged; integrators that shard across their own thread
+pool keep using them. Hostile-caller quartet: see
+[FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section I.5b.
+
 ### GPU per-item batch ABI (libbitcoin bridge, 2026-06-08 — PUBLIC-DATA)
 
 `ufsecp_gpu_xonly_validate`, `ufsecp_gpu_commitment_verify` and
@@ -1218,9 +1306,9 @@ quartet: see [FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section I.5.
 **public-data operations**: inputs are x-only keys, BIP-341 tweaks/outputs, and
 script-tree messages (all on-chain / caller-public) — **no private key, nonce, or
 secret material is processed**, so the CT-vs-variable-time boundary does not apply
-(variable-time is correct, per the verify-path rule). Each is a one-thread-per-item
-CUDA kernel; OpenCL/Metal return `Unsupported` and the bridge falls back to its
-threaded CPU reference (consensus-identical). Correctness is anchored bit-for-bit on
+(variable-time is correct, per the verify-path rule). CUDA, OpenCL, and Metal each
+dispatch a native one-thread-per-item on-device kernel (no host-CPU fallback).
+Correctness is anchored bit-for-bit on
 the libsecp shim: `ufsecp_gpu_xonly_validate` == `secp256k1_xonly_pubkey_parse`
 (including the `x ≥ p` reject), `ufsecp_gpu_commitment_verify` ==
 `secp256k1_xonly_pubkey_tweak_add_check` per row, and `ufsecp_gpu_tagged_hash` ==
@@ -1228,8 +1316,9 @@ the libsecp shim: `ufsecp_gpu_xonly_validate` == `secp256k1_xonly_pubkey_parse`
 (section 9). Outputs are fail-closed (cleared on any error). Hostile-caller quartet:
 see [FFI_HOSTILE_CALLER.md](FFI_HOSTILE_CALLER.md) Section J (J.lbtc-batch).
 
-Three further libbitcoin-bridge batch kernels follow the same model (CUDA-native,
-OpenCL/Metal `Unsupported` → threaded CPU fallback, fail-closed, all PUBLIC-DATA):
+Three further libbitcoin-bridge batch kernels follow the same model (native CUDA,
+OpenCL, and Metal on-device kernels, no host-CPU fallback, fail-closed, all
+PUBLIC-DATA):
 `ufsecp_gpu_pubkey_validate` (full compressed-pubkey on-curve check, == shim
 `ec_pubkey_parse`), `ufsecp_gpu_tagged_hash_var` (TapLeaf per-item-length tagged
 hash, == shim `tagged_sha256`), and `ufsecp_gpu_hash256` (double-SHA-256 / merkle
@@ -1407,4 +1496,4 @@ Every release must answer: **"Did the CT scope change?"**
 
 <!-- 2026-05-28: shim_ecdsa.cpp + shim_recovery.cpp + shim_ellswift.cpp + bip32.cpp — secret-key stack-residue hardening (CT-01/SHIM-01/02/CT-02). Claim: parsed private-key scalars and BIP-324 handshake key material do not persist on the stack after the call returns. (CT-01) shim ECDSA sign / sign_recoverable secure_erase the parsed key scalar (`k` / `privkey_scalar`) on every return path; (SHIM-01/02) ellswift_create and ellswift_xdh erase `sk`+`kb` on all returns (success, parse-fail, and the three xdh error branches), completing SHIM-006; (CT-02) BIP-32 hardened derive_child erases the HMAC-derived `il_scalar` on all 7 return paths. Also RT-02: secp256k1_ecdsa_signature_parse_der now requires exact SEQUENCE consumption (`p == end`), rejecting trailing bytes inside the SEQUENCE — matching upstream + the native C ABI parser. Output bytes written before erase; no behavioral change. Regression guard: audit/test_regression_shim_seckey_erase.cpp. -->
 
-*UltrafastSecp256k1 v4.4.0 -- Security Claims*
+*UltrafastSecp256k1 v4.5.0 -- Security Claims*

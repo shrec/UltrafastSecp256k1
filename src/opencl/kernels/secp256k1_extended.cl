@@ -284,17 +284,19 @@ inline void scalar_add_mod_n_impl(const Scalar* a, const Scalar* b, Scalar* r) {
     ulong carry = 0;
     for (int i = 0; i < 4; i++)
         r->limbs[i] = add_with_carry(a->limbs[i], b->limbs[i], carry, &carry);
-    // If carry, definitely >= n; otherwise check and conditionally subtract
-    if (carry) {
-        // r + 2^256 - n: since carry=1, effectively subtract (n - 2^256) = subtract n, add 2^256
-        // which is same as: result = r - n (the carry absorbed the 2^256)
-        ulong n[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
-        ulong borrow = 0;
-        for (int i = 0; i < 4; i++)
-            r->limbs[i] = sub_with_borrow(r->limbs[i], n[i], borrow, &borrow);
-    } else {
-        scalar_cond_sub_n(r);
-    }
+    // CONSTANT-TIME: was `if (carry) sub n; else scalar_cond_sub_n` — a
+    // data-dependent branch on a secret-derived carry. Reduce branchlessly:
+    // t = r - n; (carry:r) >= n  iff  carry==1 OR r >= n (borrow_n==0). Select t
+    // in that case, else keep r. a,b < n => a+b < 2n, so one subtraction suffices
+    // (matches scalar_cond_sub_n's masked-select style, used above).
+    ulong n[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
+    ulong borrow_n = 0;
+    ulong t[4];
+    for (int i = 0; i < 4; i++)
+        t[i] = sub_with_borrow(r->limbs[i], n[i], borrow_n, &borrow_n);
+    ulong mask = (ulong)0 - ((ulong)(carry != 0) | (ulong)(borrow_n == 0));
+    for (int i = 0; i < 4; i++)
+        r->limbs[i] = (t[i] & mask) | (r->limbs[i] & ~mask);
 }
 
 // Scalar sub mod n: r = (a - b) mod n
@@ -302,13 +304,13 @@ inline void scalar_sub_mod_n_impl(const Scalar* a, const Scalar* b, Scalar* r) {
     ulong borrow = 0;
     for (int i = 0; i < 4; i++)
         r->limbs[i] = sub_with_borrow(a->limbs[i], b->limbs[i], borrow, &borrow);
-    // If borrow, add n back
-    if (borrow) {
-        ulong n[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
-        ulong carry2 = 0;
-        for (int i = 0; i < 4; i++)
-            r->limbs[i] = add_with_carry(r->limbs[i], n[i], carry2, &carry2);
-    }
+    // CONSTANT-TIME: was `if (borrow) add n` — a data-dependent branch on a
+    // secret-derived borrow. Add n masked by borrow (0 when no borrow -> no-op).
+    ulong n[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
+    ulong mask = (ulong)0 - (ulong)(borrow != 0);
+    ulong carry2 = 0;
+    for (int i = 0; i < 4; i++)
+        r->limbs[i] = add_with_carry(r->limbs[i], n[i] & mask, carry2, &carry2);
 }
 
 // Scalar multiply mod n: r = (a * b) mod n
@@ -1066,6 +1068,27 @@ inline void sha256_update(SHA256Ctx* ctx, const uchar* data, uint len) {
     while (i < len) ctx->buf[ctx->buf_len++] = data[i++];
 }
 
+/* sha256_update variant that reads directly from __global memory using a
+ * fixed 64-byte __private scratch buffer per block, so private/register cost
+ * is O(1) regardless of total row length (rows can be multi-MB, e.g. real
+ * Bitcoin transactions). Reuses the existing sha256_compress unchanged.
+ * Mirrors sha256_update's own partial-buffer folding logic exactly. */
+inline void sha256_update_global(SHA256Ctx* ctx, __global const uchar* data, uint len) {
+    ctx->total_len += len;
+    uint i = 0;
+    if (ctx->buf_len > 0) {
+        while (ctx->buf_len < 64 && i < len) ctx->buf[ctx->buf_len++] = data[i++];
+        if (ctx->buf_len == 64) { sha256_compress(ctx, ctx->buf); ctx->buf_len = 0; }
+    }
+    uchar blk[64];
+    while (i + 64 <= len) {
+        for (uint j = 0; j < 64; ++j) blk[j] = data[i + j];
+        sha256_compress(ctx, blk);
+        i += 64;
+    }
+    while (i < len) ctx->buf[ctx->buf_len++] = data[i++];
+}
+
 inline void sha256_final(SHA256Ctx* ctx, uchar out[32]) {
     ulong bits = ctx->total_len * 8;
     uchar pad = 0x80;
@@ -1257,13 +1280,9 @@ inline int lbtc_parse_opaque_signature(__global const uchar* opaque,
     if (!lbtc_parse_opaque_scalar(opaque, &sig->r)) return 0;
     if (!lbtc_parse_opaque_scalar(opaque + 32, &sig->s)) return 0;
 
-    Scalar neg_s;
-    scalar_negate_impl(&sig->s, &neg_s);
-    const ulong mask = scalar_is_high_mask_impl(&sig->s);
-    sig->s.limbs[0] = (sig->s.limbs[0] & ~mask) | (neg_s.limbs[0] & mask);
-    sig->s.limbs[1] = (sig->s.limbs[1] & ~mask) | (neg_s.limbs[1] & mask);
-    sig->s.limbs[2] = (sig->s.limbs[2] & ~mask) | (neg_s.limbs[2] & mask);
-    sig->s.limbs[3] = (sig->s.limbs[3] & ~mask) | (neg_s.limbs[3] & mask);
+    // Libbitcoin consensus/direct opaque verification accepts both low-S and
+    // high-S ECDSA forms. Low-S standardness belongs above this path; the device
+    // parser must reject only non-scalars/zero scalars, not a valid high-S twin.
     return 1;
 }
 
@@ -2121,6 +2140,346 @@ __kernel void ecdsa_verify_lbtc_rows(
     int ok = lbtc_point_from_compressed(row + 32, &pub) &&
              lbtc_parse_opaque_signature(row + 65, &sig);
     results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
+}
+
+/* libbitcoin ECDSA COLUMN verify — Structure-of-Arrays sibling of
+ * ecdsa_verify_lbtc_rows. Three separate column spans; opaque-LE signature and
+ * 33-byte compressed pubkey parsed device-side. 64-bit (ulong) row offsets. */
+__kernel void ecdsa_verify_lbtc_columns(
+    __global const uchar* digests32,
+    __global const uchar* pubkeys33,
+    __global const uchar* sigs64,
+    __global int* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar msg[32];
+    for (int i = 0; i < 32; ++i) msg[i] = digests32[(ulong)gid * 32 + i];
+
+    JacobianPoint pub;
+    ECDSASignature sig;
+    int ok = lbtc_point_from_compressed(pubkeys33 + (ulong)gid * 33, &pub) &&
+             lbtc_parse_opaque_signature(sigs64 + (ulong)gid * 64, &sig);
+    results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
+}
+
+/* libbitcoin Schnorr COLUMN verify — digests32 | xonly32 | sigs64 (BIP-340).
+ * The BIP-340 signature is parsed device-side: r is the raw 32 big-endian R.x
+ * bytes; s is a big-endian scalar loaded into 4 little-endian limbs (identical to
+ * the host be32_to_le_limbs used by schnorr_verify_batch). 64-bit row offsets. */
+__kernel void schnorr_verify_lbtc_columns(
+    __global const uchar* digests32,
+    __global const uchar* xonly32,
+    __global const uchar* sigs64,
+    __global int* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar pk[32], msg[32];
+    for (int i = 0; i < 32; ++i) {
+        pk[i]  = xonly32[(ulong)gid * 32 + i];
+        msg[i] = digests32[(ulong)gid * 32 + i];
+    }
+
+    SchnorrSignature sig;
+    const ulong base = (ulong)gid * 64;
+    for (int i = 0; i < 32; ++i) sig.r[i] = sigs64[base + i];
+    for (int limb = 0; limb < 4; ++limb) {
+        ulong v = 0;
+        const int b = 32 + (3 - limb) * 8;
+        for (int j = 0; j < 8; ++j) v = (v << 8) | (ulong)sigs64[base + b + j];
+        sig.s.limbs[limb] = v;
+    }
+    // BIP-340 strict: reject s == 0 and s >= n before verifying so the column
+    // verdict matches the CPU reference (SchnorrSignature::parse_strict). Without
+    // this, s' = s + n (>= n) maps to the same point as a valid s and would be a
+    // false-accept on GPU while the CPU rejects it (signature malleability).
+    if (scalar_is_zero(&sig.s) || lbtc_scalar_ge_order(&sig.s)) {
+        results[gid] = 0;
+        return;
+    }
+    results[gid] = schnorr_verify_impl(pk, msg, &sig);
+}
+
+/* libbitcoin ECDSA COLLECT verify — SoA sibling of ecdsa_verify_lbtc_columns
+ * with the collect output convention: key_cells is a 1-byte-per-row verdict
+ * channel PRE-SEEDED non-zero by the host. The verdict is bit-for-bit identical
+ * to ecdsa_verify_lbtc_columns; only the encoding differs. VALID  -> write 0.
+ * INVALID (bad parse OR failed verify) -> leave the caller's seed untouched so
+ * the rejected id survives (fail-closed collect contract). Never write non-zero. */
+__kernel void ecdsa_verify_lbtc_collect(
+    __global const uchar* digests32,
+    __global const uchar* pubkeys33,
+    __global const uchar* sigs64,
+    __global uchar* key_cells,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar msg[32];
+    for (int i = 0; i < 32; ++i) msg[i] = digests32[(ulong)gid * 32 + i];
+
+    JacobianPoint pub;
+    ECDSASignature sig;
+    // COMPACT (big-endian r||s) — the collect ABI uses the SAME sig format as
+    // ufsecp_gpu_ecdsa_verify_batch (kernel ecdsa_verify_compressed parses via
+    // lbtc_parse_compact_signature) and the CUDA collect (bytes_to_ecdsa_sig over
+    // compact[64]). NOT lbtc_parse_opaque_signature (little-endian libbitcoin-
+    // columns format) — that mis-parses every row so no valid sig ever collects.
+    int ok = lbtc_point_from_compressed(pubkeys33 + (ulong)gid * 33, &pub) &&
+             lbtc_parse_compact_signature(sigs64 + (ulong)gid * 64, &sig);
+    if (ok && ecdsa_verify_impl(msg, &pub, &sig)) key_cells[gid] = 0u; /* valid->0; invalid-> leave seeded */
+}
+
+/* libbitcoin Schnorr COLLECT verify — SoA sibling of schnorr_verify_lbtc_columns
+ * with the collect output convention (see ecdsa_verify_lbtc_collect). The BIP-340
+ * strict-s reject leaves the seed (bare return), NOT a 0 write. VALID -> write 0. */
+__kernel void schnorr_verify_lbtc_collect(
+    __global const uchar* digests32,
+    __global const uchar* xonly32,
+    __global const uchar* sigs64,
+    __global uchar* key_cells,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    uchar pk[32], msg[32];
+    for (int i = 0; i < 32; ++i) {
+        pk[i]  = xonly32[(ulong)gid * 32 + i];
+        msg[i] = digests32[(ulong)gid * 32 + i];
+    }
+
+    SchnorrSignature sig;
+    const ulong base = (ulong)gid * 64;
+    for (int i = 0; i < 32; ++i) sig.r[i] = sigs64[base + i];
+    for (int limb = 0; limb < 4; ++limb) {
+        ulong v = 0;
+        const int b = 32 + (3 - limb) * 8;
+        for (int j = 0; j < 8; ++j) v = (v << 8) | (ulong)sigs64[base + b + j];
+        sig.s.limbs[limb] = v;
+    }
+    // BIP-340 strict: reject s == 0 and s >= n. For collect this is an INVALID
+    // verdict -> leave the caller's seed (bare return), never write 0.
+    if (scalar_is_zero(&sig.s) || lbtc_scalar_ge_order(&sig.s)) return; /* leave seeded */
+    if (schnorr_verify_impl(pk, msg, &sig)) key_cells[gid] = 0u; /* valid->0; invalid-> leave seeded */
+}
+
+/* ============================================================================
+ * libbitcoin-bridge PUBLIC-DATA GpuBackend ops — native OpenCL siblings of the
+ * CUDA lbtc_* kernels (gpu_backend_cuda.cu @715-779). One item per work-item,
+ * variable-time (all inputs are public: x-only / compressed pubkeys, taproot
+ * commitment tuples, tagged-hash messages, hash256 preimages — no secret).
+ * THREE parity invariants mirrored bit-for-bit from CUDA:
+ *   (1) x<p is an EXTERNAL gate (lbtc_be32_lt_field_p, __global) applied BEFORE
+ *       lift_x_impl (which only reduces mod p);
+ *   (2) tweak is a RAW scalar via scalar_from_bytes_impl (single conditional -n),
+ *       never rejected;
+ *   (3) tagged hash feeds tag_hash32 TWICE then the message (SHA256(th||th||msg));
+ *       tagged_hash_impl is NOT used (it re-hashes the tag).
+ * CL1.2 has no generic address space: __global input bytes are copied into
+ * private buffers before lift_x_impl / sha256_update, and sha256_final writes a
+ * private digest that is then copied to the __global out. results/out are
+ * __global uchar to match the CUDA uint8_t contract. ========================= */
+
+/* result[i] = 1 iff keys32[i] is a valid BIP-340 x-only key (x<p, even-y lift). */
+__kernel void lbtc_xonly_validate(
+    __global const uchar* keys32,
+    __global uchar* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uchar x[32];
+    for (int i = 0; i < 32; ++i) x[i] = keys32[(ulong)gid * 32 + i];
+    JacobianPoint p;
+    results[gid] = (lbtc_be32_lt_field_p(keys32 + (ulong)gid * 32) &&
+                    lift_x_impl(x, &p)) ? 1 : 0;
+}
+
+/* result[i] = 1 iff prefix in {2,3}, x<p, and x lifts (on curve). Byte-matches
+ * CUDA lbtc_pubkey_validate_kernel: prefix parity is NOT re-checked vs lift. */
+__kernel void lbtc_pubkey_validate(
+    __global const uchar* pubkeys33,
+    __global uchar* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    __global const uchar* p = pubkeys33 + (ulong)gid * 33;
+    uchar pfx = p[0];
+    int ok = (pfx == 0x02 || pfx == 0x03) && lbtc_be32_lt_field_p(p + 1);
+    if (ok) {
+        uchar x[32];
+        for (int i = 0; i < 32; ++i) x[i] = p[1 + i];
+        JacobianPoint j;
+        ok = lift_x_impl(x, &j);
+    }
+    results[gid] = ok ? 1 : 0;
+}
+
+/* result[i] = 1 iff x(lift_x_even(internal_i) + tweak_i*G) == tweaked_x_i AND its
+ * y-parity == parity[i]. RAW tweak. Mirrors CUDA lbtc_commitment_kernel. */
+__kernel void lbtc_commitment_verify(
+    __global const uchar* internal_x32,
+    __global const uchar* tweak32,
+    __global const uchar* tweaked_x32,
+    __global const uchar* parity,
+    __global uchar* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    __global const uchar* ixp = internal_x32 + (ulong)gid * 32;
+    uchar ix[32];
+    for (int i = 0; i < 32; ++i) ix[i] = ixp[i];
+    JacobianPoint P;
+    if (!lbtc_be32_lt_field_p(ixp) || !lift_x_impl(ix, &P)) {  // even-y internal, x<p
+        results[gid] = 0;
+        return;
+    }
+    // lift_x_impl sets z=1, so the Jacobian coords are already affine.
+    AffinePoint Pa; Pa.x = P.x; Pa.y = P.y;
+    uchar tw[32];
+    for (int i = 0; i < 32; ++i) tw[i] = tweak32[(ulong)gid * 32 + i];
+    // Q = tweak*G + 1*P via the PROVEN Shamir path (same helper ecdsa_verify_impl
+    // uses for u1*G + u2*Q). scalar_mul_generator_impl+point_add_mixed_unchecked
+    // was avoided: point_add_mixed_unchecked mis-handles a mixed-add edge case for
+    // certain Jacobian Z (e.g. 4*G, 7*G came out wrong) while scalar_mul_generator
+    // itself is correct. shamir_double_mul_glv_impl is exercised by ecdsa verify.
+    Scalar u1; scalar_from_bytes_impl(tw, &u1);        // RAW tweak (single -n)
+    Scalar u2; u2.limbs[0] = 1; u2.limbs[1] = 0; u2.limbs[2] = 0; u2.limbs[3] = 0;  // scalar 1
+    AffinePoint Gaff; get_generator(&Gaff);
+    JacobianPoint Q;
+    shamir_double_mul_glv_impl(&Gaff, &u1, &Pa, &u2, &Q);   // tweak*G + P
+    if (point_is_infinity(&Q)) { results[gid] = 0; return; }
+    // Inline Jacobian -> affine (jacobian_to_affine_impl lives in secp256k1_zk.cl,
+    // which is NOT part of this translation unit); mirror ecdsa_verify_impl.
+    FieldElement zinv, z2, z3, ax, ay;
+    field_inv_impl(&zinv, &Q.z);
+    field_sqr_impl(&z2, &zinv);
+    field_mul_impl(&z3, &z2, &zinv);
+    field_mul_impl(&ax, &Q.x, &z2);
+    field_mul_impl(&ay, &Q.y, &z3);
+    uchar xb[32], yb[32];
+    field_to_bytes_impl(&ax, xb);
+    field_to_bytes_impl(&ay, yb);
+    uchar want = (parity[gid] != 0) ? 0x03 : 0x02;
+    uchar got  = (yb[31] & 1) ? 0x03 : 0x02;              // y-parity of x(Q)
+    uchar ok = (got == want) ? 1 : 0;
+    for (int j = 0; j < 32; ++j)
+        if (xb[j] != tweaked_x32[(ulong)gid * 32 + j]) ok = 0;   // x(Q)==tweaked_x
+    results[gid] = ok;
+}
+
+/* out[i] = SHA256(tag_hash32 || tag_hash32 || msgs[i]) over fixed-length msgs. */
+__kernel void lbtc_tagged_hash(
+    __global const uchar* tag_hash32,
+    __global const uchar* msgs,
+    const uint msg_len,
+    __global uchar* out32,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uchar th[32];
+    for (int i = 0; i < 32; ++i) th[i] = tag_hash32[i];
+    uchar mbuf[256];
+    for (uint i = 0; i < msg_len; ++i) mbuf[i] = msgs[(ulong)gid * msg_len + i];
+    SHA256Ctx ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, th, 32);          // tag hash TWICE
+    sha256_update(&ctx, th, 32);
+    sha256_update(&ctx, mbuf, msg_len);
+    uchar h[32];
+    sha256_final(&ctx, h);
+    for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h[i];
+}
+
+/* out[i] = SHA256(tag_hash32 || tag_hash32 || msgs[i][0..L)), L=msg_lens[i]
+ * clamped to 256 (silent, matches CUDA). msgs row stride is `stride`. */
+__kernel void lbtc_tagged_hash_var(
+    __global const uchar* tag_hash32,
+    __global const uchar* msgs,
+    __global const uint* msg_lens,
+    const uint stride,
+    __global uchar* out32,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uint L = msg_lens[gid];
+    if (L > 256) L = 256;
+    uchar th[32];
+    for (int i = 0; i < 32; ++i) th[i] = tag_hash32[i];
+    uchar mbuf[256];
+    for (uint i = 0; i < L; ++i) mbuf[i] = msgs[(ulong)gid * stride + i];
+    SHA256Ctx ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, th, 32);
+    sha256_update(&ctx, th, 32);
+    sha256_update(&ctx, mbuf, L);
+    uchar h[32];
+    sha256_final(&ctx, h);
+    for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h[i];
+}
+
+/* out[i] = SHA256(SHA256(inputs[i])) over fixed-length inputs (no tag prefix). */
+__kernel void lbtc_hash256(
+    __global const uchar* inputs,
+    const uint input_len,
+    __global uchar* out32,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uchar in[320];
+    for (uint i = 0; i < input_len; ++i) in[i] = inputs[(ulong)gid * input_len + i];
+    uchar h1[32];
+    SHA256Ctx ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, in, input_len);
+    sha256_final(&ctx, h1);               // SHA256(input)
+    uchar h2[32];
+    SHA256Ctx ctx2;
+    sha256_init(&ctx2);
+    sha256_update(&ctx2, h1, 32);
+    sha256_final(&ctx2, h2);              // SHA256(SHA256(input))
+    for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h2[i];
+}
+
+/* out[i] = SHA256(SHA256(row_i)), where row_i = inputs[i*stride .. i*stride+input_lens[i]).
+ * Generic batch variable-length double-SHA256: row i is read directly from
+ * __global memory via sha256_update_global (O(1) private scratch), so rows
+ * can be multi-MB (e.g. real Bitcoin transactions) unlike lbtc_hash256's
+ * fixed 320-byte cap above. Bytes beyond input_lens[i] up to stride are
+ * ignored padding. Public-data hashing only — no tag prefix, no tx parsing. */
+__kernel void lbtc_hash256_var(
+    __global const uchar* inputs,
+    __global const uint* input_lens,
+    const uint stride,
+    __global uchar* out32,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uint len = input_lens[gid];
+    SHA256Ctx ctx;
+    sha256_init(&ctx);
+    sha256_update_global(&ctx, inputs + (ulong)gid * stride, len);
+    uchar h1[32];
+    sha256_final(&ctx, h1);               // SHA256(row)
+    SHA256Ctx ctx2;
+    sha256_init(&ctx2);
+    sha256_update(&ctx2, h1, 32);          // h1 is a private array; existing sha256_update is fine here
+    uchar h2[32];
+    sha256_final(&ctx2, h2);              // SHA256(SHA256(row))
+    for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h2[i];
 }
 
 /* ecdh_scalar_mul_compressed — GPU-side pubkey decompress + scalar multiplication.

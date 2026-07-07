@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 430 modules (161 non-exploit + 269 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 436 modules (166 non-exploit + 270 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -105,19 +105,20 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 430 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 436 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 430 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 436 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 430 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 436 modules, 8 sections) |
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
 | `compat/libsecp256k1_shim/tests/test_shim_batch_mt.cpp` | CPU | `shim_batch_mt`: multi-threaded + per-row batch verify — `secp256k1_ecdsa/schnorrsig_verify_batch_mt/_results` MT==single across thread counts {0,1,2,8,64}, per-row results pinpoint injected-invalid rows, n==0/small-n parity, max_threads=1 |
+| `compat/libsecp256k1_shim/tests/test_shim_batch_cancel.cpp` | CPU | `shim_batch_cancel`: external `ufsecp_cancel_token` on every shim batch-verify function — NULL/default-arg parity, non-tripping chunked verdict correctness, immediate + mid-batch cancel → 0 (callback polled across chunk boundary), throwing callback fail-closed, `_results` unreached rows pre-zeroed, n==0 vacuous with token |
 | `compat/libsecp256k1_bchn_shim/tests/test_bchn_schnorr_fail_clear.cpp` | CPU | `bchn_schnorr_fail_clear`: BCHN Schnorr compatibility shim regression proving invalid signing failures clear `sig64` |
-| `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp` | CPU | `lbtc_bridge`: libbitcoin batch script-sig verify (ECDSA/Schnorr) + opaque-key correlation, CPU reference path |
+| `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp` | CPU | `lbtc_bridge`: libbitcoin batch script-sig verify (ECDSA/Schnorr) + opaque-key correlation, CPU reference path; multi-threaded `_mt` twins — per-row verdict parity across thread counts {0,1,2,8}, large batch across the 4096 engine chunk, invalid_idx/count, cancellation under `_mt`, degenerate inputs |
 | `compat/libbitcoin_bridge/tests/test_lbtc_consensus_diff.cpp` | GPU (local-only) | `lbtc_consensus_diff`: GPU-vs-CPU consensus differential — every script-sig verdict must match bit-for-bit (ECDSA/Schnorr, mixed corpus). `SKIP_RETURN_CODE 77` (no GPU); runs in `gpu-selfhosted.yml` only |
 | `compat/libbitcoin_bridge/tests/test_lbtc_collect.cpp` | CPU | `lbtc_collect`: in-place collect verify (verdict written into each row's key cell); + `lbtc_collect_smallchunk` recompiles the bridge with a tiny kChunk to straddle chunk boundaries |
 | `compat/libbitcoin_bridge/tests/test_lbtc_multisig_threshold.cpp` | CPU | `lbtc_multisig_threshold`: 4-table batch model (multisig/threshold m-of-n) verify+collect via the ECDSA/Schnorr cores with a 6-byte tail; tail-width independence + typed-span overloads |
@@ -126,6 +127,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `audit/test_gpu_ops_equivalence.cpp` | GPU (all) | `gpu_ops_equivalence`: GPU vs CPU reference for all 6 first-wave ops (skips UNSUPPORTED) |
 | `audit/test_gpu_host_api_negative.cpp` | GPU (all) | `gpu_host_api_negative`: NULL ptrs, count=0 no-ops, invalid backend/device, error strings |
 | `audit/test_gpu_backend_matrix.cpp` | GPU (all) | `gpu_backend_matrix`: backend enumeration, device info sanity, per-backend op probing |
+| `audit/test_gpu_collect_verify_parity.cpp` | GPU (all) | `gpu_collect_verify_parity`: NULL ctx contract for `ecdsa_verify_collect`/`schnorr_verify_collect`; input validation (count=0, oversize > max, NULL buffer); ECDSA and Schnorr per-row parity vs `*_verify_batch` (all-valid + tampered corpus) |
 
 ### Additional CTest Targets
 
@@ -140,6 +142,11 @@ These standalone CTest entries are part of the active validation surface and are
 | `c_abi_negative` | C ABI hostile-caller | Negative-path checks for invalid inputs, malformed pointers, and fail-closed behavior |
 | `c_abi_thread_stress` | C ABI concurrency | Threaded stress coverage for public ABI entry points |
 | `gpu_ct_leakage_probe` | GPU | CUDA advisory side-channel probe using fixed-vs-random `clock64()` Welch t-test on CT generator and signing kernels |
+| `lbtc_direct_verify` | CPU (+GPU when `secp256k1_gpu_host` linked) | Header-only `ufsecp::lbtc::*` direct surface: ECDSA/Schnorr single+batch+columns fail-closed **plus** the seven public-data batch ops — `xonly_validate_batch`, `pubkey_validate_batch`, `taproot_commitment_verify_batch`, `tagged_hash_batch` (+ tag-string overload), `tagged_hash_var_batch`, `hash256_batch`, `hash256_var_batch`. Per op: all-valid success + serial/engine-parity cross-check, plus hostile-caller cases — malformed/off-curve rows, wrong tweaked-x / parity byte, unliftable internal key, null pointers, `count==0` vacuous, `count×elem` size-overflow, RAW-tweak distinctness (not `H_TapTweak`), HASH rows never all-zero (not pre-zeroed), tagged-hash-var no-256-byte-cap, hash256-var row-length bounds. No new CTest target (extends the existing `lbtc_direct_verify` entry). |
+| `bench_lbtc_public_ops` | Benchmark | Direct C++ libbitcoin benchmark covering all public-data batch ops: x-only validate, compressed pubkey validate, raw Taproot commitment verify, tagged hash fixed + tag overload + var, HASH256 fixed + var. Reports forced CPU and production direct rows; no C ABI, shim, or bridge. |
+| `bench_lbtc_hash256_var` | Benchmark | Direct C++ libbitcoin variable-length Bitcoin HASH256 throughput harness. Reports serial reference, forced direct CPU fallback, and production direct path; JSON records whether the self-installed GPU hook was present/accepted. No C ABI, shim, or bridge. |
+| `example_lbtc_public_ops` | Example | Minimal runnable direct C++ example calling every public-data batch op through `<ufsecp/libbitcoin.hpp>`; built with `SECP256K1_BUILD_LIBBITCOIN_EXAMPLES=ON`, no C ABI/shim/bridge. |
+| `lbtc_gpu_columns_diff` | GPU (all) | GPU-vs-CPU columns differential for libbitcoin column verify (ECDSA/Schnorr Structure-of-Arrays); validates `ufsecp_gpu_ecdsa_verify_lbtc_columns` and `ufsecp_gpu_schnorr_verify_lbtc_columns` against CPU per-row oracle |
 | `exploit_ecdsa_der_confusion` | Exploit PoC | Ensures DER parser behavior rejects non-canonical or ambiguous encodings |
 | `exploit_batch_verify_poison` | Exploit PoC | Regression coverage for adversarial batch-verify poisoning and accumulator corruption attempts |
 | `exploit_der_parsing_differential` | Exploit PoC | Differential strictness coverage for ambiguous or non-canonical DER parser behavior |
@@ -410,6 +417,33 @@ fix pass so `TEST_MATRIX.md` matches the live generated CTest surface:
 - `regression_hash_three_block_bounds`
 - `regression_shim_high_s_verify`
 - `regression_shim_perf_correctness`
+
+### Generated Inventory Sync (2026-06-23)
+
+The following active CTest target was added pairing the FE52-compute verify perf
+commit (875d5bee, `SECP256K1_FE52_COMPUTE` decouples 5x52 compute from storage):
+
+- `fe52_compute_verify` — FE52-compute verify differential: `dual_scalar_mul_gen_point(u1,u2,Q) == u1*G + u2*Q` over 200 vectors + ECDSA/Schnorr sign/verify round-trip + tamper rejection exercising the 5x52 verify dual-mul and to_jac52/from_jac52 bridge (section differential, advisory=false)
+
+### Generated Inventory Sync (2026-07-06)
+
+The following active CTest targets were added for the new GPU `hash256_var`
+batch variable-length double-SHA256 primitive (`GpuBackend::hash256_var` with
+native CUDA/OpenCL/Metal kernels, C ABI `ufsecp_gpu_hash256_var`, and
+libbitcoin-direct `hash256_var_batch`):
+
+- `regression_hash256_var_batch` — KAT/boundary coverage for
+  `test_regression_hash256_var_batch.cpp`: 1B/32B/64B/~1KB rows, stride==len,
+  stride>len, n=0, n=1, n=large — differential against
+  `secp256k1::SHA256::hash256` (section differential, advisory=false)
+- `regression_hash256_var_parity` — `test_regression_hash256_var_parity.cpp`:
+  cross-backend (CUDA/OpenCL/Metal) byte-identical output parity for the same
+  input corpus (section differential, advisory=false)
+- `exploit_hash256_var_bounds` — `test_exploit_hash256_var_bounds.cpp`:
+  hostile-input coverage for `ufsecp_gpu_hash256_var` / `hash256_var_batch`
+  bounds validation — null `inputs`/`input_lens`/`out32`, `n==0`,
+  `input_lens[i]==0`, `input_lens[i]>stride`, `stride==0`, stride/count
+  overflow (section exploit_poc, advisory=false)
 
 ---
 
@@ -843,7 +877,7 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 
 ---
 
-*UltrafastSecp256k1 v4.4.0 -- Test Coverage Matrix*
+*UltrafastSecp256k1 v4.5.0 -- Test Coverage Matrix*
 
 
 ---

@@ -134,6 +134,24 @@ Native C++ and libsecp256k1-shim integrations should link `secp256k1::fast`
 or the `secp256k1_shim` facade, not `libufsecp`, unless they intentionally use
 the C ABI surface.
 
+### Libbitcoin Profile And Tests
+
+The canonical libbitcoin profile is direct C++ only: engine +
+`secp256k1::fastsecp256k1_libbitcoin`, no shim, no C ABI, no bridge. Enable the
+optional direct tests and benchmark when validating integration changes locally:
+
+```bash
+cmake --preset cpu-release \
+  -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON
+cmake --build --preset cpu-release --target test_lbtc_direct_verify test_lbtc_direct_operations bench_lbtc_direct_batch -j
+ctest --test-dir out/cpu-release -R '^lbtc_direct' --output-on-failure
+```
+
+The legacy bridge/C ABI tests are compatibility-only and require
+`-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON`.
+
 ### Coin-Specific Profiles (Minimal Footprint)
 
 Named presets strip unused optional modules to reduce `.text` size and compilation
@@ -558,7 +576,7 @@ Output: `build-xcframework/output/UltrafastSecp256k1.xcframework`
 ```swift
 // Package.swift
 dependencies: [
-    .package(url: "https://github.com/shrec/UltrafastSecp256k1.git", from: "4.4.0")
+    .package(url: "https://github.com/shrec/UltrafastSecp256k1.git", from: "4.5.0")
 ]
 ```
 

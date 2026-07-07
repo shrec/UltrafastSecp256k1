@@ -12,6 +12,7 @@ Exit codes:
   1 — one or more drift findings
 """
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -67,9 +68,36 @@ def check_removed_workflows() -> None:
                 break
 
 
+def check_module_count_drift() -> None:
+    """Fail if canonical module/exploit counts would rewrite docs."""
+    script = REPO_ROOT / "ci" / "sync_module_count.py"
+    if not script.exists():
+        FINDINGS.append("ci/sync_module_count.py is missing; cannot verify module-count doc drift.")
+        return
+
+    result = subprocess.run(
+        [sys.executable, str(script), "--dry-run"],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    if result.returncode == 0:
+        return
+
+    output = (result.stdout + result.stderr).strip()
+    tail = "\n".join(output.splitlines()[-8:])
+    FINDINGS.append(
+        "Canonical module/exploit count drift detected. "
+        "Run `python3 ci/sync_module_count.py` or `python3 ci/sync_all_docs.py`.\n"
+        f"{tail}"
+    )
+
+
 def main() -> int:
     check_codecov_badge()
     check_removed_workflows()
+    check_module_count_drift()
 
     if FINDINGS:
         print(f"Doc drift gate: {len(FINDINGS)} finding(s)")

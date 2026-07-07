@@ -704,74 +704,87 @@ void fe52_mul_inner(std::uint64_t* SECP256K1_RESTRICT r,
     c_lo += t4;
     r[4] = c_lo;
 #else
+    // Pointer-accumulation Comba (libsecp int128_struct idiom). On MSVC cl / wasm the
+    // u128 accumulator is a struct: keeping ONE named c/d mutated in place by void
+    // helpers lets the optimizer hold {lo,hi} in a register pair across the whole
+    // column, instead of materializing a fresh 16-byte temporary per operator+ in a
+    // value-chain (d = p0+p1+p2+p3) — those temporaries spill under the register
+    // pressure of an inlined point op, which is exactly why the prior operator-chain
+    // version lost to libsecp IN CONTEXT despite winning the isolated micro-bench.
+    // On native __int128 the helpers ARE the operator forms — identical codegen.
+    // Arithmetic is byte-for-byte the same as the operator chain it replaces, and the
+    // carry (r->lo < lo) is data-independent, so the CT mul stays constant-time.
     using u128 = ::secp256k1::detail::u128_compat;
-    u128 c = 0, d = 0;
+    using ::secp256k1::detail::u128_mul;
+    using ::secp256k1::detail::u128_accum_mul;
+    using ::secp256k1::detail::u128_accum_u64;
+    u128 c, d;
     std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
 
     // -- Column 3 + reduced column 8 ---------------------------------
-    d  = (u128)a0 * b[3]
-       + (u128)a1 * b[2]
-       + (u128)a2 * b[1]
-       + (u128)a3 * b[0];
-    c  = (u128)a4 * b[4];
-    d += (u128)R52 * (std::uint64_t)c;
+    u128_mul(&d, a0, b[3]);
+    u128_accum_mul(&d, a1, b[2]);
+    u128_accum_mul(&d, a2, b[1]);
+    u128_accum_mul(&d, a3, b[0]);
+    u128_mul(&c, a4, b[4]);
+    u128_accum_mul(&d, R52, (std::uint64_t)c);
     c >>= 64;
     t3 = (std::uint64_t)d & M52;
     d >>= 52;
 
     // -- Column 4 + column 8 carry -----------------------------------
-    d += (u128)a0 * b[4]
-       + (u128)a1 * b[3]
-       + (u128)a2 * b[2]
-       + (u128)a3 * b[1]
-       + (u128)a4 * b[0];
-    d += (u128)(R52 << 12) * (std::uint64_t)c;
+    u128_accum_mul(&d, a0, b[4]);
+    u128_accum_mul(&d, a1, b[3]);
+    u128_accum_mul(&d, a2, b[2]);
+    u128_accum_mul(&d, a3, b[1]);
+    u128_accum_mul(&d, a4, b[0]);
+    u128_accum_mul(&d, (R52 << 12), (std::uint64_t)c);
     t4 = (std::uint64_t)d & M52;
     d >>= 52;
     tx = (t4 >> 48); t4 &= (M52 >> 4);
 
     // -- Column 0 + reduced column 5 ---------------------------------
-    c  = (u128)a0 * b[0];
-    d += (u128)a1 * b[4]
-       + (u128)a2 * b[3]
-       + (u128)a3 * b[2]
-       + (u128)a4 * b[1];
+    u128_mul(&c, a0, b[0]);
+    u128_accum_mul(&d, a1, b[4]);
+    u128_accum_mul(&d, a2, b[3]);
+    u128_accum_mul(&d, a3, b[2]);
+    u128_accum_mul(&d, a4, b[1]);
     u0 = (std::uint64_t)d & M52;
     d >>= 52;
     u0 = (u0 << 4) | tx;
-    c += (u128)u0 * (R52 >> 4);
+    u128_accum_mul(&c, u0, (R52 >> 4));
     r[0] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Column 1 + reduced column 6 ---------------------------------
-    c += (u128)a0 * b[1]
-       + (u128)a1 * b[0];
-    d += (u128)a2 * b[4]
-       + (u128)a3 * b[3]
-       + (u128)a4 * b[2];
-    c += (u128)((std::uint64_t)d & M52) * R52;
+    u128_accum_mul(&c, a0, b[1]);
+    u128_accum_mul(&c, a1, b[0]);
+    u128_accum_mul(&d, a2, b[4]);
+    u128_accum_mul(&d, a3, b[3]);
+    u128_accum_mul(&d, a4, b[2]);
+    u128_accum_mul(&c, (std::uint64_t)d & M52, R52);
     d >>= 52;
     r[1] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Column 2 + reduced column 7 ---------------------------------
-    c += (u128)a0 * b[2]
-       + (u128)a1 * b[1]
-       + (u128)a2 * b[0];
-    d += (u128)a3 * b[4]
-       + (u128)a4 * b[3];
-    c += (u128)R52 * (std::uint64_t)d;
+    u128_accum_mul(&c, a0, b[2]);
+    u128_accum_mul(&c, a1, b[1]);
+    u128_accum_mul(&c, a2, b[0]);
+    u128_accum_mul(&d, a3, b[4]);
+    u128_accum_mul(&d, a4, b[3]);
+    u128_accum_mul(&c, R52, (std::uint64_t)d);
     d >>= 64;
     r[2] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Finalize columns 3 and 4 ------------------------------------
-    c += (u128)(R52 << 12) * (std::uint64_t)d;
-    c += t3;
+    u128_accum_mul(&c, (R52 << 12), (std::uint64_t)d);
+    u128_accum_u64(&c, t3);
     r[3] = (std::uint64_t)c & M52;
     c >>= 52;
-    c += t4;
+    u128_accum_u64(&c, t4);
     r[4] = (std::uint64_t)c;
 #endif // ARM64_FE52 / RISCV_FE52 / x64_ADX / generic (mul)
 }
@@ -1291,74 +1304,87 @@ void fe52_mul_inner_var(std::uint64_t* SECP256K1_RESTRICT r,
     c_lo += t4;
     r[4] = c_lo;
 #else
+    // Pointer-accumulation Comba (libsecp int128_struct idiom). On MSVC cl / wasm the
+    // u128 accumulator is a struct: keeping ONE named c/d mutated in place by void
+    // helpers lets the optimizer hold {lo,hi} in a register pair across the whole
+    // column, instead of materializing a fresh 16-byte temporary per operator+ in a
+    // value-chain (d = p0+p1+p2+p3) — those temporaries spill under the register
+    // pressure of an inlined point op, which is exactly why the prior operator-chain
+    // version lost to libsecp IN CONTEXT despite winning the isolated micro-bench.
+    // On native __int128 the helpers ARE the operator forms — identical codegen.
+    // Arithmetic is byte-for-byte the same as the operator chain it replaces, and the
+    // carry (r->lo < lo) is data-independent, so the CT mul stays constant-time.
     using u128 = ::secp256k1::detail::u128_compat;
-    u128 c = 0, d = 0;
+    using ::secp256k1::detail::u128_mul;
+    using ::secp256k1::detail::u128_accum_mul;
+    using ::secp256k1::detail::u128_accum_u64;
+    u128 c, d;
     std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
 
     // -- Column 3 + reduced column 8 ---------------------------------
-    d  = (u128)a0 * b[3]
-       + (u128)a1 * b[2]
-       + (u128)a2 * b[1]
-       + (u128)a3 * b[0];
-    c  = (u128)a4 * b[4];
-    d += (u128)R52 * (std::uint64_t)c;
+    u128_mul(&d, a0, b[3]);
+    u128_accum_mul(&d, a1, b[2]);
+    u128_accum_mul(&d, a2, b[1]);
+    u128_accum_mul(&d, a3, b[0]);
+    u128_mul(&c, a4, b[4]);
+    u128_accum_mul(&d, R52, (std::uint64_t)c);
     c >>= 64;
     t3 = (std::uint64_t)d & M52;
     d >>= 52;
 
     // -- Column 4 + column 8 carry -----------------------------------
-    d += (u128)a0 * b[4]
-       + (u128)a1 * b[3]
-       + (u128)a2 * b[2]
-       + (u128)a3 * b[1]
-       + (u128)a4 * b[0];
-    d += (u128)(R52 << 12) * (std::uint64_t)c;
+    u128_accum_mul(&d, a0, b[4]);
+    u128_accum_mul(&d, a1, b[3]);
+    u128_accum_mul(&d, a2, b[2]);
+    u128_accum_mul(&d, a3, b[1]);
+    u128_accum_mul(&d, a4, b[0]);
+    u128_accum_mul(&d, (R52 << 12), (std::uint64_t)c);
     t4 = (std::uint64_t)d & M52;
     d >>= 52;
     tx = (t4 >> 48); t4 &= (M52 >> 4);
 
     // -- Column 0 + reduced column 5 ---------------------------------
-    c  = (u128)a0 * b[0];
-    d += (u128)a1 * b[4]
-       + (u128)a2 * b[3]
-       + (u128)a3 * b[2]
-       + (u128)a4 * b[1];
+    u128_mul(&c, a0, b[0]);
+    u128_accum_mul(&d, a1, b[4]);
+    u128_accum_mul(&d, a2, b[3]);
+    u128_accum_mul(&d, a3, b[2]);
+    u128_accum_mul(&d, a4, b[1]);
     u0 = (std::uint64_t)d & M52;
     d >>= 52;
     u0 = (u0 << 4) | tx;
-    c += (u128)u0 * (R52 >> 4);
+    u128_accum_mul(&c, u0, (R52 >> 4));
     r[0] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Column 1 + reduced column 6 ---------------------------------
-    c += (u128)a0 * b[1]
-       + (u128)a1 * b[0];
-    d += (u128)a2 * b[4]
-       + (u128)a3 * b[3]
-       + (u128)a4 * b[2];
-    c += (u128)((std::uint64_t)d & M52) * R52;
+    u128_accum_mul(&c, a0, b[1]);
+    u128_accum_mul(&c, a1, b[0]);
+    u128_accum_mul(&d, a2, b[4]);
+    u128_accum_mul(&d, a3, b[3]);
+    u128_accum_mul(&d, a4, b[2]);
+    u128_accum_mul(&c, (std::uint64_t)d & M52, R52);
     d >>= 52;
     r[1] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Column 2 + reduced column 7 ---------------------------------
-    c += (u128)a0 * b[2]
-       + (u128)a1 * b[1]
-       + (u128)a2 * b[0];
-    d += (u128)a3 * b[4]
-       + (u128)a4 * b[3];
-    c += (u128)R52 * (std::uint64_t)d;
+    u128_accum_mul(&c, a0, b[2]);
+    u128_accum_mul(&c, a1, b[1]);
+    u128_accum_mul(&c, a2, b[0]);
+    u128_accum_mul(&d, a3, b[4]);
+    u128_accum_mul(&d, a4, b[3]);
+    u128_accum_mul(&c, R52, (std::uint64_t)d);
     d >>= 64;
     r[2] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Finalize columns 3 and 4 ------------------------------------
-    c += (u128)(R52 << 12) * (std::uint64_t)d;
-    c += t3;
+    u128_accum_mul(&c, (R52 << 12), (std::uint64_t)d);
+    u128_accum_u64(&c, t3);
     r[3] = (std::uint64_t)c & M52;
     c >>= 52;
-    c += t4;
+    u128_accum_u64(&c, t4);
     r[4] = (std::uint64_t)c;
 #endif // ARM64_FE52 / RISCV_FE52 / x64_ADX / generic (mul)
 }
@@ -1770,64 +1796,71 @@ void fe52_sqr_inner(std::uint64_t* SECP256K1_RESTRICT r,
     c_lo += t4;
     r[4] = c_lo;
 #else
+    // Pointer-accumulation Comba squaring (libsecp int128_struct idiom — see the mul
+    // kernel above for the full rationale). One named c/d mutated in place; no per-term
+    // 16-byte temporaries to spill. Each (ai*2) fits u64 (52-bit limb * 2 = 2^53), and
+    // each product <2^106, so u64xu64 helpers are exact. Arithmetic-identical, CT-safe.
     using u128 = ::secp256k1::detail::u128_compat;
-    u128 c = 0, d = 0;
+    using ::secp256k1::detail::u128_mul;
+    using ::secp256k1::detail::u128_accum_mul;
+    using ::secp256k1::detail::u128_accum_u64;
+    u128 c, d;
     std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
 
     // -- Column 3 + reduced column 8 ---------------------------------
-    d  = (u128)(a0 * 2) * a3
-       + (u128)(a1 * 2) * a2;
-    c  = (u128)a4 * a4;
-    d += (u128)R52 * (std::uint64_t)c;
+    u128_mul(&d, a0 * 2, a3);
+    u128_accum_mul(&d, a1 * 2, a2);
+    u128_mul(&c, a4, a4);
+    u128_accum_mul(&d, R52, (std::uint64_t)c);
     c >>= 64;
     t3 = (std::uint64_t)d & M52;
     d >>= 52;
 
     // -- Column 4 ----------------------------------------------------
-    d += (u128)(a0 * 2) * a4
-       + (u128)(a1 * 2) * a3
-       + (u128)a2 * a2;
-    d += (u128)(R52 << 12) * (std::uint64_t)c;
+    u128_accum_mul(&d, a0 * 2, a4);
+    u128_accum_mul(&d, a1 * 2, a3);
+    u128_accum_mul(&d, a2, a2);
+    u128_accum_mul(&d, (R52 << 12), (std::uint64_t)c);
     t4 = (std::uint64_t)d & M52;
     d >>= 52;
     tx = (t4 >> 48); t4 &= (M52 >> 4);
 
     // -- Column 0 + reduced column 5 ---------------------------------
-    c  = (u128)a0 * a0;
-    d += (u128)(a1 * 2) * a4
-       + (u128)(a2 * 2) * a3;
+    u128_mul(&c, a0, a0);
+    u128_accum_mul(&d, a1 * 2, a4);
+    u128_accum_mul(&d, a2 * 2, a3);
     u0 = (std::uint64_t)d & M52;
     d >>= 52;
     u0 = (u0 << 4) | tx;
-    c += (u128)u0 * (R52 >> 4);
+    u128_accum_mul(&c, u0, (R52 >> 4));
     r[0] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Column 1 + reduced column 6 ---------------------------------
-    c += (u128)(a0 * 2) * a1;
-    d += (u128)(a2 * 2) * a4
-       + (u128)a3 * a3;
-    c += (u128)((std::uint64_t)d & M52) * R52;
+    u128_accum_mul(&c, a0 * 2, a1);
+    u128_accum_mul(&d, a2 * 2, a4);
+    u128_accum_mul(&d, a3, a3);
+    u128_accum_mul(&c, (std::uint64_t)d & M52, R52);
     d >>= 52;
     r[1] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Column 2 + reduced column 7 ---------------------------------
-    c += (u128)(a0 * 2) * a2
-       + (u128)a1 * a1;
-    d += (u128)(a3 * 2) * a4;
-    c += (u128)R52 * (std::uint64_t)d;
+    u128_accum_mul(&c, a0 * 2, a2);
+    u128_accum_mul(&c, a1, a1);
+    u128_accum_mul(&d, a3 * 2, a4);
+    u128_accum_mul(&c, R52, (std::uint64_t)d);
     d >>= 64;
     r[2] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Finalize columns 3 and 4 ------------------------------------
-    c += (u128)(R52 << 12) * (std::uint64_t)d;
-    c += t3;
+    u128_accum_mul(&c, (R52 << 12), (std::uint64_t)d);
+    u128_accum_u64(&c, t3);
     r[3] = (std::uint64_t)c & M52;
     c >>= 52;
-    c += t4;
+    u128_accum_u64(&c, t4);
     r[4] = (std::uint64_t)c;
 #endif // ARM64_FE52 / RISCV_FE52 / x64_ADX / generic (sqr)
 }
@@ -2227,64 +2260,71 @@ void fe52_sqr_inner_var(std::uint64_t* SECP256K1_RESTRICT r,
     c_lo += t4;
     r[4] = c_lo;
 #else
+    // Pointer-accumulation Comba squaring (libsecp int128_struct idiom — see the mul
+    // kernel above for the full rationale). One named c/d mutated in place; no per-term
+    // 16-byte temporaries to spill. Each (ai*2) fits u64 (52-bit limb * 2 = 2^53), and
+    // each product <2^106, so u64xu64 helpers are exact. Arithmetic-identical, CT-safe.
     using u128 = ::secp256k1::detail::u128_compat;
-    u128 c = 0, d = 0;
+    using ::secp256k1::detail::u128_mul;
+    using ::secp256k1::detail::u128_accum_mul;
+    using ::secp256k1::detail::u128_accum_u64;
+    u128 c, d;
     std::uint64_t t3 = 0, t4 = 0, tx = 0, u0 = 0;
     const std::uint64_t a0 = a[0], a1 = a[1], a2 = a[2], a3 = a[3], a4 = a[4];
 
     // -- Column 3 + reduced column 8 ---------------------------------
-    d  = (u128)(a0 * 2) * a3
-       + (u128)(a1 * 2) * a2;
-    c  = (u128)a4 * a4;
-    d += (u128)R52 * (std::uint64_t)c;
+    u128_mul(&d, a0 * 2, a3);
+    u128_accum_mul(&d, a1 * 2, a2);
+    u128_mul(&c, a4, a4);
+    u128_accum_mul(&d, R52, (std::uint64_t)c);
     c >>= 64;
     t3 = (std::uint64_t)d & M52;
     d >>= 52;
 
     // -- Column 4 ----------------------------------------------------
-    d += (u128)(a0 * 2) * a4
-       + (u128)(a1 * 2) * a3
-       + (u128)a2 * a2;
-    d += (u128)(R52 << 12) * (std::uint64_t)c;
+    u128_accum_mul(&d, a0 * 2, a4);
+    u128_accum_mul(&d, a1 * 2, a3);
+    u128_accum_mul(&d, a2, a2);
+    u128_accum_mul(&d, (R52 << 12), (std::uint64_t)c);
     t4 = (std::uint64_t)d & M52;
     d >>= 52;
     tx = (t4 >> 48); t4 &= (M52 >> 4);
 
     // -- Column 0 + reduced column 5 ---------------------------------
-    c  = (u128)a0 * a0;
-    d += (u128)(a1 * 2) * a4
-       + (u128)(a2 * 2) * a3;
+    u128_mul(&c, a0, a0);
+    u128_accum_mul(&d, a1 * 2, a4);
+    u128_accum_mul(&d, a2 * 2, a3);
     u0 = (std::uint64_t)d & M52;
     d >>= 52;
     u0 = (u0 << 4) | tx;
-    c += (u128)u0 * (R52 >> 4);
+    u128_accum_mul(&c, u0, (R52 >> 4));
     r[0] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Column 1 + reduced column 6 ---------------------------------
-    c += (u128)(a0 * 2) * a1;
-    d += (u128)(a2 * 2) * a4
-       + (u128)a3 * a3;
-    c += (u128)((std::uint64_t)d & M52) * R52;
+    u128_accum_mul(&c, a0 * 2, a1);
+    u128_accum_mul(&d, a2 * 2, a4);
+    u128_accum_mul(&d, a3, a3);
+    u128_accum_mul(&c, (std::uint64_t)d & M52, R52);
     d >>= 52;
     r[1] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Column 2 + reduced column 7 ---------------------------------
-    c += (u128)(a0 * 2) * a2
-       + (u128)a1 * a1;
-    d += (u128)(a3 * 2) * a4;
-    c += (u128)R52 * (std::uint64_t)d;
+    u128_accum_mul(&c, a0 * 2, a2);
+    u128_accum_mul(&c, a1, a1);
+    u128_accum_mul(&d, a3 * 2, a4);
+    u128_accum_mul(&c, R52, (std::uint64_t)d);
     d >>= 64;
     r[2] = (std::uint64_t)c & M52;
     c >>= 52;
 
     // -- Finalize columns 3 and 4 ------------------------------------
-    c += (u128)(R52 << 12) * (std::uint64_t)d;
-    c += t3;
+    u128_accum_mul(&c, (R52 << 12), (std::uint64_t)d);
+    u128_accum_u64(&c, t3);
     r[3] = (std::uint64_t)c & M52;
     c >>= 52;
-    c += t4;
+    u128_accum_u64(&c, t4);
     r[4] = (std::uint64_t)c;
 #endif // ARM64_FE52 / RISCV_FE52 / x64_ADX / generic (sqr)
 }

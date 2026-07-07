@@ -4,10 +4,31 @@
 #include "secp256k1.h"
 #include "secp256k1_schnorrsig.h"
 #include "secp256k1_extrakeys.h"
+#include "ufsecp/ufsecp_cancel.h"  /* ufsecp_cancel_token, UFSECP_CANCEL_DEFAULT */
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/* ----------------------------------------------------------------------------
+ * Optional external cancellation (all batch-verify functions below).
+ *
+ * Every function takes a trailing `const ufsecp_cancel_token* cancel`:
+ *   - cancel == NULL  -> no cancellation; original behavior, byte-for-byte, with
+ *                        zero overhead (C++ callers may omit it — it defaults to NULL).
+ *   - cancel != NULL  -> the token is polled between work chunks (see
+ *                        ufsecp/ufsecp_cancel.h). A long batch can thus be aborted
+ *                        from outside (e.g. a node shutting down / reorging away a
+ *                        block whose validation is in flight).
+ *
+ * Return on cancellation: 0 (fail-closed) — a cancelled batch never returns 1.
+ * Because these functions return int (1=all valid / 0=otherwise), "cancelled" is
+ * NOT distinguishable from "a signature was invalid" via the return value alone.
+ * The caller owns the token, so it disambiguates a returned 0 by checking its own
+ * cancellation state: set => cancelled (verdict unknown, discard); clear =>
+ * genuinely invalid. For the _results variants, rows not reached before cancel are
+ * left 0. A throwing cancel callback is treated as cancel (fail-closed).
+ * -------------------------------------------------------------------------- */
 
 /* Batch Schnorr (BIP-340) verification.
  *
@@ -34,7 +55,8 @@ SECP256K1_API int secp256k1_schnorrsig_verify_batch(
     const unsigned char* const*     msgs,
     size_t                          msglen,
     const secp256k1_xonly_pubkey* const* pubkeys,
-    size_t                          n
+    size_t                          n,
+    const ufsecp_cancel_token*      cancel UFSECP_CANCEL_DEFAULT
 ) SECP256K1_ARG_NONNULL(1);
 
 /* Batch ECDSA verification.
@@ -64,7 +86,8 @@ SECP256K1_API int secp256k1_ecdsa_verify_batch(
     const secp256k1_ecdsa_signature* const* sigs,
     const unsigned char* const*           msgs32,
     const secp256k1_pubkey* const*        pubkeys,
-    size_t                                n
+    size_t                                n,
+    const ufsecp_cancel_token*            cancel UFSECP_CANCEL_DEFAULT
 ) SECP256K1_ARG_NONNULL(1);
 
 /* ============================================================================
@@ -96,7 +119,8 @@ SECP256K1_API int secp256k1_schnorrsig_verify_batch_mt(
     size_t                          msglen,
     const secp256k1_xonly_pubkey* const* pubkeys,
     size_t                          n,
-    size_t                          max_threads
+    size_t                          max_threads,
+    const ufsecp_cancel_token*      cancel UFSECP_CANCEL_DEFAULT
 ) SECP256K1_ARG_NONNULL(1);
 
 /* Batch ECDSA verify with explicit thread control. Returns 1 if all valid. */
@@ -106,7 +130,8 @@ SECP256K1_API int secp256k1_ecdsa_verify_batch_mt(
     const unsigned char* const*           msgs32,
     const secp256k1_pubkey* const*        pubkeys,
     size_t                                n,
-    size_t                                max_threads
+    size_t                                max_threads,
+    const ufsecp_cancel_token*            cancel UFSECP_CANCEL_DEFAULT
 ) SECP256K1_ARG_NONNULL(1);
 
 /* Batch Schnorr verify writing a PER-ROW verdict into results[i] (1=valid,
@@ -121,7 +146,8 @@ SECP256K1_API int secp256k1_schnorrsig_verify_batch_results(
     const secp256k1_xonly_pubkey* const* pubkeys,
     size_t                          n,
     size_t                          max_threads,
-    int*                            results
+    int*                            results,
+    const ufsecp_cancel_token*      cancel UFSECP_CANCEL_DEFAULT
 ) SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(8);
 
 /* Batch ECDSA verify writing a PER-ROW verdict into results[i] (1=valid,
@@ -134,7 +160,8 @@ SECP256K1_API int secp256k1_ecdsa_verify_batch_results(
     const secp256k1_pubkey* const*        pubkeys,
     size_t                                n,
     size_t                                max_threads,
-    int*                                  results
+    int*                                  results,
+    const ufsecp_cancel_token*            cancel UFSECP_CANCEL_DEFAULT
 ) SECP256K1_ARG_NONNULL(1) SECP256K1_ARG_NONNULL(7);
 
 #ifdef __cplusplus

@@ -449,6 +449,14 @@ int secp256k1_ecdsa_verify(
 
     auto internal_sig = ecdsa_sig_from_data(sig->data);
 
+    // libsecp256k1 parity (SHIM-008 fix): upstream secp256k1_ecdsa_verify rejects
+    // high-S signatures — `return (!secp256k1_scalar_is_high(&s) && ...)` — so the
+    // malleated (r, n-s) twin of a valid signature does NOT verify. The raw-math core
+    // secp256k1::ecdsa_verify accepts both s and n-s by design, and the native
+    // ufsecp_ecdsa_verify already enforces BIP-62 low-S; the libsecp-compatible shim
+    // must match upstream exactly, so reject high-S here too (covers both cache paths).
+    if (!internal_sig.is_low_s()) return 0;
+
     // ShimEcdsaCache: look up prebuilt GLV tables for this pubkey.
     // On hit:  ~900 ns saved vs building tables per-call (EcdsaPublicKey path).
     // On miss: build GLV tables once, cache in 32-slot thread-local (~50 KB).

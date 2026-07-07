@@ -1,0 +1,8 @@
+// Property-check runner for the BIP-340 Schnorr spec. SHA-256 is an abstract
+// (uninterpreted) primitive, so the sign/verify correctness properties are SAW
+// :prove targets, not randomized-:check targets. Here we check the structural
+// (SHA-free) properties: even-Y key normalization and its idempotence.
+:load Secp256k1Schnorr.cry
+:set tests=5
+:check normalised_key_has_even_y
+:check normalise_key_idempotent

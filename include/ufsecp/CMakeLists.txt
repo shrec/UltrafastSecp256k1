@@ -60,7 +60,7 @@ endif()
 # ufsecp_lbtc_* batch script-signature verify + BIP-352 scan entry points,
 # dispatching to GPU (when the host layer is present) with CPU fallback.
 set(UFSECP_LBTC_SRC "")
-if(SECP256K1_BUILD_LIBBITCOIN)
+if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE)
     set(UFSECP_LBTC_SRC "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/src/ufsecp_libbitcoin.cpp")
 endif()
 
@@ -111,9 +111,10 @@ function(ufsecp_configure tgt)
         )
     endif()
 
-    # libbitcoin bridge: expose its header (PUBLIC so consumers can include it)
-    # and enable GPU dispatch only when the GPU host layer is in the build.
-    if(SECP256K1_BUILD_LIBBITCOIN)
+    # libbitcoin bridge (compatibility-only): expose its header (PUBLIC so
+    # consumers can include it) and enable GPU dispatch only when the GPU host
+    # layer is in the build. Gated on the explicit bridge opt-in.
+    if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE)
         target_include_directories(${tgt} PUBLIC
             $<BUILD_INTERFACE:${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/include>
             $<INSTALL_INTERFACE:include>
@@ -184,12 +185,10 @@ elseif(TARGET ufsecp_shared)
     add_library(ufsecp::ufsecp ALIAS ufsecp_shared)
 endif()
 
-# libbitcoin batch sig-verify benchmark — built as part of the central source
-# (static link to ufsecp_static, which already pulls in fastsecp256k1 + the GPU
-# host layer + the ufsecp_lbtc batch bridge). OFF in the minimal ship profile.
-option(SECP256K1_BUILD_LIBBITCOIN_BENCH
-       "Build the libbitcoin batch sig-verify benchmark (bench_lbtc_batch)" OFF)
-if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_BENCH)
+# Legacy libbitcoin C-ABI bridge benchmark. The top-level
+# SECP256K1_BUILD_LIBBITCOIN_BENCH option is the single source of truth; this
+# C-ABI subdirectory only adds the legacy bench when the bridge is also enabled.
+if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE AND SECP256K1_BUILD_LIBBITCOIN_BENCH)
     # Built straight from the central source: the C ABI, GPU C ABI and the
     # ufsecp_lbtc bridge are compiled into the benchmark target itself, which
     # links the in-tree engine targets (fastsecp256k1 [+ GPU host layer]). No
@@ -222,7 +221,31 @@ endif()
 # source exactly like the bench (no separate ufsecp library involved).
 option(SECP256K1_BUILD_LIBBITCOIN_TESTS
        "Build the libbitcoin GPU/CPU consensus differential (test_lbtc_consensus_diff)" OFF)
-if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
+if(SECP256K1_BUILD_LIBBITCOIN_BRIDGE AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
+    add_executable(test_lbtc_bridge
+        "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp"
+        ${UFSECP_IMPL_SRC} ${UFSECP_GPU_IMPL_SRC} ${UFSECP_LBTC_SRC})
+    target_compile_features(test_lbtc_bridge PRIVATE cxx_std_20)
+    target_compile_definitions(test_lbtc_bridge PRIVATE UFSECP_BUILDING UFSECP_STATIC_LIB)
+    target_include_directories(test_lbtc_bridge PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CPU_INCLUDE_DIR} ${SHARED_INCLUDE_DIR}
+        "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/include")
+    target_link_libraries(test_lbtc_bridge PRIVATE fastsecp256k1)
+    if(TARGET secp256k1_gpu_host)
+        target_link_libraries(test_lbtc_bridge PRIVATE secp256k1_gpu_host)
+        target_include_directories(test_lbtc_bridge PRIVATE ${ULTRAFAST_ROOT}/src/gpu/include)
+        target_compile_definitions(test_lbtc_bridge PRIVATE UFSECP_LBTC_WITH_GPU)
+    endif()
+    if(SECP256K1_BUILD_CUDA)
+        set_target_properties(test_lbtc_bridge PROPERTIES
+            CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}")
+    endif()
+    include(CTest)
+    enable_testing()
+    add_test(NAME lbtc_bridge COMMAND test_lbtc_bridge)
+    set_tests_properties(lbtc_bridge PROPERTIES LABELS "libbitcoin;batch;compat")
+
     add_executable(test_lbtc_consensus_diff
         "${ULTRAFAST_ROOT}/compat/libbitcoin_bridge/tests/test_lbtc_consensus_diff.cpp"
         ${UFSECP_IMPL_SRC} ${UFSECP_GPU_IMPL_SRC} ${UFSECP_LBTC_SRC})
@@ -282,7 +305,7 @@ if(SECP256K1_BUILD_LIBBITCOIN AND SECP256K1_BUILD_LIBBITCOIN_TESTS)
     endif()
     add_test(NAME lbtc_multisig_threshold COMMAND test_lbtc_multisig_threshold)
     set_tests_properties(lbtc_multisig_threshold PROPERTIES LABELS "libbitcoin;batch;compat")
-    message(STATUS "  libbitcoin tests: ON (consensus diff + multisig/threshold, central source)")
+    message(STATUS "  libbitcoin tests: ON (bridge + consensus diff + multisig/threshold, central source)")
 endif()
 
 # -- Install (standalone only -- skip when used as sub-project) --------------

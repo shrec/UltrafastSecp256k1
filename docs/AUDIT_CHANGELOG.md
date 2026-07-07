@@ -1,5 +1,859 @@
 # Audit Changelog
 
+## 2026-07-07 — libbitcoin direct ECDSA high-S consensus policy
+
+Corrected the libbitcoin-direct consensus verify policy for ECDSA high-S
+signatures. Low-S remains the signing output/standardness/shim policy, but the
+canonical libbitcoin direct verify paths must not treat a mathematically valid
+high-S ECDSA signature as consensus-invalid.
+
+- **CPU engine:** `ecdsa_batch_verify_opaque_rows` and
+  `ecdsa_batch_verify_opaque_columns` now use a libbitcoin consensus s-policy
+  that accepts high-S while preserving strict low-S enforcement in the public
+  `ecdsa_batch_verify` / libsecp-compatible surfaces.
+- **GPU parity:** CUDA, OpenCL, and Metal libbitcoin opaque ECDSA parsers now
+  reject only zero/non-scalar `r`/`s` values; high-S no longer diverges from the
+  CPU consensus path.
+- **Tests:** `compat/libbitcoin_direct/tests/test_direct_verify.cpp` now checks
+  high-S acceptance for single, row-batch, column-batch, engine opaque rows, and
+  engine opaque columns, including a mixed batch where the high-S row remains
+  valid beside a separate tampered row. `audit/test_gpu_lbtc_columns_diff.cpp`
+  now asserts high-S acceptance and x>=p rejection for CPU/GPU column parity.
+- **Docs:** `docs/API_REFERENCE.md`, `docs/LIBBITCOIN_INTEGRATION.md`,
+  `compat/libbitcoin_direct/README.md`, and the batch verify header document
+  the split between libbitcoin consensus acceptance and strict low-S
+  standardness/shim behavior.
+
+## 2026-07-06 — new GPU primitive: `hash256_var` batch variable-length double-SHA256
+
+Added a new backend-neutral GPU primitive for batch variable-length Bitcoin
+HASH256 (double SHA-256): `GpuBackend::hash256_var` virtual
+(`src/gpu/include/gpu_backend.hpp`) with native CUDA, OpenCL, and Metal
+kernels, C ABI `ufsecp_gpu_hash256_var` (`include/ufsecp/ufsecp_gpu.h` /
+`src/cpu/src/ufsecp_gpu_impl.cpp`), and a bridge-free libbitcoin-direct
+wrapper `hash256_var_batch` (`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`)
+with hook typedef/atomic/installer in
+`compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp`. Row `i` is
+`inputs[i*stride .. i*stride+input_lens[i])`, bytes beyond `input_lens[i]` up
+to `stride` are ignored padding; GPU performs no tag prefix and no
+transaction parsing — this is the primitive libbitcoin's future
+`txid_batch`/`wtxid_batch` convenience wrappers will compose with CPU-side
+BIP141 serialization (`legacy_serialize`/`witness_serialize` in
+`src/cpu/src/bip144.cpp`). PUBLIC-DATA / variable-time throughout — no
+secret-bearing path, no CT requirement.
+
+- **New bound:** `kMaxHash256VarStride` (4 MiB, `src/cpu/src/ufsecp_gpu_impl.cpp`)
+  chosen to cover Bitcoin's maximum block-weight-derived transaction size
+  with headroom over realistic ~100KB standard-relay tx sizes.
+- **New per-row validation:** unlike the existing `ufsecp_gpu_tagged_hash_var`
+  ABI wrapper (which only bounds-checks the scalar `stride`), the
+  `ufsecp_gpu_hash256_var` wrapper validates every `input_lens[i]` against
+  `stride` host-side, per row, before GPU dispatch — since `hash256_var` row
+  lengths are fully caller-controlled and an out-of-range row would read past
+  its slot.
+- **Kernel design:** unlike `tagged_hash_var` (which copies each row into a
+  small fixed on-chip buffer, 256–320 bytes, to prepend the 64-byte BIP-340
+  tag), `hash256_var` has no tag prefix, so the CUDA/OpenCL/Metal kernels
+  stream each row directly in 64-byte SHA-256 compression blocks with no
+  full-row local copy — supporting rows up to the 4 MiB bound instead of
+  inheriting the 256/320-byte cap.
+- **Error semantics:** `ctx==nullptr` → `UFSECP_ERR_NULL_ARG`; `n==0` →
+  `UFSECP_OK` no-op (`out32` untouched); `n` over the existing
+  `kMaxGpuBatchN` (64M) batch cap, `stride==0`/`>kMaxHash256VarStride`, or any
+  `input_lens[i]==0`/`>stride` → `UFSECP_ERR_BAD_INPUT`; null
+  `inputs`/`input_lens`/`out32` with `n>0` → `UFSECP_ERR_NULL_ARG`. Non-OK
+  return leaves `out32` cleared, never partial/stale.
+- **Test:** `audit/test_regression_hash256_var_batch.cpp` (KAT/boundary:
+  1B/32B/64B/~1KB rows, stride==len, stride>len, n=0, n=1, n=large;
+  differential against `secp256k1::SHA256::hash256`),
+  `audit/test_regression_hash256_var_parity.cpp` (cross-backend
+  byte-identical output), `audit/test_exploit_hash256_var_bounds.cpp`
+  (hostile inputs: nulls, n==0, input_lens[i]==0, input_lens[i]>stride,
+  stride==0, stride/count overflow).
+- **Metal:** code-complete, runtime parity PENDING Apple-hardware
+  validation — same status already documented for the sibling libbitcoin
+  public-data batch ops in `docs/BACKEND_ASSURANCE_MATRIX.md` (this work was
+  done on Linux; no Apple hardware available here).
+- **Docs:** `docs/API_REFERENCE.md` (C ABI table + `hash256_var_batch` C++
+  wrapper doc), `docs/BACKEND_ASSURANCE_MATRIX.md` (new per-backend table),
+  `docs/TEST_MATRIX.md` and `docs/EXPLOIT_TEST_CATALOG.md` (new test
+  entries) updated in the same pass.
+
+## 2026-07-06 — doc-only follow-up: `ufsecp_gpu.h` C ABI banner corrected for the same six ops
+
+No code change. Closes the follow-up left open by the same-day entry below: the
+C ABI header `include/ufsecp/ufsecp_gpu.h` carried its own copy of the stale
+"CUDA implemented; OpenCL/Metal return `UFSECP_ERR_GPU_UNSUPPORTED` so the
+bridge falls back to its CPU path" banner immediately above the six
+`ufsecp_gpu_*` declarations (`xonly_validate`, `commitment_verify`,
+`tagged_hash`, `pubkey_validate`, `tagged_hash_var`, `hash256`, ~line 404).
+`source_graph.py bodygrep` confirms all six already have native CUDA, OpenCL,
+and Metal overrides (`gpu_backend_cuda.cu`, `gpu_backend_opencl.cpp`,
+`gpu_backend_metal.mm`), plus C ABI dispatch (`ufsecp_gpu_impl.cpp`) and
+direct libbitcoin hooks (`gpu_engine_hook.cpp`).
+
+- **`include/ufsecp/ufsecp_gpu.h`:** rewrote the section banner above the six
+  declarations to state that CUDA, OpenCL, and Metal all provide native
+  on-device implementations with no host-CPU fallback, matching the wording
+  already applied to `src/gpu/include/gpu_backend.hpp` in the entry below.
+  No function signature, enum, macro, or implementation changed — comment-only.
+- **Test:** doc-only change; no new test required. Existing coverage:
+  `lbtc_direct_verify` / `test_direct_gpu_columns_hook`-style hostile-caller +
+  GPU-hook-installed assertions already exercise these six ops end-to-end.
+
+## 2026-07-06 — doc-only correction: six libbitcoin public-data GPU ops already at full parity
+
+No code change. Corrected stale doc wording for six `GpuBackend` libbitcoin-bridge
+specialization virtuals — `xonly_validate`, `pubkey_validate`, `commitment_verify`,
+`tagged_hash`, `tagged_hash_var`, `hash256` — that had been mis-documented as
+"CUDA-only, OpenCL/Metal fall back to host CPU" / `PARITY-EXCEPTION`, even though
+all three shipped backends (CUDA, OpenCL, Metal) already dispatch real on-device
+kernels for all six (confirmed via `gpu_backend_cuda.cu`, `gpu_backend_opencl.cpp`,
+`gpu_backend_metal.mm` override bodies) and all six are already exposed through
+bridge-less `ufsecp::lbtc::*_batch` direct entry points with GPU hooks wired in
+`compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp` /
+`src/gpu/src/gpu_engine_hook.cpp`.
+
+- **`src/gpu/include/gpu_backend.hpp`:** rewrote the doc comment and default-stub
+  body comment for all six virtuals to the same "abstract-safe fallback only —
+  CUDA/OpenCL/Metal all override natively; this base default is unreachable for
+  any currently shipped backend" wording already established for
+  `ecdsa_verify_collect` / `schnorr_verify_collect`. No signature, no behavior,
+  no stub return value changed.
+- **`docs/BACKEND_ASSURANCE_MATRIX.md`:** rewrote the "Default-stub parity
+  exceptions" section (previously claimed these six were CUDA-native with an
+  OpenCL/Metal host-CPU fallback) to state they are resolved, pointing to the
+  existing correct per-backend table in the "libbitcoin public-data batch ops:
+  validate / commitment / hashing (Added 2026-07-04)" section.
+- **Not touched (out of scope for this correction, left for a follow-up):**
+  `include/ufsecp/ufsecp_gpu.h` carries the same stale "CUDA implemented;
+  OpenCL/Metal return `UFSECP_ERR_GPU_UNSUPPORTED`" banner immediately above
+  these six C ABI declarations (~line 404) — it is not in this task's allowed
+  write set (C ABI header) and needs its own doc-only pass.
+- **Test:** doc-only change; no new test required. Existing coverage:
+  `lbtc_direct_verify` / `test_direct_gpu_columns_hook`-style hostile-caller +
+  GPU-hook-installed assertions already exercise these six ops end-to-end.
+
+## 2026-07-05 — collect verify: native OpenCL + Metal parity (ecdsa_verify_collect / schnorr_verify_collect)
+
+Closed the last strict GPU-backend parity gap: the collect-verify virtuals
+(`ecdsa_verify_collect` @gpu_backend.hpp:178, `schnorr_verify_collect` @191) were
+CUDA-only; OpenCL/Metal returned `GpuError::Unsupported` and the bridge did a
+host-collapse fallback. Both now have **native on-device kernels** on OpenCL and
+Metal. No gpu_backend.hpp/signature change, no C ABI change (the C ABI already
+dispatches to the active backend's virtual), no new public libbitcoin API.
+
+- **Design:** each collect kernel is a VERBATIM clone of the same backend's audited
+  `*_verify_lbtc_columns` verify kernel (identical verify core / device fns) with
+  ONLY the output store changed to the collect convention. The verdict is bit-for-bit
+  identical to `*_verify_batch`; the caller pre-seeds the 1-byte-per-row `key_buffer`
+  non-zero, a VALID row writes 0, an INVALID row is left seeded. Three fail-closed
+  inversions vs the column clone: (1) NO up-front `memset(key_buffer,0)` (0==VALID —
+  a mass false-accept otherwise); (2) the BIP-340 strict-s reject leaves the seed
+  (bare return), not a 0 write; (3) the verdict channel is read back verbatim (no
+  `?1:0`). Operational fault → non-OK `GpuError` (engine falls back), never zeroing a
+  non-valid row, never all-zero.
+- **OpenCL** (`secp256k1_extended.cl` + `gpu_backend_opencl.cpp`): kernels
+  `ecdsa_verify_lbtc_collect` / `schnorr_verify_lbtc_collect`, overrides reuse the
+  grow-only columns pool. **Verified on-device end-to-end (NVIDIA RTX 5060 Ti,
+  OPENCL=ON/CUDA=OFF):** the wired `test_gpu_collect_verify_parity` audit test runs
+  through the C ABI → OpenCL override → kernel → **pass=24 fail=0** (`collect ==
+  ufsecp_gpu_*_verify_batch` per-row, all-valid + tampered corpora).
+- **Sig-format correction (found by the end-to-end test):** the collect ABI sig
+  format is **compact (big-endian r‖s)** — the SAME as `ufsecp_gpu_ecdsa_verify_batch`
+  (`ecdsa_verify_compressed`) and the CUDA collect (`bytes_to_ecdsa_sig` over
+  `compact[64]`). The first ECDSA collect draft cloned the little-endian *opaque*
+  parse from `*_verify_lbtc_columns`, which mis-parsed every row (no valid sig ever
+  collected). Fixed: OpenCL uses `lbtc_parse_compact_signature`; Metal inlines the
+  big-endian Scalar256 parse of `ecdsa_verify_batch_compressed`. Schnorr was already
+  correct (BIP-340 is big-endian).
+- **Metal** (`secp256k1_kernels.metal` + `gpu_backend_metal.mm`): kernels
+  `lbtc_ecdsa_verify_collect` / `lbtc_schnorr_verify_collect`, overrides mirror the
+  column-verify dispatch. **Not built/run here** (Metal is Apple-only); runtime
+  parity is **pending owner validation on Apple hardware** (same audit test).
+- **Test:** new advisory audit module `gpu_collect_verify_parity`
+  (`audit/test_gpu_collect_verify_parity.cpp`, wired into `unified_audit_runner.cpp`
+  + `audit/CMakeLists.txt`; module counts synced via `ci/sync_module_count.py`,
+  163→164 non-exploit modules) asserts native collect verdict == `*_verify_batch`
+  verdict per-row on-device, self-skipping the device portion with no GPU.
+- Docs: `BACKEND_ASSURANCE_MATRIX.md` collect rows → OpenCL HIGH (verified) / Metal
+  code-complete-pending-Apple.
+
+## 2026-07-05 — libbitcoin public-data batch ops: native OpenCL + Metal parity for the 6 GpuBackend virtuals
+
+Follow-up to the 2026-07-04 surface: the six `GpuBackend` virtuals
+(`xonly_validate`, `pubkey_validate`, `commitment_verify`, `tagged_hash`,
+`tagged_hash_var`, `hash256`) were CUDA-only; OpenCL/Metal declined to CPU. Both
+are now **native**, matching the CUDA reference bit-for-bit. CPU fallback remains
+only for the no-device / operational-error case (a native override never blanket-
+returns `Unsupported` when a device is present).
+
+- **OpenCL** — 6 `lbtc_*` `__kernel`s appended to
+  `src/opencl/kernels/secp256k1_extended.cl` (reusing existing device helpers:
+  `lbtc_be32_lt_field_p` external `x<p` gate, `lift_x_impl` even-Y, streaming
+  `sha256_*`), 6 overrides in `gpu_backend_opencl.cpp` mirroring the
+  `ecdsa_verify_lbtc_columns` clCreateBuffer/enqueue/read recipe. **Verified
+  on-device (NVIDIA RTX 5060 Ti):** all 6 kernels bit-exact vs a Python
+  `hashlib`+EC reference, plus `lbtc_direct_verify` end-to-end with OpenCL active.
+- **Bug found & fixed (OpenCL `commitment_verify`):** the first draft computed
+  `tweak*G + P` with `scalar_mul_generator_impl` (correct) + `point_add_mixed_unchecked`,
+  and the mixed-add returned the wrong point for certain Jacobian Z (e.g. `4*G`,
+  `7*G` failed on-device while `2*G`,`5*G` passed). Replaced with the proven
+  `shamir_double_mul_glv_impl` (the same `u1*G + u2*P` helper `ecdsa_verify_impl`
+  uses); all commitment vectors then pass. (`point_add_mixed_unchecked` in
+  `secp256k1_point.cl` may warrant a separate audit — it is also used by
+  frost/bip32/zk OpenCL paths.)
+- **Metal** — 6 `lbtc_*` `[[kernel]]`s appended to
+  `src/metal/shaders/secp256k1_kernels.metal`, 6 overrides in
+  `gpu_backend_metal.mm`. `commitment_verify` uses the proven
+  `generator_affine`+`scalar_mul_glv`+`jacobian_add` path (same as Metal
+  `ecdsa_verify`), NOT `jacobian_add_mixed`. **Not built/run here:** Metal
+  compiles only on Apple; runtime parity is **pending owner validation on Apple
+  hardware**. No measured Metal numbers are claimed.
+- Docs: `BACKEND_ASSURANCE_MATRIX.md` OpenCL row → HIGH (verified), Metal row →
+  code-complete/pending-Apple; `LIBBITCOIN_INTEGRATION.md` parity note updated.
+
+## 2026-07-04 — libbitcoin public-data batch ops: 6 header-only surfaces (validate / commitment / hashing)
+
+Added six block-connect-scale batch primitives to the bridge-free header-only
+`ufsecp::lbtc::*` libbitcoin surface, each = internal GPU acceleration (reusing an
+EXISTING `GpuBackend` virtual) + deterministic CPU fallback, presented as ONE
+`bool`-returning inline call. No new C ABI, no new virtual, no new anchor, no new
+CTest target. All six are PUBLIC-DATA / variable-time (no secret is touched).
+
+- **`xonly_validate_batch`** — validate N 32-byte BIP-340 x-only pubkeys
+  (`x<p` + even-y `lift_x`); GPU virtual `xonly_validate`, CPU
+  `schnorr_xonly_pubkey_parse`.
+- **`pubkey_validate_batch`** — validate N 33-byte compressed pubkeys (prefix +
+  `x<p` + on-curve); GPU `pubkey_validate`, CPU `detail::decompress`.
+- **`taproot_commitment_verify_batch`** — verify N RAW taproot tweak commitments
+  `x(lift_x_even(internal_i)+tweak_i·G)==tweaked_x_i` with matching y-parity
+  (distinct from `taproot_tweak_add_check`, which recomputes `H_TapTweak`); GPU
+  `commitment_verify`, CPU `dual_scalar_mul_gen_point`.
+- **`tagged_hash_batch`** (+ `const char* tag` overload), **`tagged_hash_var_batch`**,
+  **`hash256_batch`** — BIP-340 tagged hash (fixed / per-item variable length) and
+  Bitcoin HASH256; GPU `tagged_hash` / `tagged_hash_var` / `hash256`, CPU `SHA256`.
+  The var CPU path does NOT cap length (avoids the legacy bridge's 256-byte cap).
+
+- **Files:** new companion header
+  `compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp` (engine-owned
+  `inline std::atomic<>` offload hooks, depends only on `<atomic>`/`<cstdint>`/
+  `<cstddef>`); the 6 inline ops + deterministic CPU fallback in
+  `compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`; 6 self-installing GPU
+  trampolines in `src/gpu/src/gpu_engine_hook.cpp` under
+  `#if defined(SECP256K1_LBTC_GPU_OPS)` (retained by the existing
+  `secp256k1_gpu_columns_provider_anchor`); CMake wiring in
+  `compat/libbitcoin_direct/CMakeLists.txt` (`SECP256K1_LBTC_GPU_OPS` +
+  include dir on `secp256k1_gpu_host`, direct-GPU profile only).
+- **Test:** extended `compat/libbitcoin_direct/tests/test_direct_verify.cpp`
+  (CTest `lbtc_direct_verify`) with success + hostile-caller cases per op
+  (malformed/off-curve rows, wrong tweaked-x / parity, unliftable internal, null
+  pointers, `count==0`, size-overflow, RAW-tweak distinctness, engine-parity
+  cross-checks, HASH rows never all-zero, var no-256-cap).
+- **Fail-closed:** validate ops overwrite every row on the CPU path (never
+  all-zero on operational GPU failure); hash ops never pre-zero `out32` and reject
+  bad input without touching it. Every trampoline declines (`-1`) on no-GPU /
+  non-Ok `GpuError` / exception → deterministic CPU path.
+
+## 2026-07-04 — GPU lbtc_columns diff test: MSVC/Windows env-knob portability fix
+
+`test_gpu_lbtc_columns_diff.cpp` drove the internal `UFSECP_GPU_COLUMNS_CHUNK` forced-chunk
+knob with POSIX `setenv`/`unsetenv`, which MSVC does not provide — the Windows (Release)
+`CI / windows (Release)` build on commit `24cd4464` failed to compile the unified
+audit runner. Fixed without weakening any assertion or the forced small-chunk coverage.
+
+- **`audit/test_gpu_lbtc_columns_diff.cpp`** — added file-local `portable_setenv` /
+  `portable_unsetenv` helpers: on POSIX they keep `setenv(name, value, 1)` /
+  `unsetenv(name)` semantics; on `_WIN32` they use `_putenv_s(name, value)` and
+  `_putenv_s(name, "")` (empty value removes the variable, matching `unsetenv`). The
+  raw POSIX calls are now confined to the `#else` branch of these helpers; the ECDSA
+  (chunk=64) and Schnorr (chunk=100) forced-chunk differential paths call the helpers.
+  No production source, GPU backend, ABI, CI workflow, or assertion changed.
+
+## 2026-07-04 — GPU lbtc_columns ABI: hostile-caller quartet + misuse-resistance gate restored
+
+`ci/check_misuse_resistance.py` reported `ufsecp_gpu_ecdsa_verify_lbtc_columns` and
+`ufsecp_gpu_schnorr_verify_lbtc_columns` at 1 negative test each (below the
+`MIN_NEGATIVE_TESTS=3` floor): both public GPU ABI exports were absent from
+`docs/ABI_NEGATIVE_TEST_MANIFEST.json` (generated 2026-06-22, before the two symbols
+were added), so the counter fell back to the source-graph single mapping. That dropped
+`security_autonomy_check.py` `misuse_resistance` to 0/10 → autonomy 90/100 and stalled
+the CAAS Security Gates / PR-Push block on commit c3d4800d.
+
+- **`audit/test_c_abi_negative.cpp`** — added `run_neg25_gpu_columns_hostile` (NEG-25):
+  a real hostile-caller matrix that issues, for each column-verify ABI symbol, distinct
+  misuse calls — null input buffer, null output pointer, zero count, oversized/invalid
+  count (`> 1<<26`), and null-ctx context misuse with an out-sentinel fail-closed
+  assertion. A `ufsecp_gpu_ctx_create` attempt drives a live-ctx branch on GPU hosts
+  while staying deterministic on CPU-only CI (no provider can be created → every call
+  rejects with `NULL_ARG`, out left untouched). 12 new checks; `test_c_abi_negative`
+  now 299/299.
+- **`docs/ABI_NEGATIVE_TEST_MANIFEST.json`** — regenerated with
+  `ci/generate_abi_negative_tests.py`; both column symbols now carry the full
+  success_smoke / null_rejection / zero_edge / invalid_content quartet (15 covered
+  checks each), 0 blocking → `check_misuse_resistance.py` 199/199,
+  `security_autonomy_check.py` 100/100.
+- **`docs/FFI_HOSTILE_CALLER.md`** — new Section J `J.lbtc-columns` documenting the
+  quartet for both symbols.
+- **`docs/AUDIT_COVERAGE.md`** — column-verify ABI symbols recorded under the
+  misuse-resistance / hostile-caller coverage surface.
+- **`docs/EXTERNAL_AUDIT_BUNDLE.json` / `.sha256`** — refreshed so static and
+  current-run verification pass against the now-green gates and current evidence-file
+  hashes.
+
+No gate weakened, no `MIN_NEGATIVE_TESTS` change, no fabricated manifest counts, no ABI
+signature or GPU backend semantics touched.
+
+## 2026-07-03 — lbtc-direct GPU column verify: reusable staging (A6) + Metal fatal-not-invalid guard (A5/A9)
+
+Follows an adversarial 8-area verification of the columnar GPU verify backend
+(`ecdsa_verify_lbtc_columns` / `schnorr_verify_lbtc_columns`) against its acceptance
+criteria. Five confirmed gaps were closed inside the backend files (no engine or
+caller-surface change):
+
+- **A6 reusable staging — CUDA.** `ecdsa/schnorr_verify_lbtc_columns` allocated four
+  `cudaMalloc` device buffers + a fresh host `std::vector` on every call and freed
+  them at the end. They now reuse a grow-only thread-local `CudaBatchScratch` (new
+  `ensure_lbtc_cols` packed `dig|key|sig` buffer + `ensure_lbtc_results` +
+  `ensure_results`), so the hot verify loop performs no per-call device/host
+  allocation. Validated on RTX 5060 Ti (`lbtc_direct_verify`, and forced
+  `UFSECP_GPU_COLUMNS_CHUNK=1` — byte-identical to CPU).
+- **A6 reusable staging — OpenCL.** The column methods created the four `cl_mem`
+  buffers **inside the chunk loop** (per-chunk alloc/release). They now use a grow-only
+  thread-local `OclColumnsPool` (mirroring the MSM pool), persistent across calls and
+  chunks, re-uploading each chunk via `clEnqueueWriteBuffer` on the in-order queue.
+  Validated on the NVIDIA OpenCL runtime (`lbtc_direct_verify`, forced small chunks).
+- **A5/A9 fatal-not-invalid — Metal.** `MetalRuntime::dispatch_sync` is `void` and
+  swallows command-buffer execution errors, so a GPU failure would leave the shared
+  result buffer unwritten and be misread as all-invalid (an operational failure
+  surfacing as a consensus verdict). The Metal column methods now seed each result
+  slot with a sentinel the kernel never writes and decline with a non-OK `GpuError`
+  if any sentinel survives the dispatch → engine CPU fallback, never invalid rows.
+  (CUDA/OpenCL already detect this via `cudaDeviceSynchronize`/`clFinish`.) The deeper
+  `dispatch_sync`-returns-status fix lives in `src/metal/src/metal_runtime.mm`
+  (outside this card's write scope) and is tracked for the runtime owner.
+- **A6 — Metal (documented residual).** Metal columns still allocate shared
+  (unified-memory) buffers per call, consistent with every other Metal op; a
+  persistent Metal device-buffer pool is a tracked future optimization, not a
+  correctness gap. See `docs/BACKEND_ASSURANCE_MATRIX.md`.
+
+Metal changes are unbuildable on the Linux host; they are safe by construction (the
+sentinel guard can only turn an undetected GPU failure into a CPU decline) and are
+flagged for macOS validation at finalization.
+
+## 2026-07-03 — ZK-less GPU-provider retention (LBTC-GPU-DIRECT-ZK-BLOCKER resolved)
+
+Resolves the link blocker the prior entry flagged for the libbitcoin-direct card:
+retaining the self-installing GPU column-verify provider from the bridge-free,
+ZK-less `compat/libbitcoin_direct` build pulled `gpu_backend_fallback.o`, whose
+Schnorr SNARK-witness host fallback references `secp256k1::zk::schnorr_snark_witness`
+— a symbol absent from the minimal engine (`SECP256K1_BUILD_LIBBITCOIN` forces
+`SECP256K1_BUILD_ZK=OFF`) — so the direct-GPU executables failed to link
+(`undefined reference to secp256k1::zk::schnorr_snark_witness`).
+
+**Root cause.** `GpuBackend` is an abstract base with no key function (every virtual
+is inline), so its vtable is emitted (weak) in every TU that constructs a backend.
+Its `schnorr_snark_witness_batch` slot pointed at the inline base default, which
+unconditionally called `schnorr_snark_witness_batch_cpu_fallback` — odr-using the
+fallback symbol and dragging `gpu_backend_fallback.o` (and its zk dependency) into
+the link, even though CUDA/OpenCL override the method (`#if SECP256K1_GPU_HAS_ZK`)
+and never use the default.
+
+**Fix (engine carries no new zk coupling).** `gpu_backend.hpp` now includes the
+generated `secp256k1/secp256k1_features.h` (always defines `SECP256K1_HAS_ZK` 0/1;
+resolvable because every emitter TU links `fastsecp256k1`, which exports the
+generated include dir PUBLIC — ODR-safe, identical value in every TU). The inline
+default is `#if SECP256K1_HAS_ZK`-guarded: with ZK it calls the fallback, without ZK
+it returns `GpuError::Unsupported` (the op is meaningless without the ZK module).
+`src/gpu/CMakeLists.txt` drops `gpu_backend_fallback.cpp` from `secp256k1_gpu_host`
+when `NOT SECP256K1_BUILD_ZK`, so the zk-referencing TU is not even compiled in a
+ZK-less build. Provider retention (the `-u` anchor / C ABI keeper) is unchanged.
+
+**Validation (RTX 5060 Ti).** Direct-GPU build
+(`LIBBITCOIN+LIBBITCOIN_GPU+CUDA+TESTS`, ZK off) now **links**;
+`nm test_lbtc_direct_verify` shows `secp256k1_gpu_columns_provider_anchor`,
+`EngineGpuColumnsInstaller`, `engine_gpu_columns_hook`,
+`install_gpu_columns_verify_hook` **present** and
+`schnorr_snark_witness_batch_cpu_fallback` / `secp256k1::zk::schnorr_snark_witness`
+**absent**; `lbtc_direct_verify`+`lbtc_direct_operations` ctest 2/2 pass on both the
+CUDA+GPU and the CPU-only (`LIBBITCOIN+TESTS`) builds. The ZK-on CABI build still
+compiles the fallback and links. Backend-parity gate 13/13.
+
+**Test.** `gpu_lbtc_columns_diff` gains `test_cpu_consensus_rejects()` — a CPU-only
+(no-GPU) path that drives the engine column reference
+(`ecdsa_batch_verify_opaque_columns` / `schnorr_batch_verify_bip340_columns`, hook
+cleared) over the consensus-critical rejects (ECDSA high-S `s>n/2`, pubkey `x>=p`;
+Schnorr x-only `x>=p`, BIP-340 `s>=n`, `s==0`). These previously ran only on a real
+GPU inside `test_differential`, so a GPU-less CI runner never exercised them.
+
+## 2026-07-03 — GPU column Schnorr strict-s parity + provider self-install retention
+
+Two follow-ups to the GPU libbitcoin column-verify path.
+
+**CUDA/Metal Schnorr column strict-s reject (native-path parity).** The CUDA and
+Metal `schnorr_verify_lbtc_columns` kernels now reject `s == 0` and `s >= n` before
+verifying, matching the OpenCL kernel (which already did) and the CPU reference
+`SchnorrSignature::parse_strict` (via `parse_schnorr_bip340_entry`). Previously the
+CUDA/Metal device verify only rejected `s == 0`; a non-canonical `s' ≡ s (mod n)`
+with `s' >= n` maps to the same curve point and would verify on GPU while the
+CPU/OpenCL path rejects it — a GPU-only false-accept (signature malleability /
+consensus split). The three GPU backends and the CPU column path are now
+byte-identical on the strict-s boundary. `gpu_lbtc_columns_diff` gains a Schnorr
+malformed-input differential (x-only `x >= p` and BIP-340 `s >= n` rows) asserting
+the GPU verdict equals the CPU per-row oracle; verified on a CUDA device (RTX 5060
+Ti, `lbtc_gpu_columns_diff` pass=59 fail=0).
+
+**Self-installing provider retention (LBTC-GPU-SELFINSTALL-DROP, was P2-open).**
+`gpu_engine_hook.cpp`'s only payload is a file-scope static initializer with no
+externally-referenced symbol, so a normal static link of `secp256k1_gpu_host`
+dropped the object and the engine column entrypoints silently stayed CPU-only even
+with a working GPU. A target-level self-referential
+`$<LINK_LIBRARY:WHOLE_ARCHIVE,secp256k1_gpu_host>` does NOT fix this (CMake drops
+the self-link). Retention for the ufsecp C ABI / audit path is now source-level:
+`gpu_engine_hook.cpp` exports an anchor `secp256k1_gpu_columns_provider_anchor`
+referenced by the always-linked C ABI TU `ufsecp_gpu_impl.cpp`, which drags the
+provider object into `libufsecp` so its installer runs at load — covering the
+non-writable `include/ufsecp` link line without WHOLE_ARCHIVE. `gpu_lbtc_columns_diff`
+now passes its self-install assertion (`install_gpu_columns_verify_hook(nullptr)`
+non-null) on a real GPU-linked build, not just the GPU-less runner. Retaining the
+provider from the bridge-free `compat/libbitcoin_direct` consumer (which references
+no `gpu_host` symbol) is owned by the companion libbitcoin-direct entrypoint card;
+note that force-linking the provider there also pulls `gpu_backend_fallback.o`,
+whose SNARK fallback needs `secp256k1::zk::schnorr_snark_witness` — absent from the
+ZK-less libbitcoin-direct engine — which that card must resolve.
+
+## 2026-07-01 — GPU libbitcoin column verify + differential test
+
+The libbitcoin-direct column entrypoints `secp256k1::ecdsa_batch_verify_opaque_columns`
+and `secp256k1::schnorr_batch_verify_bip340_columns` now internally attempt a GPU
+accelerator via an installable hook `secp256k1::install_gpu_columns_verify_hook`
+(kind 0=ECDSA / 1=Schnorr; hook returns 1=all-valid / 0=some-invalid / -1=decline).
+When no hook is installed or the hook declines (GPU not compiled / no device /
+Unsupported / operational backend error), the engine completes the batch on the
+deterministic CPU column path with byte-identical boolean + per-row results. The
+policy is fatal-not-invalid: operational GPU/backend errors become a CPU fallback
+and are never emitted as consensus-invalid rows or an all-zero OK buffer; only an
+unrecoverable inability to complete the math (no fallback) fails hard. Malformed
+layout (null column pointers / size overflow) remains fail-closed (`false` +
+zeroed results). Verification is variable-time over public data by design.
+
+Backend column methods `ecdsa_verify_lbtc_columns` (opaque-LE sig) and
+`schnorr_verify_lbtc_columns` (BIP-340) exist natively on CUDA, OpenCL, and Metal,
+with device-side signature parsing and 33-byte pubkey decompression, 64-bit row
+offsets, engine-owned memory-aware chunking, and fail-closed `uint8_t` results.
+
+New unified audit module `gpu_lbtc_columns_diff`
+(`audit/test_gpu_lbtc_columns_diff.cpp`, ctest `lbtc_gpu_columns_diff`), wired into
+`audit/unified_audit_runner.cpp`, differentially checks GPU columns against an
+independent CPU per-row oracle for valid batches, tampered rows, malformed
+pubkeys/signatures, null/zero-count, and forced small chunks, and covers the
+engine dispatcher's CPU-fallback path; operational GPU failures are treated as
+skip, never a false pass. C ABI completeness wrappers added in `ufsecp_gpu.h` /
+`ufsecp_gpu_impl.cpp`; the libbitcoin-direct surface is the C++ engine entrypoint
+(which reaches GPU through the hook), not the C ABI — GPU is an internal
+accelerator with a single caller surface.
+
+Enablement is macro-free: the engine carries no `gpu::` dependency and no
+`SECP256K1_ENGINE_GPU_COLUMNS` compile switch. The default provider that binds the
+hook to a real backend self-installs from the GPU-host translation unit
+(`src/gpu/src/gpu_engine_hook.cpp`) via a static initializer whenever the GPU host
+is linked, so the engine surface acquires the accelerator automatically (CPU
+fallback otherwise). `gpu_lbtc_columns_diff` now asserts this self-install
+(`install_gpu_columns_verify_hook(nullptr)` returns non-null), proving the wiring on
+a GPU-less audit runner. The Metal Schnorr column kernel's per-row offsets were
+widened to 64-bit (`ulong`) to match the ECDSA kernel's 64-bit-safe offset contract.
+Reaching the GPU from the bridge-free `compat/libbitcoin_direct` consumer still
+requires that consumer to link `secp256k1_gpu_host` and retain the provider object;
+that CMake/link step is owned by the companion libbitcoin-direct entrypoint card.
+
+Round-2 coverage add: the always-run CPU engine-dispatcher section of
+`gpu_lbtc_columns_diff` now also exercises the decline → CPU-fallback path with
+genuinely UNPARSEABLE rows (off-curve/bad-SEC1-prefix pubkey and r>=n signature) in
+non-first positions, asserting `parse_ecdsa_opaque_entry`'s parse-failure branch
+flags exactly those rows invalid while well-formed rows stay valid. This closes a
+gap where the GPU-less harness previously only byte-flipped still-parseable sigs;
+the malformed-input differential otherwise ran only when real GPU hardware was
+present.
+
+The GPU-executed `test_differential` block additionally now exercises two
+consensus-differential ECDSA rows so the round-2 backend rejects (high-S s>n/2 and
+compressed pubkey x>=p, matching CPU `is_low_s` + strict decompress) are
+execution-verified on GPU-equipped machines: a high-S row (S' = n - S, built via
+`ufsecp_seckey_negate` with no hardcoded curve order) and an x>=p pubkey row
+(0x02||0xFF..FF, > field prime, no hardcoded p). The assertion is GPU per-row
+verdict == the CPU column reference (`ecdsa_batch_verify_opaque_columns` with the
+hook cleared) — both must reject (0) — proving backend/CPU parity rather than the
+high-S-normalizing single-sig verify. The block stays inside the GPU-present guard,
+so CPU-only CI still builds and passes.
+
+## 2026-07-01 — Security autonomy no longer reads stale committed build reports
+
+Removed the stale committed `out/reports/risk_surface_report.json` artifact
+from git. That report is build-scoped generated evidence and is already ignored
+under `out/reports/`; committing it caused `ci/audit_sla_check.py` to judge the
+report by its old git commit date instead of treating it as current build
+evidence or absent generated output. `ci/test_audit_scripts.py --quick` now
+asserts that this risk-surface report remains ignored and untracked, preventing
+the security autonomy gate from dropping to 90/100 when the stale artifact ages
+past the SLA threshold.
+
+## 2026-07-01 — Doc drift gate now catches paired exploit/module count claims
+
+The documentation drift gate now fails closed on canonical audit count drift by
+replaying `ci/sync_module_count.py --dry-run` from `ci/check_doc_drift.py`.
+`sync_module_count.py` also recognizes compact paired claims such as
+`N exploit PoCs / M modules`, preventing the exploit count from updating while
+the total module count remains stale. `ci/test_sync_module_count.py` pins this
+regression with a synthetic stale slash-separated README count claim, and the
+fast gate runs that self-test before accepting module-count docs as current.
+
+## 2026-06-29 — libbitcoin benchmark evidence no longer depends on C ABI bridge
+
+The canonical libbitcoin benchmark evidence path now builds
+`bench_lbtc_direct_batch` from `compat/libbitcoin_direct` and links only
+`secp256k1::fastsecp256k1_libbitcoin` plus the engine. The direct benchmark
+emits JSON with explicit `c_abi_required=false`, `shim_required=false`, and
+`bridge_required=false`, and the G-21 libbitcoin performance matrix now points
+canonical reproduce commands at `SECP256K1_BUILD_LIBBITCOIN=ON` +
+`SECP256K1_BUILD_LIBBITCOIN_BENCH=ON` without `SECP256K1_BUILD_CABI=ON`.
+The legacy `bench_lbtc_batch` remains available only when the compatibility
+bridge is explicitly enabled.
+
+## 2026-06-29 — Shim API compatibility build skips shared-library Python audit tests
+
+The shim security gate's libsecp API compatibility phase configures a minimal
+build with `SECP256K1_BUILD_CABI=OFF`, so the `ufsecp_shared` target is
+intentionally absent. `audit/CMakeLists.txt` now registers the Python ctypes
+audit tests only when that target exists, while still registering the two
+source-only Python static-analysis tests. This keeps the minimal shim API build
+generatable without weakening the normal shared-library audit builds.
+
+## 2026-06-29 — Shim security gate now builds and runs standalone coverage
+
+Fixed the push gate regression where `unified_audit_runner` received the
+`regression_shim_high_s_verify` advisory stub (`return_code=77`) but the module
+was still registered as mandatory. The unified runner now labels that entry
+advisory, while the real shim-linked high-S test remains mandatory through the
+standalone CTest gate. The top-level CMake now honors explicit
+`-DBUILD_TESTING=ON` for CTest even when `SECP256K1_BUILD_TESTS=OFF`, and the
+shim gate builds the `shim_security_gate_standalones` aggregate target before
+running `ctest --no-tests=error`, preventing empty CTest runs from passing.
+`check_advisory_json_rule16.py` now matches that gate logic: advisory non-77
+modules remain degraded audit evidence, while Rule 16 blocks advisory false-pass
+(`passed=true`, `return_code=0`) and non-advisory failures.
+
+## 2026-06-29 — soundness gate: libbitcoin row/column batch adapters classified as standard verifiers
+
+The push gates for `30dcd0d8` correctly failed closed in
+`ci/check_soundness_coverage.py`: the new libbitcoin direct entry points
+`ecdsa_batch_verify_opaque_{rows,columns}` and
+`schnorr_batch_verify_bip340_{rows,columns}` were discovered as
+`*verify*` symbols but had not been classified in the negative-test ledger.
+They are not custom protocol soundness surfaces; they parse public
+row/column layouts and delegate to the existing standard ECDSA/Schnorr batch
+verifiers plus canonical per-row fallback. The checker now exempts them in
+`STANDARD_VERIFIERS` with that justification, and its self-test proves the
+adapters remain exempt while new custom `*verify*` symbols still block. While
+replaying the full local fast gate, `check_security_fix_has_test.py` also
+surfaced an older classifier miss: `compat/libbitcoin_direct/tests/*.cpp` was
+not counted as test evidence even though the bounded libbitcoin batch API commit
+carried `test_direct_verify.cpp`. The classifier and fast-gate self-test now
+cover that direct-integration test path.
+
+The same push exposed stale residual CAAS evidence in Block 3: the
+`audit_sla_check.py` critical freshness SLO rejected `audit/ci-evidence` and
+`docs/API_SECURITY_CONTRACTS.json` as older than 14 days. Refreshed the four
+manual CT/adversarial evidence snapshots from freshly built standalone audit
+binaries (`adversarial_protocol`, `ecies_regression`, `fuzz_parsers`, and
+`fuzz_address_bip32_ffi`) and re-attested `API_SECURITY_CONTRACTS.json`.
+
+## 2026-06-29 — mutation-weekly: baseline timeout no longer misreported as kill-rate regression (issue #313)
+
+The weekly mutation workflow opened `mutation-kill-rate-regression` with every
+metric rendered as `None`. Two root causes: (1) the issue body read invented
+JSON keys (`kill_rate_percent`, `threshold`, `total_mutants`) that do not exist
+in the `KillReport` schema (`kill_rate_pct`, `threshold_pct`, `total`); and (2)
+the real failure was a baseline `unified_audit` **timeout** at the 90s default —
+an infrastructure failure before any mutant was tested — but it was filed as a
+normal kill-rate regression. Fixes: `mutation_kill_rate.py` adds an explicit
+`failure_class` field (`baseline_infrastructure` vs `kill_rate_regression` /
+`insufficient_sample` / `build_error_ratio` / `pass`) and a single
+`render_issue_body()` / `classify_result()` source of truth (plus a
+`--render-issue-body` mode); the harness stays fail-closed (baseline failure ⇒
+`total=0`, no fake mutants). `mutation-weekly.yml` renders the body via the
+harness, files baseline failures under `mutation-weekly-baseline-failure`
+(label `infrastructure`), and sets a deterministic baseline timeout
+(`UFSECP_MUTATION_{BUILD,TEST}_TIMEOUT=900`, also overridable via
+`--test-timeout`). `audit_gate.py` `check_mutation_kill_rate` reports a baseline
+failure as infrastructure, not as a sub-threshold kill rate. Pinned by
+`tests/ci/test_mutation_reporting.py` (proves no `None`, correct classification,
+and that the renderer cannot drift from the schema).
+
+## 2026-06-23 — libsecp256k1 shim: secp256k1_ecdsa_verify now rejects high-S (SHIM-008 fix)
+
+Consensus/malleability finding from a differential sweep (engine C++ vs bitcoin-core/libsecp256k1
+in-process, `test_cross_libsecp256k1`) cross-confirmed by a code-audit fan-out. Upstream's
+`secp256k1_ecdsa_verify` rejects high-S signatures (`return (!secp256k1_scalar_is_high(&s) && ...)`)
+so the malleated `(r, n-s)` twin of a valid signature does not verify. The Ultra shim delegated
+straight to the raw-math core `secp256k1::ecdsa_verify` (accepts both `s` and `n-s` by design) and
+therefore **accepted high-S** — an undocumented divergence from upstream AND from the engine's own
+`ufsecp_ecdsa_verify` / `ecdsa_batch_verify`, both of which already enforce BIP-62 low-S. (The single
+shim verify accepted high-S while the shim batch rejected it — they were inconsistent; the old
+SHIM-008 note mis-stated upstream's behavior as "high-S acceptance".) Fix: `shim_ecdsa.cpp`
+`secp256k1_ecdsa_verify` adds an `is_low_s()` guard (covers both cache paths), matching upstream
+exactly and making single + batch consistent. Pinned by `test_regression_shim_high_s_verify`
+(converted from diagnostic to a real regression: HSV-6 asserts the shim REJECTS high-S, HSV-4/7
+that low-S and post-normalization verify). `test_cross_libsecp256k1` test [13] documents that the
+raw-math core still accepts high-S by design. Docs: `SHIM_KNOWN_DIVERGENCES.md` SHIM-008 updated.
+
+## 2026-06-23 — Cryptol formal specs now actually parse + prove (BUG 1)
+
+The four `audit/formal/cryptol/*.cry` specs (GF(p) field, EC points, ECDSA, BIP-340 Schnorr)
+never ran: they had pre-3.5 `let…in` property syntax, a `(p q : T)` shared annotation, an
+invalid `primitive Maybe`, a `field_mul_ref … ` backtick type-application on a value, and —
+most importantly — **mathematically wrong arithmetic**: Cryptol's `(+)`/`(*)` on `[256]` are
+modulo 2^256 (they truncate), so `field_mul`/`field_mul_ref`/`field_add`/`field_sub` and the
+mod-N `scalar_mod_*` silently dropped the high half of every product/sum. All corrected to
+full-width zero-extended ops (`drop\`{…} ((ext a * ext b) % ext P)`), `let…in`→`where`, a
+record `Maybe` + `mk_just`/`mk_nothing`, and a polymorphic `tagged_hash`. `on_curve` now
+requires canonical infinity (`x=y=0`).
+
+The gate `ci/run_formal_verification.py` ran `cryptol -b <file>.cry`, which executes a spec as
+a REPL command batch — top-level definitions do not persist and **no property is ever checked**
+(it silently "passed"). Replaced with per-spec `.icry` runners (`:load` + `:check`); `cryptol -b`
+exits non-zero on any type error or counterexample, so it is now a real gate when cryptol is
+present (advisory-skip only when absent, per guardrail #16). `:check` is randomized testing — no
+SMT solver needed; the full sign/verify equivalences remain SAW `:prove` targets.
+
+Verified (cryptol 3.5.0, Linux): Field 15/15, Point 10/10, ECDSA 8/8 (incl. `ecdsa_sign_then_verify`),
+Schnorr 2/2 structural — all `:check` pass, 0 counterexamples; `run_formal_verification.py` reports
+z3 ✓ lean ✓ cryptol ✓ all PROVED.
+
+## 2026-06-23 — FE52-compute verify pairing test (audit/test_fe52_compute_verify.cpp)
+
+Pairs the previously-untested perf commit `875d5bee` ("FE52-compute ECDSA/Schnorr verify on
+MSVC cl"), which added `SECP256K1_FE52_COMPUTE` to gate the 5x52 verify dual-mul +
+`to_jac52`/`from_jac52` bridge while keeping 4x64 Point storage. New audit module
+`fe52_compute_verify` (section `differential`, advisory=false; standalone CTest
+`fe52_compute_verify`) pins, with 392/392 checks: (1) `dual_scalar_mul_gen_point(u1,u2,Q) ==
+u1*G + u2*Q` over 200 randomized vectors — a direct cross-check of the verify hot-path dual-mul
+against two independent single scalar-muls + a point add; (2) ECDSA and (3) Schnorr (BIP-340)
+sign/verify round-trip + tampered-message rejection through the real verify entry points. On
+native __int128 (Linux/GCC) `SECP256K1_FE52_COMPUTE` is on, so this is the same 5x52 path that
+ships in `ecdsa_verify`. Retroactively covers `875d5bee` in `check_security_fix_has_test.py`
+(`RETROACTIVELY_COVERED_FROZEN_COUNT` 63→64).
+
+## 2026-06-23 — libbitcoin bridge: BIP-352 silent-payment scan + 8-byte prefix match (issue #312)
+
+Added `ufsecp_lbtc_match_silent_prefixes(scan_privkey32, spend_pubkey64, tweaks, prefixes,
+count, matches)` to the libbitcoin bridge — a direct CPU port of the per-row Silent Payments
+scan the DuckDB extension (`duckdb-ufsecp-extension`, used by Sparrow/Frigate) runs in
+`ProcessBatch`. The byte layouts match that extension exactly (scan key 32-byte LE; spend
+pubkey + tweaks 64-byte uncompressed `x(LE)||y(LE)`; prefixes BE top-8-of-x), so the same data
+flows through unchanged; the additive entry point does not touch the extension's own
+`ufsecp_scan` table function (Sparrow's API is untouched). Per row:
+`shared = k*tweak`, `hash = TaggedHash("BIP0352/SharedSecret", compress(shared)||be32(0))`,
+`output = spend + hash*G`, `prefix = ExtractUpper64(output.x)`, `matches[i] = (prefix ==
+prefixes[i])`. Like the extension it is the *optimized* (batched) path: a single Montgomery
+batch Z-inversion converts all output points Jacobian->affine, and `batch_add_affine_x` does
+the spend addition for the whole batch. Returns the match count or `-1` on NULL/bad-key. It is a *filter* (8-byte
+prefixes can collide; the caller confirms survivors against the full x). Bridge header only
+(bare `int`, not a `UFSECP_API`/`ufsecp.h` symbol → no ABI-manifest churn). Correctness is
+pinned by a golden vector in `test_lbtc_bridge`: it replicates `bench_bip352`'s deterministic
+tweak #9999 and asserts this function reproduces the validated prefix `0xb63b4601066a6971`
+(cross-checked against libsecp256k1 / CUDA / OpenCL), plus wrong-target → 0, NULL → -1,
+count 0 → 0. Usage documented in `docs/LIBBITCOIN_INTEGRATION.md`.
+
+## 2026-06-22 — CPU batch-verify throughput: persistent pool, fused parse, FE52 decompress
+
+Reworked the CPU multi-threaded batch-verify paths so a libbitcoin-style consumer (one
+bridge call per block, verifying the libsecp baseline in parallel via `std::for_each(par)`)
+gets full multi-core utilization. Previously the bridge `_mt` paths silently collapsed to
+a single thread for any batch below 4096 signatures, so libbitcoin saw ~1 active core.
+
+- **`ecdsa_batch_verify_mt` / `schnorr_batch_verify_mt`** (`src/cpu/src/batch_verify.cpp`):
+  decoupled the worker count from the fixed 4096 work-steal chunk. Worker count is now
+  bounded by hardware/request and by having enough rows to amortize a worker
+  (`n / kMinRowsPerThread`), NOT by the chunk count — so block-sized batches parallelize.
+- **Persistent worker pool** (`src/cpu/include/secp256k1/detail/batch_pool.hpp`,
+  `detail::batch_worker_pool`): the `_mt` paths run on a process-wide pool created once and
+  reused, instead of spawning a fresh `std::thread` set per call. Removes the per-call spawn
+  storm and keeps worker `thread_local` scratch warm across calls. The singleton is
+  intentionally leaked (never destroyed) so no thread join runs at static-destruction /
+  Windows DLL-unload time — avoiding the loader-lock deadlock (MSVC-safe).
+- **`ufsecp_ecdsa_verify_opaque_rows_mt`** (`src/cpu/src/impl/ufsecp_ecdsa.cpp`): the fast
+  path now FUSES parse + verify inside each worker chunk (was: serial parse of all rows
+  before the parallel verify, an Amdahl ceiling). Per-row pubkey decompress
+  (`pubkey33_to_point`) (1) drops the wasted `build_schnorr_verify_tables` that
+  `ecdsa_pubkey_parse` builds and the batch path discards, and (2) does the field sqrt in
+  `FieldElement52` (5×52, the representation the verify uses internally) instead of the
+  slower 4×64 `fast::FieldElement`. The prefix / x-range / QR curve-check / parity logic is
+  identical to the tested `ecdsa_pubkey_parse`.
+- Verified: `audit/test_regression_ecdsa_batch_verify_mt` (parity vs serial + corruption
+  detection at every thread count, small-batch parity, persistent-pool source check) and
+  the libbitcoin bridge correctness suite (`test_lbtc_bridge`, all ECDSA/Schnorr `_mt`
+  invalid-row, boundary, cancellation, NULL, collect cases). Cross-validated against
+  upstream libsecp256k1 (all sigs accepted; corrupted rows located).
+
+## 2026-06-22 — GPU constant-time, part 2: Metal + portable-OpenCL field reductions
+
+Completed CT parity across all GPU backends (continues the CUDA/NVIDIA-OpenCL entry below).
+
+- **Metal `field_reduce_512`** (`src/metal/shaders/secp256k1_field.h`): the rare-carry
+  fold `while (acc[8] != 0)` was a data-dependent loop (0/1/2 iterations) on the
+  secret-derived overflow during signing (Metal signing uses `ct_sign` → `field_mul` →
+  `field_reduce_512`). Replaced with a **fixed 2 iterations** (the comment already bounds
+  it at ≤2; a zero `acc[8]` makes the fold a no-op). Verified by
+  `audit/test_exploit_metal_field_reduce` — 14/14 vs an independent CPU reference,
+  including the issue-#226 reproducer and `acc[8] > 2^32` boundary cases (the test's CPU
+  replica was switched to the same fixed-iteration form). Metal scalar `add/sub_mod_n` and
+  the field final-subtract were already branchless.
+- **Portable (non-NVIDIA) OpenCL `field_reduce`** (`src/opencl/kernels/secp256k1_field.cl`
+  `#else` path): `if (temp[4] != 0)` made unconditional (K·0 = no-op) and the nested
+  `if (carry)` rare fold made masked — mirroring the CUDA/Metal pattern. Verified by a CPU
+  equivalence harness: 5,000,000 random + edge inputs, **0 mismatches** vs the original
+  branchy version (the masked carry-fold pattern is additionally GPU-verified by
+  `opencl_test` on the NVIDIA path). Closes the leak portion of RR-GPU-OCL-01.
+- **Residual (RR-GPU-OCL-01, narrowed):** no ncu-equivalent **white-box CT gate** exists
+  for OpenCL/Metal (the Nsight gate is CUDA-only). OpenCL/Metal CT now rests on source
+  branchlessness + correctness equivalence; runtime CT measurement on AMD/Intel/Apple
+  hardware + a white-box gate for those backends are standing follow-ups.
+
+## 2026-06-22 — GPU constant-time: CUDA confirmed CT (audit FP); OpenCL signing reductions fixed
+
+Resolved the audit's only P1 (GPU-CT cluster) on a GPU host (RTX 5060 Ti, sm_120, CUDA
+12.0 forward-compat JIT), via measurement rather than inference:
+
+- **CUDA: already constant-time (the audit finding was a FALSE POSITIVE).** The white-box
+  Nsight gate `ci/check_gpu_ct_uniformity.py` PASSES 5/5 CT signing kernels
+  (`ct_generator_mul`/`ct_ecdsa_sign`/`ct_schnorr_sign`/`ct_scalar_mul_varbase`/
+  `ct_ecdsa_sign_recoverable`) at 100% fixed==random branch uniformity. CUDA
+  `reduce_512_to_256_32` is already branchless cmov (Phase 3/4 value-barriered masks);
+  the audit misread the mask comparisons (`c != 0`, `borrow == 0`) as branches.
+- **OpenCL: the real leak — the CUDA branchless fix was never mirrored.** Made branchless
+  (masked cmov, mirroring the proven-CT CUDA pattern + the already-branchless
+  `scalar_cond_sub_n` in the same file):
+  - `src/opencl/kernels/secp256k1_field.cl` `reduce_512_to_256_32_ocl` — `if (c)` carry
+    fold + `if (borrow==0) r=s else r=r` final reduction.
+  - `src/opencl/kernels/secp256k1_extended.cl` `scalar_add_mod_n_impl` (`if (carry)`) +
+    `scalar_sub_mod_n_impl` (`if (borrow)`).
+- **Verified on the GPU:** `opencl_test` 44/44 on the actual NVIDIA OpenCL device — kernels
+  runtime-compile (the PTX value barrier + masked ops are valid) and field/EC/scalar
+  arithmetic is correct (the branchless forms are arithmetically identical to the branches).
+- **Residual RR-GPU-OCL-01:** the `#else` (non-NVIDIA AMD/Intel) portable `field_reduce`
+  still has reduction branches; not fixed because it cannot be built/CT-measured on a
+  CUDA-only host (deferred to AMD/Intel OpenCL hardware). OpenCL also lacks an
+  ncu-equivalent white-box CT gate (CUDA-only) — a standing follow-up.
+
+## 2026-06-22 — Audit follow-up: libbitcoin collect `_mt` twins + MuSig2 partial-verify parity doc
+
+- **libbitcoin bridge collect `_mt` twins** (`compat/libbitcoin_bridge/...`): added
+  `ufsecp_lbtc_verify_ecdsa_collect_mt` / `ufsecp_lbtc_verify_schnorr_collect_mt`
+  (bridge-only, no new public ufsecp ABI) — `verify_collect_impl` already carried
+  `max_threads`, so these forward it; same in-place key-cell verdict semantics as the
+  serial collect. `test_lbtc_bridge` gains a collect-`_mt`-vs-serial parity case.
+  (Remaining deferred: the `_columns_collect` `_mt` twins need a `ufsecp_ecdsa_verify_opaque_batch_mt`
+  engine leaf + its ABI cycle; ECDSA-compact `_mt` CPU fallback stays per-row/serial.)
+- **MuSig2 partial-verify both-parity acceptance documented** (audit finding, validated
+  REAL but INTENTIONAL): `musig2_partial_verify` accepts both Y-parities of the signer
+  pubkey because `musig2_partial_sign` takes a raw seckey (not x-only); it is a bounded
+  coordinator-diagnostic laxity that does NOT enable aggregate forgery. Recorded in
+  `docs/SECURITY_CLAIMS.md` + kb `MUSIG2-PVERIFY-PARITY`. No behavior change (tightening
+  would break this library's own sign->verify roundtrip for odd-Y keys).
+- Full repo audit report: `workingdocs/AUDIT_REPORT_2026-06-22.md` (the only genuine
+  high-severity open item is the GPU constant-time cluster, which requires a `--gpu` host
+  to fix+verify and is NOT touched here).
+
+## 2026-06-22 — Libbitcoin bridge multi-threaded (`_mt`) CPU verify
+
+- **Root cause:** the libbitcoin bridge (`ufsecp_lbtc_verify_*`) CPU signature-verify
+  path was entirely single-threaded (`verify_core → cpu_chunk` ended in the serial
+  `secp256k1::ecdsa_batch_verify` / `ufsecp_schnorr_batch_verify`), so a single
+  controller call used one core — measured ~194% of libsecp256k1 IBD runtime by the
+  libbitcoin maintainer. The bridge had no `_mt`/`max_threads` (those exist only in
+  the libsecp256k1 shim, which the bridge does not use).
+- **Fix:** added `_mt` twins for the packed-row verify entry points —
+  `ufsecp_lbtc_verify_ecdsa[_opaque|_compact]_mt` and `ufsecp_lbtc_verify_schnorr_mt`
+  (`compat/libbitcoin_bridge/...`), each taking a `max_threads` budget (0=auto/all
+  cores, 1=serial, N=cap) threaded through `cpu_verify_run`/`cpu_chunk`/`verify_core`/
+  the `*_impl` helpers. The existing single-threaded functions are unchanged
+  (byte-for-byte; integrators that shard across their own pool keep using them).
+- **Engine leaves (2 new public ufsecp ABI fns, filling a gap next to the existing
+  `ufsecp_ecdsa_batch_verify_mt`):** `ufsecp_schnorr_batch_verify_mt`
+  (`src/cpu/src/impl/ufsecp_taproot.cpp`) and `ufsecp_ecdsa_verify_opaque_rows_mt`
+  (`src/cpu/src/impl/ufsecp_ecdsa.cpp`) — reuse the proven serial marshalling and only
+  swap the all-valid fast check to `secp256k1::*_batch_verify_mt`; the per-row locate
+  fallback stays serial. ABI count 161→163 (`docs/ABI_VERSIONING.md`, nuspec);
+  ABI negative-test manifest regenerated (0 blocking).
+- **Invariants:** GPU path unaffected (`max_threads` governs the CPU fallback only);
+  cancellation preserved (token polled between chunks); per-row verdict is bit-identical
+  to serial for any thread count (verify = public/variable-time).
+- **Tests:** `test_lbtc_bridge` gains MT cases (per-row verdict parity across threads
+  {0,1,2,8}, large batch crossing the 4096 engine chunk, invalid_idx/count, cancel
+  under `_mt`, degenerate); `test_c_abi_negative` directly exercises the 2 new ABI
+  leaves (smoke / zero-edge / invalid / null).
+
+## 2026-06-22 — Shim batch-verify external cancellation token
+
+- **All shim batch-verify functions are now cancellable:** `secp256k1_{ecdsa,schnorrsig}_verify_batch`,
+  `_verify_batch_mt`, and `_verify_batch_results` (`compat/libsecp256k1_shim/include/secp256k1_batch.h` /
+  `src/shim_batch_verify.cpp`) gain a trailing `const ufsecp_cancel_token* cancel` (C++ default `NULL`).
+  This mirrors the libbitcoin bridge scheme so an integrator can abort a long batch verify from outside
+  (e.g. a node shutting down or reorging away an in-flight block).
+- **Shared cancel-token type:** `ufsecp_cancel_fn` / `ufsecp_cancel_token` / `UFSECP_CANCEL_DEFAULT` moved
+  to a single canonical header `include/ufsecp/ufsecp_cancel.h` (struct layout unchanged, byte-for-byte).
+  `ufsecp_libbitcoin.h` now includes it and keeps `UFSECP_LBTC_CANCEL_DEFAULT` as an alias, so the bridge
+  and shim agree on layout and a program may include both headers without a conflicting redefinition.
+- **Behavior:** `cancel == NULL` is the original single-dispatch hot path, byte-for-byte, zero overhead.
+  A non-NULL token chunks the batch (default 262144; `check_interval` tunes it, clamped up to the batch
+  minimum) and polls between chunks. Cancel returns `0` (fail-closed; a cancelled batch never returns 1);
+  for `_results`, rows not reached are left `0`. A throwing cancel callback is treated as cancel.
+- **Divergence note:** the shim returns `int`, so "cancelled" is not distinguishable from "invalid" via the
+  return value (unlike the bridge's `UFSECP_ERR_CANCELLED`); the caller disambiguates via its own token
+  state. Documented in `docs/SHIM_KNOWN_DIVERGENCES.md` (SHIM-BATCH-CANCEL).
+- **Regression coverage:** new `shim_batch_cancel` (`compat/libsecp256k1_shim/tests/test_shim_batch_cancel.cpp`)
+  — NULL/default-arg parity, non-tripping chunked verdict correctness, immediate + mid-batch cancel,
+  throwing-callback fail-closed, `_results` partial-fill, n==0 vacuous. `test_lbtc_bridge` re-verified
+  green after the shared-header refactor.
+
+## 2026-06-20 — Libbitcoin batch cancellation token
+
+- **Cancellation token const-correctness:** `ufsecp_cancel_fn` now receives
+  `const void* user`, and `ufsecp_cancel_token::user` is `const void*`, so
+  callers can pass immutable state such as `const std::atomic_bool&` without
+  const-casting at the call site.
+- **Existing bridge API extended:** libbitcoin packed-row, columnar, collect,
+  opaque, and compact batch verification functions now accept a trailing
+  `ufsecp_cancel_token*` with default `NULL` in C++ callers. No `_ex` surface is
+  introduced.
+- **Caller-driven shutdown supported:** the bridge polls the token between
+  chunks and returns `UFSECP_ERR_CANCELLED` when requested; callers must discard
+  partial verdict buffers or collect cells on cancellation.
+- **Regression coverage:** `test_lbtc_bridge` covers immediate cancellation,
+  mid-batch cancellation, error-string mapping, and C++ wrapper propagation; the
+  central libbitcoin test profile now wires this target into CTest.
+
+## 2026-06-20 — Release package content allowlist
+
+- **Linux ARM64 native package aligned:** the release workflow's Linux ARM64
+  native leg now uses the same `lib/static` + `lib/shared` product-library
+  allowlist and package-content guard as the desktop native legs. The old broad
+  `find build ... *.a/*.so` collector was removed from that path.
+- **Binding package ingress guarded:** Python wheel and npm prebuild packaging now
+  re-run the release package-content checker over downloaded native archives
+  before copying any native library into binding packages.
+
+- **Release archive contamination fixed:** `.github/workflows/release.yml` now
+  allowlists product libraries during desktop package collection instead of
+  copying every `.lib` / `.a` / shared library from the build tree.
+- **Fail-closed package guard added:** `ci/check_release_package_contents.py`
+  validates package directories or archives and rejects test, audit, exploit,
+  fuzz, benchmark, standalone, unexpected internal, misplaced, or empty library
+  payloads.
+- **Regression coverage:** `ci/test_audit_scripts.py` now includes the package
+  content checker and a fixture proving product-only packages pass while
+  `test_exploit_*_standalone.lib` style artifacts fail.
+
 ## 2026-06-19 — Release-tag Windows MSVC workflows pinned to VS2022 image
 
 - **Tag workflow false-red removed:** `.github/workflows/ci-advisory.yml` and
@@ -1382,7 +2236,7 @@
   crossing, MR5 adapt determinism, MR6 witness correspondence across distinct adaptors.
   10/10 relations hold. The positive twin of `soundness_adaptor_dleq_forgery` (GHSA-c7q2):
   a structural break in adapt/extract escapes a single honest roundtrip but breaks the
-  relation. Module count 421 → 422 (153 non-exploit + 269 exploit PoCs).
+  relation. Module count 421 → 422 (153 non-exploit + 270 exploit PoCs).
 - **Ledger also institutionalizes existing coverage:** `pedersen-additive-homomorphism`
   marked `covered` → existing `exploit_pedersen_homomorphism` module; MuSig2 aggregate≡single
   and FROST threshold-reconstruction equivalence declared `roadmap`.
@@ -2995,7 +3849,7 @@ No code issues found. Findings recorded in knowledge_base (CT-AUDIT-FROST/ADAPTO
 - **audit/test_exploit_frost_absent_signer_id.cpp (NEW — P1-SEC-001):** 3 sub-tests (FSI-1..3): absent signer → zero z_i; present signer → non-zero z_i; below-threshold → zero z_i. Wired to `unified_audit_runner` as `exploit_poc`, `advisory=false`.
 - **audit/test_regression_schnorr_sign_e_hash_erased.cpp (NEW — P1-SEC-002):** 4 sub-tests (SHE-1..4): sign+verify round-trip; 50 round-trips with varied messages; deterministic output; different messages → different sigs. Wired as `ct_analysis`, `advisory=false`.
 - **audit/test_exploit_musig2_infinity_pubnonce.cpp (NEW — P1-SEC-003):** 6 sub-tests (MIP-1..6): valid pubnonce accepted; zero input (prefix 0x00) rejected; uncompressed prefix (0x04) rejected; off-curve x handled; NULL args rejected; invalid second-point prefix rejected. Wired as `exploit_poc`, `advisory=true` (requires shim).
-- **ci/sync_module_count.py:** Module count propagated — 382 total (269 exploit-PoC, 115 non-exploit).
+- **ci/sync_module_count.py:** Module count propagated — 382 total (270 exploit-PoC, 115 non-exploit).
 
 ## 2026-05-21 — Fix: doc sync, stale paths, canonical benchmark JSON machine-generation (REL-001..011, BENCH-003/006, CI-001)
 
@@ -3472,7 +4326,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
   FAST variable-time row now labeled `[diag FAST]` — clearly marked as not production-equivalent.
   This eliminates the invalid VT-Ultra vs CT-libsecp comparison from the ratio table.
 
-### Module count: 357 total (101 non-exploit + 269 exploit PoC)
+### Module count: 357 total (101 non-exploit + 270 exploit PoC)
 
 ---
 
@@ -3618,7 +4472,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 - `docs/SHIM_KNOWN_DIVERGENCES.md` created: complete list of intentional shim vs libsecp256k1 behavioral differences.
 - `CLAUDE.md` updated: Canonical Data Synchronization rules added (module counts via `sync_module_count.py`, benchmark data via canonical JSON, ConnectBlock claim wording rules).
 - `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`: GCC CT signing regression (0.82–0.85×) disclosed; commit SHA mismatch corrected.
-- Module counts synced via `sync_module_count.py`: 98 non-exploit + 269 exploit PoC = 350 total.
+- Module counts synced via `sync_module_count.py`: 98 non-exploit + 270 exploit PoC = 350 total.
 
 ---
 
@@ -4493,7 +5347,7 @@ All 4 wired into `unified_audit_runner.cpp` + `audit/CMakeLists.txt`.
 
 ### Documentation Sync
 
-- `sync_module_count.py` run: WHY/README updated to 269 exploit PoCs, 80 non-exploit, 312 total.
+- `sync_module_count.py` run: WHY/README updated to 270 exploit PoCs, 80 non-exploit, 312 total.
 - `sync_version_refs.py` run: 26 doc files updated from v3.60/v3.66 → v3.68.0.
 - CT pipeline count: "3" → "5" (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) across README + WHY.
 - `docs/EXPLOIT_TEST_CATALOG.md`: `test_exploit_der_parsing_differential` updated to 13 tests.
@@ -6893,7 +7747,7 @@ tests PASS.**
   double-hash confusion (H(msg) ≠ H(H(msg))); domain prefix isolation (domain-A sig ≠ domain-B
   sig).  Committed `c843979c`.
 
-**Running total after this wave: 269 exploit PoC files, 59 new checks.**
+**Running total after this wave: 270 exploit PoC files, 59 new checks.**
 
 ---
 

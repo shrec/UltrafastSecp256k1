@@ -230,12 +230,108 @@ class KillReport:
     max_build_error_ratio: float = 0.5
     testable: int = 0
     pass_reason: str = ""
+    # failure_class distinguishes an infrastructure/baseline failure (the
+    # unmutated tree failed to build or its tests timed out, so NO kill rate
+    # was ever measured) from a genuine mutation kill-rate regression. issue
+    # #313: the weekly workflow reported a baseline `unified_audit` timeout as
+    # a kill-rate regression with `None` metrics. One of:
+    #   "pass" | "baseline_infrastructure" | "kill_rate_regression"
+    #   | "insufficient_sample" | "build_error_ratio" | "no_sites"
+    failure_class: str = ""
     baseline_build_ok: bool = True
     baseline_test_ok: bool = True
     baseline_note: str = ""
     targets: list[str] = field(default_factory=list)
     test_commands: list[str] = field(default_factory=list)
     mutations: list[MutationResult] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Report classification + rendering (single source of truth)
+# ---------------------------------------------------------------------------
+# issue #313: the weekly workflow built its issue body by reading invented key
+# names (kill_rate_percent, threshold, total_mutants) that do not exist in the
+# KillReport schema (kill_rate_pct, threshold_pct, total), so every metric
+# rendered as `None`; and a baseline `unified_audit` timeout — an infrastructure
+# failure with no kill rate measured — was reported as a kill-rate regression.
+# These two helpers are the ONE place that maps a report dict to a verdict and
+# to human-readable text, and they are covered by a lightweight self-test so the
+# `None`/misclassification regression cannot return.
+
+# Backward-compatibility aliases for any external consumer still reading the old
+# (incorrect) names. Documented, not load-bearing: the canonical keys are the
+# left-hand schema fields.
+SCHEMA_ALIASES = {
+    "kill_rate_percent": "kill_rate_pct",
+    "threshold": "threshold_pct",
+    "total_mutants": "total",
+}
+
+
+def classify_result(report: dict) -> str:
+    """Map a mutation report dict to a verdict class.
+
+    Prefers the explicit ``failure_class`` field; falls back to deriving it from
+    baseline flags and ``passed`` for reports produced before the field existed.
+    """
+    explicit = report.get("failure_class")
+    if explicit:
+        return explicit
+    if not report.get("baseline_build_ok", True) or not report.get("baseline_test_ok", True):
+        return "baseline_infrastructure"
+    if report.get("passed", False):
+        return "pass"
+    reason = (report.get("pass_reason") or "")
+    if reason.startswith("insufficient testable"):
+        return "insufficient_sample"
+    if reason.startswith("build_error ratio"):
+        return "build_error_ratio"
+    return "kill_rate_regression"
+
+
+def render_issue_body(report: dict) -> str:
+    """Render the weekly-workflow issue body / console summary from a report.
+
+    A baseline-infrastructure failure is reported as exactly that — never as a
+    kill-rate regression — and every line uses real schema keys so no metric can
+    render as ``None``.
+    """
+    kind = classify_result(report)
+
+    if kind == "baseline_infrastructure":
+        note = (report.get("baseline_note") or "baseline build/test failed").strip()
+        is_timeout = "timeout" in note.lower()
+        head = ("Weekly mutation gate could NOT run: baseline "
+                + ("timeout" if is_timeout else "failure")
+                + " before any mutants were tested.")
+        return (
+            f"{head}\n\n"
+            f"- failure_class: {kind}\n"
+            f"- baseline_build_ok: {report.get('baseline_build_ok')}\n"
+            f"- baseline_test_ok: {report.get('baseline_test_ok')}\n"
+            f"- baseline_note: {note}\n\n"
+            "This is an INFRASTRUCTURE / baseline failure, not a mutation "
+            "kill-rate regression — no kill rate was measured (total=0).\n"
+            "Action: raise the baseline test timeout (--test-timeout or env "
+            "UFSECP_MUTATION_TEST_TIMEOUT) or fix the baseline build/test. CAAS H-4."
+        )
+
+    if kind == "pass":
+        head = "Weekly mutation gate passed."
+    else:
+        head = f"Weekly mutation gate failed: {kind}."
+    return (
+        f"{head}\n\n"
+        f"- failure_class: {kind}\n"
+        f"- kill_rate_pct: {report.get('kill_rate_pct')}\n"
+        f"- threshold_pct: {report.get('threshold_pct')}\n"
+        f"- total: {report.get('total')}\n"
+        f"- testable: {report.get('testable')}\n"
+        f"- killed: {report.get('killed')}\n"
+        f"- survived: {report.get('survived')}\n"
+        f"- pass_reason: {report.get('pass_reason')}\n\n"
+        "See workflow run for full report. CAAS H-4."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -404,6 +500,9 @@ def run_mutation_testing(
             report.baseline_build_ok = False
         report.baseline_note = baseline_note[-3000:]
         report.passed = False
+        # Baseline failed → infrastructure problem, NOT a kill-rate regression.
+        # total stays 0 and no mutation results are recorded (fail-closed).
+        report.failure_class = "baseline_infrastructure"
         print(f"  [FAIL] {report.baseline_note}")
         return report
 
@@ -425,6 +524,7 @@ def run_mutation_testing(
     if not candidates:
         print("  No mutation sites found — check targets and operators.")
         report.passed = True
+        report.failure_class = "no_sites"
         return report
 
     # Sample without replacement (or all if count >= len(candidates))
@@ -525,19 +625,23 @@ def run_mutation_testing(
     be_ratio = (report.build_errors / report.total) if report.total else 0.0
     if testable < min_testable:
         report.passed = False
+        report.failure_class = "insufficient_sample"
         report.pass_reason = (f"insufficient testable mutations "
                               f"({testable} < {min_testable})")
     elif be_ratio > max_be_ratio:
         report.passed = False
+        report.failure_class = "build_error_ratio"
         report.pass_reason = (f"build_error ratio too high "
                               f"({be_ratio:.2f} > {max_be_ratio:.2f}) — "
                               "mutator operators likely broken")
     elif report.kill_rate_pct < threshold:
         report.passed = False
+        report.failure_class = "kill_rate_regression"
         report.pass_reason = (f"kill rate {report.kill_rate_pct:.1f}% < "
                               f"{threshold:.1f}%")
     else:
         report.passed = True
+        report.failure_class = "pass"
         report.pass_reason = (f"kill rate {report.kill_rate_pct:.1f}% >= "
                               f"{threshold:.1f}% (sample={testable})")
 
@@ -566,10 +670,21 @@ def parse_args() -> argparse.Namespace:
                    help="Random seed for mutation selection")
     p.add_argument("--threshold", type=float, default=75.0,
                    help="Minimum kill rate %% to pass (default: 75.0)")
-    p.add_argument("--build-timeout", type=int, default=150,
-                   help="Seconds allowed for each rebuild (default: 150)")
-    p.add_argument("--test-timeout", type=int, default=90,
-                   help="Seconds allowed for each test run (default: 90)")
+    # Timeouts: CLI flag wins; otherwise the env override; otherwise the
+    # default. The env override lets the weekly workflow set a deterministic
+    # baseline timeout suitable for the full unified_audit suite (issue #313)
+    # without editing the script.
+    p.add_argument("--build-timeout", type=int,
+                   default=int(os.environ.get("UFSECP_MUTATION_BUILD_TIMEOUT", "150")),
+                   help="Seconds allowed for each rebuild "
+                        "(default: 150, env UFSECP_MUTATION_BUILD_TIMEOUT)")
+    p.add_argument("--test-timeout", type=int,
+                   default=int(os.environ.get("UFSECP_MUTATION_TEST_TIMEOUT", "90")),
+                   help="Seconds allowed for each test run "
+                        "(default: 90, env UFSECP_MUTATION_TEST_TIMEOUT)")
+    p.add_argument("--render-issue-body", metavar="REPORT_JSON", default=None,
+                   help="Render the weekly-workflow issue body from an existing "
+                        "mutation report JSON and exit (no mutation run)")
     p.add_argument("--json", action="store_true",
                    help="Write JSON report")
     p.add_argument("-o", "--output", default=None,
@@ -582,6 +697,14 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+
+    # Render-only mode: turn an existing report into the workflow issue body.
+    # Kept in this script so rendering has exactly one tested implementation.
+    if args.render_issue_body:
+        with open(args.render_issue_body, "r", encoding="utf-8") as fh:
+            report = json.load(fh)
+        print(render_issue_body(report))
+        return 0
 
     build_dir = Path(args.build_dir)
     if not build_dir.is_absolute():
@@ -664,8 +787,14 @@ def main() -> int:
 
     if report.passed:
         print(f"RESULT: PASS  ({report.pass_reason})")
+    elif report.failure_class == "baseline_infrastructure":
+        # Do not mislabel an infrastructure failure as a kill-rate regression.
+        print("RESULT: BASELINE FAILURE (infrastructure) — no kill rate measured")
+        print(f"  {report.baseline_note}")
+        print("  Raise --test-timeout / UFSECP_MUTATION_TEST_TIMEOUT or fix the baseline.")
     else:
-        print(f"RESULT: FAIL  ({report.pass_reason or 'kill rate below threshold'})")
+        print(f"RESULT: FAIL  [{report.failure_class}]  "
+              f"({report.pass_reason or 'kill rate below threshold'})")
         print("  Consider adding audit tests or exploit probes to cover surviving mutations.")
 
     # --- JSON output -------------------------------------------------------

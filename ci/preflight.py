@@ -20,6 +20,7 @@ Usage:
     python3 ci/preflight.py --claims           # graph-backed assurance claim checks
     python3 ci/preflight.py --ai-review        # AI review-event log checks
     python3 ci/preflight.py --gpu-evidence     # GPU backend evidence / publishability checks
+    python3 ci/preflight.py --gpu-backend-parity  # GpuBackend op native CUDA/OpenCL/Metal parity gate
     python3 ci/preflight.py --api-contracts    # machine-readable API contract gate
     python3 ci/preflight.py --determinism      # fail-closed determinism gate
     python3 ci/preflight.py --changed          # check git-changed files
@@ -554,6 +555,41 @@ def check_determinism_gate():
 
     return [], False
 
+
+def check_gpu_backend_parity_gate():
+    """Run the GPU backend native-parity gate and extract structured issues."""
+    checker = SCRIPT_DIR / 'check_gpu_backend_parity.py'
+    try:
+        result = subprocess.run(
+            [sys.executable, str(checker), '--json'],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            cwd=str(LIB_ROOT),
+            check=False,
+        )
+    except Exception as exc:
+        return [f"  {RED}GPU-PARITY{RESET} could not execute check_gpu_backend_parity.py: {exc}"], True
+
+    try:
+        payload = json.loads(result.stdout) if result.stdout.strip() else None
+    except json.JSONDecodeError:
+        payload = None
+
+    if result.returncode != 0:
+        issues = []
+        if isinstance(payload, dict):
+            for err in payload.get('fatal_errors', []):
+                issues.append(f"  {RED}GPU-PARITY{RESET} {err}")
+            for v in payload.get('violations', []):
+                loc = f"{v['op']}/{v['backend']}" if v.get('backend') else v['op']
+                issues.append(f"  {RED}GPU-PARITY{RESET} [{v['kind']}] {loc}: {v['message']}")
+        if not issues:
+            issues = [f"  {RED}GPU-PARITY{RESET} gate failed (exit {result.returncode})"]
+        return issues, True
+
+    return [], False
+
 # ---------------------------------------------------------------------------
 # 6. Changed Files Analysis
 # ---------------------------------------------------------------------------
@@ -747,7 +783,7 @@ def run_all(args):
 
     # Security
     if mode in ('--all', '--security'):
-        print(f"{BOLD}[1/20] Security Invariants{RESET}")
+        print(f"{BOLD}[1/21] Security Invariants{RESET}")
         issues = check_security_invariants()
         if issues:
             for i in issues:
@@ -762,7 +798,7 @@ def run_all(args):
 
     # CUDA / MSVC portability
     if mode in ('--all', '--cuda-msvc'):
-        print(f"{BOLD}[2/20] CUDA / MSVC Portability{RESET}")
+        print(f"{BOLD}[2/21] CUDA / MSVC Portability{RESET}")
         cuda_msvc_issues = check_cuda_msvc_portability()
         if cuda_msvc_issues:
             for issue in cuda_msvc_issues:
@@ -775,7 +811,7 @@ def run_all(args):
 
     # Narrative drift
     if mode in ('--all', '--drift'):
-        print(f"{BOLD}[3/20] Narrative Drift Detection{RESET}")
+        print(f"{BOLD}[3/21] Narrative Drift Detection{RESET}")
         drift_issues = check_narrative_drift()
         if drift_issues:
             for i in drift_issues:
@@ -789,7 +825,7 @@ def run_all(args):
 
     # Coverage
     if mode in ('--all', '--coverage'):
-        print(f"{BOLD}[4/20] Test Coverage Gaps{RESET}")
+        print(f"{BOLD}[4/21] Test Coverage Gaps{RESET}")
         gaps = check_coverage_gaps()
         if gaps:
             for path, lines in sorted(gaps, key=lambda x: -x[1])[:20]:
@@ -803,7 +839,7 @@ def run_all(args):
 
     # Freshness
     if mode in ('--all', '--freshness'):
-        print(f"{BOLD}[5/20] Graph Freshness{RESET}")
+        print(f"{BOLD}[5/21] Graph Freshness{RESET}")
         stale, built = check_freshness()
         if stale:
             for kind, path, lines in stale[:15]:
@@ -819,7 +855,7 @@ def run_all(args):
 
     # Changed files
     if mode in ('--all', '--claims'):
-        print(f"{BOLD}[6/20] Assurance Claim Surfaces{RESET}")
+        print(f"{BOLD}[6/21] Assurance Claim Surfaces{RESET}")
         claim_issues = check_claim_surfaces()
         if claim_issues:
             for issue in claim_issues:
@@ -831,7 +867,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] Claim surfaces resolve and are graph-indexed{RESET}\n")
 
     if mode in ('--all', '--ai-review'):
-        print(f"{BOLD}[7/20] AI Review Event Log{RESET}")
+        print(f"{BOLD}[7/21] AI Review Event Log{RESET}")
         ai_review_issues = check_ai_review_log()
         if ai_review_issues:
             for issue in ai_review_issues:
@@ -843,7 +879,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] AI review-event log is schema-valid{RESET}\n")
 
     if mode in ('--all', '--gpu-evidence'):
-        print(f"{BOLD}[8/20] GPU Backend Evidence{RESET}")
+        print(f"{BOLD}[8/21] GPU Backend Evidence{RESET}")
         gpu_issues = check_gpu_backend_evidence()
         if gpu_issues:
             for issue in gpu_issues:
@@ -856,7 +892,7 @@ def run_all(args):
 
     # Changed files
     if mode in ('--all', '--changed'):
-        print(f"{BOLD}[9/20] Changed Files Impact{RESET}")
+        print(f"{BOLD}[9/21] Changed Files Impact{RESET}")
         changed = get_changed_files()
         if changed:
             print(f"  {len(changed)} files changed vs HEAD:")
@@ -886,7 +922,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] No uncommitted changes{RESET}\n")
 
     if mode in ('--all', '--secret-paths'):
-        print(f"{BOLD}[10/20] Secret-Path Change Gate{RESET}")
+        print(f"{BOLD}[10/21] Secret-Path Change Gate{RESET}")
         secret_report, secret_fail = check_secret_path_changes(changed)
         if secret_report['triggered_rules']:
             for rule in secret_report['triggered_rules']:
@@ -909,7 +945,7 @@ def run_all(args):
 
     # ABI
     if mode in ('--all', '--api-contracts'):
-        print(f"{BOLD}[11/20] API Security Contracts{RESET}")
+        print(f"{BOLD}[11/21] API Security Contracts{RESET}")
         api_contract_issues, api_contract_fail = check_api_contracts()
         if api_contract_issues:
             for issue in api_contract_issues:
@@ -922,7 +958,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] API security contracts are valid and up-to-date{RESET}\n")
 
     if mode in ('--all', '--determinism'):
-        print(f"{BOLD}[12/20] Determinism Gate{RESET}")
+        print(f"{BOLD}[12/21] Determinism Gate{RESET}")
         determinism_issues, determinism_fail = check_determinism_gate()
         if determinism_issues:
             for issue in determinism_issues:
@@ -935,7 +971,7 @@ def run_all(args):
             print(f"  {GREEN}[OK] Core API behavior is deterministic for locked vectors{RESET}\n")
 
     if mode in ('--all', '--abi'):
-        print(f"{BOLD}[13/20] ABI Surface{RESET}")
+        print(f"{BOLD}[13/21] ABI Surface{RESET}")
         added, removed = check_abi_surface()
         if added:
             print(f"  {CYAN}NEW functions (not in graph):{RESET}")
@@ -953,7 +989,7 @@ def run_all(args):
 
     # Doc Consistency
     if mode in ('--all', '--doc-sync'):
-        print(f"{BOLD}[14/20] Documentation Consistency{RESET}")
+        print(f"{BOLD}[14/21] Documentation Consistency{RESET}")
         try:
             import importlib.util
             spec = importlib.util.spec_from_file_location(
@@ -997,7 +1033,7 @@ def run_all(args):
             exit_code = 1
 
     if mode in ('--all', '--ctest-registry'):
-        print(f"{BOLD}[15/20] CTest Registry Health{RESET}")
+        print(f"{BOLD}[15/21] CTest Registry Health{RESET}")
         ctest_registry_issues = check_ctest_registry_health()
         blocking = [i for i in ctest_registry_issues if 'STALE-CTEST' in i]
         for issue in ctest_registry_issues:
@@ -1011,7 +1047,7 @@ def run_all(args):
 
     # Unified Code Quality Gate (dev_bug_scanner + hot_path_alloc + audit_test_quality)
     if mode in ('--all', '--bug-scan'):
-        print(f"{BOLD}[16/20] Code Quality Gate (all scanners){RESET}")
+        print(f"{BOLD}[16/21] Code Quality Gate (all scanners){RESET}")
         try:
             runner_path = SCRIPT_DIR / "run_code_quality.py"
             result = subprocess.run(
@@ -1059,7 +1095,7 @@ def run_all(args):
 
     # Python audit infrastructure self-test
     if mode in ('--all', '--py-audit'):
-        print(f"{BOLD}[17/20] Python Audit Self-Test{RESET}")
+        print(f"{BOLD}[17/21] Python Audit Self-Test{RESET}")
         try:
             selftest_path = SCRIPT_DIR / "test_audit_scripts.py"
             result = subprocess.run(
@@ -1094,7 +1130,7 @@ def run_all(args):
 
     # Security Autonomy Gates (non-blocking informational in Phase 1)
     if mode in ('--all', '--autonomy'):
-        print(f"{BOLD}[18/20] Security Autonomy Gates (informational){RESET}")
+        print(f"{BOLD}[18/21] Security Autonomy Gates (informational){RESET}")
         autonomy_gates = [
             ("Formal Invariants", "check_formal_invariants.py", []),
             ("Risk-Surface Coverage", "risk_surface_coverage.py", []),
@@ -1133,7 +1169,7 @@ def run_all(args):
         print()
 
     if mode in ('--all', '--autonomy'):
-        print(f"{BOLD}[19/20] Misuse-Resistance & Co-Gating (informational){RESET}")
+        print(f"{BOLD}[19/21] Misuse-Resistance & Co-Gating (informational){RESET}")
         cogate_checks = [
             ("Misuse Resistance", "check_misuse_resistance.py", []),
             ("Perf-Security Co-gate", "perf_security_cogate.py", []),
@@ -1165,7 +1201,7 @@ def run_all(args):
         print()
 
     if mode in ('--all', '--autonomy'):
-        print(f"{BOLD}[20/20] Incident Drills (informational){RESET}")
+        print(f"{BOLD}[20/21] Incident Drills (informational){RESET}")
         drill_path = SCRIPT_DIR / "incident_drills.py"
         if drill_path.exists():
             try:
@@ -1188,6 +1224,19 @@ def run_all(args):
         else:
             print(f"  {YELLOW}SKIP{RESET} incident_drills.py not found")
         print()
+
+    if mode in ('--all', '--gpu-backend-parity'):
+        print(f"{BOLD}[21/21] GPU Backend Parity (CUDA/OpenCL/Metal){RESET}")
+        gpu_parity_issues, gpu_parity_fail = check_gpu_backend_parity_gate()
+        if gpu_parity_issues:
+            for issue in gpu_parity_issues:
+                print(issue)
+        if gpu_parity_fail:
+            total_issues += len(gpu_parity_issues) if gpu_parity_issues else 1
+            exit_code = 1
+            print(f"  {RED}GPU backend parity gate failed{RESET}\n")
+        else:
+            print(f"  {GREEN}[OK] Every GpuBackend operation has native CUDA/OpenCL/Metal coverage or a documented exception{RESET}\n")
 
     # Summary
     print(f"{BOLD}{'='*60}{RESET}")

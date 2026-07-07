@@ -14,7 +14,6 @@
 #include "ufsecp_gpu.h"
 #include "../../gpu/include/gpu_backend.hpp"
 #include "secp256k1/config.hpp"
-
 #include <cstring>
 #include <cstdlib>
 #include <memory>
@@ -28,6 +27,49 @@
 #include "secp256k1/detail/secure_erase.hpp"
 
 using namespace secp256k1::gpu;
+
+/* Retain the self-installing GPU column-verify provider
+ * (src/gpu/src/gpu_engine_hook.cpp). Its only content is a file-scope static
+ * initializer with no external references, so a normal static link of
+ * secp256k1_gpu_host drops the object and the engine column entrypoints
+ * (secp256k1::ecdsa_batch_verify_opaque_columns / schnorr_batch_verify_bip340_columns)
+ * would silently stay CPU-only. This C ABI TU is always retained in libufsecp (it
+ * defines the exported ufsecp_gpu_* symbols), so referencing the provider's anchor
+ * here drags that object into the shared library and runs its installer at load.
+ * This is a link-retention reference, NOT a call: the libbitcoin-direct path still
+ * never invokes the C ABI (that path retains the provider with a targeted
+ * `--undefined=secp256k1_gpu_columns_provider_anchor` linker anchor at its own link,
+ * NOT a blanket WHOLE_ARCHIVE — see compat/libbitcoin_direct/CMakeLists.txt).
+ *
+ * The retention reference is a STRONG undefined symbol, so it is only sound in a
+ * link that actually carries the provider object. Every shipping consumer does:
+ *   - libufsecp (ufsecp_shared / ufsecp_static) compiles this TU ONLY when the
+ *     secp256k1_gpu_host target exists and always links it — that archive defines
+ *     the anchor (see include/ufsecp/CMakeLists.txt UFSECP_GPU_IMPL_SRC guard);
+ *   - the unified audit runner lists gpu_engine_hook.cpp among its own sources.
+ * But the non-GPU CABI audit *standalone* tests compile this TU as a raw source
+ * WITHOUT the provider (no secp256k1_gpu_host, no gpu_engine_hook.cpp) — there the
+ * strong reference is an undefined symbol that breaks the link on the CPU-only
+ * (GitHub) CI (LBTC-GPU-SELFINSTALL-DROP / anchor-link). Those targets define
+ * UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR to drop the retention reference: they never
+ * exercise the transparent GPU column-verify dispatch, so losing the self-install
+ * hook there is a no-op. A weak reference is deliberately NOT used instead — a weak
+ * undefined symbol does not pull the provider archive member, so the hook would
+ * silently stop installing in libufsecp. Gate: retention on by default (correct for
+ * every provider-carrying link), opted out only where the provider is absent by
+ * construction (audit/CMakeLists.txt audit_target_defaults). */
+#ifndef UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR
+extern "C" int secp256k1_gpu_columns_provider_anchor;
+namespace {
+struct GpuColumnsProviderKeeper {
+    GpuColumnsProviderKeeper() noexcept {
+        volatile int keep = secp256k1_gpu_columns_provider_anchor;
+        (void)keep;
+    }
+};
+GpuColumnsProviderKeeper g_gpu_columns_provider_keeper;
+}  // namespace
+#endif  /* UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR */
 
 /* Hard upper bound on user-supplied GPU batch counts.
  * Prevents hostile callers from triggering multi-GB allocations.              */
@@ -356,6 +398,58 @@ ufsecp_error_t ufsecp_gpu_schnorr_verify_batch(
     } UFSECP_GPU_CATCH
 }
 
+/* libbitcoin ECDSA/Schnorr column (Structure-of-Arrays) verify. Public-data.
+ * Completeness mirror of the *_verify_lbtc_rows / *_verify_batch ABI wrappers.
+ * NOTE: the libbitcoin direct entrypoint does NOT call these C ABI functions —
+ * it calls the C++ GpuBackend methods directly (GPU is an internal accelerator,
+ * no separate caller-facing GPU API/status). These exist to satisfy the C ABI
+ * completeness rule for every GpuBackend virtual method. */
+ufsecp_error_t ufsecp_gpu_ecdsa_verify_lbtc_columns(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* digests32,
+    const uint8_t* pubkeys33,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    if (!clear_output_bytes(out_results, count, 1)) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!digests32 || !pubkeys33 || !sigs64 || !out_results)) {
+        return UFSECP_ERR_NULL_ARG;
+    }
+    try {
+    return to_abi_error_clear_on_fail(
+        ctx->backend->ecdsa_verify_lbtc_columns(
+            digests32, pubkeys33, sigs64, count, out_results),
+        out_results, count, 1);
+    } UFSECP_GPU_CATCH
+}
+
+ufsecp_error_t ufsecp_gpu_schnorr_verify_lbtc_columns(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* digests32,
+    const uint8_t* xonly32,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    if (!clear_output_bytes(out_results, count, 1)) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!digests32 || !xonly32 || !sigs64 || !out_results)) {
+        return UFSECP_ERR_NULL_ARG;
+    }
+    try {
+    return to_abi_error_clear_on_fail(
+        ctx->backend->schnorr_verify_lbtc_columns(
+            digests32, xonly32, sigs64, count, out_results),
+        out_results, count, 1);
+    } UFSECP_GPU_CATCH
+}
+
 ufsecp_error_t ufsecp_gpu_ecdsa_verify_collect(
     ufsecp_gpu_ctx* ctx,
     const uint8_t* msg_hashes32,
@@ -580,6 +674,46 @@ ufsecp_error_t ufsecp_gpu_hash256(
     try {
     return to_abi_error_clear_on_fail(
         ctx->backend->hash256(inputs, input_len, n, out32),
+        out32, n, 32);
+    } UFSECP_GPU_CATCH
+}
+
+/* Hard upper bound on hash256_var's per-row stride. Matches Bitcoin's
+ * maximum block-weight-derived transaction size ceiling (~4 MiB), giving
+ * generous headroom over realistic standard-relay transaction sizes
+ * (~100 KB) while bounding worst-case per-call host/device work. Deliberately
+ * NOT the tagged_hash_var precedent's 256-byte cap — that cap exists because
+ * tagged_hash_var must fit a 64-byte tag prefix in a small on-chip scratch
+ * buffer; hash256_var has no tag prefix and streams each row directly, so it
+ * is not bound by that same buffer. */
+static constexpr std::size_t kMaxHash256VarStride = std::size_t{4} * 1024 * 1024;  /* 4 MiB */
+
+ufsecp_error_t ufsecp_gpu_hash256_var(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* inputs,
+    const uint32_t* input_lens,
+    size_t stride,
+    size_t n,
+    uint8_t* out32)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (n == 0) return UFSECP_OK;
+    if (n > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    if (stride == 0 || stride > kMaxHash256VarStride) return UFSECP_ERR_BAD_INPUT;
+    if (!clear_output_bytes(out32, n, 32)) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!inputs || !input_lens || !out32)) return UFSECP_ERR_NULL_ARG;
+    /* Host-side per-row validation: every row's real length must be in
+     * [1, stride]. Neither ufsecp_gpu_hash256 (fixed input_len) nor
+     * ufsecp_gpu_tagged_hash_var (variable msg_lens) validates individual
+     * per-row lengths against stride/bounds in this ABI wrapper — that gap
+     * must not be repeated here, since hash256_var's row lengths are fully
+     * caller-controlled and an out-of-range row would read past its slot. */
+    for (size_t i = 0; i < n; ++i) {
+        if (input_lens[i] == 0 || input_lens[i] > stride) return UFSECP_ERR_BAD_INPUT;
+    }
+    try {
+    return to_abi_error_clear_on_fail(
+        ctx->backend->hash256_var(inputs, input_lens, stride, n, out32),
         out32, n, 32);
     } UFSECP_GPU_CATCH
 }

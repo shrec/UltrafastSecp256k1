@@ -168,7 +168,7 @@ extensions = ["*.yml", "*.yaml", "*.md", "*.json"]
 label = "repo_root_meta"
 path = ".."
 optional = true
-extensions = ["README.md", "SECURITY.md", "THREAT_MODEL.md", "ROADMAP.md", "AUDIT_COVERAGE.md", "AUDIT_GUIDE.md", "AUDIT_REPORT.md", "WHY_ULTRAFASTSECP256K1.md", "AGENTS.md", "CLAUDE.md", "BUILD_GUIDE.md", "WORK_DOCUMENT.md", "codecov.yml", "*.yml", "*.yaml", "CMakeLists.txt", "CMakePresets.json", "CMakeUserPresets.json"]
+extensions = ["README.md", "CHANGELOG.md", "SECURITY.md", "THREAT_MODEL.md", "ROADMAP.md", "AUDIT_COVERAGE.md", "AUDIT_GUIDE.md", "AUDIT_REPORT.md", "WHY_ULTRAFASTSECP256K1.md", "AGENTS.md", "CLAUDE.md", "BUILD_GUIDE.md", "WORK_DOCUMENT.md", "codecov.yml", "*.yml", "*.yaml", "CMakeLists.txt", "CMakePresets.json", "CMakeUserPresets.json"]
 recursive = false
 
 [[category_rules]]

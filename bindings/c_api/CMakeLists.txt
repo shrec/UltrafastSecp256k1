@@ -58,6 +58,13 @@ if(TARGET UltrafastSecp256k1_cpu)
 elseif(TARGET secp256k1_cpu)
     target_link_libraries(ultrafast_secp256k1 PRIVATE secp256k1_cpu)
 else()
+    # Standalone build: generate secp256k1_features.h (needed by gpu_backend.hpp)
+    configure_file(
+        "${ULTRAFAST_ROOT}/src/cpu/include/secp256k1/secp256k1_features.h.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/generated/include/secp256k1/secp256k1_features.h"
+        @ONLY
+    )
+
     # Standalone build: gather all CPU .cpp sources
     file(GLOB CPU_SOURCES "${ULTRAFAST_ROOT}/src/cpu/src/*.cpp")
 
@@ -70,6 +77,11 @@ else()
     endif()
 
     target_sources(ultrafast_secp256k1 PRIVATE ${CPU_SOURCES})
+
+    # Expose generated headers (secp256k1_features.h) to the standalone build
+    target_include_directories(ultrafast_secp256k1 PRIVATE
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/include
+    )
 
     # src/cpu/src/ufsecp_gpu_impl.cpp references the GPU backend registry (backend_count,
     # backend_ids, create_backend, is_available). In a CPU-only standalone build no

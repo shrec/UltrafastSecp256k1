@@ -259,6 +259,51 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_schnorr_verify_batch(
     size_t count,
     uint8_t* out_results);
 
+/** Batch libbitcoin ECDSA COLUMN (Structure-of-Arrays) verification.
+ *
+ *  PUBLIC-DATA operation. Column sibling of ufsecp_gpu_ecdsa_verify_lbtc_rows:
+ *  three parallel column spans instead of one interleaved row buffer. The opaque
+ *  little-endian signature and 33-byte compressed pubkey are parsed device-side.
+ *
+ *  NOTE: the libbitcoin direct integration path does NOT call this C ABI; it calls
+ *  the C++ GpuBackend method directly (GPU is an internal accelerator, never a
+ *  separate caller-facing GPU API). This wrapper exists for C ABI completeness.
+ *
+ *  @param ctx           GPU context.
+ *  @param digests32     Input: count * 32 bytes (message digests).
+ *  @param pubkeys33     Input: count * 33 bytes (compressed public keys).
+ *  @param sigs64        Input: count * 64 bytes (opaque LE r||s scalar limbs).
+ *  @param count         Number of items.
+ *  @param out_results   Output: count bytes (1 = valid, 0 = invalid per item). */
+UFSECP_API ufsecp_error_t ufsecp_gpu_ecdsa_verify_lbtc_columns(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* digests32,
+    const uint8_t* pubkeys33,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results);
+
+/** Batch libbitcoin Schnorr COLUMN (Structure-of-Arrays) verification.
+ *
+ *  PUBLIC-DATA operation. BIP-340 signatures parsed device-side.
+ *
+ *  NOTE: the libbitcoin direct integration path does NOT call this C ABI; it calls
+ *  the C++ GpuBackend method directly. This wrapper exists for C ABI completeness.
+ *
+ *  @param ctx           GPU context.
+ *  @param digests32     Input: count * 32 bytes (message digests).
+ *  @param xonly32       Input: count * 32 bytes (x-only public keys).
+ *  @param sigs64        Input: count * 64 bytes (BIP-340 R.x||s, big-endian).
+ *  @param count         Number of items.
+ *  @param out_results   Output: count bytes (1 = valid, 0 = invalid per item). */
+UFSECP_API ufsecp_error_t ufsecp_gpu_schnorr_verify_lbtc_columns(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* digests32,
+    const uint8_t* xonly32,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results);
+
 /** Batch ECDSA "collect" verification (libbitcoin bridge specialization).
  *
  *  PUBLIC-DATA operation. Identical verdict to ufsecp_gpu_ecdsa_verify_batch,
@@ -357,9 +402,9 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_msm(
     uint8_t* out_result33);
 
 /* ============================================================================
- * libbitcoin-bridge per-item batch ops (CUDA implemented; OpenCL/Metal return
- * UFSECP_ERR_GPU_UNSUPPORTED so the bridge falls back to its CPU path). All
- * PUBLIC-DATA -> variable-time.
+ * libbitcoin-bridge per-item batch ops. CUDA, OpenCL, and Metal all provide
+ * native on-device implementations for every op below (no host-CPU fallback).
+ * All PUBLIC-DATA -> variable-time.
  * ============================================================================ */
 
 /** Batch x-only pubkey validation: one lift_x per key (on-curve x check).
@@ -472,6 +517,29 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_hash256(
     ufsecp_gpu_ctx* ctx,
     const uint8_t* inputs,
     size_t input_len,
+    size_t n,
+    uint8_t* out32);
+
+/**
+ * ufsecp_gpu_hash256_var - batch variable-length double-SHA256.
+ *
+ * Row i is inputs[i*stride .. i*stride+input_lens[i]); bytes beyond
+ * input_lens[i] up to stride are ignored padding. out32 receives n*32 bytes,
+ * one digest per row. GPU performs no transaction parsing; callers (e.g.
+ * libbitcoin txid/wtxid wrappers) must pre-serialize on the CPU.
+ *
+ * n==0 is a no-op (UFSECP_OK, out32 untouched). Any input_lens[i]==0 or
+ * input_lens[i]>stride is UFSECP_ERR_BAD_INPUT (checked host-side before
+ * dispatch). stride==0 or stride exceeding the implementation's max row size
+ * is UFSECP_ERR_BAD_INPUT. n exceeding the batch cap is UFSECP_ERR_BAD_INPUT.
+ * On any non-OK return, out32 is left cleared/undefined — never a partial or
+ * stale result.
+ */
+UFSECP_API ufsecp_error_t ufsecp_gpu_hash256_var(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* inputs,
+    const uint32_t* input_lens,
+    size_t stride,
     size_t n,
     uint8_t* out32);
 

@@ -373,7 +373,11 @@ signatures, verification outcomes) are identical to upstream; only latency diffe
     `results[i]` (`1`=valid, `0`=invalid/malformed) and returns 1 iff every row is valid.
 - **Result contract:** the boolean ("all valid") result is identical to single
   `secp256k1_ecdsa_verify` / `secp256k1_schnorrsig_verify` for any thread count — threads are a
-  pure throughput change. High-S ECDSA signatures are accepted (matches single verify, SHIM-008).
+  pure throughput change. High-S ECDSA signatures are **rejected**, matching single
+  `secp256k1_ecdsa_verify` and upstream (SHIM-008 fix, 2026-06-23): both the single shim
+  verify and `ecdsa_batch_verify` enforce BIP-62 low-S via `is_low_s()`, exactly like
+  upstream's `!secp256k1_scalar_is_high(&s)`. (The earlier note here was wrong: upstream
+  `secp256k1_ecdsa_verify` rejects high-S; the shim previously accepted it — now fixed.)
   Schnorr `msglen != 32` is served via per-signature verify (MSM needs fixed 32-byte slots),
   matching upstream BIP-340 arbitrary-length semantics.
 - **No-failure contract:** these never throw across the C ABI. If internal thread creation
@@ -382,7 +386,20 @@ signatures, verification outcomes) are identical to upstream; only latency diffe
   callback as elsewhere.
 - **CT:** variable-time over PUBLIC data only (pubkey/msg/sig); no secret material, no
   secret-dependent branches added by threading.
-- **Test:** `shim_batch_mt` (`compat/libsecp256k1_shim/tests/test_shim_batch_mt.cpp`).
+- **External cancellation (SHIM-BATCH-CANCEL):** every function takes a trailing
+  `const ufsecp_cancel_token* cancel` (shared type in `ufsecp/ufsecp_cancel.h`, same as the
+  libbitcoin bridge; C++ default `NULL`). `cancel == NULL` is the original path, byte-for-byte,
+  zero overhead. A non-NULL token is polled between work chunks (default chunk 262144;
+  `check_interval` tunes it, clamped up to the batch minimum) so a long batch can be aborted
+  from outside. **Return on cancel is `0` (fail-closed)** — and because these functions return
+  `int` (1=all valid / 0=otherwise) there is no `CANCELLED` code, so cancellation is NOT
+  distinguishable from "a signature was invalid" via the return value (unlike the bridge's
+  `ufsecp_error_t`/`UFSECP_ERR_CANCELLED`). The caller owns the token, so it disambiguates a
+  returned `0` by checking its own cancellation state (set ⇒ cancelled, verdict unknown, discard;
+  clear ⇒ genuinely invalid). For `_results`, rows not reached before cancel are left `0`. A
+  throwing cancel callback is treated as cancel (fail-closed).
+- **Test:** `shim_batch_mt` (`compat/libsecp256k1_shim/tests/test_shim_batch_mt.cpp`),
+  `shim_batch_cancel` (`compat/libsecp256k1_shim/tests/test_shim_batch_cancel.cpp`).
 
 ### secp256k1_ec_pubkey_serialize — too-small output buffer fails quietly
 

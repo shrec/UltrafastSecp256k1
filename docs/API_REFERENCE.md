@@ -12,6 +12,7 @@ Complete API documentation for CPU, CUDA, and WASM implementations.
    - [Point](#point)
    - [ECDSA (RFC 6979)](#ecdsa-rfc-6979)
    - [Schnorr (BIP-340)](#schnorr-bip-340)
+   - [Batch Verification](#batch-verification)
    - [SHA-256](#sha-256)
    - [Constant-Time Layer](#constant-time-layer)
    - [Utility Functions](#utility-functions)
@@ -522,6 +523,145 @@ std::array<uint8_t, 32> aux = {}; // zeros for deterministic
 auto sig = schnorr_sign(sk, msg, aux);
 bool ok = schnorr_verify(pk_x, msg, sig);
 ```
+
+---
+
+### Batch Verification
+
+**Namespace:** `secp256k1`
+
+**Header:**
+```cpp
+#include <secp256k1/batch_verify.hpp>
+```
+
+#### Canonical libbitcoin C++ surface (`ufsecp::lbtc::*`)
+
+The canonical bridge-free libbitcoin integration is the header-only target `secp256k1::fastsecp256k1_libbitcoin`.
+Build with `-DSECP256K1_BUILD_LIBBITCOIN=ON` (optionally `-DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON`).
+
+**Package target:** `secp256k1::fastsecp256k1_libbitcoin` (INTERFACE, carries C++20 + `HAVE_ULTRAFAST` + engine).
+
+**Header:** `<ufsecp/libbitcoin.hpp>` — namespace `ufsecp::lbtc::*`, all stateless inline functions.
+
+**Byte layouts** (match libbitcoin/libsecp256k1 exactly):
+| Type | Format |
+|------|--------|
+| pubkey | 33-byte compressed (`0x02`/`0x03` \|\| X big-endian) |
+| hash | 32-byte message hash |
+| ecdsa sig | 64-byte `secp256k1_ecdsa_signature` opaque (r limbs LE \|\| s limbs LE) |
+| schnorr sig | 64-byte BIP-340 (R.x big-endian \|\| s big-endian) |
+| xonly | 32-byte x-only pubkey |
+
+**CT guarantees:** Secret-bearing operations (sign, key create, seckey tweak) use `secp256k1::ct::*` primitives — constant-time, no data-dependent branches. Verify/recover/combine operations are variable-time (all inputs public). See `docs/LIBBITCOIN_INTEGRATION.md` for the full CT/VT matrix.
+
+**Fail-closed semantics:** On any failure (invalid input, parsing error, signing error) every output buffer is zeroed and `false` is returned. Batch APIs write `1`/`0` per row to `out_results`; all-valid batches fill `out_results` with `1`. `count == 0` returns `true`. Invalid/`nullptr` row pointers return `false`.
+
+**Threading:** `max_threads == 0` = auto, `max_threads == 1` = serial bounded chunks, `N` = cap.
+
+**Batch APIs:**
+- `ecdsa_verify_batch` / `ecdsa_verify_columns` — rows `[hash32|pub33|sig64]` @ stride, or parallel spans
+- `schnorr_verify_batch` / `schnorr_verify_columns` — rows `[msg32|xonly32|sig64]` @ stride, or parallel spans
+
+**Public-data batch ops (validate / commitment / hashing):** all `[[nodiscard]] inline bool` in `ufsecp::lbtc`, all **variable-time / public-data** (no secret is ever touched). Each is ONE surface — internal GPU acceleration via the EXISTING `GpuBackend` virtuals + deterministic CPU fallback, no CPU/GPU split, no GPU status code, no caller chunking, no C ABI.
+
+```cpp
+// Validate N x-only pubkeys. out[i]=1 iff valid BIP-340 x-coordinate (x<p, even-y lift_x).
+bool xonly_validate_batch(const uint8_t* keys32, size_t count,
+                          uint8_t* out_results, size_t max_threads = 0) noexcept;
+
+// Validate N compressed pubkeys. out[i]=1 iff prefix∈{0x02,0x03}, x<p, on curve.
+bool pubkey_validate_batch(const uint8_t* pubkeys33, size_t count,
+                           uint8_t* out_results, size_t max_threads = 0) noexcept;
+
+// Verify N RAW taproot tweak commitments (tweak = precomputed scalar, NOT H_TapTweak).
+// out[i]=1 iff x(lift_x_even(internal_i) + tweak_i*G)==tweaked_x_i AND y-parity==parity[i].
+bool taproot_commitment_verify_batch(const uint8_t* internal_x32, const uint8_t* tweak32,
+                                     const uint8_t* tweaked_x32, const uint8_t* parity,
+                                     size_t count, uint8_t* out_results,
+                                     size_t max_threads = 0) noexcept;
+
+// BIP-340 tagged hash over fixed-length msgs; tag_hash32 = SHA256(tag) shared across rows.
+// out32[i] = SHA256(tag_hash32 || tag_hash32 || msgs[i]).
+bool tagged_hash_batch(const uint8_t* tag_hash32, const uint8_t* msgs,
+                       size_t msg_len, size_t count, uint8_t* out32,
+                       size_t max_threads = 0) noexcept;
+bool tagged_hash_batch(const char* tag, size_t tag_len, const uint8_t* msgs,
+                       size_t msg_len, size_t count, uint8_t* out32,
+                       size_t max_threads = 0) noexcept;  // computes tag_hash32 once
+
+// BIP-340 tagged hash over per-item variable-length msgs (TapLeaf scripts).
+// CPU covers ALL lengths (no device-side 256-byte cap).
+bool tagged_hash_var_batch(const uint8_t* tag_hash32, const uint8_t* msgs,
+                           const uint32_t* msg_lens, size_t stride, size_t count,
+                           uint8_t* out32, size_t max_threads = 0) noexcept;
+
+// Bitcoin HASH256 (double SHA-256) over fixed-length inputs.
+// out32[i] = SHA256(SHA256(inputs[i])).
+bool hash256_batch(const uint8_t* inputs, size_t input_len, size_t count,
+                   uint8_t* out32, size_t max_threads = 0) noexcept;
+
+// Bitcoin HASH256 (double SHA-256) over per-item variable-length inputs
+// (e.g. CPU-pre-serialized transaction bytes for a future txid/wtxid batch
+// wrapper). No tag prefix, no transaction parsing on GPU — the caller
+// serializes on the CPU; row i = inputs[i*stride .. i*stride+input_lens[i]).
+// out32[i] = SHA256(SHA256(row_i)). Every input_lens[i] is validated against
+// stride per-row, host-side, before GPU dispatch.
+bool hash256_var_batch(const uint8_t* inputs, const uint32_t* input_lens,
+                       size_t stride, size_t count, uint8_t* out32,
+                       size_t max_threads = 0) noexcept;
+```
+
+`hash256_var_batch`'s `max_threads` parameter is accepted for signature
+parity with the other batch ops but is currently unused by the CPU fallback
+(single-pass per-row hashing; the GPU hook, when installed, does its own
+internal parallelism) — reserved for a future threaded CPU fallback.
+
+Fail-closed contract — **validate ops**: `count==0`→`true` (out untouched); null ptr or `count×elem` overflow → zero `out_results` (if non-null) and `false`; operational GPU failure declines → CPU overwrites every row (never all-zero). **Hash ops** never pre-zero `out32` (zero = wrong/consensus-invalid hash): `count==0`→`true`; null ptr, `msg_len/input_len==0`, `stride < msg_lens[i]`, or overflow → `false` **without touching** `out32`; operational GPU failure declines → CPU writes the correct hash for every row. **`hash256_var_batch`** additionally rejects any individual `input_lens[i]==0` or `input_lens[i]>stride` (per-row bounds check, not just a scalar `stride` check) before touching `out32` or dispatching to GPU.
+
+**Consumer CMake example:**
+```cmake
+find_package(secp256k1-fast REQUIRED COMPONENTS CPU LIBBITCOIN)
+target_link_libraries(myapp PRIVATE secp256k1::fastsecp256k1_libbitcoin)
+```
+
+#### Direct byte-span APIs
+
+These APIs are for C++ consumers that already store libbitcoin/libsecp-compatible rows or column arrays. The engine parses and verifies in bounded chunks, including when `max_threads == 1`, so callers do not need to marshal full tables into `ECDSABatchEntry` or `SchnorrBatchEntry` vectors.
+
+```cpp
+// ECDSA rows: [hash32 | compressed_pubkey33 | opaque_sig64]
+bool ecdsa_batch_verify_opaque_rows(const uint8_t* rows,
+                                    size_t stride,
+                                    size_t count,
+                                    uint8_t* out_results = nullptr,
+                                    size_t max_threads = 0);
+
+// ECDSA columns: digests[count][32], pubkeys[count][33], sigs[count][64]
+bool ecdsa_batch_verify_opaque_columns(const uint8_t* digests32,
+                                       const uint8_t* pubkeys33,
+                                       const uint8_t* sigs64,
+                                       size_t count,
+                                       uint8_t* out_results = nullptr,
+                                       size_t max_threads = 0);
+
+// Schnorr rows: [msg32 | xonly_pubkey32 | bip340_sig64]
+bool schnorr_batch_verify_bip340_rows(const uint8_t* rows,
+                                      size_t stride,
+                                      size_t count,
+                                      uint8_t* out_results = nullptr,
+                                      size_t max_threads = 0);
+
+// Schnorr columns: digests[count][32], xonly[count][32], sigs[count][64]
+bool schnorr_batch_verify_bip340_columns(const uint8_t* digests32,
+                                         const uint8_t* xonly32,
+                                         const uint8_t* sigs64,
+                                         size_t count,
+                                         uint8_t* out_results = nullptr,
+                                         size_t max_threads = 0);
+```
+
+`max_threads == 0` means auto, `max_threads == 1` means serial bounded chunks. `count == 0` returns true. If `out_results` is non-null, all-valid batches fill it with `1`; mixed, invalid, or unparsable batches write per-row `1`/`0` after fallback. Invalid pointers or undersized strides return false and zero `out_results` when provided.
 
 ---
 
@@ -2205,8 +2345,11 @@ result identical to serial for any thread count).
 > shim batch extension in `compat/libsecp256k1_shim/include/secp256k1_batch.h`
 > (`secp256k1_ecdsa_verify_batch[_mt|_results]` / `secp256k1_schnorrsig_verify_batch[_mt|_results]`),
 > which wraps the engine MT path with caller `max_threads` control and optional per-row results.
-> See [`INTEGRATION_MODELS.md`](INTEGRATION_MODELS.md). The `ufsecp_*` batch entries above are the
-> native (non-shim) ABI; the `libbitcoin_bridge` below is the advanced GPU/zero-copy tier.
+> Every function also takes a trailing `const ufsecp_cancel_token* cancel` (shared type in
+> `ufsecp/ufsecp_cancel.h`, same as the libbitcoin bridge; C++ default `NULL` = no cancellation,
+> zero overhead) so a long batch can be aborted from outside; on cancel it returns `0`
+> (fail-closed). See [`INTEGRATION_MODELS.md`](INTEGRATION_MODELS.md). The `ufsecp_*` batch entries
+> above are the native (non-shim) ABI; the `libbitcoin_bridge` below is the advanced GPU/zero-copy tier.
 
 <a id="c-abi-libbitcoin-bridge"></a>
 ### Libbitcoin Bridge
@@ -2218,14 +2361,16 @@ and keep ECDSA and Schnorr batches homogeneous.
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ufsecp_lbtc_ctrl_create` | `(ctrl**, backend) -> error_t` | Create bridge controller; `AUTO` binds GPU when available, otherwise CPU |
-| `ufsecp_lbtc_verify_ecdsa` | `(ctrl, rows, n, key_size, results)` | Packed-row ECDSA verify; row = `hash32|pubkey33|sig64|opaque-key` |
-| `ufsecp_lbtc_verify_schnorr` | `(ctrl, rows, n, key_size, results)` | Packed-row Schnorr verify; row = `hash32|xonly32|sig64|opaque-key` |
-| `ufsecp_lbtc_verify_ecdsa_columns` | `(ctrl, hashes32, pubkeys33, sigs64, n, results)` | Columnar ECDSA verify; avoids bridge-side row-to-column de-interleave |
-| `ufsecp_lbtc_verify_schnorr_columns` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, results)` | Columnar Schnorr verify; avoids bridge-side row-to-column de-interleave |
-| `ufsecp_lbtc_verify_ecdsa_collect` | `(ctrl, rows, n, key_size)` | Packed-row collect; valid rows zero the row tail, invalid rows keep it |
-| `ufsecp_lbtc_verify_schnorr_collect` | `(ctrl, rows, n, key_size)` | Packed-row Schnorr collect |
-| `ufsecp_lbtc_verify_ecdsa_columns_collect` | `(ctrl, hashes32, pubkeys33, sigs64, n, key_cells, key_size)` | Columnar collect; valid rows zero `key_cells[i]`, invalid rows keep it |
-| `ufsecp_lbtc_verify_schnorr_columns_collect` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, key_cells, key_size)` | Columnar Schnorr collect |
+| `ufsecp_lbtc_verify_ecdsa_mt` / `_ecdsa_opaque_mt` / `_ecdsa_compact_mt` / `_schnorr_mt` | `(ctrl, rows, n, key_size, results, invalid_idx, invalid_cap, invalid_count, max_threads, cancel=NULL)` | Multi-threaded twins of the packed-row verify entries. `max_threads`: 0=auto (all cores), 1=serial (identical to the non-mt fn), N=cap. Identical per-row verdict; GPU path unaffected (governs the CPU fallback only); cancellation preserved. `_compact_mt`'s CPU fallback is per-row/serial — prefer `_opaque_mt` for MT. |
+| `ufsecp_lbtc_verify_ecdsa` | `(ctrl, rows, n, key_size, results, invalid_idx, invalid_cap, invalid_count, cancel=NULL)` | Packed-row ECDSA verify; row = `hash32|pubkey33|sig64|opaque-key` |
+| `ufsecp_lbtc_verify_schnorr` | `(ctrl, rows, n, key_size, results, invalid_idx, invalid_cap, invalid_count, cancel=NULL)` | Packed-row Schnorr verify; row = `hash32|xonly32|sig64|opaque-key` |
+| `ufsecp_lbtc_verify_ecdsa_columns` | `(ctrl, hashes32, pubkeys33, sigs64, n, results, cancel=NULL)` | Columnar ECDSA verify; avoids bridge-side row-to-column de-interleave |
+| `ufsecp_lbtc_verify_schnorr_columns` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, results, cancel=NULL)` | Columnar Schnorr verify; avoids bridge-side row-to-column de-interleave |
+| `ufsecp_lbtc_verify_ecdsa_collect` | `(ctrl, rows, n, key_size, cancel=NULL)` | Packed-row collect; valid rows zero the row tail, invalid rows keep it |
+| `ufsecp_lbtc_verify_schnorr_collect` | `(ctrl, rows, n, key_size, cancel=NULL)` | Packed-row Schnorr collect |
+| `ufsecp_lbtc_verify_ecdsa_collect_mt` / `_schnorr_collect_mt` | `(ctrl, rows, n, key_size, max_threads, cancel=NULL)` | Multi-threaded twins of the collect entries (same verdict/key-cell semantics; `max_threads` 0=auto, 1=serial, N=cap). |
+| `ufsecp_lbtc_verify_ecdsa_columns_collect` | `(ctrl, hashes32, pubkeys33, sigs64, n, key_cells, key_size, cancel=NULL)` | Columnar collect; valid rows zero `key_cells[i]`, invalid rows keep it |
+| `ufsecp_lbtc_verify_schnorr_columns_collect` | `(ctrl, hashes32, pubkeys_x32, sigs64, n, key_cells, key_size, cancel=NULL)` | Columnar Schnorr collect |
 
 Use the packed-row API when the producer naturally stores `[record | key]`
 tuples. Use the columnar API when the producer already stores
@@ -2233,6 +2378,13 @@ tuples. Use the columnar API when the producer already stores
 bridge forwards these columns directly to the existing GPU C ABI instead of
 building temporary columns from rows. The opaque key bytes are correlation
 metadata only and are never interpreted by the bridge.
+
+All libbitcoin verify/collect entry points accept a trailing
+`const ufsecp_cancel_token* cancel` argument. `NULL` preserves the old behavior.
+When the token callback returns non-zero, the call returns `UFSECP_ERR_CANCELLED`;
+callers must discard partial `results` or collect-key state. C++ callers may omit
+the argument because the header supplies a default `NULL`; plain C callers pass
+the final argument explicitly.
 
 <a id="c-abi-msm"></a>
 ### Multi-Scalar Multiplication
@@ -2413,10 +2565,15 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_ecdsa_verify_batch` | `(ctx, msgs32[], pubs33[], sigs64[], n, results_out[]) -> error_t` | ECDSA batch verify |
 | `ufsecp_gpu_ecdsa_verify_opaque_rows` / `ufsecp_gpu_ecdsa_verify_lbtc_rows` | `(ctx, rows, stride, n, results_out[]) -> error_t` | Direct strided opaque ECDSA rows; CUDA/OpenCL/Metal parse and low-S normalize on device |
 | `ufsecp_gpu_schnorr_verify_batch` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, results_out[]) -> error_t` | Schnorr/BIP-340 batch verify |
-| `ufsecp_gpu_ecdsa_verify_collect` | `(ctx, msgs32[], pubs33[], sigs64[], n, key_buffer[]) -> error_t` | ECDSA batch verify, in-place 1-byte/row verdict (valid→0, invalid→left); libbitcoin collect. Non-CUDA backends return Unsupported |
-| `ufsecp_gpu_schnorr_verify_collect` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, key_buffer[]) -> error_t` | Schnorr batch verify, in-place verdict (see ecdsa_verify_collect) |
+| `ufsecp_gpu_ecdsa_verify_lbtc_columns` | `(ctx, digests32[], pubs33[], sigs64[], n, results_out[]) -> error_t` | Direct libbitcoin ECDSA column (SoA) verify; opaque-LE sig parsed on device. **C ABI completeness only — the libbitcoin-direct surface is the C++ engine entrypoint, which reaches GPU via `install_gpu_columns_verify_hook` (see below), not this C ABI.** |
+| `ufsecp_gpu_schnorr_verify_lbtc_columns` | `(ctx, digests32[], xonly32[], sigs64[], n, results_out[]) -> error_t` | Direct libbitcoin Schnorr column (SoA) verify; BIP-340 parsed on device. **C ABI completeness only (see above).** |
+| `ufsecp_gpu_ecdsa_verify_collect` | `(ctx, msgs32[], pubs33[], sigs64[], n, key_buffer[]) -> error_t` | ECDSA batch verify, in-place 1-byte/row verdict (valid→0, invalid→left); libbitcoin collect. Native on CUDA, OpenCL, and Metal |
+| `ufsecp_gpu_schnorr_verify_collect` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, key_buffer[]) -> error_t` | Schnorr batch verify, in-place verdict; native on CUDA, OpenCL, and Metal (see ecdsa_verify_collect) |
 | `ufsecp_gpu_ecdh_batch` | `(ctx, privkeys32[], pubs33[], n, secrets32_out[]) -> error_t` | ECDH shared secrets (SECRET-BEARING) |
 | `ufsecp_gpu_hash160_pubkey_batch` | `(ctx, pubs33[], n, hashes20_out[]) -> error_t` | SHA-256 + RIPEMD-160 of pubkeys |
+| `ufsecp_gpu_tagged_hash_var` | `(ctx, tag_hash32, msgs, msg_lens[], stride, n, out32) -> error_t` | BIP-340 tagged hash over per-item variable-length messages (TapLeaf scripts); each `msg_lens[i]` must be in `[1,256]` |
+| `ufsecp_gpu_hash256` | `(ctx, inputs, input_len, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) of fixed-length inputs; `input_len` must be in `[1,320]` |
+| `ufsecp_gpu_hash256_var` | `(ctx, inputs, input_lens[], stride, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) over per-item variable-length inputs; row `i` = `inputs[i*stride .. i*stride+input_lens[i])`, bytes beyond `input_lens[i]` up to `stride` are ignored padding. No tag prefix, no transaction parsing — GPU treats each row as an opaque byte string; rows up to `stride <= 4 MiB` (`kMaxHash256VarStride`). PUBLIC-DATA / variable-time |
 | `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication |
 | `ufsecp_gpu_frost_verify_partial_batch` | `(ctx, z_i32[], D_i33[], E_i33[], Y_i33[], rho_i32[], lambda_ie32[], negate_R[], negate_key[], n, results_out[]) -> error_t` | Batch FROST partial verification |
 | `ufsecp_gpu_ecrecover_batch` | `(ctx, msgs32[], sigs64[], recids[], n, pubkeys33_out[], valid_out[]) -> error_t` | Batch public-key recovery from recoverable ECDSA signatures |
@@ -2434,6 +2591,86 @@ Current GPU C ABI failure semantics:
 | Function | Signature | Description |
 |----------|-----------|-------------|
 | `ufsecp_bip352_prepare_scan_plan` | `(scan_privkey32, plan264_out) -> error_t` | Precompute 264-byte BIP-352 GLV wNAF scan plan for repeated GPU batch scans; rejects zero/order-or-larger scan keys and zeroes the plan on error |
+
+---
+
+## libbitcoin-direct column verify (C++ engine surface)
+
+Header: `<secp256k1/batch_verify.hpp>`. These are the **single public surface** the
+libbitcoin-direct engine calls (`ufsecp::lbtc::*` invokes exactly these). They
+verify column (Structure-of-Arrays) batches and, when a GPU accelerator is
+installed, use it transparently — the caller sees one API, one boolean-plus-per-row
+result, no CPU/GPU split, and no recoverable GPU status. **Verification is
+variable-time over PUBLIC data (pubkey, signature, message)** — correct by design.
+
+```cpp
+namespace secp256k1 {
+
+// Column entrypoints. Return true iff all rows verify. When out_results is
+// non-null it is filled 1=valid / 0=invalid per row. count == 0 returns true.
+// Null column pointers or a size overflow return false and zero out_results
+// (fail-closed input validation). When a GPU columns hook is installed the
+// entrypoint attempts GPU first and falls back to the deterministic CPU column
+// path — with identical results — whenever the hook declines. An operational
+// GPU/backend error is a decline -> CPU fallback, NEVER a consensus-invalid row.
+bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
+                                       const std::uint8_t* pubkeys33,
+                                       const std::uint8_t* sigs64,
+                                       std::size_t count,
+                                       std::uint8_t* out_results = nullptr,
+                                       std::size_t max_threads = 0);
+
+bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
+                                         const std::uint8_t* xonly32,
+                                         const std::uint8_t* sigs64,
+                                         std::size_t count,
+                                         std::uint8_t* out_results = nullptr,
+                                         std::size_t max_threads = 0);
+
+// Installable GPU accelerator hook (PUBLIC-DATA verify only). Null by default =>
+// pure CPU. Self-installed by the GPU-host layer (gpu_engine_hook.cpp) via a
+// static initializer whenever the GPU host is linked; no compile-time macro.
+//   kind == 0 : ECDSA opaque-LE columns (keys = pubkeys33)
+//   kind == 1 : Schnorr BIP-340 columns (keys = xonly32)
+// Return contract:
+//    1 -> handled; out_results fully written; ALL rows valid.
+//    0 -> handled; out_results fully written; at least one row invalid.
+//   -1 -> NOT handled (GPU unavailable/unsupported/operational error); the engine
+//         MUST fall back to the CPU column path. A declining hook MUST NOT write a
+//         consensus-invalid all-zero buffer to signal "not handled".
+using GpuColumnsVerifyHook = int (*)(int kind,
+        const std::uint8_t* digests32, const std::uint8_t* keys,
+        const std::uint8_t* sigs64, std::size_t count,
+        std::uint8_t* out_results) noexcept;
+
+// Install (nullptr clears). Thread-safe. Returns the previous hook (save/restore).
+GpuColumnsVerifyHook install_gpu_columns_verify_hook(GpuColumnsVerifyHook hook) noexcept;
+
+} // namespace secp256k1
+```
+
+Semantics:
+
+- **One caller surface.** There is no caller-visible `_gpu` variant and no
+  recoverable GPU status on this surface. The caller never chunks, never selects
+  CPU vs GPU, and never manages GPU buffers; chunking and reusable staging are
+  engine/backend-owned.
+- **GPU is an internal accelerator.** With a hook installed, each entrypoint
+  attempts the GPU column verify (`kind` 0=ECDSA / 1=Schnorr). With no hook, or on
+  a `-1` decline, the engine completes the batch on the deterministic CPU column
+  path with byte-identical boolean + per-row results.
+- **ECDSA high-S is consensus-valid here.** The libbitcoin-direct opaque ECDSA
+  entrypoints accept mathematically valid high-S signatures and do not rewrite
+  caller buffers. Low-S strictness remains a shim/standardness policy, not this
+  consensus verify contract.
+- **Fatal, not invalid.** Operational GPU/backend errors are declines converted to
+  a CPU fallback — never consensus-invalid rows or an all-zero OK result. Only an
+  unrecoverable inability to complete the math (with no fallback) fails hard (a
+  fatal engine failure, not consensus data). Malformed layout (null column
+  pointers / size overflow) is fail-closed `false` with zeroed results (input
+  validation, not a GPU error).
+- **Default is pure CPU.** The hook is null unless the libbitcoin-GPU build
+  installs one, so the default direct build is CPU-only until that enablement lands.
 
 ---
 
@@ -2621,6 +2858,6 @@ void secp256k1_musig_keyagg_cache_clear(secp256k1_musig_keyagg_cache *keyagg_cac
 
 ## Version
 
-UltrafastSecp256k1 v4.4.0
+UltrafastSecp256k1 v4.5.0
 
 For more information, see the [README](../README.md) or [GitHub repository](https://github.com/shrec/UltrafastSecp256k1).

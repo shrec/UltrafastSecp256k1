@@ -97,6 +97,76 @@ bool ecdsa_batch_verify_mt(const ECDSABatchEntry* entries, std::size_t n,
 bool ecdsa_batch_verify_mt(const std::vector<ECDSABatchEntry>& entries,
                            std::size_t max_threads = 0);
 
+// -- Opaque byte-span batch verification ---------------------------------------
+
+// Direct byte-layout APIs for C++ consumers that already store libbitcoin/libsecp
+// compatible rows or column arrays. These functions parse and verify in bounded
+// chunks inside the engine; callers do not need to marshal the full table into
+// ECDSABatchEntry/SchnorrBatchEntry vectors.
+//
+// ECDSA row layout: [hash32 | compressed_pubkey33 | opaque_sig64]
+// ECDSA columns: digests[count][32], pubkeys[count][33], sigs[count][64]
+// opaque_sig64 is the libsecp/libbitcoin in-memory ECDSA signature layout:
+// little-endian scalar limbs for r followed by s.
+//
+// Schnorr row layout: [msg32 | xonly_pubkey32 | bip340_sig64]
+// Schnorr columns: digests[count][32], xonly[count][32], sigs[count][64]
+// ECDSA opaque rows/columns are libbitcoin consensus verify paths: they accept
+// mathematically valid high-S signatures. Low-S standardness enforcement remains
+// on the strict ecdsa_batch_verify/libsecp-compatible surfaces.
+//
+// Returns true iff all rows verify. If out_results is non-null, all-valid batches
+// fill it with 1; mixed, invalid, or unparsable batches write 1/0 per row after
+// per-row fallback. count == 0 returns true. Invalid pointers or undersized row
+// strides return false and zero out_results when provided.
+bool ecdsa_batch_verify_opaque_rows(const std::uint8_t* rows, std::size_t stride,
+                                    std::size_t count,
+                                    std::uint8_t* out_results = nullptr,
+                                    std::size_t max_threads = 0);
+bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
+                                       const std::uint8_t* pubkeys33,
+                                       const std::uint8_t* sigs64,
+                                       std::size_t count,
+                                       std::uint8_t* out_results = nullptr,
+                                       std::size_t max_threads = 0);
+bool schnorr_batch_verify_bip340_rows(const std::uint8_t* rows, std::size_t stride,
+                                      std::size_t count,
+                                      std::uint8_t* out_results = nullptr,
+                                      std::size_t max_threads = 0);
+bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
+                                         const std::uint8_t* xonly32,
+                                         const std::uint8_t* sigs64,
+                                         std::size_t count,
+                                         std::uint8_t* out_results = nullptr,
+                                         std::size_t max_threads = 0);
+
+// -- GPU column-verify accelerator hook (PUBLIC-DATA verify only) --------------
+// Null by default (pure CPU). Self-installed by the GPU-host layer
+// (src/gpu/src/gpu_engine_hook.cpp) via a static initializer whenever that TU is
+// linked; the engine keeps NO gpu:: dependency (a reverse engine->gpu_host link
+// would be a static-lib cycle) and no compile-time macro gates it. The two
+// *_batch_verify_*_columns entrypoints consult it internally so the
+// libbitcoin-direct caller keeps ONE API with no caller-visible CPU/GPU split and
+// no recoverable GPU status.
+//   kind == 0 : ECDSA opaque-LE columns  (keys = pubkeys33)
+//   kind == 1 : Schnorr BIP-340 columns  (keys = xonly32)
+// Return contract:
+//    1  -> handled; out_results fully written; ALL rows valid.
+//    0  -> handled; out_results fully written; at least one row invalid.
+//   -1  -> NOT handled (GPU unavailable/unsupported/operational error); the engine
+//          MUST fall back to the CPU column path. A declining hook MUST NOT write a
+//          consensus-invalid all-zero buffer to signal "not handled".
+// Operational backend errors are declines (-1) -> CPU fallback, never invalid rows.
+// A hook that cannot complete the math and cannot decline must abort/fail hard
+// itself; it must never return an incorrect verdict.
+using GpuColumnsVerifyHook = int (*)(int kind,
+        const std::uint8_t* digests32, const std::uint8_t* keys,
+        const std::uint8_t* sigs64, std::size_t count,
+        std::uint8_t* out_results) noexcept;
+
+// Install (nullptr clears). Thread-safe. Returns the previous hook (save/restore).
+GpuColumnsVerifyHook install_gpu_columns_verify_hook(GpuColumnsVerifyHook hook) noexcept;
+
 // -- Identify Invalid Signatures ----------------------------------------------
 
 // After a batch fails, identify which signature(s) are invalid.

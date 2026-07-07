@@ -2,7 +2,7 @@
 
 > **Status:** Production-Ready (Audit Complete, Benchmarked on 3 platforms)
 > **Generated:** 2026-03-06
-> **Library Version:** UltrafastSecp256k1 v4.4.0
+> **Library Version:** UltrafastSecp256k1 v4.5.0
 > **Commit:** 1dcdb8d
 
 ---
@@ -284,7 +284,7 @@ ctest --test-dir build --output-on-failure
 ## ✅ Audit Test Results (Android ARM64)
 
 **Full audit run:** 48/49 modules passed  
-**Advisory warning:** Side-channel dudect smoke test ( 430 modules)  
+**Advisory warning:** Side-channel dudect smoke test ( 436 modules)
 - **Reason:** Probabilistic timing test, flakes under shared CPU scheduler on mobile OS
 - **Mitigation:** Dedicated CT verification on Apple Silicon M1 native (controlled environment)
 - **Verdict:** Not a security issue, advisory only
@@ -380,7 +380,7 @@ For workloads requiring maximum throughput on ARM64:
 
 ---
 
-**Audit Certification:** This document certifies that UltrafastSecp256k1 v4.4.0 passes all security, correctness, and constant-time requirements on ARM64 (AArch64) platforms as of commit 1dcdb8d (2026-03-06).
+**Audit Certification:** This document certifies that UltrafastSecp256k1 v4.5.0 passes all security, correctness, and constant-time requirements on ARM64 (AArch64) platforms as of commit 1dcdb8d (2026-03-06).
 
 **Maintainer:** shrec  
 **Repository:** https://github.com/shrec/UltrafastSecp256k1

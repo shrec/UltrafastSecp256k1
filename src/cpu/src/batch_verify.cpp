@@ -12,6 +12,7 @@
 #include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/detail/csprng.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/detail/batch_pool.hpp"
 #if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
 #include "secp256k1/field_52.hpp"
 #endif
@@ -21,10 +22,44 @@
 #include <random>
 #include <algorithm>
 #include <atomic>
+#include <limits>
 #include <thread>
 #include <vector>
 
 namespace secp256k1 {
+
+// -- GPU column-verify accelerator hook ---------------------------------------
+// Translation-unit-local atomic hook plus its installer. Null by default (pure
+// CPU); the two *_batch_verify_*_columns entrypoints consult it internally.
+//
+// The engine (fastsecp256k1) deliberately carries NO gpu:: dependency: the
+// default provider that bridges this hook to a real GPU backend lives in the
+// GPU-host layer (src/gpu/src/gpu_engine_hook.cpp) and SELF-INSTALLS via a static
+// initializer whenever that translation unit is linked (i.e. whenever the GPU
+// host is built). This avoids the secp256k1_gpu_host -> fastsecp256k1 static-lib
+// cycle a direct engine->backend call would create, and needs no compile-time
+// macro. Default (CPU-only) builds never link the provider, so the hook stays
+// null and verification runs on the CPU column path below.
+namespace { std::atomic<GpuColumnsVerifyHook> g_gpu_columns_hook{nullptr}; }
+GpuColumnsVerifyHook install_gpu_columns_verify_hook(GpuColumnsVerifyHook hook) noexcept {
+    return g_gpu_columns_hook.exchange(hook, std::memory_order_acq_rel);
+}
+
+namespace detail {
+// Single process-wide persistent worker pool, lazily created on first batch-verify _mt
+// call and reused thereafter (no per-call thread spawn).
+//
+// INTENTIONALLY LEAKED (heap, never deleted): the destructor would join the worker
+// threads at static-destruction time, which on Windows runs during DLL unload while the
+// loader lock is held — joining threads there deadlocks (the workers need the loader lock
+// to exit). Leaking the singleton means no destructor runs; the OS reclaims the threads
+// and memory at process exit. This is the portable (MSVC + libstdc++ + libc++) choice and
+// avoids static-destruction-order hazards as well.
+BatchWorkerPool& batch_worker_pool() {
+    static BatchWorkerPool* pool = new BatchWorkerPool();
+    return *pool;
+}
+}  // namespace detail
 
 // Seeded hash for 32-byte pubkey deduplication.
 // Seed is randomised per batch call so adversarial pubkey inputs cannot
@@ -61,6 +96,169 @@ namespace {
 // linear scan in the individual path when data is warm across bench passes.
 // Empirically measured optimal cutoff: 96 (individual wins below this).
 constexpr std::size_t kSchnorrBatchIndividualCutoff = 96;
+constexpr std::size_t kOpaqueBatchChunk = 4096;
+constexpr std::size_t kOpaqueBatchMinRowsPerThread = 128;
+constexpr std::size_t kOpaqueBatchStealFloor = 64;
+constexpr std::size_t kEcdsaRowBytes = 32 + 33 + 64;
+constexpr std::size_t kSchnorrRowBytes = 32 + 32 + 64;
+
+bool row_layout_overflows(std::size_t count, std::size_t stride,
+                          std::size_t row_bytes) noexcept {
+    if (count <= 1) return false;
+    const std::size_t max = std::numeric_limits<std::size_t>::max();
+    return stride > (max - row_bytes) / (count - 1);
+}
+
+bool column_layout_overflows(std::size_t count, std::size_t item_bytes) noexcept {
+    return count != 0 &&
+           count > (std::numeric_limits<std::size_t>::max() / item_bytes);
+}
+
+void zero_results(std::uint8_t* out_results, std::size_t count) noexcept {
+    if (out_results != nullptr && count != 0) {
+        std::memset(out_results, 0, count);
+    }
+}
+
+void one_results(std::uint8_t* out_results, std::size_t count) noexcept {
+    if (out_results != nullptr && count != 0) {
+        std::memset(out_results, 1, count);
+    }
+}
+
+unsigned opaque_batch_thread_count(std::size_t count, std::size_t max_threads) {
+    auto& pool = detail::batch_worker_pool();
+    const unsigned hw = pool.size();
+    const unsigned want = (max_threads == 0)
+        ? hw
+        : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
+    const std::size_t by_work = std::max<std::size_t>(
+        1, count / kOpaqueBatchMinRowsPerThread);
+    return static_cast<unsigned>(std::min<std::size_t>(
+        static_cast<std::size_t>(want), by_work));
+}
+
+std::size_t opaque_batch_steal_size(std::size_t count,
+                                    unsigned n_threads) noexcept {
+    if (n_threads <= 1) {
+        return std::min<std::size_t>(count, kOpaqueBatchChunk);
+    }
+    return std::clamp<std::size_t>(
+        count / (static_cast<std::size_t>(n_threads) * 4),
+        kOpaqueBatchStealFloor, kOpaqueBatchChunk);
+}
+
+bool decompress_compressed_pubkey(const std::uint8_t pub33[33],
+                                  Point& out) noexcept {
+    if (pub33[0] != 0x02 && pub33[0] != 0x03) {
+        return false;
+    }
+    FieldElement x;
+    if (!FieldElement::parse_bytes_strict(pub33 + 1, x)) {
+        return false;
+    }
+
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
+    using fast::FieldElement52;
+    const FieldElement52 x52 = FieldElement52::from_fe(x);
+    static const std::uint64_t k7[4] = {7u, 0u, 0u, 0u};
+    const FieldElement52 y2 = x52.square() * x52 +
+                              FieldElement52::from_4x64_limbs(k7);
+    const FieldElement52 y52 = y2.sqrt();
+    if (!(y52.square() == y2)) {
+        return false;
+    }
+    FieldElement y = y52.to_fe();
+#else
+    const FieldElement y2 = x.square() * x + FieldElement::from_uint64(7);
+    FieldElement y = y2.sqrt();
+    if (!(y.square() == y2)) {
+        return false;
+    }
+#endif
+
+    if (((y.limbs()[0] & 1u) != 0u) != (pub33[0] == 0x03)) {
+        y = FieldElement::zero() - y;
+    }
+    out = Point::from_affine(x, y);
+    return !out.is_infinity();
+}
+
+Scalar opaque_scalar_le(const std::uint8_t* p) noexcept {
+    auto rd = [](const std::uint8_t* q) noexcept {
+        std::uint64_t v = 0;
+        for (int i = 0; i < 8; ++i) {
+            v |= static_cast<std::uint64_t>(q[i]) << (i * 8);
+        }
+        return v;
+    };
+    return Scalar::from_limbs({rd(p), rd(p + 8), rd(p + 16), rd(p + 24)});
+}
+
+bool parse_ecdsa_opaque_entry(const std::uint8_t* hash32,
+                              const std::uint8_t* pub33,
+                              const std::uint8_t* sig64,
+                              ECDSABatchEntry& out) noexcept {
+    std::memcpy(out.msg_hash.data(), hash32, 32);
+    if (!decompress_compressed_pubkey(pub33, out.public_key)) {
+        return false;
+    }
+    out.signature = ECDSASignature{opaque_scalar_le(sig64),
+                                   opaque_scalar_le(sig64 + 32)};
+    return true;
+}
+
+bool parse_schnorr_bip340_entry(const std::uint8_t* msg32,
+                                const std::uint8_t* xonly32,
+                                const std::uint8_t* sig64,
+                                SchnorrBatchEntry& out) noexcept {
+    std::memcpy(out.message.data(), msg32, 32);
+    std::memcpy(out.pubkey_x.data(), xonly32, 32);
+    return SchnorrSignature::parse_strict(sig64, out.signature);
+}
+
+template <typename Entry, typename ParseEntry, typename VerifyBatch,
+          typename VerifyOne>
+bool verify_opaque_bounded(std::size_t count, std::uint8_t* out_results,
+                           std::size_t max_threads, ParseEntry&& parse_entry,
+                           VerifyBatch&& verify_batch, VerifyOne&& verify_one) {
+    if (count == 0) {
+        return true;
+    }
+
+    const unsigned n_threads = opaque_batch_thread_count(count, max_threads);
+    const std::size_t steal = opaque_batch_steal_size(count, n_threads);
+    auto& pool = detail::batch_worker_pool();
+    const bool all_valid = pool.run(
+        count, steal, n_threads,
+        [&](std::size_t s, std::size_t e) -> bool {
+            static thread_local std::vector<Entry> local;
+            local.clear();
+            local.resize(e - s);
+            for (std::size_t i = s; i < e; ++i) {
+                if (!parse_entry(i, local[i - s])) {
+                    return false;
+                }
+            }
+            return verify_batch(local.data(), e - s);
+        });
+
+    if (all_valid) {
+        one_results(out_results, count);
+        return true;
+    }
+
+    bool ok_all = true;
+    for (std::size_t i = 0; i < count; ++i) {
+        Entry one{};
+        const bool ok = parse_entry(i, one) && verify_one(one);
+        if (out_results != nullptr) {
+            out_results[i] = ok ? 1u : 0u;
+        }
+        ok_all = ok_all && ok;
+    }
+    return ok_all;
+}
 
 // Generate deterministic weights for batch verification.
 // batch_seed: SHA256 over all signature data (binds to entire batch).
@@ -342,18 +540,29 @@ bool schnorr_batch_verify(const std::vector<SchnorrBatchCachedEntry>& entries) {
 //   (u1_i * G + u2_i * Q_i).x mod n == r_i
 // We pre-compute all R'_i = u1_i*G + u2_i*Q_i using multi_scalar_mul tricks.
 
-bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
+enum class EcdsaSPolicy {
+    RequireLowS,
+    AcceptHighS,
+};
+
+static bool ecdsa_batch_verify_impl(const ECDSABatchEntry* entries,
+                                    std::size_t n,
+                                    EcdsaSPolicy s_policy) {
     if (n == 0) return false;
 
     // Pre-validate all entries before any further processing to enforce
-    // BIP-62 low-S: reject any s > n/2 and reject zero r/s.
-    // This must run before the n==1 shortcut to maintain consistent policy
-    // with the single ecdsa_verify path.
+    // the selected s policy and reject zero r/s.
+    //
+    // The standard batch API remains strict-low-S for libsecp/shim parity.
+    // Libbitcoin consensus/direct opaque rows use AcceptHighS because high-S
+    // ECDSA signatures are mathematically valid and are not an unconditional
+    // Bitcoin consensus-invalid condition.
     for (std::size_t i = 0; i < n; ++i) {
         if (entries[i].signature.r.is_zero() || entries[i].signature.s.is_zero()) {
             return false;
         }
-        if (!entries[i].signature.is_low_s()) {
+        if (s_policy == EcdsaSPolicy::RequireLowS &&
+            !entries[i].signature.is_low_s()) {
             return false;
         }
         // CA-001 (clang/arch UB fix): reject an invalid (off-curve / infinity)
@@ -485,6 +694,10 @@ bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
     return true;
 }
 
+bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
+    return ecdsa_batch_verify_impl(entries, n, EcdsaSPolicy::RequireLowS);
+}
+
 bool ecdsa_batch_verify(const std::vector<ECDSABatchEntry>& entries) {
     return ecdsa_batch_verify(entries.data(), entries.size());
 }
@@ -522,48 +735,32 @@ bool ecdsa_batch_verify_mt(const ECDSABatchEntry* entries, std::size_t n,
                            std::size_t max_threads) {
     if (n == 0) return false;  // identical to the serial ecdsa_batch_verify contract
 
-    static constexpr std::size_t kChunk = 4096;  // > batch-inversion cutoff (8)
+    // Parallelism granularity is DECOUPLED from the batch-inversion work-steal chunk.
+    // (Old bug: n_threads was capped by ceil(n/4096), so any batch < 4096 sigs ran on ONE
+    // thread regardless of max_threads — block-sized batches never parallelized.) A single
+    // ECDSA verify is ~25-100us, so even ~128 rows/thread dwarfs scheduling overhead. The
+    // PERSISTENT pool (created once, reused) avoids a per-call std::thread spawn storm and
+    // keeps worker thread_locals warm — matching libbitcoin's std::for_each(par).
+    static constexpr std::size_t kMinRowsPerThread = 128;
+    static constexpr std::size_t kStealFloor = 64;   // >= batch-inversion cutoff (8)
 
-    unsigned hw = std::thread::hardware_concurrency();
-    if (hw == 0) hw = 1;
-    // max_threads == 0 => engine picks hardware_concurrency. An explicit request
-    // is honoured but reduced to what the hardware can actually run; there is no
-    // arbitrary upper cap. n_threads is further bounded by the number of chunks
-    // (no point spawning workers that would find the queue already drained).
+    auto& pool = detail::batch_worker_pool();
+    const unsigned hw = pool.size();
     const unsigned want = (max_threads == 0)
         ? hw
         : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
-    const std::size_t n_chunks = (n + kChunk - 1) / kChunk;
+    const std::size_t by_work = std::max<std::size_t>(1, n / kMinRowsPerThread);
     const unsigned n_threads = static_cast<unsigned>(std::min<std::size_t>(
-        static_cast<std::size_t>(want), n_chunks));
+        static_cast<std::size_t>(want), by_work));
+    const std::size_t steal = (n_threads <= 1)
+        ? n
+        : std::clamp<std::size_t>(n / (static_cast<std::size_t>(n_threads) * 4),
+                                  kStealFloor, std::size_t{4096});
 
-    std::atomic<std::size_t> next_chunk{0};
-    std::atomic<bool>        any_invalid{false};
-
-    auto run = [&]() {
-        for (;;) {
-            if (any_invalid.load(std::memory_order_relaxed)) return;
-            const std::size_t start =
-                next_chunk.fetch_add(1, std::memory_order_relaxed) * kChunk;
-            if (start >= n) return;
-            const std::size_t end = std::min(start + kChunk, n);
-            if (!ecdsa_batch_verify(entries + start, end - start)) {
-                any_invalid.store(true, std::memory_order_relaxed);
-                return;
-            }
-        }
-    };
-
-    if (n_threads <= 1) {
-        run();
-        return !any_invalid.load(std::memory_order_acquire);
-    }
-
-    std::vector<std::thread> pool;
-    pool.reserve(n_threads);
-    for (unsigned t = 0; t < n_threads; ++t) pool.emplace_back(run);
-    for (auto& th : pool) th.join();
-    return !any_invalid.load(std::memory_order_acquire);
+    return pool.run(n, steal, n_threads,
+                    [entries](std::size_t s, std::size_t e) {
+                        return ecdsa_batch_verify(entries + s, e - s);
+                    });
 }
 
 bool ecdsa_batch_verify_mt(const std::vector<ECDSABatchEntry>& entries,
@@ -589,52 +786,178 @@ bool schnorr_batch_verify_mt(const SchnorrBatchEntry* entries, std::size_t n,
                              std::size_t max_threads) {
     if (n == 0) return schnorr_batch_verify(entries, 0);  // identical serial contract
 
-    static constexpr std::size_t kChunk = 4096;
+    // Same principle as ecdsa_batch_verify_mt: decouple worker count from a fixed 4096
+    // chunk (so block-sized batches parallelize) and run on the PERSISTENT pool (no
+    // per-call spawn). Each chunk is an independent Schnorr batch (its own randomized
+    // MSM + infinity check), so chunking is correct; the steal floor keeps each chunk's
+    // MSM reasonably sized.
+    static constexpr std::size_t kMinRowsPerThread = 128;
+    static constexpr std::size_t kStealFloor = 64;
 
-    unsigned hw = std::thread::hardware_concurrency();
-    if (hw == 0) hw = 1;
-    // max_threads == 0 => engine picks hardware_concurrency. An explicit request
-    // is honoured but reduced to what the hardware can actually run; there is no
-    // arbitrary upper cap. n_threads is further bounded by the number of chunks.
+    auto& pool = detail::batch_worker_pool();
+    const unsigned hw = pool.size();
     const unsigned want = (max_threads == 0)
         ? hw
         : static_cast<unsigned>(std::min<std::size_t>(max_threads, hw));
-    const std::size_t n_chunks = (n + kChunk - 1) / kChunk;
+    const std::size_t by_work = std::max<std::size_t>(1, n / kMinRowsPerThread);
     const unsigned n_threads = static_cast<unsigned>(std::min<std::size_t>(
-        static_cast<std::size_t>(want), n_chunks));
+        static_cast<std::size_t>(want), by_work));
+    const std::size_t steal = (n_threads <= 1)
+        ? n
+        : std::clamp<std::size_t>(n / (static_cast<std::size_t>(n_threads) * 4),
+                                  kStealFloor, std::size_t{4096});
 
-    std::atomic<std::size_t> next_chunk{0};
-    std::atomic<bool>        any_invalid{false};
-
-    auto run = [&]() {
-        for (;;) {
-            if (any_invalid.load(std::memory_order_relaxed)) return;
-            const std::size_t start =
-                next_chunk.fetch_add(1, std::memory_order_relaxed) * kChunk;
-            if (start >= n) return;
-            const std::size_t end = std::min(start + kChunk, n);
-            if (!schnorr_batch_verify(entries + start, end - start)) {
-                any_invalid.store(true, std::memory_order_relaxed);
-                return;
-            }
-        }
-    };
-
-    if (n_threads <= 1) {
-        run();
-        return !any_invalid.load(std::memory_order_acquire);
-    }
-
-    std::vector<std::thread> pool;
-    pool.reserve(n_threads);
-    for (unsigned t = 0; t < n_threads; ++t) pool.emplace_back(run);
-    for (auto& th : pool) th.join();
-    return !any_invalid.load(std::memory_order_acquire);
+    return pool.run(n, steal, n_threads,
+                    [entries](std::size_t s, std::size_t e) {
+                        return schnorr_batch_verify(entries + s, e - s);
+                    });
 }
 
 bool schnorr_batch_verify_mt(const std::vector<SchnorrBatchEntry>& entries,
                              std::size_t max_threads) {
     return schnorr_batch_verify_mt(entries.data(), entries.size(), max_threads);
+}
+
+bool ecdsa_batch_verify_opaque_rows(const std::uint8_t* rows, std::size_t stride,
+                                    std::size_t count,
+                                    std::uint8_t* out_results,
+                                    std::size_t max_threads) {
+    if (count == 0) {
+        return true;
+    }
+    if (rows == nullptr || stride < kEcdsaRowBytes ||
+        row_layout_overflows(count, stride, kEcdsaRowBytes)) {
+        zero_results(out_results, count);
+        return false;
+    }
+
+    return verify_opaque_bounded<ECDSABatchEntry>(
+        count, out_results, max_threads,
+        [rows, stride](std::size_t i, ECDSABatchEntry& out) {
+            const std::uint8_t* row = rows + i * stride;
+            return parse_ecdsa_opaque_entry(row, row + 32, row + 65, out);
+        },
+        [](const ECDSABatchEntry* entries, std::size_t n) {
+            return ecdsa_batch_verify_impl(entries, n,
+                                           EcdsaSPolicy::AcceptHighS);
+        },
+        [](const ECDSABatchEntry& entry) {
+            return ecdsa_batch_verify_impl(&entry, 1,
+                                           EcdsaSPolicy::AcceptHighS);
+        });
+}
+
+bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
+                                       const std::uint8_t* pubkeys33,
+                                       const std::uint8_t* sigs64,
+                                       std::size_t count,
+                                       std::uint8_t* out_results,
+                                       std::size_t max_threads) {
+    if (count == 0) {
+        return true;
+    }
+    if (digests32 == nullptr || pubkeys33 == nullptr || sigs64 == nullptr ||
+        column_layout_overflows(count, 32) ||
+        column_layout_overflows(count, 33) ||
+        column_layout_overflows(count, 64)) {
+        zero_results(out_results, count);
+        return false;
+    }
+
+    if (out_results != nullptr) {
+        if (GpuColumnsVerifyHook hook = g_gpu_columns_hook.load(std::memory_order_acquire)) {
+            const int rc = hook(0, digests32, pubkeys33, sigs64, count, out_results);
+            if (rc >= 0) {
+                return rc == 1;   // GPU handled the whole batch; out_results written
+            }
+            // rc < 0: decline -> CPU fallback below overwrites out_results fully.
+        }
+    }
+
+    return verify_opaque_bounded<ECDSABatchEntry>(
+        count, out_results, max_threads,
+        [digests32, pubkeys33, sigs64](std::size_t i, ECDSABatchEntry& out) {
+            return parse_ecdsa_opaque_entry(digests32 + i * 32,
+                                            pubkeys33 + i * 33,
+                                            sigs64 + i * 64, out);
+        },
+        [](const ECDSABatchEntry* entries, std::size_t n) {
+            return ecdsa_batch_verify_impl(entries, n,
+                                           EcdsaSPolicy::AcceptHighS);
+        },
+        [](const ECDSABatchEntry& entry) {
+            return ecdsa_batch_verify_impl(&entry, 1,
+                                           EcdsaSPolicy::AcceptHighS);
+        });
+}
+
+bool schnorr_batch_verify_bip340_rows(const std::uint8_t* rows,
+                                      std::size_t stride,
+                                      std::size_t count,
+                                      std::uint8_t* out_results,
+                                      std::size_t max_threads) {
+    if (count == 0) {
+        return true;
+    }
+    if (rows == nullptr || stride < kSchnorrRowBytes ||
+        row_layout_overflows(count, stride, kSchnorrRowBytes)) {
+        zero_results(out_results, count);
+        return false;
+    }
+
+    return verify_opaque_bounded<SchnorrBatchEntry>(
+        count, out_results, max_threads,
+        [rows, stride](std::size_t i, SchnorrBatchEntry& out) {
+            const std::uint8_t* row = rows + i * stride;
+            return parse_schnorr_bip340_entry(row, row + 32, row + 64, out);
+        },
+        [](const SchnorrBatchEntry* entries, std::size_t n) {
+            return schnorr_batch_verify(entries, n);
+        },
+        [](const SchnorrBatchEntry& entry) {
+            return schnorr_verify(entry.pubkey_x, entry.message, entry.signature);
+        });
+}
+
+bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
+                                         const std::uint8_t* xonly32,
+                                         const std::uint8_t* sigs64,
+                                         std::size_t count,
+                                         std::uint8_t* out_results,
+                                         std::size_t max_threads) {
+    if (count == 0) {
+        return true;
+    }
+    if (digests32 == nullptr || xonly32 == nullptr || sigs64 == nullptr ||
+        column_layout_overflows(count, 32) ||
+        column_layout_overflows(count, 64)) {
+        zero_results(out_results, count);
+        return false;
+    }
+
+    if (out_results != nullptr) {
+        if (GpuColumnsVerifyHook hook = g_gpu_columns_hook.load(std::memory_order_acquire)) {
+            const int rc = hook(1, digests32, xonly32, sigs64, count, out_results);
+            if (rc >= 0) {
+                return rc == 1;   // GPU handled the whole batch; out_results written
+            }
+            // rc < 0: decline -> CPU fallback below overwrites out_results fully.
+        }
+    }
+
+    return verify_opaque_bounded<SchnorrBatchEntry>(
+        count, out_results, max_threads,
+        [digests32, xonly32, sigs64](std::size_t i, SchnorrBatchEntry& out) {
+            return parse_schnorr_bip340_entry(digests32 + i * 32,
+                                              xonly32 + i * 32,
+                                              sigs64 + i * 64, out);
+        },
+        [](const SchnorrBatchEntry* entries, std::size_t n) {
+            return schnorr_batch_verify(entries, n);
+        },
+        [](const SchnorrBatchEntry& entry) {
+            return schnorr_verify(entry.pubkey_x, entry.message, entry.signature);
+        });
 }
 
 // -- Identify Invalid Signatures ----------------------------------------------

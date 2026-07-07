@@ -31,6 +31,7 @@
 #include <fstream>
 #include <iomanip>
 #include <string>
+#include <thread>
 #include <vector>
 
 using clock_t_ = std::chrono::steady_clock;
@@ -104,6 +105,7 @@ static bool write_json_artifact(const std::string& path,
 int main(int argc, char** argv) {
     std::vector<const char*> positional;
     std::string json_path;
+    bool mt_only = false;  /* --mt-only: run ONLY the _mt thread-scaling sweep */
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--json") == 0) {
             if (++i >= argc) {
@@ -111,6 +113,8 @@ int main(int argc, char** argv) {
                 return 2;
             }
             json_path = argv[i];
+        } else if (std::strcmp(argv[i], "--mt-only") == 0) {
+            mt_only = true;
         } else {
             positional.push_back(argv[i]);
         }
@@ -247,11 +251,11 @@ int main(int argc, char** argv) {
             });
         };
         auto bench = [&](const char* kind, auto verify, const std::vector<uint8_t>& rows) {
-            verify(ctrl, rows.data(), BATCH, (size_t)0, results.data(), nullptr, 0, nullptr); // warmup
+            verify(ctrl, rows.data(), BATCH, (size_t)0, results.data(), nullptr, 0, nullptr, nullptr); // warmup
             double best = 1e30;
             for (int it = 0; it < ITERS; ++it) {
                 auto t0 = clock_t_::now();
-                verify(ctrl, rows.data(), BATCH, (size_t)0, results.data(), nullptr, 0, nullptr);
+                verify(ctrl, rows.data(), BATCH, (size_t)0, results.data(), nullptr, 0, nullptr, nullptr);
                 double dt = secs_since(t0);
                 if (dt < best) best = dt;
             }
@@ -264,11 +268,11 @@ int main(int argc, char** argv) {
                                  const std::vector<uint8_t>& msg,
                                  const std::vector<uint8_t>& pub,
                                  const std::vector<uint8_t>& sig) {
-            verify(ctrl, msg.data(), pub.data(), sig.data(), BATCH, results.data()); // warmup
+            verify(ctrl, msg.data(), pub.data(), sig.data(), BATCH, results.data(), nullptr); // warmup
             double best = 1e30;
             for (int it = 0; it < ITERS; ++it) {
                 auto t0 = clock_t_::now();
-                verify(ctrl, msg.data(), pub.data(), sig.data(), BATCH, results.data());
+                verify(ctrl, msg.data(), pub.data(), sig.data(), BATCH, results.data(), nullptr);
                 double dt = secs_since(t0);
                 if (dt < best) best = dt;
             }
@@ -277,6 +281,7 @@ int main(int argc, char** argv) {
                         kind, mps, best, BATCH, ITERS);
             record_result(kind, best);
         };
+      if (!mt_only) {
         bench("ECDSA-row", ufsecp_lbtc_verify_ecdsa, e_rows);
         bench("Schnorr-row", ufsecp_lbtc_verify_schnorr, s_rows);
         bench_columns("ECDSA-columns", ufsecp_lbtc_verify_ecdsa_columns,
@@ -312,11 +317,11 @@ int main(int argc, char** argv) {
                 }
             }
             auto bench_collect = [&](const char* kind, auto collect, std::vector<uint8_t>& rows) {
-                collect(ctrl, rows.data(), BATCH, KS); /* warmup */
+                collect(ctrl, rows.data(), BATCH, KS, nullptr); /* warmup */
                 double best = 1e30;
                 for (int it = 0; it < ITERS; ++it) {
                     auto t0 = clock_t_::now();
-                    collect(ctrl, rows.data(), BATCH, KS);
+                    collect(ctrl, rows.data(), BATCH, KS, nullptr);
                     double dt = secs_since(t0);
                     if (dt < best) best = dt;
                 }
@@ -329,11 +334,11 @@ int main(int argc, char** argv) {
                                              const std::vector<uint8_t>& pub,
                                              const std::vector<uint8_t>& sig,
                                              std::vector<uint8_t>& key) {
-                collect(ctrl, msg.data(), pub.data(), sig.data(), BATCH, key.data(), KS);
+                collect(ctrl, msg.data(), pub.data(), sig.data(), BATCH, key.data(), KS, nullptr);
                 double best = 1e30;
                 for (int it = 0; it < ITERS; ++it) {
                     auto t0 = clock_t_::now();
-                    collect(ctrl, msg.data(), pub.data(), sig.data(), BATCH, key.data(), KS);
+                    collect(ctrl, msg.data(), pub.data(), sig.data(), BATCH, key.data(), KS, nullptr);
                     double dt = secs_since(t0);
                     if (dt < best) best = dt;
                 }
@@ -355,6 +360,45 @@ int main(int argc, char** argv) {
             bench_collect_columns("Schnorr-col-collect",
                                   ufsecp_lbtc_verify_schnorr_columns_collect,
                                   s_msg, s_pub, s_sig, s_key);
+        }
+      } // if (!mt_only)
+
+        /* ── MT scaling sweep — the dev 07a1ece persistent-pool + fused-parse _mt
+         * path. The serial benches above call the NON-mt entry points
+         * (max_threads == 1). These _mt twins fan the CPU verify across a worker
+         * budget on a process-wide pool with fused parse+verify — the actual
+         * subject of the perf commit, and the apples-to-apples match for the Linux
+         * measurement. Sweep the budget to show parallel speedup over serial on
+         * THIS machine. Row API (opaque ECDSA / BIP-340 Schnorr) only — that is
+         * what a libbitcoin node calls. */
+        {
+            unsigned hw = std::thread::hardware_concurrency();
+            if (hw == 0) hw = 8;
+            size_t threadset[] = {1, 2, 4, 8, (size_t)hw};
+            auto bench_mt = [&](const char* kind, auto verify_mt,
+                                const std::vector<uint8_t>& rows) {
+                for (size_t t : threadset) {
+                    verify_mt(ctrl, rows.data(), BATCH, (size_t)0, results.data(),
+                              nullptr, (size_t)0, nullptr, t, nullptr); // warmup
+                    double best = 1e30;
+                    for (int it = 0; it < ITERS; ++it) {
+                        auto t0 = clock_t_::now();
+                        verify_mt(ctrl, rows.data(), BATCH, (size_t)0, results.data(),
+                                  nullptr, (size_t)0, nullptr, t, nullptr);
+                        double dt = secs_since(t0);
+                        if (dt < best) best = dt;
+                    }
+                    const double mps = (double)BATCH / best / 1e6;
+                    std::printf("   %-15s threads=%-2zu %8.2f M sig/s   (%.4f s for %zu, best of %d)\n",
+                                kind, t, mps, best, BATCH, ITERS);
+                    char label[48];
+                    std::snprintf(label, sizeof(label), "%s-t%zu", kind, t);
+                    record_result(label, best);
+                }
+            };
+            std::printf("   [MT scaling sweep — _mt persistent pool + fused parse]\n");
+            bench_mt("ECDSA-row-mt", ufsecp_lbtc_verify_ecdsa_mt, e_rows);
+            bench_mt("Schnorr-row-mt", ufsecp_lbtc_verify_schnorr_mt, s_rows);
         }
         std::printf("\n");
         ufsecp_lbtc_ctrl_destroy(ctrl);

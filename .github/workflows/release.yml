@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v4.4.0)'
+        description: 'Tag to release (e.g. v4.5.0)'
         required: true
 
 permissions:
@@ -441,9 +441,20 @@ jobs:
           # macOS ships bash 3.2 — no `mapfile`, no `declare -A` (associative
           # arrays). Use a portable read-loop + a helper scan instead so this
           # step runs on macOS as well as Linux/Windows.
+          _is_release_lib() {
+            case "$(basename "$1")" in
+              fastsecp256k1.lib|libfastsecp256k1.a|\
+              ultrafast_secp256k1.lib|ultrafast_secp256k1.dll|\
+              libultrafast_secp256k1.a|libultrafast_secp256k1.so|libultrafast_secp256k1.so.*|libultrafast_secp256k1.dylib|\
+              ufsecp.lib|ufsecp.dll|ufsecp_s.lib|libufsecp.a|libufsecp_s.a|libufsecp.so|libufsecp.so.*|libufsecp.dylib)
+                return 0 ;;
+            esac
+            return 1
+          }
+
           ALLLIBS=()
           while IFS= read -r _lib; do
-            [ -n "$_lib" ] && ALLLIBS+=("$_lib")
+            [ -n "$_lib" ] && _is_release_lib "$_lib" && ALLLIBS+=("$_lib")
           done < <(find build staging -maxdepth 5 \( \
             -name '*.dll' -o -name '*.so' -o -name '*.so.*' -o -name '*.dylib' \
             -o -name '*.lib' -o -name '*.a' \) \
@@ -482,6 +493,8 @@ jobs:
             [ -f "${PKG_NAME}/${d}/fastsecp256k1.lib" ]  && mv "${PKG_NAME}/${d}/fastsecp256k1.lib"  "${PKG_NAME}/${d}/ultrafast_secp256k1.lib"
             [ -f "${PKG_NAME}/${d}/libfastsecp256k1.a" ] && mv "${PKG_NAME}/${d}/libfastsecp256k1.a" "${PKG_NAME}/${d}/libultrafast_secp256k1.a"
           done || true
+
+          python3 ci/check_release_package_contents.py "${PKG_NAME}"
 
           # -- Layout manifest --
           cat > "${PKG_NAME}/lib/LIBRARIES.md" <<'EOF'
@@ -565,6 +578,10 @@ jobs:
             -DSECP256K1_BUILD_BENCH=OFF \
             -DSECP256K1_BUILD_EXAMPLES=OFF \
             -DSECP256K1_BUILD_JAVA=OFF \
+            -DSECP256K1_BUILD_CABI=ON \
+            -DSECP256K1_INSTALL_CABI=ON \
+            -DSECP256K1_BUILD_SHIM=ON \
+            -DSECP256K1_SHIM_BUILD_SHARED=OFF \
             -DSECP256K1_USE_ASM=ON
 
       - name: Build
@@ -589,17 +606,51 @@ jobs:
       - name: Collect release artifacts
         run: |
           PKG_NAME="UltrafastSecp256k1-${{ env.RELEASE_TAG }}-linux-arm64"
-          mkdir -p "${PKG_NAME}/lib" "${PKG_NAME}/include/ufsecp"
+          mkdir -p "${PKG_NAME}/lib/static" "${PKG_NAME}/lib/shared" \
+                   "${PKG_NAME}/include/ufsecp" "${PKG_NAME}/include/secp256k1"
 
           cp include/ufsecp/ufsecp.h         "${PKG_NAME}/include/ufsecp/"
           cp include/ufsecp/ufsecp_version.h "${PKG_NAME}/include/ufsecp/"
           cp include/ufsecp/ufsecp_error.h   "${PKG_NAME}/include/ufsecp/"
+          cp compat/libsecp256k1_shim/include/secp256k1*.h "${PKG_NAME}/include/" 2>/dev/null || true
+          cp -r src/cpu/include/secp256k1/. "${PKG_NAME}/include/secp256k1/" 2>/dev/null || true
+          [ -d build/include/secp256k1 ] && \
+            cp build/include/secp256k1/*.h "${PKG_NAME}/include/secp256k1/" 2>/dev/null || true
 
-          find build -maxdepth 4 \( \
+          _is_release_lib() {
+            case "$(basename "$1")" in
+              libfastsecp256k1.a|libultrafast_secp256k1.a|libufsecp.a|libufsecp_s.a|\
+              libultrafast_secp256k1.so|libultrafast_secp256k1.so.*|libufsecp.so|libufsecp.so.*)
+                return 0 ;;
+            esac
+            return 1
+          }
+
+          while IFS= read -r f; do
+            [ -n "$f" ] || continue
+            _is_release_lib "$f" || continue
+            case "$f" in
+              *.so|*.so.*) cp -P "$f" "${PKG_NAME}/lib/shared/" 2>/dev/null || true ;;
+              *.a) cp "$f" "${PKG_NAME}/lib/static/" 2>/dev/null || true ;;
+            esac
+          done < <(find build -maxdepth 5 \( \
             -name "*.so" -o -name "*.so.*" -o -name "*.a" \) \
-            ! -path "*/CMakeFiles/*" 2>/dev/null | while read f; do
-            cp "$f" "${PKG_NAME}/lib/" 2>/dev/null || true
-          done
+            ! -path "*/CMakeFiles/*" ! -path "*/bindings/*" 2>/dev/null)
+
+          [ -f "${PKG_NAME}/lib/static/libfastsecp256k1.a" ] && \
+            mv "${PKG_NAME}/lib/static/libfastsecp256k1.a" "${PKG_NAME}/lib/static/libultrafast_secp256k1.a"
+
+          python3 ci/check_release_package_contents.py "${PKG_NAME}"
+
+          cat > "${PKG_NAME}/lib/LIBRARIES.md" <<'EOF'
+          # Library layout
+
+          | dir      | library                       | ABI                  | notes |
+          |----------|-------------------------------|----------------------|-------|
+          | static/  | libultrafast_secp256k1.a      | libsecp256k1 C ABI   | self-contained static archive (engine + shim) |
+          | static/  | libufsecp.a / libufsecp_s.a   | ufsecp stable C ABI  | static archive |
+          | shared/  | libufsecp.so                  | ufsecp stable C ABI  | versioned symlinks may also be present |
+          EOF
 
           cp LICENSE      "${PKG_NAME}/" 2>/dev/null || true
           cp README.md    "${PKG_NAME}/" 2>/dev/null || true
@@ -863,6 +914,17 @@ jobs:
         with:
           path: native-dist
 
+      - name: Verify native package contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifacts=()
+          while IFS= read -r f; do
+            artifacts+=("$f")
+          done < <(find native-dist -type f \( -name '*.zip' -o -name '*.tar.gz' \) | sort)
+          test "${#artifacts[@]}" -gt 0
+          python3 ci/check_release_package_contents.py "${artifacts[@]}"
+
       - name: Build ufsecp Python wheels
         run: |
           VERSION="${RELEASE_VERSION#v}"
@@ -961,6 +1023,17 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: native-dist
+
+      - name: Verify native package contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifacts=()
+          while IFS= read -r f; do
+            artifacts+=("$f")
+          done < <(find native-dist -type f \( -name '*.zip' -o -name '*.tar.gz' \) | sort)
+          test "${#artifacts[@]}" -gt 0
+          python3 ci/check_release_package_contents.py "${artifacts[@]}"
 
       - name: Build ufsecp npm package
         run: |

@@ -1,0 +1,3 @@
+// Property-check runner for the curve-point spec (all 10 properties tractable).
+:load Secp256k1Point.cry
+:check

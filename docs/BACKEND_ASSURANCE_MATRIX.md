@@ -36,23 +36,29 @@ Backend trust is measured, not assumed.
 
 ### libbitcoin bridge "collect" verify (Added 2026-06-02)
 
-The in-place collect verify (`ufsecp_lbtc_verify_*_collect`) has a dedicated
-on-device CUDA kernel (`ufsecp_gpu_*_verify_collect`); OpenCL and Metal inherit
-the `GpuBackend` default (`GpuError::Unsupported`) and the bridge falls back to
-the host-collapse path (the existing, audited `ufsecp_gpu_*_verify_batch` kernels
-+ a host-side verdict write). All paths route through the identical verify cores,
-so the rejected-set is consensus-identical across them.
+The in-place collect verify (`ufsecp_lbtc_verify_*_collect`) now has a dedicated
+on-device kernel on **all three backends** (`ecdsa_verify_collect` /
+`schnorr_verify_collect`). Each collect kernel is a verbatim clone of the same
+backend's audited `*_verify_lbtc_columns` verify kernel — the verdict is
+bit-for-bit identical to `*_verify_batch`; ONLY the output store changes to the
+collect convention: the caller pre-seeds the 1-byte-per-row `key_buffer` non-zero,
+a VALID row writes 0, an INVALID row is left seeded (rejected id survives). The
+override seeds the device verdict channel from `key_buffer`, reads it back
+verbatim, and returns a non-OK `GpuError` on any operational fault (engine falls
+back) — never zeroing a non-valid row and never emitting an all-zero buffer.
 
 | Backend | collect path | Assurance |
 |---------|--------------|-----------|
 | CPU     | reference (per-row verify) | **HIGH** — gated vs libsecp256k1 |
 | CUDA    | dedicated on-device kernel | **HIGH** — `test_lbtc_consensus_diff` proves GPU==CPU==libsecp on the rejected-set (ECDSA+Schnorr, mixed corpus); kernel is a verbatim copy of the audited verify kernel with only the output store changed |
-| OpenCL  | host-collapse fallback (`Unsupported` → `*_verify_batch` + host write) | **MEDIUM** — verify kernel ABI-complete; collect verdict applied host-side (no untested device kernel) |
-| Metal   | host-collapse fallback | **MEDIUM** — same as OpenCL |
+| OpenCL  | dedicated on-device kernel (`ecdsa_verify_lbtc_collect` / `schnorr_verify_lbtc_collect` in `secp256k1_extended.cl`) | **HIGH** — verified on-device end-to-end (NVIDIA RTX 5060 Ti, OPENCL=ON/CUDA=OFF): the wired `test_gpu_collect_verify_parity` audit test runs through the C ABI → OpenCL override → kernel and asserts `collect == ufsecp_gpu_*_verify_batch` verdict per-row on an all-valid + tampered corpus → **pass=24 fail=0**. ECDSA collect parses the **compact (big-endian r‖s)** sig via `lbtc_parse_compact_signature` — the SAME format as `ecdsa_verify_batch` (`ecdsa_verify_compressed`), not the little-endian columns/opaque parse |
+| Metal   | dedicated on-device kernel (`lbtc_ecdsa_verify_collect` / `lbtc_schnorr_verify_collect` in `secp256k1_kernels.metal`) | **MEDIUM — code-complete, runtime parity PENDING Apple-hardware validation** — ECDSA collect mirrors `ecdsa_verify_batch_compressed` (compact big-endian sig parse + `ecdsa_verify(Scalar256,AffinePoint,r,s)`); Schnorr collect clones the Metal `schnorr_verify_lbtc_columns` verify core. Only the output store changes to the collect convention. Not built/run here (Metal is Apple-only); owner validates on Apple GPU (same `test_gpu_collect_verify_parity`) before promotion to HIGH |
 
-A native OpenCL/Metal collect kernel is a documented follow-up, gated on those
-backends gaining local/CI hardware coverage (a consensus-bearing accept/reject
-device kernel must never ship unverified).
+Cross-backend parity is proven by the wired advisory audit test
+`test_gpu_collect_verify_parity` (`gpu_collect_verify_parity` module): it asserts
+the native collect verdict equals the `*_verify_batch` verdict per-row on-device,
+and self-skips the device portion when no GPU is present (its null-ctx contract
+portion runs everywhere).
 
 ### libbitcoin opaque ECDSA row verify (Added 2026-06-13)
 
@@ -66,6 +72,196 @@ signatures before verification, and return per-row verdict bytes. This avoids
 bridge-side msg/pub/sig column staging for the packed-row API while preserving
 libsecp-compatible verification semantics. `ufsecp_gpu_ecdsa_verify_lbtc_rows`
 is retained as a compatibility alias.
+
+### libbitcoin ECDSA/Schnorr column verify (Added 2026-07-01)
+
+The single public libbitcoin-direct verify surface for the column (Structure-of-
+Arrays) layout is the pair of engine entrypoints
+`secp256k1::ecdsa_batch_verify_opaque_columns(digests32, pubkeys33, sigs64, count,
+out_results)` and `secp256k1::schnorr_batch_verify_bip340_columns(digests32,
+xonly32, sigs64, count, out_results)` (the `ufsecp::lbtc::*` header calls exactly
+these). There is **no caller-visible `_gpu` variant on this surface and no
+recoverable GPU status** — the caller sees one API with a boolean-plus-per-row
+result and never chunks, never selects CPU vs GPU, and never manages GPU buffers.
+
+The columns consumed are libbitcoin's parallel spans:
+`digests32[count]`, `pubkeys[count]` (33 compressed for ECDSA / 32 x-only for
+Schnorr), `sigs64[count]` (ECDSA = opaque LE `secp256k1_ecdsa_signature`; Schnorr
+= BIP-340 `R.x||s`). Verification is **variable-time over PUBLIC data** (pubkey,
+signature, message) — correct by design, not a side-channel gap.
+
+**GPU is an internal accelerator, selected inside the engine.** A GPU provider is
+attached by installing a process-wide hook
+`secp256k1::install_gpu_columns_verify_hook(...)` (thread-safe, returns the
+previous hook; installed by the libbitcoin-GPU build). When a hook is installed,
+each column entrypoint attempts the GPU column verify first; when no hook is
+installed, or the hook **declines** (GPU not compiled / no device / Unsupported /
+operational backend error), the engine transparently completes the batch on the
+deterministic CPU column path with **identical boolean and per-row semantics**.
+Chunking and reusable device staging are engine/backend-owned, never caller-owned.
+
+**Failure policy — fatal, not invalid.** An operational GPU/backend error is
+converted to a CPU fallback via the hook's decline; it is **never** represented as
+a consensus-invalid row or an all-zero OK result. Only an unrecoverable inability
+to complete the required math (with no fallback possible) fails hard — that is a
+fatal engine failure, not consensus data. A malformed layout (null column
+pointers or size overflow) remains fail-closed: the entrypoint returns `false` and
+zeroes `out_results` — this is input validation, not a GPU error.
+
+The backend column methods `ecdsa_verify_lbtc_columns` / `schnorr_verify_lbtc_columns`
+exist **natively on CUDA, OpenCL, and Metal**. They parse the ECDSA opaque
+little-endian r/s and Schnorr BIP-340 signatures **device-side** (no host
+compact-signature staging) and decompress the 33-byte pubkeys on device; per-row
+offsets are 64-bit and results are `uint8_t` 1=valid/0=invalid. A backend that
+returns `Unsupported`/non-OK is completed by the engine CPU fallback — that is
+correctness-preserving, not a success gap. The native column method and the
+always-present CPU fallback are both true simultaneously: the kernels exist on all
+three backends, and the engine always has a deterministic CPU path to fall back
+to; there is no "kernels not yet ready" state on this surface.
+
+| Backend | column path | Assurance | Notes |
+|---|---|---|---|
+| CPU | reference (deterministic fallback) | **HIGH** — gated vs libsecp256k1 | public-data variable-time; byte-identical fallback for every backend |
+| CUDA | native on-device kernel | **HIGH** — `lbtc_gpu_columns_diff` proves GPU==CPU on valid/tampered/malformed + forced small chunks | public-data variable-time |
+| OpenCL | native on-device kernel | **HIGH** — same kernel device-parse; differential-tested when an OpenCL device is present | public-data variable-time |
+| Metal | native on-device kernel | **MEDIUM** — compiles/validates on macOS CI; Linux host cannot build Metal | public-data variable-time; fatal-not-invalid dispatch guard (below) |
+
+**Engine-owned reusable staging (acceptance A6).** Chunk sizing is engine-owned and
+memory-aware on every backend (`lbtc_columns_chunk`); the caller never chunks or sees
+a chunk parameter. Device/host staging is grow-only and **reused across successive
+engine calls**, so a hot libbitcoin verify loop performs no fresh per-call allocation:
+
+- **CUDA** — a thread-local `CudaBatchScratch` keeps one packed device buffer
+  (`dig | key | sig`) plus the results buffer and host readback vector, grown on
+  demand and freed only at thread exit. Validated on RTX 5060 Ti including forced
+  1-row chunks (`UFSECP_GPU_COLUMNS_CHUNK=1`, byte-identical to CPU).
+- **OpenCL** — a thread-local `OclColumnsPool` (mirroring the existing MSM pool) keeps
+  the four column buffers persistent across calls and chunks; each chunk re-uploads
+  exactly its rows via `clEnqueueWriteBuffer` on the in-order queue, so no stale data
+  from a larger prior batch is read. Validated on the NVIDIA OpenCL runtime including
+  forced small chunks.
+- **Metal** — the column methods allocate `MTLResourceStorageModeShared` buffers per
+  call, consistent with every other Metal op (the Metal backend has no persistent
+  device-buffer pool). On Apple Silicon these are cheap unified-memory allocations; a
+  persistent Metal pool is a tracked future optimization, not a correctness gap.
+
+**Fatal-not-invalid on Metal dispatch failure (acceptance A5/A9).**
+`MetalRuntime::dispatch_sync` is `void` and only logs a command-buffer error, so a GPU
+execution failure (watchdog / device-lost / mid-run fault) would leave the shared
+result buffer unwritten and be misread as "every row invalid" — an operational failure
+masquerading as a consensus verdict. The Metal column methods now seed every result
+slot with a sentinel the kernel never writes (it writes only 0/1 per row) and **decline
+with a non-OK `GpuError` if any sentinel survives the dispatch**, so the engine hook
+falls back to CPU instead of emitting invalid rows. CUDA and OpenCL already detect this
+via `cudaDeviceSynchronize` / `clFinish` return codes. The deeper fix — returning a
+status from `dispatch_sync` in `src/metal/src/metal_runtime.mm` — is tracked for the
+runtime owner, as that file is outside this card's write scope.
+
+Caller contract: **no bridge, no caller-visible GPU API, engine-owned chunking.**
+The default direct build is **pure CPU** — no compile-time macro gates the GPU
+provider. The engine (`fastsecp256k1`) owns an installable `GpuColumnsVerifyHook`
+(see `secp256k1/batch_verify.hpp`) and carries no `gpu::` dependency, because
+`secp256k1_gpu_host` already PRIVATE-links the engine and a reverse link would be a
+static-library cycle. The default provider that bridges that hook to a real backend
+lives in the GPU-host layer (`src/gpu/src/gpu_engine_hook.cpp`) and **self-installs
+via a static initializer whenever the GPU host is linked**. Enablement is therefore
+the inspectable build fact "is the provider translation unit linked," not a macro:
+
+- GPU host not built (default direct build): the provider is never linked, the hook
+  stays null, and the engine surface runs the pure-CPU column path.
+- GPU host built: the provider self-installs and the engine surface
+  (`ecdsa_batch_verify_opaque_columns` / `schnorr_batch_verify_bip340_columns`)
+  transparently accelerates on the GPU, declining to CPU on any operational error
+  (fatal-not-invalid: an operational decline never yields invalid rows).
+
+The audit build proves this end-to-end on a GPU-less runner: `lbtc_gpu_columns_diff`
+asserts the provider self-installed (`install_gpu_columns_verify_hook(nullptr)`
+returns non-null) before exercising the decline → CPU-fallback contract. Residual
+finalization owned by the companion `compat/libbitcoin_direct` entrypoint card: that
+consumer must link `secp256k1_gpu_host` and retain the self-registering provider
+object (a targeted `--undefined` anchor is used, not a blanket `WHOLE_ARCHIVE`, to
+pull only the provider) to reach the GPU from the bridge-free direct path. That
+retention no longer breaks the ZK-less link: the Schnorr SNARK-witness host fallback
+that once dragged an undefined `secp256k1::zk::` reference into the minimal engine is
+now `#if SECP256K1_HAS_ZK`-gated in `gpu_backend.hpp` and its TU dropped from
+`secp256k1_gpu_host` when `SECP256K1_BUILD_ZK=OFF` (LBTC-GPU-DIRECT-ZK-BLOCKER,
+resolved). Verified on RTX 5060 Ti: the `LIBBITCOIN+LIBBITCOIN_GPU+CUDA` direct-GPU
+build links and `nm` shows the provider anchor + installer + hook present with the
+SNARK fallback and `zk::` symbols absent. Do not claim the default direct build is
+GPU-accelerated; by default it is pure CPU. The C ABI
+`ufsecp_gpu_ecdsa_verify_lbtc_columns` / `ufsecp_gpu_schnorr_verify_lbtc_columns`
+exist only for C ABI completeness and are not the libbitcoin-direct surface.
+
+### libbitcoin public-data batch ops: validate / commitment / hashing (Added 2026-07-04)
+
+Six header-only `ufsecp::lbtc::*` batch primitives — `xonly_validate_batch`,
+`pubkey_validate_batch`, `taproot_commitment_verify_batch`, `tagged_hash_batch`,
+`tagged_hash_var_batch`, `hash256_batch` — share the identical one-surface
+contract as the column-verify path above: internal GPU acceleration via the
+**EXISTING** `GpuBackend` virtuals (`xonly_validate`, `pubkey_validate`,
+`commitment_verify`, `tagged_hash`, `tagged_hash_var`, `hash256`) + a
+deterministic CPU fallback, presented as ONE `bool`-returning inline call (no
+CPU/GPU split, no GPU status code, no caller chunking, no bridge/C-ABI). All six
+are PUBLIC-DATA / variable-time (no secret is touched). The offload is wired
+through engine-owned `inline std::atomic<>` hooks
+(`compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp`) that
+`src/gpu/src/gpu_engine_hook.cpp` self-installs (guarded by
+`SECP256K1_LBTC_GPU_OPS`, retained by the same
+`secp256k1_gpu_columns_provider_anchor`). No new virtual, no new C ABI, no new
+anchor, no new CTest target.
+
+| Backend | validate/commitment/hash path | Assurance | Notes |
+|---|---|---|---|
+| CPU | reference (deterministic fallback) | **HIGH** — `lbtc_direct_verify` cross-checks each op vs a serial reference (schnorr `lift_x`, `P+t*G`, SHA256, double-SHA256) + hostile-caller matrix | public-data variable-time; byte-identical fallback for every backend |
+| CUDA | native on-device kernel | **HIGH** — the six virtuals are CUDA-native (`lbtc_*_kernel` in `gpu_backend_cuda.cu`); operational error declines → CPU | public-data variable-time; hash caps (msg_len≤256, stride≤256, input_len≤320) decline out-of-cap lengths → CPU covers all |
+| OpenCL | native on-device kernel | **HIGH** — the six virtuals are OpenCL-native (`lbtc_*` kernels in `src/opencl/kernels/secp256k1_extended.cl` + overrides in `gpu_backend_opencl.cpp`); operational error declines → CPU. Verified on-device (NVIDIA RTX 5060 Ti, OpenCL via NVIDIA CUDA platform): all 6 kernels bit-exact vs a Python `hashlib`+EC reference, and `lbtc_direct_verify` passes end-to-end with OpenCL as the active backend (`-DSECP256K1_BUILD_OPENCL=ON -DSECP256K1_BUILD_CUDA=OFF`) | public-data variable-time; same hash caps as CUDA (msg_len≤256, stride≤256, input_len≤320) decline out-of-cap → CPU. `commitment_verify` uses `shamir_double_mul_glv_impl` (the proven ecdsa-verify path) for `tweak*G + P` |
+| Metal | native on-device kernel | **MEDIUM — code-complete, runtime parity PENDING Apple-hardware validation** — the six virtuals are Metal-native (`lbtc_*` kernels in `src/metal/shaders/secp256k1_kernels.metal` + overrides in `gpu_backend_metal.mm`), mirroring the CUDA/OpenCL reference; `commitment_verify` uses the proven `generator_affine`+`scalar_mul_glv`+`jacobian_add` path (same as Metal `ecdsa_verify`). NOT built/run here: Metal compiles only on Apple (`src/metal/CMakeLists.txt` returns on non-Apple), so this Linux host cannot execute it | operational error declines → CPU. No measured Metal numbers; owner validates on Apple GPU before this row is promoted to HIGH |
+
+Fail-closed / never-consensus-invalid: **validate ops** deterministically
+overwrite every result row on the CPU path (operational GPU failure never yields
+an all-zero buffer); **hash ops** never pre-zero `out32` (a zero row would be a
+wrong/consensus-invalid hash) and reject bad input (`false`) without touching
+`out32`. Every trampoline maps no-GPU / non-Ok `GpuError` / exception to a
+decline (`-1`), so control always falls to the correct CPU computation. A
+CPU-only libbitcoin build never links `secp256k1_gpu_host`, so the hooks stay
+null and every call runs the deterministic CPU path — no GPU symbol is required.
+
+### `hash256_var`: GPU batch variable-length double-SHA256 (Added 2026-07-06)
+
+A new `GpuBackend::hash256_var` virtual (`src/gpu/include/gpu_backend.hpp`)
+extends the libbitcoin public-data batch-op surface above with a
+**variable-length** Bitcoin HASH256 primitive: row `i` is
+`inputs[i*stride .. i*stride+input_lens[i])`, no tag prefix, no transaction
+parsing on GPU — this is the primitive a future libbitcoin
+`txid_batch`/`wtxid_batch` convenience wrapper will compose with CPU-side
+BIP141 serialization (`legacy_serialize`/`witness_serialize` in
+`src/cpu/src/bip144.cpp`). Exposed via C ABI `ufsecp_gpu_hash256_var`
+(`include/ufsecp/ufsecp_gpu.h` / `src/cpu/src/ufsecp_gpu_impl.cpp`) and the
+bridge-free `ufsecp::lbtc::hash256_var_batch` direct wrapper
+(`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`) with its own
+hook/installer in `lbtc_gpu_ops.hpp`. PUBLIC-DATA / variable-time — not
+secret-bearing, no CT requirement.
+
+| Backend | `hash256_var` path | Assurance | Notes |
+|---|---|---|---|
+| CPU | reference (deterministic fallback) | **HIGH** — `hash256_var_batch` per-row-validates `input_lens[i]` against `stride` before dispatch and falls back to `secp256k1::SHA256::hash256` per row; covered by `test_regression_hash256_var_batch` (KAT/boundary differential) | public-data variable-time; byte-identical fallback for every backend; `out32` never touched on a rejected call |
+| CUDA | native on-device kernel | **HIGH** — `hash256_var` virtual is CUDA-native (`lbtc_hash256_var_kernel` in `gpu_backend_cuda.cu`); operational error declines → CPU | public-data variable-time; streams each row directly in 64-byte SHA-256 compression blocks (no full-row local copy), so rows up to `kMaxHash256VarStride` (4 MiB) are supported — unlike `tagged_hash_var`/`hash256`, which copy each row into a small fixed on-chip buffer (256–320 bytes) to prepend the BIP-340 tag and are capped accordingly |
+| OpenCL | native on-device kernel | **HIGH** — `hash256_var` virtual is OpenCL-native (`lbtc_hash256_var` kernel in `src/opencl/kernels/secp256k1_extended.cl` + override in `gpu_backend_opencl.cpp`); operational error declines → CPU | public-data variable-time; same streaming design as CUDA (`sha256_update_global` reads each row directly from global memory, no full-row local copy); same 4 MiB `kMaxHash256VarStride` bound |
+| Metal | native on-device kernel | **MEDIUM — code-complete, runtime parity PENDING Apple-hardware validation** — `hash256_var` virtual is Metal-native (`lbtc_hash256_var` kernel in `src/metal/shaders/secp256k1_kernels.metal` + override in `gpu_backend_metal.mm`), mirroring the CUDA/OpenCL streaming design (`sha256_update_device`); NOT built/run here: Metal compiles only on Apple, so this Linux host cannot execute it — same status already documented above for the sibling `xonly_validate`/`pubkey_validate`/`commitment_verify`/`tagged_hash`/`tagged_hash_var`/`hash256` ops | operational error declines → CPU. No measured Metal numbers; owner validates on Apple GPU before this row is promoted to HIGH |
+
+Fail-closed: `ufsecp_gpu_hash256_var` / `hash256_var_batch` never pre-zero
+`out32` and reject bad input without touching it — `ctx==nullptr` /
+null `inputs`/`input_lens`/`out32` with `n>0` → `UFSECP_ERR_NULL_ARG`;
+`n==0` → `UFSECP_OK` no-op; `n` over the existing `kMaxGpuBatchN` (64M) batch
+cap, `stride==0`/`>kMaxHash256VarStride`, or any individual
+`input_lens[i]==0`/`>stride` → `UFSECP_ERR_BAD_INPUT`. Unlike the older
+`ufsecp_gpu_tagged_hash_var` ABI wrapper (which only bounds-checks the scalar
+`stride`), the `hash256_var` wrapper validates every row's length
+individually before GPU dispatch, since row lengths here are fully
+caller-controlled. Test coverage: `audit/test_regression_hash256_var_batch.cpp`
+(KAT/boundary), `audit/test_regression_hash256_var_parity.cpp` (cross-backend
+byte-identical parity), `audit/test_exploit_hash256_var_bounds.cpp` (hostile
+inputs).
 
 ### ECDSA compact signature staging (Updated 2026-06-18)
 
@@ -107,7 +303,7 @@ The table below distinguishes between the **public GPU ABI** (functions exposed 
 compiled into the device code but not directly callable through the stable C ABI).
 A kernel being present internally does not imply a public API exists for it.
 
-### Public GPU ABI operations (17 functions, backend-neutral)
+### Public GPU ABI operations (18 functions, backend-neutral)
 
 | Function | CPU (fast) | CPU (CT) | CUDA | OpenCL | Metal |
 |---|---|---|---|---|---|
@@ -117,6 +313,7 @@ A kernel being present internally does not imply a public API exists for it.
 | `ufsecp_gpu_schnorr_verify_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_ecdh_batch` ¹ | Y | Y | Y | Y | Y |
 | `ufsecp_gpu_hash160_pubkey_batch` | Y | - | Y | Y | Y |
+| `ufsecp_gpu_hash256_var` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_ecrecover_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_msm` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_frost_verify_partial_batch` | Y | - | Y | Y | Y |
@@ -194,9 +391,10 @@ through `ufsecp_gpu.h`.
 > immediately by the parity audit workflow. The numbers below reflect the current
 > HEAD — they are not a manually maintained snapshot.
 
-All 17 public GPU ABI operations are implemented natively on CUDA, OpenCL, and Metal.
-No partial stubs or CPU fallbacks remain for any of them. Last resolved:
-2026-06-13 (`ufsecp_gpu_ecdsa_verify_opaque_rows`).
+18 of the 18 public GPU ABI operations are implemented natively on CUDA, OpenCL,
+and Metal. Last resolved: 2026-07-07 (`ufsecp_gpu_hash160_pubkey_batch` — native
+OpenCL kernel dispatch via `hash160_batch` in `secp256k1_hash160.cl`). No known
+exceptions remain; see "GPU backend native-parity gate" immediately below.
 
 `ufsecp_gpu_zk_schnorr_snark_witness_batch` (added 2026-04-15; GPU-native kernels
 added 2026-04-24): native device kernels now exist on all three backends
@@ -236,24 +434,68 @@ benchmark JSON, audit output, driver metadata, and a real AMD device record
 per `docs/GPU_BACKEND_EVIDENCE.json`. CUDA source-sharing is not acceptable
 evidence for ROCm/HIP promotion.
 
-### Default-stub parity exceptions (libbitcoin-bridge specializations)
+### Default-stub parity exceptions (resolved for the six libbitcoin-bridge public-data ops)
 
-Beyond the 16 public ABI ops, the `GpuBackend` interface exposes optional
-**libbitcoin-bridge specialization** virtual methods (`ecdsa_verify_collect`,
-`schnorr_verify_collect`, `xonly_validate`, `commitment_verify`, `tagged_hash`,
-`tagged_hash_var`, `pubkey_validate`, `hash256`, and the ZK/AEAD/BIP-352 batch
-variants). These are **CUDA-native** and intentionally default to
-`GpuError::Unsupported` on OpenCL/Metal, where the caller transparently falls
-back to the host/CPU path (e.g. `*_verify_batch` + a host collapse). All inputs
-on these paths are **public data**, and the fallback is deterministic, so this is
-a **performance residual, not a correctness parity gap**.
+The `xonly_validate`, `commitment_verify`, `tagged_hash`, `tagged_hash_var`,
+`pubkey_validate`, and `hash256` **libbitcoin-bridge specialization** virtual
+methods are **not** a parity exception: as of the libbitcoin public-data batch
+ops work (2026-07-04), all three shipped backends (CUDA, OpenCL, Metal)
+provide dedicated native overrides for all six — the base `GpuBackend` virtual
+default (`return GpuError::Unsupported`) is unreachable for any currently
+shipped backend and exists only as an abstract-safe fallback for a
+hypothetical future backend, exactly like `ecdsa_verify_collect` /
+`schnorr_verify_collect` below. See "libbitcoin public-data batch ops:
+validate / commitment / hashing" above (~line 195) for the authoritative
+per-backend assurance status.
 
-Each such return in `src/gpu/include/gpu_backend.hpp` carries an inline
-`PARITY-EXCEPTION` marker, and the `audit_gate.py --gpu-parity` gate enforces that
-**every `return ...Unsupported` in GPU backend source is either implemented or
-carries a `TODO(parity)`/`PARITY-EXCEPTION` marker** — a backend may not silently
-return Unsupported without a documented exception. The gate scans source files
-only (build/generated trees are pruned) so the signal is precise.
+`ecdsa_verify_collect` / `schnorr_verify_collect` are resolved the same way:
+as of the libbitcoin "collect" verify work (2026-06-02), all three shipped
+backends (CUDA, OpenCL, Metal) provide dedicated native overrides — the base
+`GpuBackend` virtual is unreachable for any currently shipped backend and
+exists only as an abstract-safe default for a hypothetical future backend.
+See the "libbitcoin bridge 'collect' verify" section above (~line 37) for the
+authoritative per-backend assurance status.
+
+Any GPU-gated or ZK-gated virtual that still has a genuine, currently-true
+default-stub gap carries an inline `PARITY-EXCEPTION` or `TODO(parity)` marker
+in `src/gpu/include/gpu_backend.hpp`, and the `audit_gate.py --gpu-parity` gate
+enforces that **every `return ...Unsupported` in GPU backend source is either
+implemented or carries a `TODO(parity)`/`PARITY-EXCEPTION` marker, OR is one of
+the abstract-safe-only base defaults documented above** — a backend may not
+silently return Unsupported without a documented exception. The gate scans
+source files only (build/generated trees are pruned) so the signal is
+precise.
+
+### GPU backend native-parity gate (added 2026-07-07)
+
+`ci/check_gpu_backend_parity.py` mechanically enforces the owner rule that any
+`GpuBackend` virtual operation implemented natively on one shipping backend
+must be native on CUDA, OpenCL, AND Metal, plus have required C ABI exposure.
+
+Unlike `audit_gate.py --gpu-parity` above — which only checks that a
+`return ...Unsupported` site has a `PARITY-EXCEPTION`/`TODO(parity)` comment
+somewhere nearby, trivially satisfiable by adding a comment, and blind to an
+override that exists but merely delegates to a CPU loop instead of
+dispatching a GPU kernel — this gate independently inspects each backend's
+override body for real device-dispatch evidence (CUDA `<<<...>>>` kernel
+launch, OpenCL `clEnqueueNDRangeKernel`/context-wrapper dispatch, Metal
+`dispatch_sync`) and never trusts an inline source comment as proof. A gap
+only passes the gate if the `(operation, backend)` pair is listed in the
+"Permanent Architecture Exceptions" table above — a doc that goes through
+normal PR review, not a code comment any single commit can add unilaterally.
+It also cross-checks the Feature Matrix above so this document cannot claim
+`Y` (native) for a cell the code does not actually provide.
+
+As of 2026-07-07, the gate passes with zero violations across all 37 enumerated
+`GpuBackend` operations. The one pre-existing gap the gate caught at
+introduction time — `hash160_pubkey_batch` having no native OpenCL kernel
+dispatch — is now resolved: `GpuBackendOpenCL::hash160_pubkey_batch` dispatches
+the existing `hash160_batch` kernel in `secp256k1_hash160.cl` via
+`clEnqueueNDRangeKernel`, lazily loaded/compiled through `ensure_hash160_kernel()`
+the same way `frost_verify_partial_batch` loads `secp256k1_frost.cl`.
+
+Run: `python3 ci/check_gpu_backend_parity.py` (add `--json` for machine
+output or `--list` to see every operation's per-backend classification).
 
 ---
 

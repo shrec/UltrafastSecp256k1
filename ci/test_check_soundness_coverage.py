@@ -69,7 +69,9 @@ def main() -> int:
         "bool newproto_verify(const X& a){return true;}\n"
         "FooSnarkWitness newproto_snark_witness(const X& a){FooSnarkWitness w; return w;}\n"
         "bool newproto_verify_device(const X& a){return true;}\n"   # internal variant -> ignored
-        "bool ecdsa_verify(const X& a){return true;}\n")            # standard verifier -> exempt
+        "bool ecdsa_verify(const X& a){return true;}\n"             # standard verifier -> exempt
+        "bool ecdsa_batch_verify_opaque_rows(const X& a){return true;}\n"
+        "bool schnorr_batch_verify_bip340_columns(const X& a){return true;}\n")
     found = m.scan_soundness_symbols(ROOT, scan_dir=d)
     if "newproto_verify" not in found:
         fails.append("scope-exhaustiveness: a 'bool *verify*' in a NEW file MUST be discovered")
@@ -79,6 +81,10 @@ def main() -> int:
         fails.append("internal _device variant must NOT be flagged")
     if "ecdsa_verify" in found:
         fails.append("a STANDARD_VERIFIERS-listed verifier must be exempt (differential-covered)")
+    if "ecdsa_batch_verify_opaque_rows" in found:
+        fails.append("libbitcoin opaque ECDSA row adapter must be exempt as a standard batch verifier")
+    if "schnorr_batch_verify_bip340_columns" in found:
+        fails.append("BIP-340 column adapter must be exempt as a standard batch verifier")
     import shutil
     shutil.rmtree(d, ignore_errors=True)
 

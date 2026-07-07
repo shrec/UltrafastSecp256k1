@@ -161,6 +161,10 @@ int test_ecies_regression_run();
 int test_gpu_host_api_negative_run(); // NULL guards, invalid backend/device, error strings
 int test_gpu_abi_gate_run();          // Discovery, lifecycle, ops-if-available
 int test_gpu_zk_prove_verify_differential_run(); // CPU range-proof → GPU poly-check accept/reject
+int test_gpu_lbtc_columns_diff_run(); // GPU vs CPU lbtc columns + engine dispatcher fallback
+int test_gpu_collect_verify_parity_run(); // native collect verdict == verify_batch verdict (per-row)
+int test_regression_hash256_var_batch_run(); // hash256_var batch structural/boundary KAT vs SHA256::hash256 oracle
+int test_regression_hash256_var_parity_run(); // hash256_var cross-backend (CUDA/OpenCL/Metal) byte-identical parity
 
 // ============================================================================
 // Forward declarations -- adversarial / fuzz tests
@@ -386,6 +390,7 @@ int test_exploit_glv_endomorphism_run();
 int test_exploit_glv_kat_run();
 int test_exploit_gpu_cpu_divergence_run();
 int test_exploit_gpu_host_api_shape_run();
+int test_exploit_hash256_var_bounds_run(); // hash256_var hostile-input / bounds contract (ctx-null, n=0, oversize n/stride, per-row length)
 int test_exploit_hedged_nonce_bias_run();
 int test_exploit_hkdf_kat_run();
 int test_infinity_edge_cases_run();
@@ -619,6 +624,9 @@ int test_regression_gpu_key_erase_raii_run();
 #else
 static inline int test_regression_gpu_key_erase_raii_run() { return 77; }
 #endif
+
+// FE52-compute verify differential — pairs commit 875d5bee (SECP256K1_FE52_COMPUTE).
+int test_fe52_compute_verify_run();
 int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variable-base scalar mul
 int test_regression_signing_ct_scalar_correctness_run(); // CT gen-mul, inv, cswap, Pippenger, BatchVerify
 int test_regression_ct_fast_scalar_v01_run();            // V-01: fast::Scalar operator* timing guard (advisory)
@@ -830,6 +838,7 @@ static const AuditModule ALL_MODULES[] = {
     { "fiat_crypto",       "Independent reference golden vectors",         "differential",   test_fiat_crypto_vectors_run, false },
     { "fiat_crypto_link",  "Independent reference linkage (100%% parity)","differential",   test_fiat_crypto_linkage_run, true  /* advisory=true: requires __int128 (MSVC skips with code 77) */ },
     { "cross_platform_kat","Cross-platform KAT",                          "differential",   test_cross_platform_kat_run, false },
+    { "fe52_compute_verify","FE52-compute verify: dual-mul==single-mul + ECDSA/Schnorr KAT","differential",   test_fe52_compute_verify_run, false },
 
     // ===================================================================
     // Section 4: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)
@@ -864,6 +873,21 @@ static const AuditModule ALL_MODULES[] = {
     // when no GPU backend (GitHub runners) or backend built without SECP256K1_GPU_HAS_ZK
     // (bulletproof_verify_batch → ERR_GPU_UNSUPPORTED) — cannot be made mandatory in CI.
     { "gpu_zk_prove_verify_differential", "GPU Bulletproof poly-check vs CPU prover (CPU-prove → GPU-verify)", "differential", test_gpu_zk_prove_verify_differential_run, true  },
+    // advisory=false: null-ctx contract + engine-dispatcher (installable GPU-columns
+    // hook decline/handled/fail-closed) run CPU-only and MUST pass everywhere; the
+    // GPU-native columns-vs-CPU differential self-skips when no GPU backend.
+    { "gpu_lbtc_columns_diff", "GPU vs CPU libbitcoin column verify + engine dispatcher CPU fallback", "differential", test_gpu_lbtc_columns_diff_run, false },
+    // advisory=false: the null-ctx contract runs CPU-only and MUST pass everywhere;
+    // the on-device collect-vs-verify_batch per-row parity self-skips when no GPU
+    // backend is present (or a backend lacks a native collect override).
+    { "gpu_collect_verify_parity", "GPU collect-verify parity (native OpenCL/Metal/CUDA collect == verify_batch verdict)", "differential", test_gpu_collect_verify_parity_run, false },
+    // advisory=false: null-ctx contract runs CPU-only and MUST pass everywhere;
+    // the on-device KAT/boundary checks (per backend) self-skip when no GPU
+    // backend is compiled in or a device is unavailable.
+    { "hash256_var_batch", "hash256_var batch structural/boundary KAT vs SHA256::hash256 oracle", "differential", test_regression_hash256_var_batch_run, false },
+    // advisory=false: cross-backend byte-identical parity self-skips (zero
+    // on-device assertions is not a failure) when no GPU backend is present.
+    { "hash256_var_parity", "hash256_var cross-backend (CUDA/OpenCL/Metal) byte-identical output vs CPU oracle", "differential", test_regression_hash256_var_parity_run, false },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================
@@ -1018,6 +1042,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_glv_kat",                "GLV Decomposition KAT",                       "exploit_poc", test_exploit_glv_kat_run, false },
     { "exploit_gpu_cpu_divergence",     "GPU/CPU Algebraic Consistency",               "exploit_poc", test_exploit_gpu_cpu_divergence_run, false },
     { "exploit_gpu_host_api_shape",     "GPU Host API Hostile Caller",                 "exploit_poc", test_exploit_gpu_host_api_shape_run, false },
+    { "exploit_hash256_var_bounds",     "hash256_var Hostile-Input / Bounds Contract", "exploit_poc", test_exploit_hash256_var_bounds_run, false },
     { "exploit_hedged_nonce_bias",      "Hedged Signature Nonce Bias",                 "exploit_poc", test_exploit_hedged_nonce_bias_run, false },
     { "exploit_hkdf_kat",               "HKDF-SHA256 KAT (RFC 5869)",                 "exploit_poc", test_exploit_hkdf_kat_run, false },
     { "infinity_edge_cases",            "Point-at-Infinity Edge Cases (INF-1..28)",    "exploit_poc", test_infinity_edge_cases_run, false },
@@ -1361,8 +1386,9 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_shim_der_zero_r", "DER parse r=0 rejection (shim vs libsecp divergence)", "exploit_poc", test_shim_der_zero_r_run, true },
     { "exploit_shim_null_ctx",   "NULL context illegal-callback enforcement (SHIM-001/002/003)", "exploit_poc", test_shim_null_ctx_run, true },
     // === 2026-05-12 SEC-007: high-S verify divergence diagnostic ===
-    // advisory=true: depends on shim being linked; documents intentional divergence.
-    { "regression_shim_high_s_verify", "SEC-007: secp256k1_ecdsa_verify high-S divergence diagnostic -- no normalize before verify (intentional)", "exploit_poc", test_regression_shim_high_s_verify_run, true },
+    // advisory=true: unified_audit_runner gets the shim stub in this CMake order.
+    // The real shim-linked body is mandatory in the standalone CTest gate.
+    { "regression_shim_high_s_verify", "SEC-007/SHIM-008: secp256k1_ecdsa_verify REJECTS high-S (libsecp parity, BIP-62 malleability)", "exploit_poc", test_regression_shim_high_s_verify_run, true },
     // === 2026-05-12 PERF-001/005: shim hot-path optimization correctness ===
     // advisory=true: stub in shim_run_stubs_unified.cpp returns ADVISORY_SKIP_CODE
     // when the shim is not linked into unified_audit_runner. Standalone CTest target
