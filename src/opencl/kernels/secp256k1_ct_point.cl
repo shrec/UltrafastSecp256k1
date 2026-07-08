@@ -320,11 +320,12 @@ inline void ct_scalar_mul_point(const CTJacobianPoint* p, const Scalar* k,
     }
 
     // Build endomorphism table: phi(P) = (beta*x, y)
+    // Uses canonical GLV_BETA from secp256k1_extended.cl (secp256k1 GLV β)
     FieldElement beta;
-    beta.limbs[0] = 0x7AE96A2B657C0710UL;
-    beta.limbs[1] = 0x6584D3F6EB4C3F40UL;
-    beta.limbs[2] = 0x7F09A3680E46AB35UL;
-    beta.limbs[3] = 0x851695D49A83F8EFUL;
+    beta.limbs[0] = GLV_BETA0;
+    beta.limbs[1] = GLV_BETA1;
+    beta.limbs[2] = GLV_BETA2;
+    beta.limbs[3] = GLV_BETA3;
     table_b[0] = table_a[0];
     for (int i = 1; i < CT_TABLE_SIZE; ++i) {
         field_mul_impl(&table_b[i].x, &table_a[i].x, &beta);

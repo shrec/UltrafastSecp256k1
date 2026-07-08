@@ -4133,6 +4133,8 @@ target_sources(unified_audit_runner PRIVATE
     test_regression_frost_musig2_degenerate.cpp
     # Feature module stubs: when a module is OFF, these provide advisory-skip
     # _run() implementations so unified_audit_runner links without the real files.
+    # 2026-07-08 Metal + OpenCL CT GLV beta constant mismatch fix (math_invariants, advisory=false, shim-independent)
+    test_regression_gpu_beta_constants.cpp
     feature_run_stubs_unified.cpp)
 # Shim-dependent + internal-API tests: link real files when shim is available,
 # else use stubs that return ADVISORY_SKIP_CODE (77) so the unified runner

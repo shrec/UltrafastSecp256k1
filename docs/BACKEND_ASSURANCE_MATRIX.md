@@ -383,6 +383,35 @@ through `ufsecp_gpu.h`.
 
 ---
 
+---
+
+## Resolved Secondary-Invariant Constant Bugs
+
+### GLV β (beta) endomorphism constant — Metal + OpenCL (fixed 2026-07-08)
+
+**Bug:** Both Metal (`secp256k1_ct_point.h`) and OpenCL (`secp256k1_ct_point.cl`)
+independently defined local duplicate copies of the secp256k1 GLV β constant
+inside `ct_scalar_mul_point()` that diverged from the canonical value used by
+their respective `apply_endomorphism_impl` implementations.
+
+- **Metal:** Local `BETA_METAL[8]` (32-bit limbs) had a dropped hex nibble in
+  word[0] during manual 64→32-bit transcription. Now references canonical
+  `BETA_LIMBS[8]` from `secp256k1_point.h:412`.
+- **OpenCL:** Local inline 64-bit literals matched canonical at limb[0] but
+  diverged at limbs[1..3]. Now references canonical `GLV_BETA0..3` from
+  `secp256k1_extended.cl:51-54`.
+- **CUDA:** Not affected — single `BETA[4]` in `secp256k1.cuh` reused by both
+  VT and CT paths.
+- **Severity:** P0 correctness bug, fail-loud (broken proofs fail verification).
+  Affected: CT ZK prove paths (knowledge-of-DL, DLEQ, bulletproof range proof)
+  on Metal and OpenCL. Unaffected: ECDSA/Schnorr signing, ECDH, CUDA all paths.
+- **Test:** `audit/test_regression_gpu_beta_constants.cpp` (math_invariants,
+  advisory=false) — verifies canonical β value, pre-fix divergence, and scans
+  actual shader source files for regression.
+- **Metal runtime caveat:** Fixed code is code-complete but NOT runtime-verified
+  on this Linux host (Metal requires Apple hardware). Owner validation on real
+  Apple hardware is needed before promotion to HIGH assurance.
+
 ## Parity Status
 
 > **Parity tracking is machine-generated.** The source graph (`tools/source_graph_kit/source_graph.py`)

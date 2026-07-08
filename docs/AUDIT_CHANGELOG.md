@@ -24,6 +24,40 @@ high-S ECDSA signature as consensus-invalid.
   the split between libbitcoin consensus acceptance and strict low-S
   standardness/shim behavior.
 
+## 2026-07-08 — Metal + OpenCL CT GLV beta constant mismatch (P0 correctness fix)
+
+Fixed a critical bug in both Metal and OpenCL backends where `ct_scalar_mul_point()`
+used incorrect local GLV β (beta) constants that did not match the canonical
+secp256k1 value. The bug was independently verified by two reviewers.
+
+- **Impact:** Every `ct_scalar_mul_point()` call on non-generator points
+  produced wrong results on Metal and OpenCL. Affected operations: CT
+  zero-knowledge proof generation — knowledge-of-DL prove, DLEQ prove,
+  bulletproof range prove. ECDSA/Schnorr signing and ECDH were NOT affected
+  (they use generator-only or ladder code paths that never reference β).
+- **Severity:** P0 correctness bug, **fail-loud** (broken proofs fail
+  verification — every verify-side implementation uses the correct canonical
+  β). Not a forgery or authentication bypass.
+- **Root cause:** Both backends independently hand-duplicated β as local
+  literals inside `ct_scalar_mul_point` instead of referencing their
+  existing canonical constants. Metal's `BETA_METAL[8]` had a dropped hex
+  nibble in word[0]; OpenCL's inline 64-bit literals matched canonical at
+  limb[0] but diverged at limbs[1..3].
+- **Fix — Metal:** Removed local `BETA_METAL`, now references `BETA_LIMBS[8]`
+  from `secp256k1_point.h:415`.
+- **Fix — OpenCL:** Replaced local inline 64-bit literals with `GLV_BETA0..3`
+  from `secp256k1_extended.cl:51-54`.
+- **CUDA:** Not affected — single `BETA[4]` declaration in `secp256k1.cuh`
+  reused by both VT and CT paths.
+- **Test:** `audit/test_regression_gpu_beta_constants.cpp` verifies canonical
+  β in both 32-bit (Metal) and 64-bit (OpenCL) limb representations,
+  cross-checks equivalence, and confirms pre-fix divergent values differ
+  from canonical. Wired into `unified_audit_runner.cpp` as
+  `regression_gpu_beta_constants` (math_invariants, advisory=false).
+- **Metal runtime note:** Not verifiable on this Linux host (Metal requires
+  Apple hardware). Owner validation on real Apple hardware is needed before
+  promotion to HIGH assurance.
+
 ## 2026-07-06 — new GPU primitive: `hash256_var` batch variable-length double-SHA256
 
 Added a new backend-neutral GPU primitive for batch variable-length Bitcoin

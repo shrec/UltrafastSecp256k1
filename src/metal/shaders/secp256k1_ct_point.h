@@ -399,12 +399,9 @@ inline CTJacobianPoint ct_scalar_mul_point(thread const CTJacobianPoint &p,
     }
 
     // Endomorphism table: phi(P) = (beta*x, y)
-    const uint BETA_METAL[8] = {
-        0x57C0710u, 0x7AE96A2Bu, 0xEB4C3F40u, 0x6584D3F6u,
-        0x0E46AB35u, 0x7F09A368u, 0x9A83F8EFu, 0x851695D4u
-    };
+    // Uses canonical BETA_LIMBS from secp256k1_point.h (secp256k1 GLV β)
     FieldElement beta;
-    for (int i = 0; i < 8; ++i) beta.limbs[i] = BETA_METAL[i];
+    for (int i = 0; i < 8; ++i) beta.limbs[i] = BETA_LIMBS[i];
     table_b[0] = table_a[0];
     for (int i = 1; i < TABLE_SIZE; ++i) {
         table_b[i].x = field_mul(table_a[i].x, beta);
