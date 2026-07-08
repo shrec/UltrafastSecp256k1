@@ -71,10 +71,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Windows audit-report CAAS gates use UTF-8 Python output.** Release-tag audit
   snapshots now force UTF-8 Python I/O on Windows so grammar/stateful harness
   progress markers cannot trip `cp1252` console encoding during JSON generation.
-- **CI Advisory MSan release checks have enough wall time.** Release-tag MSan
-  advisory runs now allow the sanitizer build and full test step to complete on
-  shared GitHub runners instead of being cancelled by the previous 60-minute job
-  limit.
+- **CI Advisory MSan release checks are bounded.** Release-tag MSan advisory
+  runs now build with MemorySanitizer and execute a representative core smoke
+  subset instead of the full 400-test CTest suite, while full audit/security
+  coverage remains in the dedicated release and security gates.
 
 ### Security
 
