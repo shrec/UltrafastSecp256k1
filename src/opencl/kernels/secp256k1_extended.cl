@@ -2453,6 +2453,31 @@ __kernel void lbtc_hash256(
     for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h2[i];
 }
 
+/* out[i] = SHA256(SHA256(left32[i] || right32[i])) — Merkle pair parent hash, SoA layout. */
+__kernel void lbtc_merkle_pair(
+    __global const uchar* left32,
+    __global const uchar* right32,
+    __global uchar* out32,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    uchar combined[64];
+    for (int j = 0; j < 32; ++j) combined[j]      = left32[(ulong)gid * 32 + j];
+    for (int j = 0; j < 32; ++j) combined[32 + j] = right32[(ulong)gid * 32 + j];
+    uchar h1[32];
+    SHA256Ctx ctx;
+    sha256_init(&ctx);
+    sha256_update(&ctx, combined, 64);
+    sha256_final(&ctx, h1);
+    uchar h2[32];
+    SHA256Ctx ctx2;
+    sha256_init(&ctx2);
+    sha256_update(&ctx2, h1, 32);
+    sha256_final(&ctx2, h2);
+    for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h2[i];
+}
+
 /* out[i] = SHA256(SHA256(row_i)), where row_i = inputs[i*stride .. i*stride+input_lens[i]).
  * Generic batch variable-length double-SHA256: row i is read directly from
  * __global memory via sha256_update_global (O(1) private scratch), so rows

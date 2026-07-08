@@ -718,6 +718,29 @@ ufsecp_error_t ufsecp_gpu_hash256_var(
     } UFSECP_GPU_CATCH
 }
 
+ufsecp_error_t ufsecp_gpu_merkle_pair_hash(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* left32,
+    const uint8_t* right32,
+    size_t n,
+    uint8_t* out32)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (n == 0) return UFSECP_OK;
+    if (n > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    if (!clear_output_bytes(out32, n, 32)) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!left32 || !right32 || !out32)) return UFSECP_ERR_NULL_ARG;
+    /* Fixed 64-byte combined input per row — no per-op length cap check needed
+     * (unlike hash256's input_len<=320 or tagged_hash's msg_len<=256). The
+     * kernel always processes exactly 64 bytes per row via lbtc_sha256. */
+    try {
+        return to_abi_error_clear_on_fail(
+            ctx->backend->merkle_pair_hash(left32, right32, n, out32),
+            out32, n, 32);
+    } UFSECP_GPU_CATCH
+}
+
+
 ufsecp_error_t ufsecp_gpu_frost_verify_partial_batch(
     ufsecp_gpu_ctx* ctx,
     const uint8_t* z_i32,

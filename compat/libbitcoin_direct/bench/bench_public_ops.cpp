@@ -2,7 +2,15 @@
 //
 // Measures the canonical bridge-free surface:
 //   ufsecp::lbtc::{xonly_validate,pubkey_validate,taproot_commitment_verify,
-//                  tagged_hash,tagged_hash_var,hash256,hash256_var}_batch
+//                  tagged_hash,tagged_hash_var,hash256,hash256_var,
+//                  txid_hash,wtxid_hash,merkle_pair_hash}_batch
+//
+// txid_hash_batch/wtxid_hash_batch are semantic aliases over hash256_var_batch
+// (same hook: g_lbtc_hash256_var_hook) — benchmarked here with realistic
+// tx-sized payload ranges instead of the generic var range used above, purely
+// for reporting purposes; the underlying computation is identical.
+// merkle_pair_hash_batch has its own dedicated hook (g_lbtc_merkle_pair_hook)
+// and fixed 32+32-byte column inputs (no length array/stride).
 //
 // No ufsecp C ABI, no libsecp256k1 shim, no ufsecp_lbtc bridge.
 //
@@ -36,6 +44,18 @@ struct Args {
     std::size_t var_max = 512;
     std::string json_path;
 };
+
+// Representative tx-sized payload ranges for txid_hash_batch/wtxid_hash_batch
+// (semantic aliases over hash256_var_batch). Not tied to the CLI args above —
+// these approximate realistic non-witness / witness-included serialized
+// transaction sizes, distinct from the generic 80..stride var range used for
+// the plain hash256_var row.
+constexpr std::size_t kTxidMinLen = 190;
+constexpr std::size_t kTxidMaxLen = 400;
+constexpr std::size_t kTxidStride = 400;
+constexpr std::size_t kWtxidMinLen = 220;
+constexpr std::size_t kWtxidMaxLen = 600;
+constexpr std::size_t kWtxidStride = 600;
 
 struct BenchResult {
     std::string op;
@@ -263,6 +283,11 @@ int main(int argc, char** argv)
     if (!parse_args(argc, argv, args))
         return 2;
 
+    if (mul_overflows(args.count, kWtxidStride) || mul_overflows(args.count, std::size_t{64})) {
+        std::fprintf(stderr, "count too large for tx-sized / merkle-pair benchmark buffers\n");
+        return 2;
+    }
+
     std::printf("== libbitcoin direct C++ public-data batch-op benchmark ==\n");
     std::printf("count=%zu  iters=%d  fixed_len=%zu  stride=%zu  var=[%zu,%zu]\n",
         args.count, args.iters, args.fixed_len, args.stride, args.var_min, args.var_max);
@@ -279,10 +304,29 @@ int main(int argc, char** argv)
     std::vector<std::uint32_t> var_lens(args.count);
     std::uint64_t var_payload = 0;
 
+    // txid_hash_batch / wtxid_hash_batch: realistic tx-sized variable payloads
+    // (see kTxid*/kWtxid* above). Same shape as var_msgs/var_lens but a
+    // distinct, more representative length range.
+    std::vector<std::uint8_t> tx_msgs(args.count * kTxidStride);
+    std::vector<std::uint32_t> tx_lens(args.count);
+    std::uint64_t tx_payload = 0;
+
+    std::vector<std::uint8_t> wtx_msgs(args.count * kWtxidStride);
+    std::vector<std::uint32_t> wtx_lens(args.count);
+    std::uint64_t wtx_payload = 0;
+
+    // merkle_pair_hash_batch: fixed 32-byte left/right columns (SoA), no
+    // length array — any 32 bytes are a valid Merkle-tree node hash for the
+    // purpose of this throughput benchmark.
+    std::vector<std::uint8_t> mp_left(args.count * 32);
+    std::vector<std::uint8_t> mp_right(args.count * 32);
+
     const auto tag_hash = secp256k1::SHA256::hash("BIP0340/test", 12);
 
     std::printf("generating valid public-data rows...\n");
     const std::size_t span = args.var_max - args.var_min + 1;
+    const std::size_t tx_span = kTxidMaxLen - kTxidMinLen + 1;
+    const std::size_t wtx_span = kWtxidMaxLen - kWtxidMinLen + 1;
     for (std::size_t i = 0; i < args.count; ++i) {
         std::uint8_t sk[32];
         rand_sk(sk);
@@ -300,6 +344,23 @@ int main(int argc, char** argv)
         const auto len = args.var_min + static_cast<std::size_t>(rng64() % span);
         var_lens[i] = static_cast<std::uint32_t>(len);
         var_payload += static_cast<std::uint64_t>(len);
+
+        for (std::size_t j = 0; j < kTxidStride; ++j)
+            tx_msgs[i * kTxidStride + j] = rng8();
+        const auto tlen = kTxidMinLen + static_cast<std::size_t>(rng64() % tx_span);
+        tx_lens[i] = static_cast<std::uint32_t>(tlen);
+        tx_payload += static_cast<std::uint64_t>(tlen);
+
+        for (std::size_t j = 0; j < kWtxidStride; ++j)
+            wtx_msgs[i * kWtxidStride + j] = rng8();
+        const auto wlen = kWtxidMinLen + static_cast<std::size_t>(rng64() % wtx_span);
+        wtx_lens[i] = static_cast<std::uint32_t>(wlen);
+        wtx_payload += static_cast<std::uint64_t>(wlen);
+
+        for (std::size_t b = 0; b < 32; ++b) {
+            mp_left[i * 32 + b] = rng8();
+            mp_right[i * 32 + b] = rng8();
+        }
     }
 
     std::vector<BenchResult> results;
@@ -421,6 +482,35 @@ int main(int argc, char** argv)
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::hash256_var_batch(
                 var_msgs.data(), var_lens.data(), args.stride, args.count, dst.data());
+        });
+
+    // txid_hash_batch / wtxid_hash_batch are semantic aliases over
+    // hash256_var_batch — they route through the SAME hook
+    // (g_lbtc_hash256_var_hook). Benchmarked separately here only to report
+    // throughput at realistic tx-sized payloads instead of the generic
+    // 80..stride var range above.
+    ok = ok && bench_hash_op("txid_hash", static_cast<std::size_t>(tx_payload),
+        ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook,
+        [] { return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire); },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::txid_hash_batch(
+                tx_msgs.data(), tx_lens.data(), kTxidStride, args.count, dst.data());
+        });
+
+    ok = ok && bench_hash_op("wtxid_hash", static_cast<std::size_t>(wtx_payload),
+        ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook,
+        [] { return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire); },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::wtxid_hash_batch(
+                wtx_msgs.data(), wtx_lens.data(), kWtxidStride, args.count, dst.data());
+        });
+
+    ok = ok && bench_hash_op("merkle_pair_hash", args.count * std::size_t{64},
+        ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook,
+        [] { return ufsecp::lbtc::gpu_hook::g_lbtc_merkle_pair_hook.load(std::memory_order_acquire); },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::merkle_pair_hash_batch(
+                mp_left.data(), mp_right.data(), args.count, dst.data());
         });
 
     if (!ok)

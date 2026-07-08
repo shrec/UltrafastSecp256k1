@@ -165,6 +165,7 @@ int test_gpu_lbtc_columns_diff_run(); // GPU vs CPU lbtc columns + engine dispat
 int test_gpu_collect_verify_parity_run(); // native collect verdict == verify_batch verdict (per-row)
 int test_regression_hash256_var_batch_run(); // hash256_var batch structural/boundary KAT vs SHA256::hash256 oracle
 int test_regression_hash256_var_parity_run(); // hash256_var cross-backend (CUDA/OpenCL/Metal) byte-identical parity
+int test_regression_merkle_pair_hash_run(); // merkle_pair_hash structural/boundary KAT + cross-backend parity vs SHA256::hash256 oracle
 
 // ============================================================================
 // Forward declarations -- adversarial / fuzz tests
@@ -397,6 +398,7 @@ int test_exploit_hkdf_kat_run();
 int test_infinity_edge_cases_run();
 int test_exploit_invalid_curve_twist_run();
 int test_exploit_keccak256_kat_run();
+int test_exploit_merkle_pair_bounds_run(); // merkle_pair_hash hostile-input / bounds contract (ctx-null, n=0, oversize n, NULL left32/right32/out32)
 int test_exploit_multiscalar_run();
 int test_exploit_musig2_run();
 int test_exploit_musig2_key_agg_run();
@@ -889,6 +891,11 @@ static const AuditModule ALL_MODULES[] = {
     // advisory=false: cross-backend byte-identical parity self-skips (zero
     // on-device assertions is not a failure) when no GPU backend is present.
     { "hash256_var_parity", "hash256_var cross-backend (CUDA/OpenCL/Metal) byte-identical output vs CPU oracle", "differential", test_regression_hash256_var_parity_run, false },
+    // advisory=false: null-ctx contract runs CPU-only and MUST pass everywhere;
+    // the on-device KAT + cross-backend parity checks self-skip when no GPU
+    // backend overrides merkle_pair_hash natively (base virtual default is
+    // GpuError::Unsupported).
+    { "merkle_pair_hash",  "merkle_pair_hash structural/boundary KAT + cross-backend parity vs SHA256::hash256 oracle", "differential", test_regression_merkle_pair_hash_run, false },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================
@@ -1049,6 +1056,7 @@ static const AuditModule ALL_MODULES[] = {
     { "infinity_edge_cases",            "Point-at-Infinity Edge Cases (INF-1..28)",    "exploit_poc", test_infinity_edge_cases_run, false },
     { "exploit_invalid_curve_twist",    "Invalid Curve / Twist Point Injection",       "exploit_poc", test_exploit_invalid_curve_twist_run, false },
     { "exploit_keccak256_kat",          "Keccak-256 KAT Vectors",                      "exploit_poc", test_exploit_keccak256_kat_run, false },
+    { "exploit_merkle_pair_bounds",     "merkle_pair_hash Hostile-Input / Bounds Contract", "exploit_poc", test_exploit_merkle_pair_bounds_run, false },
     { "exploit_multiscalar",            "Multi-Scalar Multiplication",                 "exploit_poc", test_exploit_multiscalar_run, false },
     { "exploit_musig2",                 "MuSig2 Multi-Signature Security",             "exploit_poc", test_exploit_musig2_run, false },
     { "exploit_musig2_key_agg",         "MuSig2 Key Aggregation (BIP-327)",            "exploit_poc", test_exploit_musig2_key_agg_run, false },

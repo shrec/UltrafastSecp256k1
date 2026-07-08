@@ -262,6 +262,24 @@ int engine_lbtc_hash256_var_hook(const std::uint8_t* inputs, const std::uint32_t
     }
 }
 
+int engine_lbtc_merkle_pair_hook(const std::uint8_t* left32, const std::uint8_t* right32,
+                                 std::size_t count, std::uint8_t* out32) noexcept {
+    try {
+        // Fixed 64-byte combined input — no device-cap check needed (unlike
+        // hash256's input_len<=320 or tagged_hash's msg_len<=256). The kernel
+        // always processes exactly 64 bytes per row via lbtc_sha256.
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return -1;
+        if (b->merkle_pair_hash(left32, right32, count, out32) != secp256k1::gpu::GpuError::Ok)
+            return -1;
+        return 0;  /* handled: every out32 row written */
+    } catch (...) {
+        return -1;
+    }
+}
+
+
 /* Self-install at load time. Runs when this TU is retained (the direct-GPU
  * profile forces it via the shared -u secp256k1_gpu_columns_provider_anchor). */
 struct EngineLbtcOpsInstaller {
@@ -273,6 +291,7 @@ struct EngineLbtcOpsInstaller {
         ufsecp::lbtc::gpu_hook::install_lbtc_tagged_hash_var_hook(&engine_lbtc_tagged_hash_var_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_hook(&engine_lbtc_hash256_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook(&engine_lbtc_hash256_var_hook);
+        ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(&engine_lbtc_merkle_pair_hook);
     }
 };
 EngineLbtcOpsInstaller g_engine_lbtc_ops_installer;

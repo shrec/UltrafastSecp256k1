@@ -5914,6 +5914,52 @@ set_tests_properties(exploit_hash256_var_bounds PROPERTIES TIMEOUT 30
     LABELS "audit;exploit_poc;gpu;hash256;hash256-var;bounds")
 target_sources(unified_audit_runner PRIVATE test_exploit_hash256_var_bounds.cpp)
 
+# merkle_pair_hash structural/boundary KAT + cross-backend parity vs the CPU
+# oracle. advisory=false: null-ctx contract runs CPU-only and MUST pass
+# everywhere; the on-device KAT and cross-backend parity checks self-skip
+# when no GPU backend overrides merkle_pair_hash natively.
+add_executable(test_regression_merkle_pair_hash_standalone
+    test_regression_merkle_pair_hash.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_regression_merkle_pair_hash_standalone)
+target_include_directories(test_regression_merkle_pair_hash_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+)
+target_compile_definitions(test_regression_merkle_pair_hash_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME regression_merkle_pair_hash
+    COMMAND test_regression_merkle_pair_hash_standalone)
+set_tests_properties(regression_merkle_pair_hash PROPERTIES TIMEOUT 60
+    LABELS "audit;differential;gpu;merkle;merkle-pair")
+target_sources(unified_audit_runner PRIVATE test_regression_merkle_pair_hash.cpp)
+
+# merkle_pair_hash hostile-input / bounds exploit coverage (ctx-null, n=0
+# no-op, oversize n, NULL left32/right32/out32 isolation).
+# advisory=false: CPU/GPU C ABI only, no shim dependency; ctx-dependent checks
+# self-skip when no GPU backend overrides merkle_pair_hash natively.
+add_executable(test_exploit_merkle_pair_bounds_standalone
+    test_exploit_merkle_pair_bounds.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_merkle_pair_bounds_standalone)
+target_include_directories(test_exploit_merkle_pair_bounds_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+)
+target_compile_definitions(test_exploit_merkle_pair_bounds_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_merkle_pair_bounds
+    COMMAND test_exploit_merkle_pair_bounds_standalone)
+set_tests_properties(exploit_merkle_pair_bounds PROPERTIES TIMEOUT 30
+    LABELS "audit;exploit_poc;gpu;merkle;merkle-pair;bounds")
+target_sources(unified_audit_runner PRIVATE test_exploit_merkle_pair_bounds.cpp)
+
 # Aggregate target used by .github/workflows/gate.yml's shim security job. The
 # ctest -R expression there matches test names, not build target names, so the
 # binaries must be built explicitly before ctest runs. Keep this list aligned

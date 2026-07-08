@@ -262,6 +262,29 @@ inline constexpr const char* fastsecp256k1_libbitcoin_target() noexcept {
     std::memcpy(sig65, compact.data(), 65);
     return true;
 }
+// ─── ECDSA sign recoverable hedged (CT, with recovery ID) ──────────────────
+// Like ecdsa_sign_recoverable but mixes aux32 into the nonce derivation for
+// defense-in-depth against fault injection and HMAC weakness. aux32 must be
+// 32 fresh CSPRNG bytes. Uses ct::ecdsa_sign_hedged_recoverable() — CT with
+// respect to private key and nonce. Recovery ID extraction branches only on
+// public data (R.y parity, r overflow).
+// Returns true on success; on failure sig65 is zeroed (fail-closed).
+[[nodiscard]] inline bool ecdsa_sign_hedged_recoverable(const std::uint8_t hash32[32],
+                                                         const std::uint8_t sk32[32],
+                                                         const std::uint8_t aux32[32],
+                                                         std::uint8_t sig65[65]) noexcept {
+    std::memset(sig65, 0, 65);
+    secp256k1::fast::Scalar sk;
+    if (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(sk32, sk)) return false;
+    std::array<std::uint8_t, 32> h, aux;
+    std::memcpy(h.data(), hash32, 32);
+    std::memcpy(aux.data(), aux32, 32);
+    const auto rsig = secp256k1::ct::ecdsa_sign_hedged_recoverable(h, sk, aux);
+    if (!rsig.sig.is_valid()) return false;
+    const auto compact = secp256k1::recoverable_to_compact(rsig, true);
+    std::memcpy(sig65, compact.data(), 65);
+    return true;
+}
 
 // ══════════════════════════════════════════════════════════════════════════════
 // ECDSA Recovery
@@ -441,6 +464,80 @@ inline void pubkey_serialize(const std::uint8_t pub33[33],
                               std::uint8_t out33[33]) noexcept {
     std::memcpy(out33, pub33, 33);
 }
+// ─── Public key create uncompressed (65-byte, CT) ──────────────────────────
+// Derives an uncompressed public key from a secret key.
+// Uses ct::generator_mul_blinded() — constant-time with respect to sk.
+// Returns false if sk is invalid (0 or >= n). On failure out65 is zeroed.
+[[nodiscard]] inline bool pubkey_create_uncompressed(const std::uint8_t sk32[32],
+                                                      std::uint8_t out65[65]) noexcept {
+    std::memset(out65, 0, 65);
+    secp256k1::fast::Scalar sk;
+    if (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(sk32, sk)) return false;
+    const auto P = secp256k1::ct::generator_mul_blinded(sk);
+    if (P.is_infinity()) return false;
+    const auto uncompressed = P.to_uncompressed();
+    std::memcpy(out65, uncompressed.data(), 65);
+    return true;
+}
+
+// ─── Public key parse uncompressed (65-byte) ───────────────────────────────
+// Validates that pub65 encodes a valid uncompressed curve point.
+// Checks header (0x04), canonical field elements (< p), and on-curve
+// relation (y^2 == x^3 + 7). Variable-time (public data).
+[[nodiscard]] inline bool pubkey_parse_uncompressed(const std::uint8_t pub65[65]) noexcept {
+    using secp256k1::fast::FieldElement;
+    using secp256k1::fast::FieldElement52;
+    if (pub65[0] != 0x04) return false;
+    FieldElement x, y;
+    if (!FieldElement::parse_bytes_strict(pub65 + 1, x)) return false;
+    if (!FieldElement::parse_bytes_strict(pub65 + 33, y)) return false;
+    static const std::uint64_t k7[4] = {7u, 0u, 0u, 0u};
+    const FieldElement52 x52 = FieldElement52::from_fe(x);
+    const FieldElement52 y52 = FieldElement52::from_fe(y);
+    const FieldElement52 rhs = x52.square() * x52 + FieldElement52::from_4x64_limbs(k7);
+    if (!(y52.square() == rhs)) return false;
+    return true;
+}
+
+// ─── Public key compress (65-byte uncompressed → 33-byte compressed) ──────
+// Validates the uncompressed key, then serializes to 33-byte compressed form.
+// Variable-time (public data). Returns false if input is invalid or point is
+// infinity. On failure out33 is zeroed.
+[[nodiscard]] inline bool pubkey_compress(const std::uint8_t pub65[65],
+                                           std::uint8_t out33[33]) noexcept {
+    std::memset(out33, 0, 33);
+    using secp256k1::fast::FieldElement;
+    using secp256k1::fast::FieldElement52;
+    if (pub65[0] != 0x04) return false;
+    FieldElement x, y;
+    if (!FieldElement::parse_bytes_strict(pub65 + 1, x)) return false;
+    if (!FieldElement::parse_bytes_strict(pub65 + 33, y)) return false;
+    static const std::uint64_t k7[4] = {7u, 0u, 0u, 0u};
+    const FieldElement52 x52 = FieldElement52::from_fe(x);
+    const FieldElement52 y52 = FieldElement52::from_fe(y);
+    const FieldElement52 rhs = x52.square() * x52 + FieldElement52::from_4x64_limbs(k7);
+    if (!(y52.square() == rhs)) return false;
+    const auto P = secp256k1::fast::Point::from_affine(x, y);
+    if (P.is_infinity()) return false;
+    const auto compressed = P.to_compressed();
+    std::memcpy(out33, compressed.data(), 33);
+    return true;
+}
+
+// ─── Public key decompress (33-byte compressed → 65-byte uncompressed) ────
+// Decompresses a compressed public key to 65-byte uncompressed form.
+// Variable-time (public data). Returns false if input is invalid.
+// On failure out65 is zeroed.
+[[nodiscard]] inline bool pubkey_decompress(const std::uint8_t pub33[33],
+                                             std::uint8_t out65[65]) noexcept {
+    std::memset(out65, 0, 65);
+    secp256k1::fast::Point P;
+    if (!detail::decompress(pub33, P)) return false;
+    const auto uncompressed = P.to_uncompressed();
+    std::memcpy(out65, uncompressed.data(), 65);
+    return true;
+}
+
 
 // ─── Public key combine (sum of points) ────────────────────────────────────
 // Computes P = P1 + P2 + ... + Pn (point addition, not scalar sum).
@@ -993,6 +1090,89 @@ inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
     }
     return true;
 }
+
+// ============================================================================
+// txid_hash_batch — semantic alias over hash256_var_batch.
+// ============================================================================
+// txid = SHA256(SHA256(serialized_tx_without_witness)). Identical to
+// hash256_var_batch — this alias exists solely for libbitcoin readability.
+// Zero new backend work. Public data, variable-time.
+[[nodiscard]] inline bool txid_hash_batch(
+    const std::uint8_t* serialized_txs,
+    const std::uint32_t* tx_lens,
+    std::size_t stride, std::size_t count,
+    std::uint8_t* out_txids32,
+    std::size_t max_threads = 0) noexcept
+{
+    return hash256_var_batch(serialized_txs, tx_lens, stride, count, out_txids32, max_threads);
+}
+
+// ============================================================================
+// wtxid_hash_batch — semantic alias over hash256_var_batch.
+// ============================================================================
+// wtxid = SHA256(SHA256(serialized_tx_with_witness)). Identical to
+// hash256_var_batch — this alias exists solely for libbitcoin readability.
+// Zero new backend work. Public data, variable-time.
+[[nodiscard]] inline bool wtxid_hash_batch(
+    const std::uint8_t* serialized_wtxs,
+    const std::uint32_t* wtx_lens,
+    std::size_t stride, std::size_t count,
+    std::uint8_t* out_wtxids32,
+    std::size_t max_threads = 0) noexcept
+{
+    return hash256_var_batch(serialized_wtxs, wtx_lens, stride, count, out_wtxids32, max_threads);
+}
+
+// ============================================================================
+// merkle_pair_hash_batch — HASH256 over two 32-byte column spans (SoA)
+// ============================================================================
+// Merkle pair hashing in Bitcoin: parent = SHA256(SHA256(left32 || right32)).
+//
+// Input layout (Structure-of-Arrays):
+//   left32:  count * 32 bytes (first 32-byte hash of each pair)
+//   right32: count * 32 bytes (second 32-byte hash of each pair)
+//   out32:   count * 32 bytes (output parent hash per pair)
+//
+// Byte layout (i in [0, count)):
+//   combined_i[0..31]  = left32[i*32 .. i*32+31]
+//   combined_i[32..63] = right32[i*32 .. i*32+31]
+//   out32[i*32..]      = SHA256(SHA256(combined_i))
+//
+// Failure semantics (HASH op — never touch out32 on bad input):
+//   count==0                    → true,  out32 untouched
+//   null left32/right32/out32   → false, out32 untouched
+//   layout overflow (count*32)  → false, out32 untouched
+//   GPU decline                 → CPU fallback recomputes every row, returns true
+//
+// PUBLIC DATA. Variable-time on GPU and CPU. No secret material.
+// Uses existing lbtc_sha256 kernel primitive for per-row double-SHA256.
+[[nodiscard]] inline bool merkle_pair_hash_batch(
+    const std::uint8_t* left32,
+    const std::uint8_t* right32,
+    std::size_t count,
+    std::uint8_t* out32,
+    std::size_t max_threads = 0) noexcept
+{
+    (void)max_threads;
+    if (count == 0) return true;
+    if (left32 == nullptr || right32 == nullptr || out32 == nullptr ||
+        detail::column_layout_overflows(count, 32)) {
+        return false;
+    }
+    if (auto hook = gpu_hook::g_lbtc_merkle_pair_hook.load(std::memory_order_acquire)) {
+        if (hook(left32, right32, count, out32) == 0) return true;
+    }
+    // CPU fallback: concatenate left||right and double-SHA256 per row
+    for (std::size_t i = 0; i < count; ++i) {
+        std::uint8_t combined[64];
+        std::memcpy(combined,       left32  + i * 32, 32);
+        std::memcpy(combined + 32,  right32 + i * 32, 32);
+        const auto d = secp256k1::SHA256::hash256(combined, 64);
+        std::memcpy(out32 + i * 32, d.data(), 32);
+    }
+    return true;
+}
+
 
 } // namespace ufsecp::lbtc
 

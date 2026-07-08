@@ -1,5 +1,57 @@
 # Audit Changelog
 
+## 2026-07-08 — new audit modules for `txid_hash_batch` / `wtxid_hash_batch` / `merkle_pair_hash_batch`
+
+Tests, audit wiring, and bench coverage for three GPU workload primitives that
+were already implemented on top of the 2026-07-06 `hash256_var` primitive
+(`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`): `txid_hash_batch`
+and `wtxid_hash_batch` (thin wrappers around `hash256_var_batch` — no dedicated
+C ABI, no dedicated GPU kernel) and `merkle_pair_hash_batch` (a fixed 64-byte
+left32||right32 double-SHA256, backed by its own `GpuBackend::merkle_pair_hash`
+virtual and C ABI `ufsecp_gpu_merkle_pair_hash`). All three are PUBLIC-DATA /
+variable-time — no secret-bearing path, no CT requirement.
+
+- **Tests:** `compat/libbitcoin_direct/tests/test_direct_verify.cpp` and
+  `test_direct_operations.cpp` gained coverage for `txid_hash_batch` /
+  `wtxid_hash_batch` (byte-identical vs `hash256_var_batch` + HASH256 oracle)
+  and `merkle_pair_hash_batch` (count==0, null-each-arg, overflow rejection,
+  CPU-fallback KAT, hook-decline, hook-success sentinel, left/right byte-order
+  non-commutativity). `test_lbtc_direct_verify` built and ran clean (ALL PASS,
+  0 fail). `test_direct_operations.cpp` has no CMake target (its coverage was
+  already migrated into `test_direct_verify.cpp` per a prior review comment —
+  the file is orphaned/dead) but was hand-verified to compile and pass anyway.
+- **Bench:** `compat/libbitcoin_direct/bench/bench_public_ops.cpp` gained three
+  new `bench_hash_op` rows — `txid_hash`, `wtxid_hash`, `merkle_pair_hash` —
+  using the same direct-cpu-forced-vs-direct-production, gold-checked harness
+  as the existing `hash256_var` row. Built and ran on this machine: all rows
+  report nonzero timing with `c_abi_required=false` / `shim_required=false` /
+  `bridge_required=false` confirmed in the JSON output. This was a single
+  sanity-check run, not a controlled ≥5-run benchmark per this repo's
+  performance protocol — no ns/op or throughput numbers are recorded here or
+  anywhere else; only non-zero timing was validated.
+- **Audit — new modules:**
+  - `audit/test_regression_merkle_pair_hash.cpp` (`test_regression_merkle_pair_hash_run()`,
+    `ALL_MODULES` key `merkle_pair_hash`, section `differential`): structural/
+    differential KAT vs the `secp256k1::SHA256::hash256(left32||right32)`
+    oracle, `n==0` no-op, `left==right` odd-leaf case, cross-backend parity.
+  - `audit/test_exploit_merkle_pair_bounds.cpp` (`test_exploit_merkle_pair_bounds_run()`,
+    `ALL_MODULES` key `exploit_merkle_pair_bounds`, section `exploit_poc`):
+    hostile-input/bounds coverage for `ufsecp_gpu_merkle_pair_hash` —
+    `ctx==NULL`, `n==0` no-op (untouched), `n>kMaxGpuBatchN` (untouched),
+    NULL `left32`/`right32` -> `UFSECP_ERR_NULL_ARG` with `out32` zeroed, NULL
+    `out32`, positive control. Mirrors the sibling
+    `test_exploit_hash256_var_bounds.cpp` pattern.
+  Both build clean; `ctest -R merkle_pair` -> 2/2 passed;
+  `unified_audit_runner --section differential` shows `[merkle_pair_hash]
+  pass=1 fail=0`.
+- **Docs:** `docs/API_REFERENCE.md` (C++ wrapper + `ufsecp_gpu_merkle_pair_hash`
+  C ABI entries), `docs/BACKEND_ASSURANCE_MATRIX.md` (new per-backend table),
+  `docs/LIBBITCOIN_INTEGRATION.md` (public-data batch ops table + CT/VT
+  matrix), and `docs/EXPLOIT_TEST_CATALOG.md` (new `merkle_pair_bounds` entry)
+  updated in the same pass. `ci/sync_module_count.py` run to sync module
+  counts across README.md / `docs/WHY_ULTRAFASTSECP256K1.md` for the two new
+  `ALL_MODULES` entries.
+
 ## 2026-07-07 — libbitcoin direct ECDSA high-S consensus policy
 
 Corrected the libbitcoin-direct consensus verify policy for ECDSA high-S
@@ -2270,7 +2322,7 @@ Resolved the audit's only P1 (GPU-CT cluster) on a GPU host (RTX 5060 Ti, sm_120
   crossing, MR5 adapt determinism, MR6 witness correspondence across distinct adaptors.
   10/10 relations hold. The positive twin of `soundness_adaptor_dleq_forgery` (GHSA-c7q2):
   a structural break in adapt/extract escapes a single honest roundtrip but breaks the
-  relation. Module count 421 → 422 (153 non-exploit + 270 exploit PoCs).
+  relation. Module count 421 → 422 (153 non-exploit + 271 exploit PoCs).
 - **Ledger also institutionalizes existing coverage:** `pedersen-additive-homomorphism`
   marked `covered` → existing `exploit_pedersen_homomorphism` module; MuSig2 aggregate≡single
   and FROST threshold-reconstruction equivalence declared `roadmap`.
@@ -3883,7 +3935,7 @@ No code issues found. Findings recorded in knowledge_base (CT-AUDIT-FROST/ADAPTO
 - **audit/test_exploit_frost_absent_signer_id.cpp (NEW — P1-SEC-001):** 3 sub-tests (FSI-1..3): absent signer → zero z_i; present signer → non-zero z_i; below-threshold → zero z_i. Wired to `unified_audit_runner` as `exploit_poc`, `advisory=false`.
 - **audit/test_regression_schnorr_sign_e_hash_erased.cpp (NEW — P1-SEC-002):** 4 sub-tests (SHE-1..4): sign+verify round-trip; 50 round-trips with varied messages; deterministic output; different messages → different sigs. Wired as `ct_analysis`, `advisory=false`.
 - **audit/test_exploit_musig2_infinity_pubnonce.cpp (NEW — P1-SEC-003):** 6 sub-tests (MIP-1..6): valid pubnonce accepted; zero input (prefix 0x00) rejected; uncompressed prefix (0x04) rejected; off-curve x handled; NULL args rejected; invalid second-point prefix rejected. Wired as `exploit_poc`, `advisory=true` (requires shim).
-- **ci/sync_module_count.py:** Module count propagated — 382 total (270 exploit-PoC, 115 non-exploit).
+- **ci/sync_module_count.py:** Module count propagated — 382 total (271 exploit-PoC, 115 non-exploit).
 
 ## 2026-05-21 — Fix: doc sync, stale paths, canonical benchmark JSON machine-generation (REL-001..011, BENCH-003/006, CI-001)
 
@@ -4360,7 +4412,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
   FAST variable-time row now labeled `[diag FAST]` — clearly marked as not production-equivalent.
   This eliminates the invalid VT-Ultra vs CT-libsecp comparison from the ratio table.
 
-### Module count: 357 total (101 non-exploit + 270 exploit PoC)
+### Module count: 357 total (101 non-exploit + 271 exploit PoC)
 
 ---
 
@@ -4506,7 +4558,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 - `docs/SHIM_KNOWN_DIVERGENCES.md` created: complete list of intentional shim vs libsecp256k1 behavioral differences.
 - `CLAUDE.md` updated: Canonical Data Synchronization rules added (module counts via `sync_module_count.py`, benchmark data via canonical JSON, ConnectBlock claim wording rules).
 - `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`: GCC CT signing regression (0.82–0.85×) disclosed; commit SHA mismatch corrected.
-- Module counts synced via `sync_module_count.py`: 98 non-exploit + 270 exploit PoC = 350 total.
+- Module counts synced via `sync_module_count.py`: 98 non-exploit + 271 exploit PoC = 350 total.
 
 ---
 
@@ -5381,7 +5433,7 @@ All 4 wired into `unified_audit_runner.cpp` + `audit/CMakeLists.txt`.
 
 ### Documentation Sync
 
-- `sync_module_count.py` run: WHY/README updated to 270 exploit PoCs, 80 non-exploit, 312 total.
+- `sync_module_count.py` run: WHY/README updated to 271 exploit PoCs, 80 non-exploit, 312 total.
 - `sync_version_refs.py` run: 26 doc files updated from v3.60/v3.66 → v3.68.0.
 - CT pipeline count: "3" → "5" (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) across README + WHY.
 - `docs/EXPLOIT_TEST_CATALOG.md`: `test_exploit_der_parsing_differential` updated to 13 tests.
@@ -7781,7 +7833,7 @@ tests PASS.**
   double-hash confusion (H(msg) ≠ H(H(msg))); domain prefix isolation (domain-A sig ≠ domain-B
   sig).  Committed `c843979c`.
 
-**Running total after this wave: 270 exploit PoC files, 59 new checks.**
+**Running total after this wave: 271 exploit PoC files, 59 new checks.**
 
 ---
 

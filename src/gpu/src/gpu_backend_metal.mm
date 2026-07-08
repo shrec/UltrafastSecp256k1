@@ -1229,6 +1229,46 @@ public:
         return GpuError::Ok;
     }
 
+    /* libbitcoin-bridge: Merkle-tree parent hashing, SoA layout.
+     * out[i] = SHA256(SHA256(left32[i] || right32[i])). PUBLIC-data hashing only.
+     * Native Metal parity with CudaBackend::merkle_pair_hash. */
+    GpuError merkle_pair_hash(
+        const uint8_t* left32, const uint8_t* right32,
+        size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!left32 || !right32 || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_merkle_pair");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_merkle_pair kernel missing from loaded library");
+
+        auto buf_left  = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_right = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_out   = runtime_->alloc_buffer_shared(n * 32);
+        auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+        if (!buf_left.valid() || !buf_right.valid() || !buf_out.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: lbtc_merkle_pair buffer allocation failed");
+
+        std::memcpy(buf_left.contents(), left32, n * 32);
+        std::memcpy(buf_right.contents(), right32, n * 32);
+        uint32_t n32 = (uint32_t)n;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        runtime_->dispatch_sync(pipe, (uint32_t)n, 64u,
+                                {&buf_left, &buf_right, &buf_out, &buf_count});
+
+        std::memcpy(out32, buf_out.contents(), n * 32);
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
     GpuError ecdh_batch(
         const uint8_t* privkeys32, const uint8_t* peer_pubkeys33,
         size_t count, uint8_t* out_secrets32) override

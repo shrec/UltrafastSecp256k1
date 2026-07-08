@@ -26,9 +26,9 @@
  *   primitives; that does not by itself make those primitives part of the
  *   stable production GPU ABI.
  *
- *     CUDA   -- all 13 stable GPU batch ops implemented
- *     OpenCL -- all 13 stable GPU batch ops implemented
- *     Metal  -- all 13 stable GPU batch ops implemented
+ *     CUDA   -- all 14 stable GPU batch ops implemented
+ *     OpenCL -- all 14 stable GPU batch ops implemented
+ *     Metal  -- all 14 stable GPU batch ops implemented
  *
  *   Operations that a backend does not implement return
  *   UFSECP_ERR_GPU_UNSUPPORTED (104). This is no longer expected for the
@@ -542,6 +542,35 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_hash256_var(
     size_t stride,
     size_t n,
     uint8_t* out32);
+
+/**
+ * ufsecp_gpu_merkle_pair_hash - batch Merkle pair HASH256 (SoA column layout).
+ *
+ * Computes SHA256(SHA256(left32[i*32..31] || right32[i*32..31])) for i in [0, n).
+ * Two separate 32-byte column spans (Structure-of-Arrays layout).
+ * Fixed 64-byte combined input per row — always 2×32, no input_len parameter.
+ *
+ * PUBLIC-DATA operation. Variable-time on GPU and CPU. No secret material.
+ *
+ * n==0 is a no-op (UFSECP_OK, out32 untouched).
+ * null left32/right32/out32 → UFSECP_ERR_NULL_ARG.
+ * n exceeding batch cap → UFSECP_ERR_BAD_INPUT.
+ * On any non-OK return, out32 is cleared — never a partial or stale result.
+ *
+ * @param ctx     GPU context.
+ * @param left32  Input: n * 32 bytes (first 32-byte hash of each pair).
+ * @param right32 Input: n * 32 bytes (second 32-byte hash of each pair).
+ * @param n       Number of Merkle pairs.
+ * @param out32   Output: n * 32 bytes (parent hashes).
+ * @return UFSECP_OK on success.
+ */
+UFSECP_API ufsecp_error_t ufsecp_gpu_merkle_pair_hash(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* left32,
+    const uint8_t* right32,
+    size_t n,
+    uint8_t* out32);
+
 
 /* ============================================================================
  * GPU error string extension

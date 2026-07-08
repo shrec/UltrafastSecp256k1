@@ -288,6 +288,7 @@ public:
         if (ext_tagged_hash_var_)      { clReleaseKernel(ext_tagged_hash_var_);      ext_tagged_hash_var_      = nullptr; }
         if (ext_hash256_)              { clReleaseKernel(ext_hash256_);              ext_hash256_              = nullptr; }
         if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
+        if (ext_merkle_pair_)          { clReleaseKernel(ext_merkle_pair_);          ext_merkle_pair_          = nullptr; }
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
@@ -1201,6 +1202,56 @@ public:
         e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
         release_all();
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "hash256_var result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* out32[i] = SHA256(SHA256(left32[i] || right32[i])) — Bitcoin Merkle-tree
+     * parent hash from two 32-byte child hashes. SoA layout: left32/right32 are
+     * separate n*32-byte buffers (not interleaved). Public-data hashing only. */
+    GpuError merkle_pair_hash(
+        const uint8_t* left32, const uint8_t* right32,
+        size_t n, uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!left32 || !right32 || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_merkle_pair_)
+            return set_error(GpuError::Launch, "lbtc_merkle_pair kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+        cl_int e;
+        cl_mem d_left = nullptr, d_right = nullptr, d_out = nullptr;
+        auto release_all = [&]() {
+            if (d_out)   clReleaseMemObject(d_out);
+            if (d_right) clReleaseMemObject(d_right);
+            if (d_left)  clReleaseMemObject(d_left);
+        };
+        d_left = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                n * 32, const_cast<uint8_t*>(left32), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "merkle_pair_hash d_left"); }
+        d_right = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                 n * 32, const_cast<uint8_t*>(right32), &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "merkle_pair_hash d_right"); }
+        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "merkle_pair_hash d_out"); }
+
+        cl_uint cl_count = static_cast<cl_uint>(n);
+        clSetKernelArg(ext_merkle_pair_, 0, sizeof(cl_mem), &d_left);
+        clSetKernelArg(ext_merkle_pair_, 1, sizeof(cl_mem), &d_right);
+        clSetKernelArg(ext_merkle_pair_, 2, sizeof(cl_mem), &d_out);
+        clSetKernelArg(ext_merkle_pair_, 3, sizeof(cl_uint), &cl_count);
+        size_t global = n;
+        e = clEnqueueNDRangeKernel(queue, ext_merkle_pair_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "merkle_pair_hash kernel launch failed"); }
+        clFinish(queue);
+        e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
+        release_all();
+        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "merkle_pair_hash result read failed");
         clear_error();
         return GpuError::Ok;
     }
@@ -2814,6 +2865,7 @@ private:
     cl_kernel  ext_tagged_hash_var_        = nullptr;
     cl_kernel  ext_hash256_                = nullptr;
     cl_kernel  ext_hash256_var_            = nullptr;
+    cl_kernel  ext_merkle_pair_            = nullptr;
     cl_kernel  ext_schnorr_verify_         = nullptr;
     cl_kernel  ext_ecrecover_       = nullptr;
     cl_kernel  ext_ecdsa_snark_            = nullptr;
@@ -2888,6 +2940,7 @@ private:
             ext_ecdh_scalar_mul_compressed_ && ext_schnorr_snark_ &&
             ext_xonly_validate_ && ext_pubkey_validate_ && ext_commitment_verify_ &&
             ext_tagged_hash_ && ext_tagged_hash_var_ && ext_hash256_ && ext_hash256_var_ &&
+            ext_merkle_pair_ &&
             ext_ecdsa_lbtc_collect_ && ext_schnorr_lbtc_collect_)
             return GpuError::Ok;
         if (ext_init_attempted_)
@@ -3072,6 +3125,7 @@ private:
         // (each handle is nullptr until created) make one shared cleanup safe
         // regardless of which clCreateKernel failed — no double-release.
         auto release_all_extended = [&]() {
+            if (ext_merkle_pair_)          { clReleaseKernel(ext_merkle_pair_);          ext_merkle_pair_          = nullptr; }
             if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
             if (ext_hash256_)              { clReleaseKernel(ext_hash256_);              ext_hash256_              = nullptr; }
             if (ext_tagged_hash_var_)      { clReleaseKernel(ext_tagged_hash_var_);      ext_tagged_hash_var_      = nullptr; }
@@ -3109,6 +3163,8 @@ private:
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_hash256 kernel not found"); }
         ext_hash256_var_ = clCreateKernel(ext_program_, "lbtc_hash256_var", &err);
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_hash256_var kernel not found"); }
+        ext_merkle_pair_ = clCreateKernel(ext_program_, "lbtc_merkle_pair", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_merkle_pair kernel not found"); }
 
         // libbitcoin COLLECT verify kernels (native OpenCL). Same device parse/
         // verify as the column kernels; only the output convention differs.

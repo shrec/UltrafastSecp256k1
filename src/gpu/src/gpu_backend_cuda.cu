@@ -811,6 +811,20 @@ __global__ void lbtc_hash256_kernel(
     lbtc_sha256(h1, 32, out + i*32);                            // SHA256(SHA256(input))
 }
 
+// Batch Merkle-tree parent hashing: out[i] = SHA256(SHA256(left32[i] || right32[i])),
+// SoA inputs (left32/right32 are separate n*32-byte buffers, not interleaved).
+__global__ void lbtc_merkle_pair_kernel(
+    const uint8_t* __restrict__ left32, const uint8_t* __restrict__ right32,
+    int n, uint8_t* __restrict__ out) {
+    const int i = blockIdx.x*blockDim.x + threadIdx.x; if (i >= n) return;
+    uint8_t combined[64];
+    for (int j = 0; j < 32; ++j) combined[j]      = left32[(size_t)i * 32 + j];
+    for (int j = 0; j < 32; ++j) combined[32 + j] = right32[(size_t)i * 32 + j];
+    uint8_t h1[32];
+    lbtc_sha256(combined, 64, h1);
+    lbtc_sha256(h1, 32, out + (size_t)i * 32);
+}
+
 // Batch HASH256 (double SHA-256) of variable-length rows: row_i = inputs[i*stride ..
 // i*stride+input_lens[i]); bytes beyond input_lens[i] up to stride are ignored padding.
 // Rows may span multiple megabytes (real Bitcoin transactions) -- lbtc_sha256 is
@@ -1798,6 +1812,37 @@ h2_cleanup:
         clear_error();
 h2v_cleanup:
         if(d_in)cudaFree(d_in); if(d_lens)cudaFree(d_lens); if(d_out)cudaFree(d_out);
+        return ret;
+    }
+
+    /* libbitcoin-bridge: batch Merkle-tree parent hashing. PUBLIC.
+     * out32[i] = SHA256(SHA256(left32[i*32..] || right32[i*32..])), SoA inputs
+     * (left32/right32 are separate n*32-byte buffers, not interleaved). */
+    GpuError merkle_pair_hash(
+        const uint8_t* left32, const uint8_t* right32, size_t n, uint8_t* out32) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (n == 0) { clear_error(); return GpuError::Ok; }
+        if (!left32 || !right32 || !out32) return set_error(GpuError::NullArg, "NULL buffer");
+
+        uint8_t *d_left=nullptr,*d_right=nullptr,*d_out=nullptr;
+        GpuError ret = GpuError::Ok;
+        const int n_int = static_cast<int>(n);
+        const int threads = 256;
+        const int blocks  = (n_int + threads - 1) / threads;
+
+        if (cudaMalloc(&d_left, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"merklepair d_left"); goto mp_cleanup; }
+        if (cudaMalloc(&d_right, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"merklepair d_right"); goto mp_cleanup; }
+        if (cudaMalloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"merklepair d_out"); goto mp_cleanup; }
+        if (cudaMemcpy(d_left, left32, n*32, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"merklepair up left"); goto mp_cleanup; }
+        if (cudaMemcpy(d_right, right32, n*32, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"merklepair up right"); goto mp_cleanup; }
+        lbtc_merkle_pair_kernel<<<blocks,threads>>>(d_left, d_right, n_int, d_out);
+        if (cudaGetLastError()!=cudaSuccess){ ret=set_error(GpuError::Launch,"merklepair kernel"); goto mp_cleanup; }
+        if (cudaDeviceSynchronize()!=cudaSuccess){ ret=set_error(GpuError::Launch,"merklepair sync"); goto mp_cleanup; }
+        if (cudaMemcpy(out32, d_out, n*32, cudaMemcpyDeviceToHost)!=cudaSuccess){ ret=set_error(GpuError::Launch,"merklepair download"); goto mp_cleanup; }
+        clear_error();
+mp_cleanup:
+        if(d_left)cudaFree(d_left); if(d_right)cudaFree(d_right); if(d_out)cudaFree(d_out);
         return ret;
     }
 

@@ -874,6 +874,29 @@ kernel void lbtc_hash256(
     for (uint j = 0; j < 32; ++j) out[ulong(tid) * 32 + j] = h2[j];
 }
 
+// out[i] = SHA256(SHA256(left32[i] || right32[i])) — Merkle pair parent hash, SoA layout.
+kernel void lbtc_merkle_pair(
+    device const uchar *left32  [[buffer(0)]],   // N × 32
+    device const uchar *right32 [[buffer(1)]],   // N × 32
+    device uchar *out           [[buffer(2)]],   // N × 32
+    constant uint &count        [[buffer(3)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    thread uchar combined[64];
+    for (uint j = 0; j < 32; ++j) combined[j]      = left32[ulong(tid) * 32 + j];
+    for (uint j = 0; j < 32; ++j) combined[32 + j] = right32[ulong(tid) * 32 + j];
+    SHA256Ctx ctx1; sha256_init(ctx1);
+    sha256_update(ctx1, combined, 64);
+    thread uchar h1[32];
+    sha256_final(ctx1, h1);
+    SHA256Ctx ctx2; sha256_init(ctx2);
+    sha256_update(ctx2, h1, 32);
+    thread uchar h2[32];
+    sha256_final(ctx2, h2);
+    for (uint j = 0; j < 32; ++j) out[ulong(tid) * 32 + j] = h2[j];
+}
+
 // sha256_update_device: streams SHA-256 blocks directly from `device` memory.
 // The real sha256_update (secp256k1_extended.h) only accepts a `thread const
 // uchar*` pointer, so lbtc_hash256/lbtc_tagged_hash_var copy each row into a

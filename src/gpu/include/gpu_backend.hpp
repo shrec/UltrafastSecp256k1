@@ -333,7 +333,22 @@ public:
         return GpuError::Unsupported;
     }
 
-    /** Batch FROST partial signature verification.
+    /** libbitcoin-bridge: batch Merkle pair HASH256 (left32||right32 → parent).
+     *  Two separate 32-byte column spans (SoA layout). Fixed 64-byte combined
+     *  input per row — no input_len parameter (always 32+32=64). PUBLIC data.
+     *  CUDA, OpenCL, and Metal all provide native overrides; this base virtual
+     *  default is unreachable for any currently shipped backend — it exists only
+     *  as an abstract-safe fallback for a hypothetical future backend. */
+    virtual GpuError merkle_pair_hash(
+        const uint8_t* left32, const uint8_t* right32,
+        size_t n, uint8_t* out32)
+    {
+        (void)left32; (void)right32; (void)n; (void)out32;
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively.
+        return GpuError::Unsupported;
+    }
+
+        /** Batch FROST partial signature verification.
      *  Each item verifies: R_i = D_i + rho_i*E_i, lhs = z_i*G, rhs = R_i + lambda_ie*Y_i
      *  result[i] = (lhs == rhs). */
     virtual GpuError frost_verify_partial_batch(

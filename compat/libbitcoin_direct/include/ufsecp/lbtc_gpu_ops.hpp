@@ -79,6 +79,11 @@ using hash256_fn = int (*)(const std::uint8_t* inputs, std::size_t input_len,
 using hash256_var_fn = int (*)(const std::uint8_t* inputs, const std::uint32_t* input_lens,
                                std::size_t stride, std::size_t count, std::uint8_t* out32);
 
+using merkle_pair_hash_fn = int (*)(const std::uint8_t* left32,
+                                    const std::uint8_t* right32,
+                                    std::size_t count,
+                                    std::uint8_t* out32);
+
 // -- Shared fn-ptr storage (C++17 inline vars: one definition across all TUs) -
 inline std::atomic<xonly_validate_fn>    g_lbtc_xonly_hook{nullptr};
 inline std::atomic<pubkey_validate_fn>   g_lbtc_pubkey_hook{nullptr};
@@ -87,6 +92,7 @@ inline std::atomic<tagged_hash_fn>       g_lbtc_tagged_hash_hook{nullptr};
 inline std::atomic<tagged_hash_var_fn>   g_lbtc_tagged_hash_var_hook{nullptr};
 inline std::atomic<hash256_fn>           g_lbtc_hash256_hook{nullptr};
 inline std::atomic<hash256_var_fn>       g_lbtc_hash256_var_hook{nullptr};
+inline std::atomic<merkle_pair_hash_fn>  g_lbtc_merkle_pair_hook{nullptr};
 
 // -- Installers (thread-safe store, return the previous value) ---------------
 inline xonly_validate_fn install_lbtc_xonly_hook(xonly_validate_fn fn) noexcept {
@@ -109,6 +115,10 @@ inline hash256_fn install_lbtc_hash256_hook(hash256_fn fn) noexcept {
 }
 inline hash256_var_fn install_lbtc_hash256_var_hook(hash256_var_fn fn) noexcept {
     return g_lbtc_hash256_var_hook.exchange(fn, std::memory_order_release);
+}
+
+inline merkle_pair_hash_fn install_lbtc_merkle_pair_hook(merkle_pair_hash_fn fn) noexcept {
+    return g_lbtc_merkle_pair_hook.exchange(fn, std::memory_order_release);
 }
 
 }  // namespace ufsecp::lbtc::gpu_hook

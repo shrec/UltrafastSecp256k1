@@ -225,7 +225,7 @@ collapse high-S into consensus-invalid.
 
 ### Public-data batch ops (validate / commitment / hashing)
 
-Seven additional block-connect-scale batch primitives share the identical
+Ten additional block-connect-scale batch primitives share the identical
 one-surface contract as the verify paths above — **internal GPU acceleration,
 deterministic CPU fallback, one `bool`-returning inline call, no CPU/GPU split,
 no GPU status code, no caller chunking, no bridge / Controller / C-ABI**:
@@ -240,6 +240,9 @@ no GPU status code, no caller chunking, no bridge / Controller / C-ABI**:
 | `tagged_hash_var_batch(tag_hash32, msgs, msg_lens, stride, count, out32, max_threads=0)` | `msgs`: `count` items at `stride`; `msg_lens[i]` per item | `count×32` | per-item variable-length BIP-340 tagged hash (CPU covers **all** lengths — no 256-byte cap) |
 | `hash256_batch(inputs, input_len, count, out32, max_threads=0)` | `inputs`: `count×input_len` | `count×32` | `out[i]=SHA256(SHA256(inputs[i]))` (Bitcoin HASH256) |
 | `hash256_var_batch(inputs, input_lens, stride, count, out32, max_threads=0)` | `inputs`: `count` items at `stride`; `input_lens[i]` per item | `count×32` | per-item variable-length Bitcoin HASH256 for txid/wtxid preimages after libbitcoin serializes bytes on CPU |
+| `txid_hash_batch(serialized_txs, tx_lens, stride, count, out_txids32, max_threads=0)` | `serialized_txs`: `count` items at `stride`; `tx_lens[i]` per item | `count×32` | semantic alias over `hash256_var_batch` — `out[i]=SHA256(SHA256(serialized_tx_without_witness_i))`; zero new backend work, caller pre-serializes on CPU (BIP144 `legacy_serialize`) |
+| `wtxid_hash_batch(serialized_wtxs, wtx_lens, stride, count, out_wtxids32, max_threads=0)` | `serialized_wtxs`: `count` items at `stride`; `wtx_lens[i]` per item | `count×32` | semantic alias over `hash256_var_batch` — `out[i]=SHA256(SHA256(serialized_tx_with_witness_i))`; zero new backend work, caller pre-serializes on CPU (BIP144 `witness_serialize`) |
+| `merkle_pair_hash_batch(left32, right32, count, out32, max_threads=0)` | `left32`/`right32`: `count×32` columns (SoA) | `count×32` | `out[i]=SHA256(SHA256(left32_i‖right32_i))` — Merkle-tree parent-hash primitive; fixed 64-byte combined input per row, no `input_len` parameter; distinct GPU virtual (`merkle_pair_hash`), not an alias |
 
 Fail-closed / never-consensus-invalid semantics:
 
@@ -258,7 +261,7 @@ GPU enablement is the inspectable build fact **"is `secp256k1_gpu_host` linked"*
 self-installing `EngineLbtcOpsInstaller` rides the same `-u
 secp256k1_gpu_columns_provider_anchor`). GPU acceleration reuses the EXISTING
 `GpuBackend` virtuals (`xonly_validate`, `pubkey_validate`, `commitment_verify`,
-`tagged_hash`, `tagged_hash_var`, `hash256`, `hash256_var`) — **native on all
+`tagged_hash`, `tagged_hash_var`, `hash256`, `hash256_var`, `merkle_pair_hash`) — **native on all
 three backends**:
 CUDA (`gpu_backend_cuda.cu`) and OpenCL (`src/opencl/kernels/secp256k1_extended.cl`
 + `gpu_backend_opencl.cpp`) are verified on-device; Metal
@@ -301,6 +304,9 @@ as the verify paths (`-DSECP256K1_BUILD_LIBBITCOIN[_GPU]=ON`,
 | `tagged_hash_var_batch` | **VT** (public data) | `SHA256` / GPU `tagged_hash_var` | `secp256k1` / `gpu` |
 | `hash256_batch` | **VT** (public data) | `SHA256::hash256()` / GPU `hash256` | `secp256k1` / `gpu` |
 | `hash256_var_batch` | **VT** (public data) | `SHA256::hash256()` / GPU `hash256_var` | `secp256k1` / `gpu` |
+| `txid_hash_batch` | **VT** (public data) | `hash256_var_batch()` (alias) / GPU `hash256_var` | `secp256k1` / `gpu` |
+| `wtxid_hash_batch` | **VT** (public data) | `hash256_var_batch()` (alias) / GPU `hash256_var` | `secp256k1` / `gpu` |
+| `merkle_pair_hash_batch` | **VT** (public data) | `SHA256::hash256()` / GPU `merkle_pair_hash` | `secp256k1` / `gpu` |
 
 Every CT entry has graph evidence: `symbols`/`coverage`/`auditmap` against `source_graph.db` confirm the code path routes through `secp256k1::ct::*` primitives with no data-dependent branches.
 

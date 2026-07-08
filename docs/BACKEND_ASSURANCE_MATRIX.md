@@ -263,6 +263,45 @@ caller-controlled. Test coverage: `audit/test_regression_hash256_var_batch.cpp`
 byte-identical parity), `audit/test_exploit_hash256_var_bounds.cpp` (hostile
 inputs).
 
+### `txid_hash_batch` / `wtxid_hash_batch` / `merkle_pair_hash_batch`: libbitcoin txid, wtxid, and Merkle-pair hashing (Added 2026-07-08)
+
+Three bridge-free `ufsecp::lbtc::*_batch` wrappers
+(`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`) extend the
+`hash256_var` primitive above with libbitcoin-facing semantics.
+`txid_hash_batch` and `wtxid_hash_batch` are semantic aliases over
+`hash256_var_batch` — zero new backend work, same GPU hook/kernel/bound
+(`kMaxHash256VarStride`, 4 MiB) as `hash256_var`. `merkle_pair_hash_batch` is
+a distinct primitive: a fixed 64-byte `left32 || right32` double-SHA256 over
+two 32-byte column spans (Structure-of-Arrays), backed by its own
+`GpuBackend::merkle_pair_hash` virtual, C ABI `ufsecp_gpu_merkle_pair_hash`
+(`include/ufsecp/ufsecp_gpu.h` / `src/cpu/src/ufsecp_gpu_impl.cpp`), and its
+own hook/installer in `lbtc_gpu_ops.hpp`. All three are PUBLIC-DATA /
+variable-time — no secret material, no CT requirement.
+
+| Backend | `txid_hash_batch` / `wtxid_hash_batch` | `merkle_pair_hash_batch` | Assurance | Notes |
+|---|---|---|---|---|
+| CPU | reference (deterministic fallback via `hash256_var_batch`) | reference (deterministic fallback: `SHA256::hash256(left32\|\|right32)` per row) | **HIGH** — covered by `test_regression_merkle_pair_hash.cpp` (differential vs oracle, `n==0`, `left==right` odd-leaf) and `compat/libbitcoin_direct/tests/test_direct_verify.cpp` (byte-identical vs `hash256_var_batch` / HASH256 oracle, count==0, null-each-arg, overflow rejection, hook-decline, hook-success sentinel, left/right non-commutativity) | public-data variable-time; byte-identical fallback for every backend; output never touched on a rejected call |
+| CUDA | native (`hash256_var` kernel, no new work) | native on-device kernel — `lbtc_merkle_pair_kernel` in `gpu_backend_cuda.cu` | **HIGH** — operational error declines → CPU | public-data variable-time |
+| OpenCL | native (`hash256_var` kernel, no new work) | native on-device kernel — `lbtc_merkle_pair` in `src/opencl/kernels/secp256k1_extended.cl` + override in `gpu_backend_opencl.cpp` | **HIGH** — operational error declines → CPU | public-data variable-time |
+| Metal | native (`hash256_var` kernel, no new work) | native on-device kernel — `lbtc_merkle_pair` in `src/metal/shaders/secp256k1_kernels.metal` + override in `gpu_backend_metal.mm` | **MEDIUM — code-complete, runtime parity PENDING Apple-hardware validation** — NOT built/run here: Metal compiles only on Apple, so this Linux host cannot execute it — same status already documented above for the sibling `hash256_var`/public-data batch ops | operational error declines → CPU. No measured Metal numbers; owner validates on Apple GPU before this row is promoted to HIGH |
+
+Fail-closed: none of the three pre-zero their output, and all reject bad
+input without touching it. `txid_hash_batch` / `wtxid_hash_batch` inherit
+`hash256_var_batch`'s validation (`count==0` no-op; null column, `stride==0`,
+per-row length out of range, or layout overflow → `false`, output untouched).
+`merkle_pair_hash_batch` (C++): `count==0` no-op; null `left32`/`right32`/
+`out32` or `count*32` layout overflow → `false`, output untouched.
+`ufsecp_gpu_merkle_pair_hash` (C ABI): `ctx==nullptr` → `UFSECP_ERR_NULL_ARG`;
+`n==0` → `UFSECP_OK` no-op; `n` over `kMaxGpuBatchN` (64M) →
+`UFSECP_ERR_BAD_INPUT`; null `left32`/`right32`/`out32` with `n>0` →
+`UFSECP_ERR_NULL_ARG`; non-OK leaves `out32` cleared. Test coverage:
+`audit/test_regression_merkle_pair_hash.cpp` (differential/structural KAT),
+`audit/test_exploit_merkle_pair_bounds.cpp` (hostile-caller bounds),
+`compat/libbitcoin_direct/bench/bench_public_ops.cpp` (`txid_hash`,
+`wtxid_hash`, `merkle_pair_hash` rows — sanity-checked non-zero timing on this
+machine; not yet a controlled ≥5-run benchmark per this repo's performance
+protocol, so no ns/op numbers are quoted here).
+
 ### ECDSA compact signature staging (Updated 2026-06-18)
 
 `ufsecp_gpu_ecdsa_verify_batch` accepts public compact `r||s` signatures. CUDA
@@ -303,7 +342,7 @@ The table below distinguishes between the **public GPU ABI** (functions exposed 
 compiled into the device code but not directly callable through the stable C ABI).
 A kernel being present internally does not imply a public API exists for it.
 
-### Public GPU ABI operations (18 functions, backend-neutral)
+### Public GPU ABI operations (19 functions, backend-neutral)
 
 | Function | CPU (fast) | CPU (CT) | CUDA | OpenCL | Metal |
 |---|---|---|---|---|---|
@@ -314,6 +353,7 @@ A kernel being present internally does not imply a public API exists for it.
 | `ufsecp_gpu_ecdh_batch` ¹ | Y | Y | Y | Y | Y |
 | `ufsecp_gpu_hash160_pubkey_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_hash256_var` | Y | - | Y | Y | Y |
+| `ufsecp_gpu_merkle_pair_hash` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_ecrecover_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_msm` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_frost_verify_partial_batch` | Y | - | Y | Y | Y |

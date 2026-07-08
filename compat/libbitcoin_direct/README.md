@@ -44,7 +44,7 @@ and in explicit normalization/standardness utilities.
 | **`ecdsa_verify_columns` / `schnorr_verify_columns`** (Structure-of-Arrays, MT) | ✅ done + tested — **matches libbitcoin's column-span batch** |
 | parallelism: fused parallel parse+verify, **7.6× / 16 cores** (no serial-parse Amdahl wall) | ✅ validated |
 | public-data batch ops (`xonly_validate`, `pubkey_validate`, `taproot_commitment_verify`, `tagged_hash`, `tagged_hash_var`, `hash256`, `hash256_var`) | ✅ done + tested — one direct API, transparent GPU hook, deterministic CPU fallback |
-| sign / recover / keys / math / serialize / context | ⏳ next increment |
+| sign / recover / keys / math / serialize / context | ✅ done + tested — ECDSA (sign/verify/normalize/DER/compact), recoverable sign/recover (hedged + standard), pubkey create/parse/serialize/combine/negate/tweak (compressed + uncompressed), seckey verify/negate/tweak, Schnorr sign/verify/xonly/keypair, taproot tweak_add_check, context no-ops |
 | silent payments (BIP-352 scan) | ⏳ engine has `bip352_*`; awaiting evoskuil's `silent::batch` design |
 | GPU verify / scan | ✅ direct libbitcoin GPU hook for columns + public-data batch ops; BIP-352 scan remains engine-level until libbitcoin exposes its batch design |
 

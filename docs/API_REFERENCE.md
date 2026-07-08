@@ -559,6 +559,57 @@ Build with `-DSECP256K1_BUILD_LIBBITCOIN=ON` (optionally `-DSECP256K1_BUILD_LIBB
 
 **Threading:** `max_threads == 0` = auto, `max_threads == 1` = serial bounded chunks, `N` = cap.
 
+**Main Operations:**
+
+```cpp
+// ── ECDSA ───────────────────────────────────────────────────────────
+bool ecdsa_verify(pub33, hash32, sig64);            // VT (public data)
+bool ecdsa_sign(hash32, sk32, sig64_out);            // CT (sk, nonce)
+bool ecdsa_sign_hedged(hash32, sk32, aux32, sig64);  // CT, RFC6979-S3.6
+bool ecdsa_sign_recoverable(hash32, sk32, sig65);    // CT, returns [header|r|s]
+bool ecdsa_sign_hedged_recoverable(hash32, sk32, aux32, sig65); // CT hedged
+bool ecdsa_recover(hash32, sig64, recid, pub33_out); // VT (public data)
+bool ecdsa_signature_normalize(sig64);               // VT, high-S→low-S
+void ecdsa_signature_serialize_compact(sig64, out64);// opaque LE→BE
+bool ecdsa_signature_parse_compact(in64, out64);     // BE→opaque LE, strict
+bool ecdsa_signature_serialize_der(sig64, out, len); // opaque LE→DER
+void recoverable_to_compact(sig64, recid, out65);    // →65-byte compact
+bool recoverable_from_compact(in65, sig64, recid);   // ←65-byte compact
+
+// ── Schnorr / Taproot ───────────────────────────────────────────────
+bool schnorr_verify(xonly32, msg32, sig64);          // VT (public data)
+bool schnorr_keypair_create(sk32, xonly_out);         // CT (sk)
+bool schnorr_sign(xonly32, sk32, msg32, aux32, sig64);// CT (sk, nonce)
+bool schnorr_xonly_pubkey_parse(xonly32);             // VT (public data)
+bool taproot_tweak_add_check(out_xonly, parity, internal_xonly,
+                             merkle_root, merkle_root_len); // VT
+
+// ── Public Key ─────────────────────────────────────────────────────
+bool pubkey_create(sk32, pub33_out);                  // CT (sk)
+bool pubkey_create_uncompressed(sk32, pub65_out);     // CT (sk)
+bool pubkey_parse(pub33);                             // VT, validate compressed
+bool pubkey_parse_uncompressed(pub65);                // VT, validate uncompressed
+void pubkey_serialize(pub33, out33);                  // copy-through
+bool pubkey_compress(pub65, pub33_out);               // VT, 65→33
+bool pubkey_decompress(pub33, pub65_out);             // VT, 33→65
+bool pubkey_combine(pub33s[], count, out33);          // VT, point sum
+bool pubkey_negate(pub33);                            // VT, (x,-y)
+bool pubkey_tweak_add(pub33, tweak32);                // VT, P+t*G
+bool pubkey_tweak_mul(pub33, tweak32);                // VT, P*t
+
+// ── Secret Key ─────────────────────────────────────────────────────
+bool seckey_verify(sk32);                             // strict 0<sk<n
+bool seckey_negate(sk32);                             // CT, sk=n-sk
+bool seckey_tweak_add(sk32, tweak32);                 // CT, sk+tweak
+bool seckey_tweak_mul(sk32, tweak32);                 // CT, sk*tweak
+
+// ── Context (no-op — engine is contextless) ────────────────────────
+int  context_create();
+void context_destroy();
+int  context_randomize(seed32);
+```
+
+
 **Batch APIs:**
 - `ecdsa_verify_batch` / `ecdsa_verify_columns` — rows `[hash32|pub33|sig64]` @ stride, or parallel spans
 - `schnorr_verify_batch` / `schnorr_verify_columns` — rows `[msg32|xonly32|sig64]` @ stride, or parallel spans
@@ -2574,6 +2625,7 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_tagged_hash_var` | `(ctx, tag_hash32, msgs, msg_lens[], stride, n, out32) -> error_t` | BIP-340 tagged hash over per-item variable-length messages (TapLeaf scripts); each `msg_lens[i]` must be in `[1,256]` |
 | `ufsecp_gpu_hash256` | `(ctx, inputs, input_len, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) of fixed-length inputs; `input_len` must be in `[1,320]` |
 | `ufsecp_gpu_hash256_var` | `(ctx, inputs, input_lens[], stride, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) over per-item variable-length inputs; row `i` = `inputs[i*stride .. i*stride+input_lens[i])`, bytes beyond `input_lens[i]` up to `stride` are ignored padding. No tag prefix, no transaction parsing — GPU treats each row as an opaque byte string; rows up to `stride <= 4 MiB` (`kMaxHash256VarStride`). PUBLIC-DATA / variable-time |
+| `ufsecp_gpu_merkle_pair_hash` | `(ctx, left32, right32, n, out32) -> error_t` | Batch Merkle pair HASH256: `out32[i] = SHA256(SHA256(left32[i*32..+32] \|\| right32[i*32..+32]))` over two separate 32-byte column spans (Structure-of-Arrays). Fixed 64-byte combined input per row — no `input_len` parameter. `n==0` is a no-op (`out32` untouched); null `left32`/`right32`/`out32` -> `UFSECP_ERR_NULL_ARG`; `n` over `kMaxGpuBatchN` -> `UFSECP_ERR_BAD_INPUT`; non-OK leaves `out32` cleared. PUBLIC-DATA / variable-time |
 | `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication |
 | `ufsecp_gpu_frost_verify_partial_batch` | `(ctx, z_i32[], D_i33[], E_i33[], Y_i33[], rho_i32[], lambda_ie32[], negate_R[], negate_key[], n, results_out[]) -> error_t` | Batch FROST partial verification |
 | `ufsecp_gpu_ecrecover_batch` | `(ctx, msgs32[], sigs64[], recids[], n, pubkeys33_out[], valid_out[]) -> error_t` | Batch public-key recovery from recoverable ECDSA signatures |
@@ -2671,6 +2723,65 @@ Semantics:
   validation, not a GPU error).
 - **Default is pure CPU.** The hook is null unless the libbitcoin-GPU build
   installs one, so the default direct build is CPU-only until that enablement lands.
+
+---
+
+## libbitcoin-direct public-data hashing batch ops (C++ engine surface)
+
+Header: `<ufsecp/libbitcoin.hpp>`, namespace `ufsecp::lbtc`. These are
+bridge-free, header-only batch primitives for Bitcoin/libbitcoin hashing
+patterns and share the same one-surface contract as the column-verify
+functions above: one `bool`-returning inline call, internal GPU acceleration
+via a `GpuBackend` virtual + installable hook, deterministic CPU fallback, no
+CPU/GPU split visible to the caller. All three are **PUBLIC-DATA /
+variable-time** — no secret material, no CT requirement.
+
+`txid_hash_batch` and `wtxid_hash_batch` are semantic aliases over the
+existing `hash256_var_batch` primitive (added 2026-07-06 alongside the C ABI
+`ufsecp_gpu_hash256_var` documented above; the `hash256_var_batch` C++ entry
+point itself has no dedicated row in this reference yet — pre-existing gap,
+not introduced by this change) with zero new backend work — GPU performs no
+transaction parsing; callers pre-serialize the transaction on the CPU (see
+`legacy_serialize`/`witness_serialize` in `src/cpu/src/bip144.cpp`).
+`merkle_pair_hash_batch` is not an alias: it is backed by its own
+`GpuBackend::merkle_pair_hash` virtual and C ABI `ufsecp_gpu_merkle_pair_hash`
+(see GPU Operations above).
+
+```cpp
+namespace ufsecp::lbtc {
+
+// txid = SHA256(SHA256(serialized_tx_without_witness)). Identical to
+// hash256_var_batch -- alias exists solely for libbitcoin readability.
+[[nodiscard]] bool txid_hash_batch(
+    const std::uint8_t* serialized_txs, const std::uint32_t* tx_lens,
+    std::size_t stride, std::size_t count,
+    std::uint8_t* out_txids32, std::size_t max_threads = 0) noexcept;
+
+// wtxid = SHA256(SHA256(serialized_tx_with_witness)). Identical to
+// hash256_var_batch -- alias exists solely for libbitcoin readability.
+[[nodiscard]] bool wtxid_hash_batch(
+    const std::uint8_t* serialized_wtxs, const std::uint32_t* wtx_lens,
+    std::size_t stride, std::size_t count,
+    std::uint8_t* out_wtxids32, std::size_t max_threads = 0) noexcept;
+
+// Merkle pair hashing: parent = SHA256(SHA256(left32 || right32)), over two
+// separate 32-byte column spans (Structure-of-Arrays), fixed 64-byte
+// combined input per row (no input_len parameter).
+[[nodiscard]] bool merkle_pair_hash_batch(
+    const std::uint8_t* left32, const std::uint8_t* right32,
+    std::size_t count, std::uint8_t* out32,
+    std::size_t max_threads = 0) noexcept;
+
+} // namespace ufsecp::lbtc
+```
+
+Failure semantics (HASH op — output is never pre-zeroed and never touched on
+a rejected call):
+
+| Function | `count==0` | Bad input (null column / bad length / layout overflow) |
+|---|---|---|
+| `txid_hash_batch` / `wtxid_hash_batch` | returns `true`, output untouched | returns `false`, output untouched — per-row `tx_lens[i]`/`wtx_lens[i]` must be in `(0, stride]` |
+| `merkle_pair_hash_batch` | returns `true`, output untouched | returns `false`, output untouched — `left32`/`right32`/`out32 == nullptr` or `count*32` layout overflow |
 
 ---
 
