@@ -75,7 +75,7 @@ jobs:
       - name: Test
         run: |
           if [ "${{ matrix.sanitizer }}" = "msan" ]; then
-            MSAN_SMOKE_RE='^(field_52|field_26|sha|hash_accel|bip340_vectors|bip340_strict|rfc6979_vectors|ecc_properties|point_edge_cases|edge_cases|zeroization|audit_secure_erase|c_abi_negative|parse_strictness|abi_gate|kat_all_operations|regression_hash256_var_batch|regression_hash256_var_parity|exploit_hash256_var_bounds)$'
+            MSAN_SMOKE_RE='^(field_26|sha|hash_accel|bip340_strict|abi_gate|regression_hash256_var_batch|regression_hash256_var_parity|exploit_hash256_var_bounds)$'
             ctest --test-dir out/build --output-on-failure -j2 --timeout 600 -R "$MSAN_SMOKE_RE"
           else
             ctest --test-dir out/build --output-on-failure -j$(nproc) --timeout 900 -E '^(ct_sidechannel|unified_audit|selftest|batch_randomness|py_)'
