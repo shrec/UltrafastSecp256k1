@@ -302,6 +302,36 @@ per-row length out of range, or layout overflow → `false`, output untouched).
 machine; not yet a controlled ≥5-run benchmark per this repo's performance
 protocol, so no ns/op numbers are quoted here).
 
+### `merkle_level_reduce_batch` / `merkle_root_from_leaves`: direct C++ libbitcoin merkle workloads (Added 2026-07-08)
+
+Two bridge-free `ufsecp::lbtc::*` functions (`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp`)
+that compose Bitcoin merkle-tree construction entirely over the already-shipped
+`merkle_pair_hash_batch`.  **ZERO new GpuBackend virtuals, CUDA/OpenCL/Metal
+kernels, C ABI functions, or production hooks.**  These are pure direct C++
+libbitcoin workloads — not new backend primitives.
+
+`merkle_level_reduce_batch` is a semantic alias (one-line delegate to
+`merkle_pair_hash_batch`).  `merkle_root_from_leaves` uses caller-provided
+scratch (≥ `leaf_count × 64` bytes, no heap allocation) to iteratively reduce
+tree levels via `merkle_pair_hash_batch`, following Bitcoin merkle semantics
+(odd-level last-hash duplication, HASH256 with `left32 ‖ right32` byte order).
+
+| Backend | `merkle_level_reduce_batch` / `merkle_root_from_leaves` | Assurance | Notes |
+|---|---|---|---|
+| CPU | reference (deterministic — composes `merkle_pair_hash_batch` CPU fallback exclusively) | **HIGH** — covered by `compat/libbitcoin_direct/tests/test_direct_operations.cpp` (0/1/2/3/7 leaves, KAT vs independent HASH256 oracle, duplicate-last semantics, multi-level root, null args, scratch undersize, overflow guard, hook-decline inherited, hook-sentinel inherited) | public-data variable-time; zero allocation; caller-provided scratch; all size multiplications overflow-checked |
+| CUDA | inherited from `merkle_pair_hash_batch` (no new kernel) | **HIGH** — operational error declines → CPU | no new CUDA code; the existing `lbtc_merkle_pair_kernel` in `gpu_backend_cuda.cu` is invoked indirectly through `merkle_pair_hash_batch` |
+| OpenCL | inherited from `merkle_pair_hash_batch` (no new kernel) | **HIGH** — operational error declines → CPU | no new OpenCL code; the existing `lbtc_merkle_pair` in `src/opencl/kernels/secp256k1_extended.cl` is invoked indirectly through `merkle_pair_hash_batch` |
+| Metal | inherited from `merkle_pair_hash_batch` (no new kernel) | **MEDIUM — code-complete, runtime parity PENDING Apple-hardware validation** (same status as `merkle_pair_hash_batch`) | no new Metal code; inherits the existing `lbtc_merkle_pair` kernel status |
+
+Fail-closed: `merkle_root_from_leaves` zeroes non-null `out_root32` on every
+failure path (count==0, null inputs, overflow, undersize scratch, internal hash
+failure); `out_root32 == nullptr` returns `false` before any write.
+`leaf_count==1` copies the single leaf as root (Bitcoin semantics).
+`merkle_level_reduce_batch` inherits `merkle_pair_hash_batch`'s fail-closed
+contract identically.  Test coverage:
+`compat/libbitcoin_direct/tests/test_direct_operations.cpp` (structural KAT +
+boundary + hook-inheritance tests described above).
+
 ### ECDSA compact signature staging (Updated 2026-06-18)
 
 `ufsecp_gpu_ecdsa_verify_batch` accepts public compact `r||s` signatures. CUDA

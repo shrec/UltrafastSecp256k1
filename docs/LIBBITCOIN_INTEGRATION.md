@@ -243,6 +243,8 @@ no GPU status code, no caller chunking, no bridge / Controller / C-ABI**:
 | `txid_hash_batch(serialized_txs, tx_lens, stride, count, out_txids32, max_threads=0)` | `serialized_txs`: `count` items at `stride`; `tx_lens[i]` per item | `count×32` | semantic alias over `hash256_var_batch` — `out[i]=SHA256(SHA256(serialized_tx_without_witness_i))`; zero new backend work, caller pre-serializes on CPU (BIP144 `legacy_serialize`) |
 | `wtxid_hash_batch(serialized_wtxs, wtx_lens, stride, count, out_wtxids32, max_threads=0)` | `serialized_wtxs`: `count` items at `stride`; `wtx_lens[i]` per item | `count×32` | semantic alias over `hash256_var_batch` — `out[i]=SHA256(SHA256(serialized_tx_with_witness_i))`; zero new backend work, caller pre-serializes on CPU (BIP144 `witness_serialize`) |
 | `merkle_pair_hash_batch(left32, right32, count, out32, max_threads=0)` | `left32`/`right32`: `count×32` columns (SoA) | `count×32` | `out[i]=SHA256(SHA256(left32_i‖right32_i))` — Merkle-tree parent-hash primitive; fixed 64-byte combined input per row, no `input_len` parameter; distinct GPU virtual (`merkle_pair_hash`), not an alias |
+| `merkle_level_reduce_batch(left32, right32, pair_count, out32, max_threads=0)` | `left32`/`right32`: `pair_count×32` columns (SoA) | `pair_count×32` | semantic alias over `merkle_pair_hash_batch` — ZERO new backend work; name reflects Bitcoin merkle-tree vocabulary |
+| `merkle_root_from_leaves(leaves32, leaf_count, scratch, scratch_size, out_root32, max_threads=0)` | `leaves32`: `leaf_count×32` flat array; `scratch`: caller-provided buffer ≥ `leaf_count×64` bytes | `out_root32`: 32-byte merkle root | composes `merkle_level_reduce_batch` → `merkle_pair_hash_batch` iteratively over tree levels; Bitcoin semantics (odd-level last-hash duplication); ZERO new GPU virtuals/kernels/C ABI; caller-provided scratch — no heap allocation; `leaf_count==0`→false (zeroes root); `leaf_count==1`→copies single leaf as root; all size multiplications overflow-checked |
 
 Fail-closed / never-consensus-invalid semantics:
 
@@ -307,6 +309,8 @@ as the verify paths (`-DSECP256K1_BUILD_LIBBITCOIN[_GPU]=ON`,
 | `txid_hash_batch` | **VT** (public data) | `hash256_var_batch()` (alias) / GPU `hash256_var` | `secp256k1` / `gpu` |
 | `wtxid_hash_batch` | **VT** (public data) | `hash256_var_batch()` (alias) / GPU `hash256_var` | `secp256k1` / `gpu` |
 | `merkle_pair_hash_batch` | **VT** (public data) | `SHA256::hash256()` / GPU `merkle_pair_hash` | `secp256k1` / `gpu` |
+| `merkle_level_reduce_batch` | **VT** (public data) | `merkle_pair_hash_batch` (alias) | `ufsecp::lbtc` |
+| `merkle_root_from_leaves` | **VT** (public data) | composes `merkle_level_reduce_batch` → `merkle_pair_hash_batch` iteratively; caller-provided scratch | `ufsecp::lbtc` |
 
 Every CT entry has graph evidence: `symbols`/`coverage`/`auditmap` against `source_graph.db` confirm the code path routes through `secp256k1::ct::*` primitives with no data-dependent branches.
 

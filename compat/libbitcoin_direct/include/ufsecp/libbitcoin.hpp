@@ -1174,6 +1174,158 @@ inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
 }
 
 
+
+// ============================================================================
+// merkle_level_reduce_batch — semantic alias over merkle_pair_hash_batch
+// ============================================================================
+// Given pair_count pairs of (left32, right32) in Structure-of-Arrays layout,
+// compute pair_count parent hashes via HASH256(left32 || right32).
+//
+// This is a thin wrapper over merkle_pair_hash_batch — ZERO new backend
+// virtuals, GPU kernels, hooks, or C ABI.  The name reflects Bitcoin merkle-tree
+// vocabulary: "level reduce" = compute the parent level from the child level.
+//
+// Input layout (identical to merkle_pair_hash_batch):
+//   left32:  pair_count * 32 bytes (first 32-byte hash of each pair)
+//   right32: pair_count * 32 bytes (second 32-byte hash of each pair)
+//   out32:   pair_count * 32 bytes (output parent hash per pair)
+//
+// Byte order preserved as left32 || right32 for every pair.
+// Failure semantics: identical to merkle_pair_hash_batch (see above).
+// PUBLIC DATA. Variable-time. No secret material.
+[[nodiscard]] inline bool merkle_level_reduce_batch(
+    const std::uint8_t* left32,
+    const std::uint8_t* right32,
+    std::size_t pair_count,
+    std::uint8_t* out32,
+    std::size_t max_threads = 0) noexcept
+{
+    return merkle_pair_hash_batch(left32, right32, pair_count, out32, max_threads);
+}
+
+// ============================================================================
+// merkle_root_from_leaves — Bitcoin merkle root from leaves (caller-provided scratch)
+// ============================================================================
+// Computes the Bitcoin merkle tree root from an array of leaf hashes using
+// Bitcoin merkle semantics:
+//   - At each tree level, hashes are paired left-to-right.
+//   - When a level has an odd number of hashes, the last hash is duplicated
+//     to form the final pair (Bitcoin consensus rule).
+//   - parent = SHA256(SHA256(left32 || right32)) — HASH256.
+//   - Byte order strictly preserved: left32 bytes then right32 bytes.
+//
+// The function composes merkle_level_reduce_batch -> merkle_pair_hash_batch
+// internally.  ZERO new GpuBackend virtuals, CUDA/OpenCL/Metal kernels, C ABI
+// functions, or production hooks.  This is a pure direct C++ libbitcoin
+// workload built entirely over the already-shipped merkle_pair_hash_batch.
+//
+// Scratch contract (caller-provided, no heap allocation):
+//
+//   scratch       — caller-owned byte buffer, at least leaf_count * 64 bytes.
+//                   The function never allocates; it uses scratch exclusively.
+//   scratch_size  — size of scratch in bytes.  Must be >= leaf_count * 64.
+//                   Undersize -> false, out_root32 zeroed.
+//
+//   Internal scratch layout (one tree level at a time, worst case = widest
+//   level, pair = ceil(N/2)):
+//
+//     [0              .. pair*32 - 1]  left32  column (SoA)
+//     [pair*32        .. pair*64 - 1]  right32 column (SoA)
+//     [pair*64        .. pair*96 - 1]  output parent hashes (next level input)
+//
+//   After each level, the output area becomes the source for the next level.
+//   The SoA area is reused.  Total scratch needed <= leaf_count * 64 (proven).
+//
+//   ALIASING RESTRICTION:  leaves32 MUST NOT overlap scratch or out_root32.
+//   out_root32 MUST NOT overlap scratch or leaves32.  Overlapping buffers
+//   produce undefined behaviour.  The function does not runtime-check aliasing.
+//
+// Failure semantics (fail-closed):
+//
+//   leaf_count == 0                                          -> false, out_root32 zeroed
+//   leaves32 == nullptr || out_root32 == nullptr ||
+//   out_root32 == nullptr                                    -> false
+//   scratch == nullptr (with leaf_count > 0)                 -> false, out_root32 zeroed
+//   leaf_count * 32  overflow size_t                         -> false, out_root32 zeroed
+//   leaf_count * 64  overflow size_t                         -> false, out_root32 zeroed
+//   scratch_size < leaf_count * 64                           -> false, out_root32 zeroed
+//   internal merkle_pair_hash_batch failure (theoretical)    -> false, out_root32 zeroed
+//
+//   leaf_count == 1  ->  the single leaf IS the merkle root; copied to
+//                       out_root32, returns true.  Scratch is validated
+//                       (non-null, size check) but not read/written.
+//
+// PUBLIC DATA.  Variable-time on GPU and CPU.  No secret material.
+[[nodiscard]] inline bool merkle_root_from_leaves(
+    const std::uint8_t* leaves32,
+    std::size_t leaf_count,
+    std::uint8_t* scratch,
+    std::size_t scratch_size,
+    std::uint8_t out_root32[32],
+    std::size_t max_threads = 0) noexcept
+{
+    if (out_root32 == nullptr)
+        return false;
+
+    // Fail-closed: zero output on any invalid input or internal failure.
+    std::memset(out_root32, 0, 32);
+
+    if (leaf_count == 0 || leaves32 == nullptr || scratch == nullptr)
+        return false;
+
+    // Single leaf: it IS the merkle root (Bitcoin semantics).
+    if (leaf_count == 1) {
+        if (scratch_size < 64) return false;   // scratch must still be valid size
+        std::memcpy(out_root32, leaves32, 32);
+        return true;
+    }
+
+    // Overflow guards: all size multiplications must fit in size_t.
+    if (detail::column_layout_overflows(leaf_count, 32) ||
+        detail::column_layout_overflows(leaf_count, 64))
+        return false;
+
+    // Scratch size check: need at least leaf_count * 64 bytes.
+    if (scratch_size < leaf_count * 64)
+        return false;
+
+    const std::uint8_t* src = leaves32;
+    std::size_t          N   = leaf_count;
+
+    while (N > 1) {
+        const std::size_t pair_count = (N + 1) / 2;   // ceil(N/2)
+
+        // Build Structure-of-Arrays columns in scratch:
+        //   left32  column at scratch + 0
+        //   right32 column at scratch + pair_count * 32
+        //   output  at      scratch + pair_count * 64
+        std::uint8_t* __restrict left_col  = scratch;
+        std::uint8_t* __restrict right_col = scratch + pair_count * 32;
+        std::uint8_t* __restrict out_col   = scratch + pair_count * 64;
+
+        for (std::size_t i = 0; i < pair_count; ++i) {
+            const std::size_t left_idx  = 2 * i;
+            const std::size_t right_idx = (2 * i + 1 < N) ? (2 * i + 1) : (N - 1);
+            std::memcpy(left_col  + i * 32, src + left_idx  * 32, 32);
+            std::memcpy(right_col + i * 32, src + right_idx * 32, 32);
+        }
+
+        // Compute parent hashes via the already-shipped merkle_pair_hash_batch.
+        if (!merkle_pair_hash_batch(left_col, right_col, pair_count, out_col, max_threads)) {
+            // Internal failure — out_root32 was already zeroed at function entry.
+            return false;
+        }
+
+        // Next level input = output of this level.
+        src = out_col;
+        N   = pair_count;
+    }
+
+    // Copy the single remaining hash (the merkle root).
+    std::memcpy(out_root32, src, 32);
+    return true;
+}
+
 } // namespace ufsecp::lbtc
 
 #endif // UFSECP_LIBBITCOIN_DIRECT_HPP

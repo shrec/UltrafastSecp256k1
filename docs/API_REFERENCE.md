@@ -2772,6 +2772,35 @@ namespace ufsecp::lbtc {
     std::size_t count, std::uint8_t* out32,
     std::size_t max_threads = 0) noexcept;
 
+// merkle_level_reduce_batch — semantic alias over merkle_pair_hash_batch.
+// ZERO new backend work.  Given pair_count pairs of (left32, right32) in
+// SoA layout, computes pair_count parent hashes via HASH256(left||right).
+// The name reflects Bitcoin merkle-tree vocabulary: "level reduce" =
+// compute the parent level from the child level.
+[[nodiscard]] bool merkle_level_reduce_batch(
+    const std::uint8_t* left32, const std::uint8_t* right32,
+    std::size_t pair_count, std::uint8_t* out32,
+    std::size_t max_threads = 0) noexcept;
+
+// merkle_root_from_leaves — Bitcoin merkle root from leaves using
+// caller-provided scratch (no heap allocation).  Composes
+// merkle_level_reduce_batch -> merkle_pair_hash_batch internally.
+// ZERO new GpuBackend virtuals, kernels, or C ABI.
+//
+// Scratch contract: scratch must be >= leaf_count * 64 bytes.
+// Internal layout: left32 column, right32 column, output (SoA).
+// Leaves MUST NOT overlap scratch or out_root32.
+//
+// Bitcoin semantics: odd-level last hash is duplicated for the final pair.
+// leaf_count == 0 -> false, out_root32 zeroed.
+// leaf_count == 1 -> copies single leaf as root.
+// All size multiplications overflow-checked.
+[[nodiscard]] bool merkle_root_from_leaves(
+    const std::uint8_t* leaves32, std::size_t leaf_count,
+    std::uint8_t* scratch, std::size_t scratch_size,
+    std::uint8_t out_root32[32],
+    std::size_t max_threads = 0) noexcept;
+
 } // namespace ufsecp::lbtc
 ```
 
@@ -2782,6 +2811,8 @@ a rejected call):
 |---|---|---|
 | `txid_hash_batch` / `wtxid_hash_batch` | returns `true`, output untouched | returns `false`, output untouched — per-row `tx_lens[i]`/`wtx_lens[i]` must be in `(0, stride]` |
 | `merkle_pair_hash_batch` | returns `true`, output untouched | returns `false`, output untouched — `left32`/`right32`/`out32 == nullptr` or `count*32` layout overflow |
+| `merkle_level_reduce_batch` | returns `true`, output untouched | returns `false`, output untouched — identical to `merkle_pair_hash_batch` (semantic alias) |
+| `merkle_root_from_leaves` | returns `false`, `out_root32` zeroed (must have >= 1 leaf) | returns `false`; `out_root32` is zeroed when non-null — `leaves32`/`scratch`/`out_root32 == nullptr`, `scratch_size < leaf_count*64`, or layout overflow |
 
 ---
 

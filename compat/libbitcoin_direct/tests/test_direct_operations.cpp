@@ -752,6 +752,192 @@ int main() {
     }
 
 
+
+    // ─── merkle_level_reduce_batch delegates to merkle_pair_hash_batch ─────
+    {
+        // merkle_level_reduce_batch is a semantic alias — it must produce
+        // byte-identical output to merkle_pair_hash_batch for the same inputs.
+        constexpr std::size_t N = 100;
+        std::vector<std::uint8_t> left(N * 32), right(N * 32);
+        for (auto& b : left) b = nb();
+        for (auto& b : right) b = nb();
+        std::vector<std::uint8_t> out1(N * 32), out2(N * 32);
+        check(ufsecp::lbtc::merkle_pair_hash_batch(left.data(), right.data(), N, out1.data()),
+              "merkle_pair_hash_batch baseline");
+        check(ufsecp::lbtc::merkle_level_reduce_batch(left.data(), right.data(), N, out2.data()),
+              "merkle_level_reduce_batch alias");
+        check(std::memcmp(out1.data(), out2.data(), N * 32) == 0,
+              "merkle_level_reduce_batch byte-identical to merkle_pair_hash_batch");
+    }
+
+    // ─── merkle_root_from_leaves: 0 leaves reject ──────────────────────────
+    {
+        std::uint8_t scratch[64], root[32];
+        std::memset(root, 0xAB, 32);
+        check(!ufsecp::lbtc::merkle_root_from_leaves(nullptr, 0, scratch, 64, root),
+              "merkle_root_from_leaves count==0 rejects");
+        // out_root32 must be zeroed on failure
+        bool zeroed = true;
+        for (int i = 0; i < 32; ++i) if (root[i] != 0) { zeroed = false; break; }
+        check(zeroed, "merkle_root_from_leaves count==0 zeroes output");
+    }
+
+    // ─── merkle_root_from_leaves: 1 leaf copy ─────────────────────────────
+    {
+        std::uint8_t leaf[32], scratch[64], root[32];
+        for (int i = 0; i < 32; ++i) leaf[i] = nb();
+        check(ufsecp::lbtc::merkle_root_from_leaves(leaf, 1, scratch, 64, root),
+              "merkle_root_from_leaves 1 leaf returns true");
+        check(std::memcmp(root, leaf, 32) == 0,
+              "merkle_root_from_leaves 1 leaf copies to root");
+    }
+
+    // ─── merkle_root_from_leaves: 2 leaves KAT vs HASH256(left||right) ────
+    {
+        std::uint8_t l[32], r[32], scratch[128], root[32];
+        for (int i = 0; i < 32; ++i) { l[i] = nb(); r[i] = nb(); }
+        // Build input: [l, r]
+        std::uint8_t leaves[64];
+        std::memcpy(leaves, l, 32);
+        std::memcpy(leaves + 32, r, 32);
+        check(ufsecp::lbtc::merkle_root_from_leaves(leaves, 2, scratch, 128, root),
+              "merkle_root_from_leaves 2 leaves computes true");
+        // Oracle: HASH256(l || r)
+        std::uint8_t combined[64], oracle[32];
+        std::memcpy(combined, l, 32);
+        std::memcpy(combined + 32, r, 32);
+        ref_hash256(combined, 64, oracle);
+        check(std::memcmp(root, oracle, 32) == 0,
+              "merkle_root_from_leaves 2 leaves matches HASH256(left||right) oracle");
+    }
+
+    // ─── merkle_root_from_leaves: 3 leaves (odd) duplicate-last semantics ──
+    {
+        // Tree: L0 L1 L2
+        // Level 0: pair(L0,L1) -> P01, pair(L2,L2) -> P22  (duplicate last)
+        // Level 1: pair(P01,P22) -> root
+        std::uint8_t leaves[3 * 32], scratch[192], root[32];
+        for (int i = 0; i < 3 * 32; ++i) leaves[i] = nb();
+        check(ufsecp::lbtc::merkle_root_from_leaves(leaves, 3, scratch, 192, root),
+              "merkle_root_from_leaves 3 leaves computes true");
+
+        // Oracle: HASH256(HASH256(L0||L1) || HASH256(L2||L2))
+        std::uint8_t l0l1[64], l2l2[64];
+        std::memcpy(l0l1, leaves, 32);
+        std::memcpy(l0l1 + 32, leaves + 32, 32);
+        std::memcpy(l2l2, leaves + 64, 32);
+        std::memcpy(l2l2 + 32, leaves + 64, 32);  // duplicate last
+        std::uint8_t p01[32], p22[32];
+        ref_hash256(l0l1, 64, p01);
+        ref_hash256(l2l2, 64, p22);
+        std::uint8_t combined[64], oracle[32];
+        std::memcpy(combined, p01, 32);
+        std::memcpy(combined + 32, p22, 32);
+        ref_hash256(combined, 64, oracle);
+        check(std::memcmp(root, oracle, 32) == 0,
+              "merkle_root_from_leaves 3 leaves matches independent oracle (duplicate-last)");
+    }
+
+    // ─── merkle_root_from_leaves: multi-level (7 leaves) ──────────────────
+    {
+        // 7 leaves -> 4 -> 2 -> 1 (root)
+        std::uint8_t leaves[7 * 32], scratch[7 * 64], root[32];
+        for (int i = 0; i < 7 * 32; ++i) leaves[i] = nb();
+        check(ufsecp::lbtc::merkle_root_from_leaves(leaves, 7, scratch, sizeof(scratch), root),
+              "merkle_root_from_leaves 7 leaves computes true");
+
+        // Reconstruct oracle manually
+        auto h2 = [](const uint8_t* a, const uint8_t* b, uint8_t out[32]) {
+            uint8_t c[64];
+            std::memcpy(c, a, 32); std::memcpy(c+32, b, 32);
+            ref_hash256(c, 64, out);
+        };
+        uint8_t lvl1[4*32], lvl2[2*32], lvl3[1*32];
+        h2(leaves+0*32, leaves+1*32, lvl1+0*32);
+        h2(leaves+2*32, leaves+3*32, lvl1+1*32);
+        h2(leaves+4*32, leaves+5*32, lvl1+2*32);
+        h2(leaves+6*32, leaves+6*32, lvl1+3*32);  // duplicate last
+        h2(lvl1+0*32, lvl1+1*32, lvl2+0*32);
+        h2(lvl1+2*32, lvl1+3*32, lvl2+1*32);
+        h2(lvl2+0*32, lvl2+1*32, lvl3+0*32);
+        check(std::memcmp(root, lvl3, 32) == 0,
+              "merkle_root_from_leaves 7 leaves matches independent multi-level oracle");
+    }
+
+    // ─── merkle_root_from_leaves: null arguments ───────────────────────────
+    {
+        std::uint8_t leaf[32], scratch[64], root[32];
+        for (int i = 0; i < 32; ++i) leaf[i] = nb();
+        std::memset(root, 0xAB, 32);
+        check(!ufsecp::lbtc::merkle_root_from_leaves(nullptr, 1, scratch, 64, root),
+              "merkle_root_from_leaves null leaves rejects");
+        check(!ufsecp::lbtc::merkle_root_from_leaves(leaf, 1, nullptr, 64, root),
+              "merkle_root_from_leaves null scratch rejects");
+        check(!ufsecp::lbtc::merkle_root_from_leaves(leaf, 1, scratch, 64, nullptr),
+              "merkle_root_from_leaves null output rejects");
+        bool zeroed = true;
+        for (int i = 0; i < 32; ++i) if (root[i] != 0) { zeroed = false; break; }
+        check(zeroed, "merkle_root_from_leaves null arg zeroes output");
+    }
+
+    // ─── merkle_root_from_leaves: scratch undersize ────────────────────────
+    {
+        std::uint8_t leaves[2 * 32], scratch[63], root[32];  // 63 < 2*64=128
+        for (int i = 0; i < 2 * 32; ++i) leaves[i] = nb();
+        check(!ufsecp::lbtc::merkle_root_from_leaves(leaves, 2, scratch, 63, root),
+              "merkle_root_from_leaves undersize scratch rejects");
+        bool zeroed = true;
+        for (int i = 0; i < 32; ++i) if (root[i] != 0) { zeroed = false; break; }
+        check(zeroed, "merkle_root_from_leaves undersize scratch zeroes output");
+    }
+
+    // ─── merkle_root_from_leaves: overflow guard ───────────────────────────
+    {
+        std::vector<std::uint8_t> big_scratch(128, 0);
+        std::uint8_t root[32];
+        // count * 32 overflows size_t
+        const std::size_t huge = (SIZE_MAX / 32) + 1;
+        check(!ufsecp::lbtc::merkle_root_from_leaves(nullptr, huge, big_scratch.data(), big_scratch.size(), root),
+              "merkle_root_from_leaves overflow count rejects");
+    }
+
+    // ─── merkle_root_from_leaves: hook-decline inherited ───────────────────
+    {
+        // Verify that merkle_root_from_leaves composes through
+        // merkle_pair_hash_batch and inherits its hook-decline behaviour.
+        const auto prev = ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(decline_merkle_pair_hook);
+        std::uint8_t leaves[2 * 32], scratch[128], root[32];
+        for (int i = 0; i < 2 * 32; ++i) leaves[i] = nb();
+        check(ufsecp::lbtc::merkle_root_from_leaves(leaves, 2, scratch, 128, root),
+              "merkle_root_from_leaves hook-decline computes true");
+        // Verify against oracle
+        std::uint8_t combined[64], oracle[32];
+        std::memcpy(combined, leaves, 32);
+        std::memcpy(combined + 32, leaves + 32, 32);
+        ref_hash256(combined, 64, oracle);
+        check(std::memcmp(root, oracle, 32) == 0,
+              "merkle_root_from_leaves hook-decline output matches oracle");
+        ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(prev);
+    }
+
+    // ─── merkle_root_from_leaves: fake-hook sentinel inherited ─────────────
+    {
+        // Install the fake sentinel hook; merkle_root_from_leaves should
+        // produce the sentinel through its internal merkle_pair_hash_batch
+        // calls, proving the hook path (not CPU fallback) runs.
+        const auto prod_hook = ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(fake_merkle_pair_hook);
+        std::uint8_t leaves[2 * 32], scratch[128], root[32];
+        for (int i = 0; i < 2 * 32; ++i) leaves[i] = nb();
+        check(ufsecp::lbtc::merkle_root_from_leaves(leaves, 2, scratch, 128, root),
+              "merkle_root_from_leaves fake-hook computes true");
+        // The fake hook writes 0xDD to every output byte
+        bool all_sentinel = true;
+        for (int i = 0; i < 32; ++i) if (root[i] != 0xDD) { all_sentinel = false; break; }
+        check(all_sentinel, "merkle_root_from_leaves used the installed hook (sentinel in root)");
+        ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(prod_hook);
+    }
+
+
     std::printf("=== %s ===\n", fails == 0 ? "ALL PASS" : "SOME FAILED");
     return fails == 0 ? 0 : 1;
 }
