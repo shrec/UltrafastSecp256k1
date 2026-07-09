@@ -49,6 +49,19 @@ cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-public-ops-cuda -G Ninja \
   -DCMAKE_CUDA_ARCHITECTURES=86
 ```
 
+### Kernel staging (no manual copy)
+
+When `SECP256K1_BUILD_LIBBITCOIN_GPU=ON` and the OpenCL backend is linked,
+`compat/libbitcoin_direct/CMakeLists.txt` copies `secp256k1_extended.cl` and
+its transitive includes into a `kernels/` directory next to
+`bench_lbtc_public_ops`/`bench_lbtc_workloads` on every build (`POST_BUILD`,
+`copy_if_different`). Normal in-tree builds are also covered by the
+executable-relative resolver in `OpenCLBackend::resolve_opencl_kernel()`;
+the staged `kernels/` copy is a fallback for out-of-tree or packaged bench
+layouts where the source tree is not reachable. Run via `cmake -E chdir`
+into the binary directory for the staged-copy reproduce path; no manual
+`cp`/`rsync` of `src/opencl/kernels/` is required.
+
 Interpretation rule: a production benchmark row is GPU performance evidence only
 when the direct-GPU profile links `secp256k1_gpu_host` and the relevant hook
 accepts the batch. CPU-only runs are still valuable: they prove the direct API,
@@ -141,17 +154,37 @@ cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-gpu-linked -G Ninja \
   -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON \
   -DSECP256K1_BUILD_OPENCL=ON   # or -DSECP256K1_BUILD_CUDA=ON / -DSECP256K1_BUILD_METAL=ON
 cmake --build out/libbitcoin-gpu-linked --target bench_lbtc_public_ops -j
-out/libbitcoin-gpu-linked/compat/libbitcoin_direct/bench_lbtc_public_ops \
-  128 1 80 128 64 128 --json /tmp/lbtc_public_ops_evidence_gpu.json
+# No manual kernel copy needed: compat/libbitcoin_direct/CMakeLists.txt stages
+# secp256k1_extended.cl + includes into a kernels/ dir next to the binary
+# (see "Kernel staging" below). `cmake -E chdir` exercises that staged-copy
+# fallback path explicitly.
+cmake -E chdir out/libbitcoin-gpu-linked/compat/libbitcoin_direct \
+  ./bench_lbtc_public_ops 128 1 80 128 64 128 \
+  --json /tmp/lbtc_public_ops_evidence_gpu.json
 python3 ci/check_lbtc_gpu_workload_evidence.py /tmp/lbtc_public_ops_evidence_gpu.json
 ```
 
 Review smoke on this machine 2026-07-09 (`build-review-lbtc-gpu`, OpenCL
-provider linked): every `direct-production` row had `hook_installed=true`, but
-the independent direct-hook probes declined the benchmark shapes, so every row
-honestly remained `backend="cpu"`, `device="n/a"`,
-`evidence_class="api_correctness"`. The artifact passed
-`check_lbtc_gpu_workload_evidence.py` (22/22 rows, 0 rejected).
+provider linked), first pass: every `direct-production` row had
+`hook_installed=true`, but the independent direct-hook probes declined the
+benchmark shapes, so every row honestly remained `backend="cpu"`,
+`device="n/a"`, `evidence_class="api_correctness"`. The artifact passed
+`check_lbtc_gpu_workload_evidence.py` (22/22 rows, 0 rejected). This was the
+CWD-relative kernel-resolution blocker described under "Root cause" below.
+
+Same-day follow-up (task `lbtc-direct-bench-kernel-staging-claude`): with the
+new `kernels/` staging in `compat/libbitcoin_direct/CMakeLists.txt` and using
+the `cmake -E chdir` invocation above, `pubkey_validate`,
+`commitment_verify`, `tagged_hash*`, `hash256*`, `txid_hash`, `wtxid_hash`,
+and `merkle_pair_hash` all reached `backend="opencl"`,
+`device="NVIDIA GeForce RTX 5060 Ti"` (`xonly_validate` alone still showed
+`hook=yes` at ~0.0003 M rows/s — the OpenCL program's one-time JIT compile
+absorbed into that first call). The artifact still passed
+`check_lbtc_gpu_workload_evidence.py` (22/22 rows, 0 rejected). The backend
+resolver fix in commit `a9e0c25d` independently finds the kernel via an
+executable-relative walk-up for in-tree build directories; the `kernels/`
+staging added here is the build-layout-independent fallback for out-of-tree
+builds or packaged binary directories with the source tree stripped.
 
 The same gate also validates the phase-aware
 `ufsecp-lbtc-gpu-workload-benchmark-v1` schema (txid/wtxid/merkle workloads,
@@ -348,8 +381,10 @@ cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-gpu-linked -G Ninja \
   -DSECP256K1_BUILD_OPENCL=ON   # or -DSECP256K1_BUILD_CUDA=ON / -DSECP256K1_BUILD_METAL=ON
 cmake --build out/libbitcoin-gpu-linked --target bench_lbtc_workloads -j
 mkdir -p /tmp/lbtc_workloads_gpu
-out/libbitcoin-gpu-linked/compat/libbitcoin_direct/bench_lbtc_workloads \
-  --batch-class small --iters 5 --json-dir /tmp/lbtc_workloads_gpu
+# No manual kernel copy needed — see "Kernel staging" note above.
+cmake -E chdir out/libbitcoin-gpu-linked/compat/libbitcoin_direct \
+  ./bench_lbtc_workloads --batch-class small --iters 5 \
+  --json-dir /tmp/lbtc_workloads_gpu
 for f in /tmp/lbtc_workloads_gpu/*.json; do
   python3 ci/check_lbtc_gpu_workload_evidence.py "$f"
 done
@@ -395,6 +430,27 @@ Optimization Protocol). This run is evidence of the current honest state of
 the evidence path, not a GPU speedup claim: although a GPU provider was
 linked, the direct hooks declined these benchmark shapes, so no
 `gpu_acceleration` rows or `speedup_vs_cpu_forced` ratios were emitted.
+
+**Same-day follow-up (task `lbtc-direct-bench-kernel-staging-claude`):**
+with the `kernels/` staging described in "Kernel staging" above and the
+separate resolver walk-up fix in commit `a9e0c25d`, all 4 workloads now emit
+a paired `gpu_acceleration` row at `--batch-class small`, `--iters 3`,
+reproduced with the `cmake -E chdir` invocation:
+
+| Workload | Backend | M rows/s (cpu-forced → production) | `speedup_vs_cpu_forced` (compute_only) |
+|---|---|---|---:|
+| `txid_batch` | opencl / RTX 5060 Ti | 4.28 → 0.61 | 0.14x |
+| `wtxid_batch` | opencl / RTX 5060 Ti | 3.39 → 0.61 | 0.18x |
+| `merkle_pair_batch` | opencl / RTX 5060 Ti | 8.52 → 1.60 | 0.19x |
+| `merkle_root_batch` | opencl / RTX 5060 Ti | 0.004 → 0.001 | 0.27x |
+
+All 4 artifacts still passed `check_lbtc_gpu_workload_evidence.py` (2/2 rows
+each, 0 rejected). Read the ratio honestly: at `batch-class small` (64-128
+rows / 8 trees), per-call OpenCL dispatch overhead makes the GPU path
+*slower* than CPU, not faster — this is real measured data, not a speedup
+claim. Larger `--batch-class` values were not benchmarked in this task (out
+of scope for a CMake-staging card); a throughput crossover point, if any, is
+unverified.
 
 #### Root cause of the 2026-07-09 declines (diagnosed, not fixed in this pass)
 
@@ -446,18 +502,27 @@ workaround already on record for the unrelated
 `clBuildProgram` proceed — confirming the failure is purely file-resolution,
 not a kernel-source defect.
 
-**Fix is out of scope for this diagnostics pass**: `search_paths[]` and
-`load_file_to_string()` live in `src/gpu/src/gpu_backend_opencl.cpp`
-(backend implementation, forbidden to edit under this card's contract), and
-adding a build-time kernel-staging step for `bench_lbtc_workloads`/
-`bench_lbtc_public_ops` would require editing
-`compat/libbitcoin_direct/CMakeLists.txt`, which is outside this card's
-`allowed_writes`. See
-`workingdocs/libbitcoin_gpu_workloads/hook_decline_diagnostics_claude.json`
-for the recorded blocker and the smallest follow-up scope (either add a
-build-tree-relative or install-relative search candidate in
-`ensure_extended_kernels()`, or add a `POST_BUILD` kernel-copy step to the
-two bench targets, mirroring `opencl_audit_runner`'s existing pattern).
+**Follow-up (task `lbtc-direct-bench-kernel-staging-claude`, same day):** the
+second half of this blocker — a `POST_BUILD` kernel-copy step for the two
+bench targets, mirroring `opencl_audit_runner`'s existing pattern — is now
+done: `compat/libbitcoin_direct/CMakeLists.txt` stages
+`secp256k1_extended.cl` and its 6 transitive includes
+(`secp256k1_point.cl`, `secp256k1_field.cl`, `secp256k1_ct_ops.cl`,
+`secp256k1_ct_field.cl`, `secp256k1_ct_scalar.cl`, `secp256k1_ct_point.cl`)
+into `$<TARGET_FILE_DIR:...>/kernels/` for both `bench_lbtc_public_ops` and
+`bench_lbtc_workloads`, gated on the libbitcoin GPU bench linking an OpenCL
+backend (`_lbtc_gpu_host AND SECP256K1_BUILD_OPENCL`). Combined with
+`cmake -E chdir` into the binary's
+directory (see reproduce commands above/below), this makes the legacy
+CWD-relative `kernels/` search candidate in `resolve_opencl_kernel()`
+succeed with no manual copy step. The OpenCL resolver implementation in
+`src/gpu/src/gpu_backend_opencl.cpp` remains untouched by this task (backend
+implementation, forbidden to edit under this card's contract). The separate
+resolver card landed in commit `a9e0c25d` and independently finds the kernel
+with no staging for in-tree build directories; the staged `kernels/` copy
+remains useful for out-of-tree/package layouts. See
+`workingdocs/libbitcoin_gpu_workloads/direct_bench_kernel_staging_claude.json`
+for the measured before/after.
 
 ## Example
 
