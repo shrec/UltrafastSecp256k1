@@ -140,6 +140,24 @@
       "native_hardware_claim": false,
       "benchmark_artifact_claim": false,
       "copy_policy": "acceptance_tracking_only"
+    },
+    {
+      "id": "lbtc_workload_bench_harness",
+      "surface": "libbitcoin-shaped workload benchmark harness (txid_batch, wtxid_batch, merkle_pair_batch, merkle_root_batch) emitting schema-v2 evidence artifacts",
+      "target_context": "libbitcoin",
+      "status": "implemented",
+      "severity": "blocking",
+      "claim_scope": "CPU-only correctness/throughput evidence for 4 libbitcoin block-processing-shaped workloads, validated against independent (non-library) oracles. Every row is backend=cpu, evidence_class=api_correctness, mode=direct-cpu-forced -- no GPU acceleration claim is made by this harness. sighash_batch is intentionally excluded (descriptor contract not accepted, see workingdocs/libbitcoin_gpu_workloads/api_plan_blocker_resolution_deepseek.md blocker B1).",
+      "evidence_paths": [
+        "compat/libbitcoin_direct/bench/bench_workloads.cpp",
+        "ci/check_lbtc_gpu_workload_evidence.py",
+        "ci/test_lbtc_gpu_workload_evidence.py",
+        "docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md"
+      ],
+      "reproduce_command": "cmake -S . -B out/libbitcoin-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON && cmake --build out/libbitcoin-bench --target bench_lbtc_workloads -j && mkdir -p /tmp/lbtc_workloads_smoke && out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_workloads --batch-class small --iters 5 --json-dir /tmp/lbtc_workloads_smoke && for f in /tmp/lbtc_workloads_smoke/*.json; do python3 ci/check_lbtc_gpu_workload_evidence.py \"$f\"; done",
+      "native_hardware_claim": false,
+      "benchmark_artifact_contract": true,
+      "copy_policy": "cpu_only_api_correctness_evidence"
     }
   ]
 }

@@ -87,11 +87,18 @@ CPU-only rows relabeled `gpu_acceleration`, non-`matched_reference`
 validation status, and one-sided `speedup_vs_cpu_forced` claims. It covers
 both the current `bench_lbtc_public_ops` artifact schema
 (`ufsecp-lbtc-public-ops-benchmark-v1`, see
-`docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md`) and the future phase-aware
-libbitcoin GPU workload schema
-(`ufsecp-lbtc-gpu-workload-benchmark-v1`, defined in
+`docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md`) and the phase-aware libbitcoin
+GPU workload schema (`ufsecp-lbtc-gpu-workload-benchmark-v1`, defined in
 `workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json`, for
-txid/wtxid/sighash/merkle-shaped workloads).
+txid/wtxid/sighash/merkle-shaped workloads). `bench_lbtc_workloads`
+(`compat/libbitcoin_direct/bench/bench_workloads.cpp`) produces the v2
+schema today for `txid_batch`/`wtxid_batch`/`merkle_pair_batch`/
+`merkle_root_batch` (`sighash_batch` remains unimplemented — descriptor
+contract not accepted); every row is CPU-only `evidence_class:
+api_correctness`, never `gpu_acceleration`, since this harness has no
+backend/device/driver identification API. See
+`docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md` "Workload benchmark harness" for
+the independent-oracle validation strategy and reproduce commands.
 
 ```bash
 python3 ci/check_lbtc_gpu_workload_evidence.py <benchmark_artifact.json>

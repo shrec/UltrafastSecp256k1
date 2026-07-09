@@ -10,6 +10,7 @@ This page is the shareable benchmark/example index for the bridge-free
 | `bench_lbtc_direct_batch` | ECDSA/Schnorr row + column verify | Signature verification throughput, including libbitcoin's packed row and SoA column layouts |
 | `bench_lbtc_public_ops` | `xonly_validate_batch`, `pubkey_validate_batch`, `taproot_commitment_verify_batch`, `tagged_hash_batch`, tag-string overload, `tagged_hash_var_batch`, `hash256_batch`, `hash256_var_batch` | Block-connect-scale public-data entrypoints |
 | `bench_lbtc_hash256_var` | `hash256_var_batch` only, larger count | txid/wtxid-shaped variable-length HASH256 preimage throughput |
+| `bench_lbtc_workloads` | `txid_batch`, `wtxid_batch`, `merkle_pair_batch`, `merkle_root_batch` (`sighash_batch` excluded, see below) | libbitcoin block-processing-shaped workload evidence, schema `ufsecp-lbtc-gpu-workload-benchmark-v1`, one JSON artifact per workload |
 | `example_lbtc_public_ops` | All public-data entrypoints | Runnable minimal integration example |
 
 All targets link the direct C++ libbitcoin surface only:
@@ -32,7 +33,7 @@ cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-public-ops-bench -G Ninja \
   -DSECP256K1_BUILD_LIBBITCOIN_EXAMPLES=ON
 cmake --build out/libbitcoin-public-ops-bench \
   --target bench_lbtc_direct_batch bench_lbtc_public_ops bench_lbtc_hash256_var \
-           example_lbtc_public_ops -j
+           bench_lbtc_workloads example_lbtc_public_ops -j
 ```
 
 GPU/direct uses the same executable names; add the internal GPU provider:
@@ -162,6 +163,127 @@ out/libbitcoin-public-ops-bench/compat/libbitcoin_direct/bench_lbtc_hash256_var 
 | `serial-reference` | 4.60 | 1296.68 | 2247.45 | 217.3 | 1.00x |
 | `direct-cpu-forced` | 4.67 | 1316.40 | 2281.62 | 214.0 | 1.02x |
 | `direct-production` | 4.64 | 1307.02 | 2265.36 | 215.5 | 1.01x |
+
+## Workload benchmark harness (`bench_lbtc_workloads`, schema v2)
+
+`bench_lbtc_workloads` benchmarks 4 libbitcoin block-processing-shaped
+workloads over the same bridge-free `ufsecp::lbtc::*` surface:
+`txid_batch`, `wtxid_batch`, `merkle_pair_batch`, `merkle_root_batch`.
+
+`sighash_batch` is intentionally **not** implemented here: no
+`sighash_descriptor_hash_batch` exists anywhere in this codebase yet, and
+`workingdocs/libbitcoin_gpu_workloads/api_plan_blocker_resolution_deepseek.md`
+(blocker B1) explicitly gates any sighash descriptor kernel work behind an
+external libbitcoin-developer review that has not happened. Do not add a
+`sighash_batch` row to this harness until that descriptor contract is
+accepted.
+
+### Schema and evidence honesty
+
+Artifacts use schema `ufsecp-lbtc-gpu-workload-benchmark-v1` (defined in
+`workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json`, enforced
+by `ci/check_lbtc_gpu_workload_evidence.py`). That schema's envelope carries
+a single `workload` + `batch_class` value, so `bench_lbtc_workloads` writes
+**one JSON artifact per workload** (via `--json-dir`), not one combined
+file.
+
+Every row in every artifact is `mode="direct-cpu-forced"`,
+`backend="cpu"`, `evidence_class="api_correctness"`: the GPU hook is
+explicitly forced off before each timed call. This harness has no
+backend/device/driver identification API, so — per the project rule against
+fabricated GPU evidence — it never claims `gpu_acceleration`, regardless of
+whether a GPU provider happens to be linked into the binary
+(`provider_linked` records that fact only as metadata; it never changes
+`backend` or `evidence_class`). Unlike `bench_lbtc_public_ops`
+(schema v1, where `prep_seconds`/`kernel_seconds` may be `null`), schema v2
+requires both to be real positive measurements: `prep_seconds` is the
+one-time wall-clock cost of generating that workload's input buffers
+(measured before the timed loop, not fabricated), and `kernel_seconds`
+mirrors `best_seconds` (the single measured compute span, min-of-`iters`).
+
+### Independent validation oracles
+
+Every row is checked against an oracle that does **not** call the
+`ufsecp::lbtc` batch function under test, avoiding a tautological
+self-check:
+
+| Workload | Library function under test | Independent oracle |
+|---|---|---|
+| `txid_batch` | `txid_hash_batch` (alias of `hash256_var_batch`) | `secp256k1::SHA256::hash256(span)` per row, called directly |
+| `wtxid_batch` | `wtxid_hash_batch` (alias of `hash256_var_batch`) | `secp256k1::SHA256::hash256(span)` per row, called directly |
+| `merkle_pair_batch` | `merkle_pair_hash_batch` | `secp256k1::SHA256::hash256(left32\|\|right32)` per row, called directly |
+| `merkle_root_batch` | `merkle_root_from_leaves` | hand-written level-reduction loop in `bench_workloads.cpp` (`independent_merkle_root`) with Bitcoin odd-leaf duplication re-derived at every level — does not call `merkle_pair_hash_batch`, `merkle_level_reduce_batch`, or `merkle_root_from_leaves` |
+
+A mismatch aborts the run before any row is written (same fail-fast
+convention as `bench_lbtc_public_ops`); `validation_status` is therefore
+always `"matched_reference"` in a successfully written artifact.
+
+### Batch-size sizing
+
+Batch sizes are workload-shape *design parameters* from
+`workingdocs/libbitcoin_gpu_workloads/benchmark_plan_claude.md` (that
+document is explicit these are parameters, not benchmark claims), selected
+via `--batch-class {small,medium,block_scale,stress}`:
+
+| Batch class | txid/wtxid rows | merkle_pair rows | merkle_root trees |
+|---|---:|---:|---:|
+| `small` | 64 | 128 | 8 |
+| `medium` | 32768 | 65536 | 512 |
+| `block_scale` | 4096 | 8192 | 64 |
+| `stress` | 1048576 | 2097152 | 4096 |
+
+`merkle_root_batch` simulates a fixed 2048 leaves per tree regardless of
+`batch_class` (`batch_class` controls how many trees/blocks are
+benchmarked, not the shape of one tree) — a synthetic block-shaped leaf
+count, not tied to any specific historical Bitcoin block.
+
+### Reproduce + validate
+
+```bash
+cmake --build <build-dir> --target bench_lbtc_workloads -j
+mkdir -p /tmp/lbtc_workloads_smoke
+<build-dir>/compat/libbitcoin_direct/bench_lbtc_workloads \
+  --batch-class small --iters 5 --json-dir /tmp/lbtc_workloads_smoke
+for f in /tmp/lbtc_workloads_smoke/*.json; do
+  python3 ci/check_lbtc_gpu_workload_evidence.py "$f"
+done
+python3 ci/test_lbtc_gpu_workload_evidence.py
+```
+
+### Local Results (2026-07-09, CPU/direct, `batch-class=medium`)
+
+Host/build:
+
+- Linux 6.8.0-134-generic, x86_64
+- Intel(R) Core(TM) i5-14400F, GCC 14.2.0, Release
+- `SECP256K1_BUILD_LIBBITCOIN_GPU=ON` (OpenCL provider linked,
+  `provider_linked=true`), but every row's hook is explicitly forced off
+  (`hook_installed=false`) — these are CPU-forced correctness/throughput
+  rows, not GPU acceleration evidence.
+
+Command:
+
+```bash
+<build-dir>/compat/libbitcoin_direct/bench_lbtc_workloads \
+  --batch-class medium --iters 5 --json-dir out/lbtc_workloads_medium
+```
+
+Shape: `batch_class=medium`, `iters=5` (txid/wtxid: 32768 rows,
+merkle_pair: 65536 rows, merkle_root: 512 trees x 2048 leaves).
+
+| Workload | Op | M rows/s | MiB/s | ns/row | prep (s) |
+|---|---|---:|---:|---:|---:|
+| `txid_batch` | `txid_hash` | 4.28 | 1202.72 | 233.8 | 0.023752 |
+| `wtxid_batch` | `wtxid_hash` | 3.76 | 1468.94 | 266.2 | 0.034137 |
+| `merkle_pair_batch` | `merkle_pair_hash` | 8.12 | 495.40 | 123.2 | 0.006827 |
+| `merkle_root_batch` | `merkle_root_from_leaves` | 0.00418 | 261.40 | 239101.7 | 0.059297 |
+
+`merkle_root_batch`'s `ns_per_row` is per *tree* (512 trees of 2048 leaves
+each, not per leaf) — the small `M rows/s` value reflects that each row is
+a full merkle tree, not a single hash. This is a single local run, not a
+formal >=5-run controlled comparison (see `CLAUDE.md` Performance
+Optimization Protocol) — no speedup claim is made, and there is nothing
+here to compare against (no GPU row exists in this harness).
 
 ## Example
 

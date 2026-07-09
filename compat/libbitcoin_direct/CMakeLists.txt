@@ -191,7 +191,19 @@ if(SECP256K1_BUILD_LIBBITCOIN_BENCH)
     if(TARGET Threads::Threads)
         target_link_libraries(bench_lbtc_public_ops PRIVATE Threads::Threads)
     endif()
-    message(STATUS "  libbitcoin direct bench: ON (bench_lbtc_direct_batch, bench_lbtc_hash256_var, bench_lbtc_public_ops, no C ABI/shim/bridge)")
+
+    add_executable(bench_lbtc_workloads bench/bench_workloads.cpp)
+    target_link_libraries(bench_lbtc_workloads PRIVATE
+        fastsecp256k1_libbitcoin
+        ${_lbtc_gpu_host}
+        ${_lbtc_engine})
+    if(_lbtc_gpu_retain)
+        target_link_options(bench_lbtc_workloads PRIVATE ${_lbtc_gpu_retain})
+    endif()
+    if(TARGET Threads::Threads)
+        target_link_libraries(bench_lbtc_workloads PRIVATE Threads::Threads)
+    endif()
+    message(STATUS "  libbitcoin direct bench: ON (bench_lbtc_direct_batch, bench_lbtc_hash256_var, bench_lbtc_public_ops, bench_lbtc_workloads, no C ABI/shim/bridge)")
 endif()
 
 # Canonical direct C++ examples. Kept behind a libbitcoin-specific flag because
