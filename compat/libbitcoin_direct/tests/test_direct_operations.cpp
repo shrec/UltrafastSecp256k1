@@ -938,6 +938,656 @@ int main() {
     }
 
 
+    // ══════════════════════════════════════════════════════════════════════
+    // sighash_descriptor_hash_batch tests
+    // ══════════════════════════════════════════════════════════════════════
+
+    // Reference oracle: assemble preimage manually and compute HASH256.
+    auto sighash_oracle = [](const std::uint8_t* const* fields,
+                             const std::uint32_t* flens,
+                             const std::uint32_t* const* fvars,
+                             const std::uint8_t* desc, std::size_t dlen,
+                             std::size_t row, std::uint8_t out[32]) {
+        // Re-parse descriptor to assemble preimage (mirrors the implementation).
+        std::vector<std::uint8_t> preimage;
+        const std::uint8_t* p = desc;
+        const std::uint8_t* end = desc + dlen;
+        while (p < end && *p != 0xFF) {
+            std::uint16_t fid = static_cast<std::uint16_t>(p[0]) |
+                                (static_cast<std::uint16_t>(p[1] & 0x0Fu) << 8);
+            std::uint8_t flags = p[1] >> 4;
+            bool has_len = (flags & 0x01u) != 0;
+            if (has_len) {
+                std::uint32_t vl = fvars[fid][row];
+                const std::uint8_t* src = fields[fid] + row * flens[fid];
+                preimage.insert(preimage.end(), src, src + vl);
+            } else {
+                // Determine fixed len from field_id
+                std::uint32_t fl = 0;
+                switch (fid) {
+                case 0x00: fl = 4; break;
+                case 0x01: fl = 32; break;
+                case 0x02: fl = 32; break;
+                case 0x03: fl = 36; break;
+                case 0x05: fl = 8; break;
+                case 0x06: fl = 4; break;
+                case 0x07: fl = 32; break;
+                case 0x08: fl = 4; break;
+                case 0x09: fl = 4; break;
+                case 0x0A: fl = 36; break;
+                case 0x0B: fl = 4; break;
+                case 0x0D: fl = 32; break;
+                case 0x0E: fl = 4; break;
+                case 0x0F: fl = 4; break;
+                default: fl = 0; break;
+                }
+                const std::uint8_t* src = fields[fid] + row * flens[fid];
+                preimage.insert(preimage.end(), src, src + fl);
+            }
+            p += 2;
+        }
+        ref_hash256(preimage.data(), preimage.size(), out);
+    };
+
+    // ─── Valid BIP143-style descriptor (all fixed fields) ─────────────
+    {
+        // Descriptor: nVersion,hashPrevouts,hashSequence,outpoint,value,
+        //            nSequence,hashOutputs,nLocktime,nHashType (9 fixed fields)
+        // BIP143-style (no scriptCode for simplicity — all fixed)
+        std::uint8_t desc[] = {
+            0x00, 0x00,  // nVersion
+            0x01, 0x00,  // hashPrevouts
+            0x02, 0x00,  // hashSequence
+            0x03, 0x00,  // outpoint
+            0x05, 0x00,  // value
+            0x06, 0x00,  // nSequence
+            0x07, 0x00,  // hashOutputs
+            0x08, 0x00,  // nLocktime
+            0x09, 0x00,  // nHashType
+            0xFF         // terminator
+        };
+        const std::size_t dlen = sizeof(desc);
+
+        constexpr std::size_t N = 10;
+        // Allocate field data for all possible field_ids (256 entries for safety)
+        std::vector<std::uint8_t> fbuf[256];
+        std::vector<std::uint32_t> flens_data(256, 0);
+        std::vector<std::uint32_t> fvars_buf[256];
+        const std::uint8_t* fdata_ptrs[256] = {};
+        const std::uint32_t* fvars_ptrs[256] = {};
+        for (int i = 0; i < 256; ++i) { fdata_ptrs[i] = nullptr; fvars_ptrs[i] = nullptr; }
+
+        // Populate fields with random data
+        auto populate_fixed = [&](std::uint16_t fid, std::uint32_t flen) {
+            fbuf[fid].resize(N * flen);
+            for (auto& b : fbuf[fid]) b = nb();
+            flens_data[fid] = flen;
+            fdata_ptrs[fid] = fbuf[fid].data();
+        };
+        populate_fixed(0x00, 4);   // nVersion
+        populate_fixed(0x01, 32);  // hashPrevouts
+        populate_fixed(0x02, 32);  // hashSequence
+        populate_fixed(0x03, 36);  // outpoint
+        populate_fixed(0x05, 8);   // value
+        populate_fixed(0x06, 4);   // nSequence
+        populate_fixed(0x07, 32);  // hashOutputs
+        populate_fixed(0x08, 4);   // nLocktime
+        populate_fixed(0x09, 4);   // nHashType
+
+        std::vector<std::uint8_t> out(N * 32, 0xCD);
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata_ptrs, flens_data.data(), fvars_ptrs, N, out.data()),
+              "sighash BIP143-style all-fixed computes true");
+
+        // Cross-check each row against the independent oracle
+        int mism = 0;
+        for (std::size_t i = 0; i < N; ++i) {
+            std::uint8_t oracle[32];
+            sighash_oracle(fdata_ptrs, flens_data.data(), fvars_ptrs, desc, dlen, i, oracle);
+            if (std::memcmp(out.data() + i * 32, oracle, 32) != 0) ++mism;
+        }
+        check(mism == 0, "sighash BIP143-style bit-exact vs independent oracle");
+    }
+
+    // ─── count=0 no-op ────────────────────────────────────────────────
+    {
+        std::uint8_t desc[] = {0x09, 0x00, 0xFF};  // nHashType only
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        const std::uint8_t* dummy_ptr = out;  // non-null but unused
+        std::uint32_t dummy_len = 4;
+        const std::uint32_t* dummy_var = nullptr;
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 3, &dummy_ptr, &dummy_len, &dummy_var, 0, out),
+              "sighash count==0 returns true");
+        // out must be untouched
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash count==0 leaves out untouched");
+    }
+
+    // ─── descriptor_len=0 rejected ────────────────────────────────────
+    {
+        std::uint8_t desc[] = {0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        const std::uint8_t* dptr = desc;
+        std::uint32_t dummy_len = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 0, &dptr, &dummy_len, nullptr, 1, out),
+              "sighash descriptor_len==0 rejected");
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash descriptor_len==0 leaves out untouched");
+    }
+
+    // ─── Missing terminator rejected ──────────────────────────────────
+    {
+        std::uint8_t desc[] = {0x09, 0x00};  // no terminator
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        const std::uint8_t* dptr = desc;
+        std::uint32_t dummy_len = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 2, &dptr, &dummy_len, nullptr, 1, out),
+              "sighash missing terminator rejected");
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash missing terminator leaves out untouched");
+    }
+
+    // ─── Duplicate field rejected ─────────────────────────────────────
+    {
+        // nHashType appears twice
+        std::uint8_t desc[] = {0x09, 0x00, 0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nht_buf[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x09] = nht_buf;
+        flens[0x09] = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash duplicate field rejected");
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash duplicate field leaves out untouched");
+    }
+
+    // ─── Reserved flag bits set → rejected ────────────────────────────
+    {
+        // Set bit14 (flags nibble bit2) on nVersion
+        std::uint8_t desc[] = {0x00, 0x40, 0x09, 0x00, 0xFF};  // 0x40 = flags nibble 4 (bit2 set)
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nver_buf[4] = {2,0,0,0};
+        std::uint8_t nht_buf[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver_buf; flens[0x00] = 4;
+        fdata[0x09] = nht_buf;  flens[0x09] = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash reserved flag bit14 rejected");
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash reserved flag leaves out untouched");
+    }
+
+    // ─── Reserved low-byte 0xFF field_id rejected ─────────────────────
+    {
+        // field_id = 0x00FF (low byte = 0xFF)
+        std::uint8_t desc[] = {0xFF, 0x00, 0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nht_buf[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x09] = nht_buf; flens[0x09] = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash reserved 0xFF low-byte field rejected");
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash reserved 0xFF low-byte leaves out untouched");
+    }
+
+    // ─── Null args rejected ───────────────────────────────────────────
+    {
+        std::uint8_t desc[] = {0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nht[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x09] = nht; flens[0x09] = 4;
+
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  nullptr, 3, fdata, flens, nullptr, 1, out),
+              "sighash null descriptor rejected");
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 3, nullptr, flens, nullptr, 1, out),
+              "sighash null field_data rejected");
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 3, fdata, nullptr, nullptr, 1, out),
+              "sighash null field_lengths rejected");
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 3, fdata, flens, nullptr, 1, nullptr),
+              "sighash null out32 rejected");
+        // out32 must be untouched after null-arg failures
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash null args leave out untouched");
+    }
+
+    // ─── Fixed + variable fields (scriptCode with HAS_LENGTH) ─────────
+    {
+        // Descriptor: nVersion, nHashType, scriptCode(var)
+        // scriptCode (0x04) with HAS_LENGTH flag
+        std::uint8_t desc[] = {
+            0x00, 0x00,  // nVersion (fixed 4)
+            0x04, 0x10,  // scriptCode (HAS_LENGTH, variable)
+            0x09, 0x00,  // nHashType (fixed 4)
+            0xFF
+        };
+        const std::size_t dlen = sizeof(desc);
+
+        constexpr std::size_t N = 5;
+        constexpr std::uint32_t SCRIPT_STRIDE = 128;
+
+        std::vector<std::uint8_t> nver(N * 4);
+        std::vector<std::uint8_t> scode(N * SCRIPT_STRIDE);
+        std::vector<std::uint8_t> nht(N * 4);
+        for (auto& b : nver) b = nb();
+        for (auto& b : scode) b = nb();
+        for (auto& b : nht) b = nb();
+
+        std::vector<std::uint32_t> scode_lens(N);
+        for (std::size_t i = 0; i < N; ++i)
+            scode_lens[i] = static_cast<std::uint32_t>(10 + (i % 30));  // 10-39 bytes each
+
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        const std::uint32_t* fvars[256] = {};
+
+        fdata[0x00] = nver.data();   flens[0x00] = 4;
+        fdata[0x04] = scode.data();  flens[0x04] = SCRIPT_STRIDE;
+        fdata[0x09] = nht.data();    flens[0x09] = 4;
+        fvars[0x04] = scode_lens.data();
+
+        std::vector<std::uint8_t> out(N * 32);
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata, flens, fvars, N, out.data()),
+              "sighash fixed+variable (scriptCode) computes true");
+
+        int mism = 0;
+        for (std::size_t i = 0; i < N; ++i) {
+            std::uint8_t oracle[32];
+            sighash_oracle(fdata, flens, fvars, desc, dlen, i, oracle);
+            if (std::memcmp(out.data() + i * 32, oracle, 32) != 0) ++mism;
+        }
+        check(mism == 0, "sighash fixed+variable bit-exact vs independent oracle");
+
+        // var_len > stride must fail
+        scode_lens[2] = SCRIPT_STRIDE + 1;
+        std::memset(out.data(), 0xAB, out.size());
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata, flens, fvars, N, out.data()),
+              "sighash var_len > stride rejected");
+        // Reset for subsequent tests
+        scode_lens[2] = 12;
+
+        std::memset(out.data(), 0xAB, out.size());
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata, flens, nullptr, N, out.data()),
+              "sighash null field_var_lens base rejected for variable field");
+        bool untouched = true;
+        for (auto b : out) {
+            if (b != 0xAB) { untouched = false; break; }
+        }
+        check(untouched, "sighash null field_var_lens base leaves out untouched");
+    }
+
+    // ─── LE/BE negative: BE-swapped nVersion produces different hash ───
+    {
+        // Descriptor: nVersion (4 bytes LE), nHashType (4 bytes LE)
+        std::uint8_t desc[] = {0x00, 0x00, 0x09, 0x00, 0xFF};
+        const std::size_t dlen = sizeof(desc);
+
+        // LE nVersion: 0x02000000 (version 2)
+        std::uint8_t nver_le[4] = {2, 0, 0, 0};
+        // BE nVersion: 0x00000002 (wrong byte order)
+        std::uint8_t nver_be[4] = {0, 0, 0, 2};
+        std::uint8_t nht[4] = {1, 0, 0, 0};  // SIGHASH_ALL
+
+        const std::uint8_t* fdata_le[256] = {};
+        const std::uint8_t* fdata_be[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata_le[0x00] = nver_le;  fdata_le[0x09] = nht;
+        fdata_be[0x00] = nver_be;  fdata_be[0x09] = nht;
+        flens[0x00] = 4; flens[0x09] = 4;
+
+        std::uint8_t out_le[32], out_be[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata_le, flens, nullptr, 1, out_le),
+              "sighash LE nVersion computes true");
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata_be, flens, nullptr, 1, out_be),
+              "sighash BE nVersion computes true");
+        // BE-swapped nVersion must produce a DIFFERENT hash
+        check(std::memcmp(out_le, out_be, 32) != 0,
+              "sighash BE nVersion produces different hash vs LE");
+    }
+
+    // ─── LE/BE negative: BE-swapped nHashType produces different hash ──
+    {
+        std::uint8_t desc[] = {0x00, 0x00, 0x09, 0x00, 0xFF};
+        const std::size_t dlen = sizeof(desc);
+
+        std::uint8_t nver[4] = {2, 0, 0, 0};
+        std::uint8_t nht_le[4] = {1, 0, 0, 0};   // SIGHASH_ALL LE
+        std::uint8_t nht_be[4] = {0, 0, 0, 1};   // SIGHASH_ALL BE (wrong)
+
+        const std::uint8_t* fdata_le[256] = {};
+        const std::uint8_t* fdata_be[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata_le[0x00] = nver;  fdata_le[0x09] = nht_le;
+        fdata_be[0x00] = nver;  fdata_be[0x09] = nht_be;
+        flens[0x00] = 4; flens[0x09] = 4;
+
+        std::uint8_t out_le[32], out_be[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata_le, flens, nullptr, 1, out_le),
+              "sighash LE nHashType computes true");
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata_be, flens, nullptr, 1, out_be),
+              "sighash BE nHashType computes true");
+        check(std::memcmp(out_le, out_be, 32) != 0,
+              "sighash BE nHashType produces different hash vs LE");
+    }
+
+    // ─── LE/BE negative: BE-swapped amount (8-byte value) ─────────────
+    {
+        std::uint8_t desc[] = {0x05, 0x00, 0x09, 0x00, 0xFF};
+        const std::size_t dlen = sizeof(desc);
+
+        std::uint8_t val_le[8] = {0x40, 0x0D, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00}; // 200000 sat LE
+        std::uint8_t val_be[8] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x03, 0x0D, 0x40}; // 200000 sat BE
+        std::uint8_t nht[4] = {1, 0, 0, 0};
+
+        const std::uint8_t* fdata_le[256] = {};
+        const std::uint8_t* fdata_be[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata_le[0x05] = val_le;  fdata_le[0x09] = nht;
+        fdata_be[0x05] = val_be;  fdata_be[0x09] = nht;
+        flens[0x05] = 8; flens[0x09] = 4;
+
+        std::uint8_t out_le[32], out_be[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata_le, flens, nullptr, 1, out_le),
+              "sighash LE amount computes true");
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata_be, flens, nullptr, 1, out_be),
+              "sighash BE amount computes true");
+        check(std::memcmp(out_le, out_be, 32) != 0,
+              "sighash BE amount produces different hash vs LE");
+    }
+
+    // ─── Max descriptor length boundary (129 bytes = 64 fields) ───────
+    {
+        // Build a 129-byte descriptor with 64 distinct supported field_ids.
+        // Use nVersion(0x00) through codesep_pos(0x0F) + raw_literal(0xF0) = 17 fields,
+        // then repeat with different high-nibble field_ids.
+        // Actually we can only use unique field_ids up to 0xF0, so we max at 17.
+        // For the 129-byte boundary test, use the maximum number of fields
+        // within the supported range, which is 17 fields = 35 bytes.
+        // A full 64-field test needs field_ids beyond 0xF0 which are all reserved.
+        // So test: descriptor_len == 129 with reserved fields → rejected.
+        // And test: descriptor_len == 129 with all-zero bytes → rejected
+        // (mid-stream 0xFF check catches 0xFF in low-byte positions).
+        // Test that a 129-byte-max descriptor with a clean terminator is
+        // properly rejected for containing unsupported field_ids.
+        std::uint8_t desc129[129];
+        std::memset(desc129, 0x10, 128);  // field_id=0x10, flags=0x1 (reserved field_id)
+        desc129[128] = 0xFF;  // terminator
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        const std::uint8_t* dummy_ptr = out;
+        std::uint32_t dummy_len = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc129, 129, &dummy_ptr, &dummy_len, nullptr, 1, out),
+              "sighash 129-byte descriptor with reserved fields rejected");
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash 129-byte reserved leaves out untouched");
+
+        // Test: valid max-length descriptor with all supported fields (17 fields = 35 bytes)
+        // List all supported field_ids
+        std::uint16_t all_fields[] = {
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0xF0
+        };
+        constexpr std::size_t NF = sizeof(all_fields) / sizeof(all_fields[0]);
+
+        std::uint8_t desc_all[NF * 2 + 1];
+        const std::uint8_t* fdata_all[256] = {};
+        std::uint32_t flens_all[256] = {};
+        const std::uint32_t* fvars_all[256] = {};
+
+        for (std::size_t i = 0; i < NF; ++i) {
+            std::uint16_t fid = all_fields[i];
+            desc_all[i * 2 + 0] = static_cast<std::uint8_t>(fid & 0xFF);
+            bool is_var = (fid == 0x04 || fid == 0x0C || fid == 0xF0);
+            std::uint8_t flags = is_var ? 0x10 : 0x00;  // HAS_LENGTH for variable
+            desc_all[i * 2 + 1] = static_cast<std::uint8_t>(((fid >> 8) & 0x0F) | flags);
+            // Allocate dummy buffers
+            static std::vector<std::uint8_t> abuf[256];
+            std::uint32_t alen = is_var ? 64u : 8u;  // reasonable stride
+            // Don't exceed supported fixed len for fixed fields
+            switch (fid) {
+            case 0x00: case 0x06: case 0x08: case 0x09: case 0x0B: case 0x0E: case 0x0F:
+                alen = 4; break;
+            case 0x01: case 0x02: case 0x07: case 0x0D: alen = 32; break;
+            case 0x03: case 0x0A: alen = 36; break;
+            case 0x05: alen = 8; break;
+            default: alen = 64; break;  // variable fields
+            }
+            abuf[fid].resize(alen);
+            for (auto& b : abuf[fid]) b = nb();
+            fdata_all[fid] = abuf[fid].data();
+            flens_all[fid] = alen;
+            if (is_var) {
+                static std::vector<std::uint32_t> vbuf[256];
+                vbuf[fid].resize(1);
+                vbuf[fid][0] = alen / 2;  // use half stride
+                fvars_all[fid] = vbuf[fid].data();
+            }
+        }
+        desc_all[NF * 2] = 0xFF;
+
+        std::uint8_t out_all[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc_all, NF * 2 + 1, fdata_all, flens_all, fvars_all, 1, out_all),
+              "sighash max-supported-fields (17 fields) computes true");
+    }
+
+    // ─── Missing nHashType rejected ───────────────────────────────────
+    {
+        std::uint8_t desc[] = {0x00, 0x00, 0xFF};  // only nVersion
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nver[4] = {2,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver; flens[0x00] = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 3, fdata, flens, nullptr, 1, out),
+              "sighash missing nHashType rejected");
+    }
+
+    // ─── Mid-stream 0xFF collision rejected ────────────────────────────
+    {
+        // Place 0xFF at an even position (field_ref low byte)
+        std::uint8_t desc[] = {0xFF, 0x00, 0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nht[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x09] = nht; flens[0x09] = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash mid-stream 0xFF rejected");
+    }
+
+    // ─── field_lengths[f] * count overflow rejected ───────────────────
+    {
+        std::uint8_t desc[] = {0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nht[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x09] = nht; flens[0x09] = 4;
+        const std::size_t huge = (SIZE_MAX / 4) + 1;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 3, fdata, flens, nullptr, huge, out),
+              "sighash field_lengths*count overflow rejected");
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash overflow leaves out untouched");
+    }
+
+    // ─── Null field_data[f] for referenced field rejected ─────────────
+    {
+        std::uint8_t desc[] = {0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x09] = nullptr;  // null for referenced field
+        flens[0x09] = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 3, fdata, flens, nullptr, 1, out),
+              "sighash null field_data[0x09] rejected");
+    }
+
+    // ─── HAS_LENGTH mismatch on fixed field rejected ──────────────────
+    {
+        // nVersion (0x00) is fixed, but we set HAS_LENGTH flag
+        std::uint8_t desc[] = {0x00, 0x10, 0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nver[4] = {2,0,0,0};
+        std::uint8_t nht[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver; flens[0x00] = 4;
+        fdata[0x09] = nht;  flens[0x09] = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash HAS_LENGTH on fixed field rejected");
+    }
+
+    // ─── Missing HAS_LENGTH on variable field rejected ────────────────
+    {
+        // scriptCode (0x04) is variable but HAS_LENGTH flag not set
+        std::uint8_t desc[] = {0x04, 0x00, 0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t sc[64], nht[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x04] = sc; flens[0x04] = 64;
+        fdata[0x09] = nht; flens[0x09] = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash missing HAS_LENGTH on variable field rejected");
+    }
+
+    // ─── ZERO_PAD flag accepted (no-op for preimage assembly) ─────────
+    {
+        // nVersion with ZERO_PAD flag set — should still work correctly
+        std::uint8_t desc[] = {0x00, 0x20, 0x09, 0x00, 0xFF};  // 0x20 = ZERO_PAD flag
+        const std::size_t dlen = sizeof(desc);
+        std::uint8_t nver[4] = {2,0,0,0};
+        std::uint8_t nht[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver; flens[0x00] = 4;
+        fdata[0x09] = nht;  flens[0x09] = 4;
+
+        std::uint8_t out[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, dlen, fdata, flens, nullptr, 1, out),
+              "sighash ZERO_PAD on fixed field computes true");
+
+        // Compare with no-ZERO_PAD version
+        std::uint8_t desc_nopad[] = {0x00, 0x00, 0x09, 0x00, 0xFF};
+        std::uint8_t out_nopad[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc_nopad, sizeof(desc_nopad), fdata, flens, nullptr, 1, out_nopad),
+              "sighash no-ZERO_PAD computes true");
+        check(std::memcmp(out, out_nopad, 32) == 0,
+              "sighash ZERO_PAD does not change hash (no-op for fixed fields)");
+    }
+
+    // ─── Unsupported field_ids rejected ───────────────────────────────
+    {
+        // field_id 0x10 is reserved_general
+        std::uint8_t desc[] = {0x10, 0x00, 0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nht[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x09] = nht; flens[0x09] = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash unsupported field_id 0x10 rejected");
+    }
+
+    // ─── field_lengths[f] == 0 for referenced field rejected ──────────
+    {
+        std::uint8_t desc[] = {0x09, 0x00, 0xFF};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        std::uint8_t nht[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x09] = nht; flens[0x09] = 0;  // zero stride
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 3, fdata, flens, nullptr, 1, out),
+              "sighash zero stride rejected");
+    }
+
+    // ─── Even descriptor_len rejected ─────────────────────────────────
+    {
+        std::uint8_t desc[] = {0x09, 0x00};  // 2 bytes, even, no terminator
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        const std::uint8_t* dptr = desc;
+        std::uint32_t dummy_len = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 2, &dptr, &dummy_len, nullptr, 1, out),
+              "sighash even descriptor_len rejected");
+    }
+
+    // ─── Truncated field_ref (odd length, no terminator at end) ───────
+    {
+        // 3 bytes: [0x00, 0x00, 0x09] — last byte is not 0xFF
+        std::uint8_t desc[] = {0x00, 0x00, 0x09};
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        const std::uint8_t* dptr = desc;
+        std::uint32_t dummy_len = 4;
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 3, &dptr, &dummy_len, nullptr, 1, out),
+              "sighash missing terminator at expected position rejected");
+    }
+
+
     std::printf("=== %s ===\n", fails == 0 ? "ALL PASS" : "SOME FAILED");
     return fails == 0 ? 0 : 1;
 }

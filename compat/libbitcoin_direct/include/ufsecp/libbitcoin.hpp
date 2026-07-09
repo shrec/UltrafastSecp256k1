@@ -1326,6 +1326,243 @@ inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
     return true;
 }
 
+// ============================================================================
+// sighash_descriptor_hash_batch — HASH256 of descriptor-shaped sighash preimage
+// ============================================================================
+// Computes SHA256(SHA256(preimage)) for N transaction inputs where the preimage
+// is assembled from column-major field data according to a compact descriptor
+// bytecode. The descriptor is a sequence of 2-byte little-endian field_refs
+// terminated by a single 0xFF byte. This is a direct C++ CPU/reference surface
+// — no bridge, no shim, no C ABI, no GPU backend virtual (GPU hook deferred).
+//
+// Descriptor byte layout (v2, LE):
+//   Each field_ref = 2 bytes LE:
+//     byte0 = low byte of field_id  (bits [0..7])
+//     byte1 = (flags_nibble << 4) | (field_id >> 8)
+//     flags_nibble:
+//       bit0 = HAS_LENGTH  — field has per-item variable length
+//       bit1 = ZERO_PAD    — column storage is zero-padded to stride
+//       bit2-3 = RESERVED  — must be 0
+//   Terminator: single 0xFF byte at descriptor[descriptor_len-1].
+//   Max 64 field refs → max descriptor_len = 2*64+1 = 129.
+//
+// Field data layout (Structure-of-Arrays):
+//   field_data[f]      — column-major byte span for field_id f
+//   field_lengths[f]   — fixed byte length (or stride for variable fields)
+//   field_var_lens[f]  — per-item length array (non-null iff HAS_LENGTH)
+//
+// Supported field IDs:
+//   0x00 nVersion(4)   0x01 hashPrevouts(32)  0x02 hashSequence(32)
+//   0x03 outpoint(36)  0x04 scriptCode(var)    0x05 value(8)
+//   0x06 nSequence(4)  0x07 hashOutputs(32)    0x08 nLocktime(4)
+//   0x09 nHashType(4)  0x0A prevout_individual(36) 0x0B nInputIndex(4)
+//   0x0C annex(var)    0x0D tapleaf_hash(32)   0x0E key_version(4)
+//   0x0F codesep_pos(4)
+//   0xF0 raw_literal(var)
+//   All other field_ids → rejected (reserved/unsupported).
+//
+// Failure semantics (fail-closed, HASH op — out32 untouched on bad input):
+//   count==0 → true (no-op), out32 untouched
+//   null descriptor/field_data/field_lengths/out32 → false, out32 untouched
+//   null field_var_lens when descriptor references variable fields → false,
+//     out32 untouched
+//   malformed descriptor (len, terminator, mid-0xFF, reserved flags,
+//     duplicate, reserved low-byte, unsupported field_id, HAS_LENGTH
+//     mismatch, missing nHashType) → false, out32 untouched
+//   null field_data[f] for referenced field → false, out32 untouched
+//   field_lengths[f]*count overflow → false, out32 untouched
+//   var_len > stride on any row → false, out32 untouched
+//   preimage > 4 MiB on any row → false, out32 untouched
+//
+// PUBLIC DATA only — variable-time, no secret material.
+[[nodiscard]] inline bool sighash_descriptor_hash_batch(
+    const std::uint8_t* descriptor,
+    std::size_t descriptor_len,
+    const std::uint8_t* const* field_data,
+    const std::uint32_t* field_lengths,
+    const std::uint32_t* const* field_var_lens,
+    std::size_t count,
+    std::uint8_t* out32,
+    std::size_t max_threads = 0) noexcept
+{
+    (void)max_threads;
+
+    // count==0 is a no-op (consistent with all lbtc::* batch ops).
+    if (count == 0) return true;
+
+    // Null pointer checks — fail before touching out32.
+    if (descriptor == nullptr || field_data == nullptr ||
+        field_lengths == nullptr || out32 == nullptr)
+        return false;
+
+    // ─── Descriptor pre-dispatch validation (parse once) ────────────────
+    // descriptor_len: 1..129, must be odd.
+    if (descriptor_len < 1 || descriptor_len > 129) return false;
+    if ((descriptor_len & 1u) == 0) return false;
+
+    // Terminator at expected final position.
+    if (descriptor[descriptor_len - 1] != 0xFF) return false;
+
+    // No mid-stream 0xFF bytes at even indices (before the terminator).
+    for (std::size_t i = 0; i < descriptor_len - 1; i += 2) {
+        if (descriptor[i] == 0xFF) return false;
+    }
+
+    // Parse descriptor field_refs into a compact plan.
+    constexpr std::size_t MAX_FIELD_REFS = 64;
+    struct FieldPlan {
+        std::uint16_t field_id;
+        bool          has_length;   // HAS_LENGTH flag
+        bool          zero_pad;     // ZERO_PAD flag (accepted, no-op for preimage)
+        std::uint32_t fixed_len;    // 0 = variable-length field
+    };
+    FieldPlan plan[MAX_FIELD_REFS];
+    std::size_t  num_fields = 0;
+    bool         has_nHashType = false;
+
+    const std::uint8_t* p   = descriptor;
+    const std::uint8_t* end = descriptor + descriptor_len;
+
+    while (p < end && *p != 0xFF) {
+        if (num_fields >= MAX_FIELD_REFS) return false;
+        if (p + 1 >= end) return false;   // truncated field_ref
+
+        // Decode LE field_ref.
+        const std::uint16_t field_id =
+            static_cast<std::uint16_t>(p[0]) |
+            (static_cast<std::uint16_t>(p[1] & 0x0Fu) << 8);
+        const std::uint8_t flags_nibble = p[1] >> 4;
+
+        // Reserved flag bits 14-15 must be zero (bits 2-3 of flags nibble).
+        if ((flags_nibble & 0x0Cu) != 0) return false;
+
+        const bool has_len  = (flags_nibble & 0x01u) != 0;   // HAS_LENGTH
+        const bool zero_pad = (flags_nibble & 0x02u) != 0;   // ZERO_PAD
+
+        // Reserved field_id: low byte == 0xFF is permanently prohibited.
+        if ((field_id & 0xFFu) == 0xFFu) return false;
+
+        // Duplicate field_id check (O(n²) over ≤64 entries — fine).
+        for (std::size_t j = 0; j < num_fields; ++j) {
+            if (plan[j].field_id == field_id) return false;
+        }
+
+        // Classify field — only supported field_ids pass.
+        std::uint32_t fixed_len = 0;
+        bool          supported = false;
+
+        // clang-format off
+        switch (field_id) {
+        case 0x00: fixed_len =  4; supported = true; break;   // nVersion
+        case 0x01: fixed_len = 32; supported = true; break;   // hashPrevouts
+        case 0x02: fixed_len = 32; supported = true; break;   // hashSequence
+        case 0x03: fixed_len = 36; supported = true; break;   // outpoint
+        case 0x04: /* variable */ supported = true; break;   // scriptCode
+        case 0x05: fixed_len =  8; supported = true; break;   // value
+        case 0x06: fixed_len =  4; supported = true; break;   // nSequence
+        case 0x07: fixed_len = 32; supported = true; break;   // hashOutputs
+        case 0x08: fixed_len =  4; supported = true; break;   // nLocktime
+        case 0x09: fixed_len =  4; supported = true; has_nHashType = true; break; // nHashType
+        case 0x0A: fixed_len = 36; supported = true; break;   // prevout_individual
+        case 0x0B: fixed_len =  4; supported = true; break;   // nInputIndex
+        case 0x0C: /* variable */ supported = true; break;   // annex
+        case 0x0D: fixed_len = 32; supported = true; break;   // tapleaf_hash
+        case 0x0E: fixed_len =  4; supported = true; break;   // key_version
+        case 0x0F: fixed_len =  4; supported = true; break;   // codesep_pos
+        case 0xF0: /* variable */ supported = true; break;   // raw_literal
+        default:   return false;   // unsupported / reserved
+        }
+        // clang-format on
+
+        if (!supported) return false;
+
+        const bool is_variable = (fixed_len == 0);
+
+        // HAS_LENGTH flag must be set iff the field is variable-length.
+        if (is_variable && !has_len)  return false;
+        if (!is_variable && has_len)  return false;
+
+        // field_data entry must be non-null for every referenced field_id.
+        if (field_data[field_id] == nullptr) return false;
+
+        // field_lengths * count must not overflow size_t.
+        if (field_lengths[field_id] > 0 &&
+            detail::column_layout_overflows(count, field_lengths[field_id]))
+            return false;
+
+        // Stride must be non-zero for any referenced field.
+        if (field_lengths[field_id] == 0) return false;
+
+        plan[num_fields].field_id   = field_id;
+        plan[num_fields].has_length = has_len;
+        plan[num_fields].zero_pad   = zero_pad;
+        plan[num_fields].fixed_len  = fixed_len;
+        ++num_fields;
+
+        p += 2;
+    }
+
+    // Post-loop: p must point exactly at the terminator byte.
+    if (p != end - 1) return false;
+
+    // nHashType (0x09) is mandatory for any sighash.
+    if (!has_nHashType) return false;
+
+    // Per-row: validate field_var_lens is non-null for variable fields.
+    for (std::size_t fi = 0; fi < num_fields; ++fi) {
+        const auto& pf = plan[fi];
+        if (pf.fixed_len == 0 &&
+            (field_var_lens == nullptr || field_var_lens[pf.field_id] == nullptr))
+            return false;
+    }
+
+    // ─── Per-row preimage size validation ───────────────────────────────
+    constexpr std::size_t MAX_PREIMAGE = 4u * 1024u * 1024u;  // 4 MiB
+
+    for (std::size_t row = 0; row < count; ++row) {
+        std::size_t preimage_len = 0;
+        for (std::size_t fi = 0; fi < num_fields; ++fi) {
+            const auto& pf = plan[fi];
+            if (pf.fixed_len > 0) {
+                preimage_len += pf.fixed_len;
+            } else {
+                const std::uint32_t var_len = field_var_lens[pf.field_id][row];
+                if (var_len > field_lengths[pf.field_id]) return false;
+                preimage_len += var_len;
+            }
+        }
+        if (preimage_len > MAX_PREIMAGE) return false;
+    }
+
+    // ─── Per-row streaming HASH256 ──────────────────────────────────────
+    for (std::size_t row = 0; row < count; ++row) {
+        // Inner SHA-256: stream each field into the context.
+        secp256k1::SHA256 inner;
+        for (std::size_t fi = 0; fi < num_fields; ++fi) {
+            const auto& pf = plan[fi];
+            if (pf.fixed_len > 0) {
+                inner.update(field_data[pf.field_id] + row * field_lengths[pf.field_id],
+                             pf.fixed_len);
+            } else {
+                const std::uint32_t var_len = field_var_lens[pf.field_id][row];
+                inner.update(field_data[pf.field_id] + row * field_lengths[pf.field_id],
+                             var_len);
+            }
+        }
+        const auto inner_hash = inner.finalize();
+
+        // Outer SHA-256: hash the 32-byte inner digest.
+        secp256k1::SHA256 outer;
+        outer.update(inner_hash.data(), 32);
+        const auto outer_hash = outer.finalize();
+
+        std::memcpy(out32 + row * 32, outer_hash.data(), 32);
+    }
+
+    return true;
+}
+
+
 } // namespace ufsecp::lbtc
 
 #endif // UFSECP_LIBBITCOIN_DIRECT_HPP

@@ -128,6 +128,31 @@ python3 ci/check_lbtc_gpu_workload_evidence.py <benchmark_artifact.json>
 python3 ci/test_lbtc_gpu_workload_evidence.py   # gate unit tests
 ```
 
+**Decline diagnostics.** When a hook-active row does not independently
+reproduce (`bench_public_ops.cpp` "did not independently handle the batch"
+or `bench_workloads.cpp` "GPU hook declined"), both harnesses now also print
+a bounded, best-effort reason line to stderr:
+`<op> decline reason: gpu_error_code=<N> msg=<...>`. This is sourced from
+the already-existing `GpuBackend::last_error()`/`last_error_msg()` virtuals
+via a new benchmark-only `g_lbtc_gpu_last_error_hook`
+(`compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp`,
+`src/gpu/src/gpu_engine_hook.cpp`) — no new backend method, no
+`gpu_backend.hpp`/`*_cuda.cu`/`*_opencl.cpp`/`*_metal.mm` edit, never
+written into the JSON artifact (stderr-only, does not change
+`backend`/`evidence_class`/any gated field). Because every op hook shares
+one backend instance and one last-error slot per process, this message
+reflects the shared backend's most recent operational failure, not
+necessarily a fresh error for that specific op — see
+`workingdocs/libbitcoin_gpu_workloads/hook_decline_diagnostics_claude.md`
+for the known root cause this surfaced on 2026-07-09 (`OpenCLBackend::
+ensure_extended_kernels()`'s kernel-source search path is resolved relative
+to the process's current working directory, not the executable location;
+when none of its hardcoded candidates resolve from the invoking CWD,
+`secp256k1_extended.cl` is reported "not found" and — because that failure
+is cached for the lifetime of the process — every extended-kernel lbtc op,
+not only the newly-added `merkle_pair`/`merkle_root` ones, declines for the
+rest of that run).
+
 ---
 
 ## Execution Profile

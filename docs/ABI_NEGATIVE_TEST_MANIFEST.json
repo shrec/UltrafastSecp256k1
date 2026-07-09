@@ -1,12 +1,12 @@
 {
   "generated_at": "2026-07-06T17:48:31.591047+00:00",
-  "header_count": 200,
+  "header_count": 201,
   "blocking_function_count": 0,
   "coverage_counts": {
-    "null_rejection": 200,
-    "zero_edge": 194,
-    "invalid_content": 196,
-    "success_smoke": 200
+    "null_rejection": 201,
+    "zero_edge": 195,
+    "invalid_content": 197,
+    "success_smoke": 201
   },
   "functions": [
     {
@@ -7467,6 +7467,51 @@
           "test-call:audit/test_exploit_hash256_var_bounds.cpp:test_stride_over_max_real_alloc",
           "test-call:audit/test_exploit_hash256_var_bounds.cpp:test_per_row_zero_length",
           "test-call:audit/test_exploit_hash256_var_bounds.cpp:test_per_row_over_stride",
+          "docs/FFI_HOSTILE_CALLER.md:Section J: GPU C ABI (v3.24+)"
+        ]
+      },
+      "missing_checks": [],
+      "blocking": false
+    },
+    {
+      "function": "ufsecp_gpu_merkle_pair_hash",
+      "category": "gpu",
+      "header": "include/ufsecp/ufsecp_gpu.h",
+      "signature": "ufsecp_error_t ufsecp_gpu_merkle_pair_hash(ufsecp_gpu_ctx* ctx, const uint8_t* left32, const uint8_t* right32, size_t n, uint8_t* out32)",
+      "required_checks": [
+        "success_smoke",
+        "null_rejection",
+        "zero_edge",
+        "invalid_content"
+      ],
+      "covered_checks": {
+        "success_smoke": [
+          "graph:function_test_map:exploit_merkle_pair_bounds",
+          "graph:function_test_map:regression_merkle_pair_hash",
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_positive_control",
+          "test-call:audit/test_regression_merkle_pair_hash.cpp:test_n_one_and_moderate",
+          "test-call:audit/test_regression_merkle_pair_hash.cpp:test_left_eq_right",
+          "test-call:audit/test_regression_merkle_pair_hash.cpp:run_backend_capture",
+          "docs/FFI_HOSTILE_CALLER.md:Section J: GPU C ABI (v3.24+)"
+        ],
+        "null_rejection": [
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_null_ctx",
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_left32_null",
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_right32_null",
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_out32_null",
+          "test-call:audit/test_regression_merkle_pair_hash.cpp:test_null_ctx_contract",
+          "docs/FFI_HOSTILE_CALLER.md:Section J GPU NULL guards"
+        ],
+        "zero_edge": [
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_n_zero",
+          "test-call:audit/test_regression_merkle_pair_hash.cpp:test_n_zero",
+          "docs/FFI_HOSTILE_CALLER.md:Section J: GPU C ABI (v3.24+)"
+        ],
+        "invalid_content": [
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_n_over_cap",
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_left32_null",
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_right32_null",
+          "test-call:audit/test_exploit_merkle_pair_bounds.cpp:test_out32_null",
           "docs/FFI_HOSTILE_CALLER.md:Section J: GPU C ABI (v3.24+)"
         ]
       },

@@ -22,6 +22,22 @@ digest on any rejected call. Covered by `audit/test_regression_hash256_var_batch
 `audit/test_regression_hash256_var_parity.cpp` (cross-backend byte-identical output),
 and `audit/test_exploit_hash256_var_bounds.cpp` (hostile-input bounds).
 
+### 2026-07-08 - `ufsecp_gpu_merkle_pair_hash` added: batch Merkle pair HASH256, no new secret-bearing surface
+
+Added `GpuBackend::merkle_pair_hash` / C ABI `ufsecp_gpu_merkle_pair_hash` (native CUDA,
+OpenCL, and Metal kernels). Computes SHA256(SHA256(left32 || right32)) for batch Merkle
+tree construction — fixed 2×32-byte input per row (Structure-of-Arrays column layout).
+**Security claim: PUBLIC-DATA / variable-time only.** Every input (Merkle tree preimage
+bytes) is public on-chain Bitcoin block data; no private key, nonce, signing share, or ECDH
+scalar is ever passed through this path, so no `ct::*` boundary applies (see the CT-vs-VT
+boundary rule). Fail-closed contract: `ctx==NULL`/null buffer with `n>0` → `UFSECP_ERR_NULL_ARG`;
+`n==0` → no-op `UFSECP_OK`; `n > kMaxGpuBatchN` → `UFSECP_ERR_BAD_INPUT`; `out32` is never
+left holding a partial or stale digest on any rejected call, and is zeroed on null-buffer
+rejects (fail-closed, per the clear-output-before-processing guardrail). Covered by
+`audit/test_regression_merkle_pair_hash.cpp` (differential KAT + cross-backend parity),
+`audit/test_exploit_merkle_pair_bounds.cpp` (hostile-input bounds), and
+`compat/libbitcoin_direct/tests/test_direct_verify.cpp` (byte-identical vs hash256 oracle).
+
 ### 2026-07-06 - `ufsecp_gpu.h` C ABI banner corrected for the six lbtc-batch ops (doc-only, no claim change)
 
 The `include/ufsecp/ufsecp_gpu.h` section banner above `ufsecp_gpu_xonly_validate`,

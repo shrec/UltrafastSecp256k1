@@ -369,6 +369,12 @@ quartet cross-checked against the libsecp shim in `tests/test_lbtc_commitment.cp
 | `ufsecp_gpu_tagged_hash_var`   | NULL ctx / NULL msgs / NULL lens → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | stride 0 or > 256 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid TapLeaf per-item digest succeeds (smoke); matches shim tagged_sha256 |
 | `ufsecp_gpu_hash256`           | NULL ctx / NULL inputs → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | input_len 0 or > 320 → `UFSECP_ERR_BAD_INPUT` (invalid/reject) | valid SHA256d digest succeeds (smoke); matches SHA256d reference |
 | `ufsecp_gpu_hash256_var`       | NULL ctx / NULL inputs / NULL input_lens → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | stride 0 or > 4 MiB (`kMaxHash256VarStride`), or any `input_lens[i]==0`/`>stride` → `UFSECP_ERR_BAD_INPUT` (invalid/reject); out32 never partial/stale on reject | valid variable-length SHA256d digest succeeds (smoke, CUDA+OpenCL native); matches SHA256d reference (`audit/test_regression_hash256_var_batch.cpp`, `audit/test_exploit_hash256_var_bounds.cpp`) |
+| `ufsecp_gpu_merkle_pair_hash` | NULL ctx / NULL left32 / NULL right32 / NULL out32 → `UFSECP_ERR_NULL_ARG` | n=0 → no-op OK (zero-edge) | n > kMaxGpuBatchN (1<<26) → `UFSECP_ERR_BAD_INPUT` (rejected before buffer dereference); out32 zeroed on NULL-left32/right32 reject (fail-closed: clear_output_bytes already ran); out32 left untouched on oversize-n reject (pre-clear_output_bytes) | valid Merkle pair batch succeeds (smoke, CUDA+OpenCL native); matches SHA256d oracle (`audit/test_regression_merkle_pair_hash.cpp`, `audit/test_exploit_merkle_pair_bounds.cpp`) |
+
+**2026-07-08 — `ufsecp_gpu_merkle_pair_hash` added, no new secret-bearing surface**: same
+PUBLIC-DATA / variable-time-only contract as `ufsecp_gpu_hash256_var` — Merkle tree
+preimages are public on-chain data; no private key, nonce, or scalar is ever passed
+through this path.
 
 **2026-07-06 — `ufsecp_gpu_hash256_var` added, no new secret-bearing surface**: this
 function shares the `include/ufsecp/ufsecp_gpu.h` header file with secret-bearing

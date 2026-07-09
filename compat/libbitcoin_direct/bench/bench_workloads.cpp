@@ -357,6 +357,21 @@ GpuSnapshot query_gpu_snapshot()
     return snap;
 }
 
+// Bounded, best-effort decline diagnostic (see <ufsecp/lbtc_gpu_ops.hpp>
+// GpuLastError doc comment). Called only after a "GPU hook declined" /
+// "did not handle every level" decline has already been detected -- never
+// changes backend/evidence_class, purely an extra stderr line explaining
+// why. Mirrors the identical helper in bench_public_ops.cpp.
+void print_gpu_decline_reason(const char* op_name)
+{
+    const auto fn = ufsecp::lbtc::gpu_hook::g_lbtc_gpu_last_error_hook.load(std::memory_order_acquire);
+    if (fn == nullptr)
+        return;
+    ufsecp::lbtc::gpu_hook::GpuLastError err{};
+    if (fn(&err) && err.available)
+        std::fprintf(stderr, "  %s decline reason: gpu_error_code=%d msg=%.220s\n", op_name, err.code, err.message);
+}
+
 // Benchmark-only tracking wrapper for merkle_root_from_leaves GPU evidence.
 // The direct API intentionally falls back to CPU if the hook declines; for a
 // gpu_acceleration row, the benchmark must prove that the hook actually
@@ -599,6 +614,7 @@ int main(int argc, char** argv)
                 if (require_hook_handled) {
                     if (direct_hook(msgs.data(), lens.data(), stride, count, out.data()) != 0) {
                         std::printf("%s GPU hook declined; skipping GPU evidence row\n", op_name);
+                        print_gpu_decline_reason(op_name);
                         hook_declined = true;
                         return false;
                     }
@@ -724,6 +740,7 @@ int main(int argc, char** argv)
                 if (direct_hook != nullptr) {
                     if (direct_hook(left.data(), right.data(), count, out.data()) != 0) {
                         std::printf("merkle_pair_hash GPU hook declined; skipping GPU evidence row\n");
+                        print_gpu_decline_reason("merkle_pair_hash");
                         hook_declined = true;
                         return false;
                     }
@@ -896,6 +913,7 @@ int main(int argc, char** argv)
                 if (!pass_ok || !g_tracking_merkle_pair_called || g_tracking_merkle_pair_declined) {
                     if (g_tracking_merkle_pair_declined) {
                         std::printf("merkle_root_from_leaves GPU hook declined; skipping GPU evidence row\n");
+                        print_gpu_decline_reason("merkle_root_from_leaves");
                     } else if (pass_ok) {
                         std::fprintf(stderr, "merkle_root_from_leaves GPU hook did not handle every level\n");
                         ok = false;

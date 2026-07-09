@@ -2814,6 +2814,101 @@ a rejected call):
 | `merkle_level_reduce_batch` | returns `true`, output untouched | returns `false`, output untouched — identical to `merkle_pair_hash_batch` (semantic alias) |
 | `merkle_root_from_leaves` | returns `false`, `out_root32` zeroed (must have >= 1 leaf) | returns `false`; `out_root32` is zeroed when non-null — `leaves32`/`scratch`/`out_root32 == nullptr`, `scratch_size < leaf_count*64`, or layout overflow |
 
+### sighash_descriptor_hash_batch — HASH256 of descriptor-shaped sighash preimage
+
+Computes `SHA256(SHA256(preimage))` for N transaction inputs where the preimage
+is assembled from column-major field data according to a compact descriptor
+bytecode. CPU/reference surface only (GPU hook deferred). No bridge, no shim,
+no C ABI.
+
+**Descriptor format (v2, LE):** sequence of 2-byte little-endian `field_ref`
+entries terminated by a single `0xFF` byte.
+
+```
+Each field_ref (2 bytes LE):
+  byte0 = low byte of field_id  (bits [0..7])
+  byte1 = (flags_nibble << 4) | (field_id >> 8)
+  flags_nibble:
+    bit0 = HAS_LENGTH  — field has per-item variable length
+    bit1 = ZERO_PAD    — column storage is zero-padded to stride
+    bit2-3 = RESERVED  — must be 0
+Terminator: 0xFF at descriptor[descriptor_len-1]
+Max 64 field refs → max descriptor_len = 129.
+```
+
+**Field data layout (SoA):**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `descriptor` | `const uint8_t*` | Descriptor bytecode |
+| `descriptor_len` | `size_t` | Descriptor length (1..129, must be odd) |
+| `field_data[f]` | `const uint8_t*` | Column-major byte span for field_id f |
+| `field_lengths[f]` | `uint32_t` | Fixed byte length or stride for variable fields |
+| `field_var_lens[f]` | `const uint32_t*` | Per-item length array (non-null iff HAS_LENGTH) |
+| `count` | `size_t` | Number of sighash preimages to compute |
+| `out32` | `uint8_t*` | Output: `count * 32` bytes of HASH256 digests |
+
+**Supported field IDs:**
+
+| ID | Name | Length | Type |
+|----|------|--------|------|
+| `0x00` | nVersion | 4 | fixed |
+| `0x01` | hashPrevouts | 32 | fixed |
+| `0x02` | hashSequence | 32 | fixed |
+| `0x03` | outpoint | 36 | fixed |
+| `0x04` | scriptCode | — | variable (HAS_LENGTH) |
+| `0x05` | value | 8 | fixed |
+| `0x06` | nSequence | 4 | fixed |
+| `0x07` | hashOutputs | 32 | fixed |
+| `0x08` | nLocktime | 4 | fixed |
+| `0x09` | nHashType | 4 | fixed |
+| `0x0A` | prevout_individual | 36 | fixed |
+| `0x0B` | nInputIndex | 4 | fixed |
+| `0x0C` | annex | — | variable (HAS_LENGTH) |
+| `0x0D` | tapleaf_hash | 32 | fixed |
+| `0x0E` | key_version | 4 | fixed |
+| `0x0F` | codesep_pos | 4 | fixed |
+| `0xF0` | raw_literal | — | variable (HAS_LENGTH) |
+
+All other field_ids → rejected (reserved/unsupported). `field_id & 0xFF == 0xFF` permanently reserved.
+
+```cpp
+// HASH256 of descriptor-shaped sighash preimage for N transaction inputs.
+// CPU/reference path only — no GPU hook in this phase.
+[[nodiscard]] bool sighash_descriptor_hash_batch(
+    const uint8_t* descriptor, size_t descriptor_len,
+    const uint8_t* const* field_data, const uint32_t* field_lengths,
+    const uint32_t* const* field_var_lens, size_t count,
+    uint8_t* out32, size_t max_threads = 0) noexcept;
+```
+
+**Descriptor parsing rules (fail-closed):**
+
+| Check | Condition | Action |
+|---|---|---|
+| descriptor_len | `1 <= len <= 129`, odd | Reject malformed |
+| Terminator | `descriptor[descriptor_len-1] == 0xFF` | Reject missing |
+| Mid-stream 0xFF | No `0xFF` at even indices before terminator | Reject collision |
+| Reserved flags | Bits 14-15 (flags nibble bits 2-3) must be 0 | Reject reserved |
+| Reserved field_id | `(field_id & 0xFF) != 0xFF` | Reject permanently |
+| Duplicate field | No field_id appears twice | Reject ambiguous |
+| HAS_LENGTH flag | Set iff field is variable-length | Reject mismatch |
+| nHashType | Field `0x09` must be present | Reject missing |
+| field_data[f] | Non-null for every referenced field | Reject null |
+| field_var_lens | Non-null when descriptor references any variable field | Reject null |
+| Bounded scan | Loop bound by `descriptor + descriptor_len` | Reject overrun |
+| Preimage size | ≤ 4 MiB per row | Reject overflow |
+| var_len ≤ stride | `field_var_lens[f][i] <= field_lengths[f]` | Reject OOB |
+
+**Failure semantics (HASH op — out32 untouched on bad input):**
+`count==0` → `true` (no-op). Null descriptor/field_data/field_lengths/out32 → `false`.
+Null `field_var_lens` with any variable field → `false`. Malformed descriptor,
+missing nHashType, duplicate/unsupported field, overflow → `false`.
+All failures leave `out32` untouched; no partial writes.
+
+**PUBLIC DATA only — variable-time, no secret material.**
+
+
 ---
 
 ## Performance Tips

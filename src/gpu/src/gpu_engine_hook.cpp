@@ -325,6 +325,37 @@ bool engine_lbtc_gpu_telemetry(ufsecp::lbtc::gpu_hook::GpuTelemetry* out) noexce
     }
 }
 
+/* Decline-diagnostics trampoline (see lbtc_gpu_ops.hpp GpuLastError doc
+ * comment). Reuses engine_gpu_backend() -- the SAME cached probe and mutex
+ * used by every op hook above -- so this reports the shared backend's most
+ * recently recorded operational error via the ALREADY-EXISTING
+ * GpuBackend::last_error() / last_error_msg() virtuals. No new backend
+ * method, no gpu_backend.hpp / *_cuda.cu / *_opencl.cpp / *_metal.mm edit.
+ * Never called from any production/hot-path code -- only benchmark
+ * harnesses opt in, exactly like the telemetry trampoline above. */
+bool engine_lbtc_gpu_last_error(ufsecp::lbtc::gpu_hook::GpuLastError* out) noexcept {
+    if (out == nullptr) return false;
+    *out = ufsecp::lbtc::gpu_hook::GpuLastError{};
+    try {
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return false;  /* no GPU -> diagnostics unavailable, never fabricated */
+
+        out->code = static_cast<int>(b->last_error());
+        if (const char* msg = b->last_error_msg()) {
+            std::size_t i = 0;
+            for (; i + 1 < sizeof(out->message) && msg[i] != '\0'; ++i)
+                out->message[i] = msg[i];
+            out->message[i] = '\0';
+        }
+        out->available = true;
+        return true;
+    } catch (...) {
+        *out = ufsecp::lbtc::gpu_hook::GpuLastError{};
+        return false;
+    }
+}
+
 /* Self-install at load time. Runs when this TU is retained (the direct-GPU
  * profile forces it via the shared -u secp256k1_gpu_columns_provider_anchor). */
 struct EngineLbtcOpsInstaller {
@@ -338,6 +369,7 @@ struct EngineLbtcOpsInstaller {
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook(&engine_lbtc_hash256_var_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(&engine_lbtc_merkle_pair_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_gpu_telemetry_hook(&engine_lbtc_gpu_telemetry);
+        ufsecp::lbtc::gpu_hook::install_lbtc_gpu_last_error_hook(&engine_lbtc_gpu_last_error);
     }
 };
 EngineLbtcOpsInstaller g_engine_lbtc_ops_installer;

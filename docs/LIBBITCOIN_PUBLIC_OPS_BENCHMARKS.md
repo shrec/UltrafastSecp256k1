@@ -396,6 +396,69 @@ the evidence path, not a GPU speedup claim: although a GPU provider was
 linked, the direct hooks declined these benchmark shapes, so no
 `gpu_acceleration` rows or `speedup_vs_cpu_forced` ratios were emitted.
 
+#### Root cause of the 2026-07-09 declines (diagnosed, not fixed in this pass)
+
+The decline above is **not** specific to `txid_batch`/`wtxid_batch`/
+`merkle_pair_batch`/`merkle_root_batch`, and not a bug in any of those four
+workloads' library functions, hooks, or backend kernels. Reproduced on this
+host with the new decline-reason diagnostics
+(see "Decline diagnostics" in `docs/BENCHMARK_POLICY.md`): **every** lbtc op
+that routes through `OpenCLBackend::ensure_extended_kernels()`
+(`src/gpu/src/gpu_backend_opencl.cpp:2937`) — including `xonly_validate`,
+`tagged_hash`, `hash256`, etc., not just the 4 workload ops — declined in
+the same process, all reporting `gpu_error_code=102` (`GpuError::Launch`).
+
+A standalone one-shot probe (single fresh process, single
+`merkle_pair_hash()` call, no prior calls to poison the state) isolated the
+underlying message: `"secp256k1_extended.cl not found"`. Root cause:
+`ensure_extended_kernels()`'s kernel-source search list
+(`src/gpu/src/gpu_backend_opencl.cpp:2959-2966`) is six hardcoded paths
+resolved relative to the **process's current working directory**
+(`std::ifstream f(path, ...)` in `load_file_to_string()`, line 60 of the
+same file) — not the executable's own directory, and not anchored to the
+build or source tree. `bench_lbtc_workloads`/`bench_lbtc_public_ops` live at
+`<build-dir>/compat/libbitcoin_direct/`, and none of the six candidates
+resolve `secp256k1_extended.cl` from a typical invocation CWD (repo root or
+the build directory root) to its actual location
+(`<build-dir>/src/opencl/kernels/secp256k1_extended.cl`, staged there only
+as a side effect of building the unrelated `opencl_audit_runner` target, or
+`src/opencl/kernels/secp256k1_extended.cl` in the source tree). Because
+`ensure_extended_kernels()` also latches `ext_init_attempted_ = true` on
+this first failure and returns the same `Launch` error (now generic:
+`"extended kernel init previously failed"`) on every later call for the
+rest of the process, one missed file poisons every extended-kernel lbtc op
+for that entire benchmark run — this is why all 4 workloads decline
+together, and why `bench_lbtc_public_ops` shows all 10 ops (not only
+`merkle_pair_hash`) declining in the same run.
+
+This also explains the discrepancy with the earlier same-day
+`workingdocs/libbitcoin_gpu_workloads/workload_gpu_evidence_claude.json`
+worker report, which recorded successful `opencl`/RTX-5060-Ti
+`gpu_acceleration` rows for all 4 workloads: that session's invocation CWD
+happened to satisfy one of the six candidates; this review smoke's did not.
+The behavior is CWD-dependent, not flaky hardware or a regression in the
+newly-added merkle code.
+
+Manually staging a full copy of `src/opencl/kernels/` next to the bench
+binary (matching candidate path `kernels/secp256k1_extended.cl`, the same
+workaround already on record for the unrelated
+`unified_audit_runner`/`opencl_audit_runner` kernel-deployment gap) lets
+`clBuildProgram` proceed — confirming the failure is purely file-resolution,
+not a kernel-source defect.
+
+**Fix is out of scope for this diagnostics pass**: `search_paths[]` and
+`load_file_to_string()` live in `src/gpu/src/gpu_backend_opencl.cpp`
+(backend implementation, forbidden to edit under this card's contract), and
+adding a build-time kernel-staging step for `bench_lbtc_workloads`/
+`bench_lbtc_public_ops` would require editing
+`compat/libbitcoin_direct/CMakeLists.txt`, which is outside this card's
+`allowed_writes`. See
+`workingdocs/libbitcoin_gpu_workloads/hook_decline_diagnostics_claude.json`
+for the recorded blocker and the smallest follow-up scope (either add a
+build-tree-relative or install-relative search candidate in
+`ensure_extended_kernels()`, or add a `POST_BUILD` kernel-copy step to the
+two bench targets, mirroring `opencl_audit_runner`'s existing pattern).
+
 ## Example
 
 ```bash

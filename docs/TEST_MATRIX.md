@@ -163,6 +163,8 @@ These standalone CTest entries are part of the active validation surface and are
 | `exploit_seckey_tweak_cancel` | Exploit PoC | Regression coverage for tweak-cancellation edge cases on secret-key arithmetic |
 | `exploit_silent_payment_confusion` | Exploit PoC | Silent payment transcript and domain-confusion regression coverage |
 | `exploit_taproot_merkle_path_alias` | Exploit PoC | Detects aliasing and malformed-merkle-path edge cases in Taproot proof handling |
+| `exploit_merkle_pair_bounds` | Exploit PoC | Hostile-caller bounds/nulls on ufsecp_gpu_merkle_pair_hash — NULL ctx/left32/right32/out32 rejection; n==0 no-op; n>cap BAD_INPUT; fail-closed out32 zeroing |
+| `regression_merkle_pair_hash` | Regression | Differential KAT + cross-backend parity for ufsecp_gpu_merkle_pair_hash — n=1/moderate batch vs SHA256d oracle; left==right (Bitcoin odd-leaf) case; cross-backend byte-identical output |
 | `ffi_coverage` | FFI surface | Coverage-oriented validation for public foreign-function interface paths |
 | `kat_all_operations` | Known-answer tests | Broad deterministic vectors across exposed operations |
 | `nonce_uniqueness` | Security audit | Nonce uniqueness and replay-resistance regression coverage |

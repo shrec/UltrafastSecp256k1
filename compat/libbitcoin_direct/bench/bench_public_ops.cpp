@@ -257,6 +257,21 @@ GpuSnapshot query_gpu_snapshot()
     return snap;
 }
 
+// Bounded, best-effort decline diagnostic (see <ufsecp/lbtc_gpu_ops.hpp>
+// GpuLastError doc comment). Called only after a "did not independently
+// handle the batch" decline has already been detected -- never changes
+// backend/evidence_class, purely an extra stderr line explaining why.
+// Mirrors the identical helper in bench_workloads.cpp.
+void print_gpu_decline_reason(const char* op)
+{
+    const auto fn = ufsecp::lbtc::gpu_hook::g_lbtc_gpu_last_error_hook.load(std::memory_order_acquire);
+    if (fn == nullptr)
+        return;
+    ufsecp::lbtc::gpu_hook::GpuLastError err{};
+    if (fn(&err) && err.available)
+        std::fprintf(stderr, "  %s decline reason: gpu_error_code=%d msg=%.220s\n", op, err.code, err.message);
+}
+
 bool parse_args(int argc, char** argv, Args& args)
 {
     std::vector<const char*> positional;
@@ -592,11 +607,19 @@ int main(int argc, char** argv)
             const GpuSnapshot snap = query_gpu_snapshot();
             if (snap.available) {
                 std::vector<std::uint8_t> probe(args.count);
-                if (hook_call(probe) == 0 && probe == gold_validate) {
+                // Validate-op hook contract (see <ufsecp/lbtc_gpu_ops.hpp>):
+                // >= 0 -> handled (1 = all rows valid, 0 = >=1 row invalid);
+                // -1 -> decline. Every benchmark row here is synthetically
+                // valid, so a correctly-handled batch returns 1, not 0 --
+                // requiring == 0 (the *hash*-op "handled" contract, checked
+                // by bench_hash_op below) would misreport a fully-successful
+                // GPU validate call as a decline.
+                if (hook_call(probe) >= 0 && probe == gold_validate) {
                     results.back().backend = snap.backend;
                     results.back().device = snap.device;
                 } else {
                     std::printf("%s GPU hook did not independently handle the batch; keeping backend=cpu\n", op);
+                    print_gpu_decline_reason(op);
                 }
             }
         }
@@ -642,6 +665,7 @@ int main(int argc, char** argv)
                     results.back().device = snap.device;
                 } else {
                     std::printf("%s GPU hook did not independently handle the batch; keeping backend=cpu\n", op);
+                    print_gpu_decline_reason(op);
                 }
             }
         }
