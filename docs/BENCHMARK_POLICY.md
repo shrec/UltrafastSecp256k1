@@ -73,6 +73,31 @@ python3 ci/preflight.py --gpu-evidence
 python3 ci/validate_assurance.py
 ```
 
+### Libbitcoin GPU workload evidence gate
+
+`ci/check_libbitcoin_perf_matrix.py` only checks that `evidence_paths` files
+listed in `docs/LIBBITCOIN_PERF_MATRIX_STATUS.json` *exist* on disk — it does
+not open or validate the benchmark JSON content itself. That gap is closed for
+libbitcoin-shaped benchmark artifacts by `ci/check_lbtc_gpu_workload_evidence.py`,
+which parses `results[]` rows and rejects corrupt or overclaiming evidence:
+zero/negative timing, `ns_per_row`/`count`/`best_seconds` arithmetic
+inconsistency, missing/mistyped fields, backend/device/driver_version
+contradictions, GPU claims without `provider_linked`+`hook_installed`,
+CPU-only rows relabeled `gpu_acceleration`, non-`matched_reference`
+validation status, and one-sided `speedup_vs_cpu_forced` claims. It covers
+both the current `bench_lbtc_public_ops` artifact schema
+(`ufsecp-lbtc-public-ops-benchmark-v1`, see
+`docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md`) and the future phase-aware
+libbitcoin GPU workload schema
+(`ufsecp-lbtc-gpu-workload-benchmark-v1`, defined in
+`workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json`, for
+txid/wtxid/sighash/merkle-shaped workloads).
+
+```bash
+python3 ci/check_lbtc_gpu_workload_evidence.py <benchmark_artifact.json>
+python3 ci/test_lbtc_gpu_workload_evidence.py   # gate unit tests
+```
+
 ---
 
 ## Execution Profile

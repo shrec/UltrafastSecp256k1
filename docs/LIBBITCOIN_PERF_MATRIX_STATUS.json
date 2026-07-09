@@ -106,6 +106,24 @@
       "copy_policy": "gate_only"
     },
     {
+      "id": "lbtc_gpu_workload_evidence_gate",
+      "surface": "Benchmark JSON content gate for libbitcoin-shaped GPU workload evidence",
+      "target_context": "libbitcoin",
+      "status": "implemented",
+      "severity": "blocking",
+      "claim_scope": "Closes the confirmed gap that lbtc_caas_perf_matrix_gate only checks evidence_paths file existence, never JSON content: rejects zero/negative timing, arithmetic-inconsistent throughput, missing/mistyped fields, backend/device/driver_version contradictions, GPU claims without provider_linked+hook_installed, CPU-only rows relabeled gpu_acceleration, non-matched_reference validation, and one-sided speedup_vs_cpu_forced claims, for both the current bench_lbtc_public_ops artifact schema and the future phase-aware libbitcoin GPU workload schema.",
+      "evidence_paths": [
+        "ci/check_lbtc_gpu_workload_evidence.py",
+        "ci/test_lbtc_gpu_workload_evidence.py",
+        "docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md",
+        "compat/libbitcoin_direct/bench/bench_public_ops.cpp"
+      ],
+      "reproduce_command": "cmake --build out/libbitcoin-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON && cmake --build out/libbitcoin-bench --target bench_lbtc_public_ops -j && out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_public_ops 128 1 80 128 64 128 --json /tmp/lbtc_public_ops_evidence_smoke.json && python3 ci/check_lbtc_gpu_workload_evidence.py /tmp/lbtc_public_ops_evidence_smoke.json && python3 ci/test_lbtc_gpu_workload_evidence.py",
+      "native_hardware_claim": false,
+      "benchmark_artifact_contract": true,
+      "copy_policy": "evidence_gate_only"
+    },
+    {
       "id": "lbtc_direct_gpu_column_verify_acceptance",
       "surface": "Direct C++ GPU column verify — hook-installation runtime smoke test in the direct profile",
       "target_context": "libbitcoin",

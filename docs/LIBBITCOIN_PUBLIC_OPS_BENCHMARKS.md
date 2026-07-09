@@ -53,6 +53,59 @@ when the direct-GPU profile links `secp256k1_gpu_host` and the relevant hook
 accepts the batch. CPU-only runs are still valuable: they prove the direct API,
 output parity, JSON format, and no-shim/no-bridge build.
 
+## Evidence gate (schema + rejection rules)
+
+`bench_lbtc_public_ops --json <path>` artifacts (schema
+`ufsecp-lbtc-public-ops-benchmark-v1`) carry evidence-gate fields on top of the
+original throughput columns, validated by
+`ci/check_lbtc_gpu_workload_evidence.py`:
+
+- `host_context` (top-level): `compiler`, `cpu_model`, `turbo_disabled`,
+  `cpu_pinned`, `kernel` — gathered once per run (Linux: `/proc/cpuinfo`,
+  `sched_getaffinity`, `/sys/devices/system/cpu/intel_pstate/no_turbo`,
+  `uname`; other platforms report honest `"unknown"`/`false`, never a guess).
+- `phase_timing_available: false` (top-level) — this harness measures one
+  wall-clock span per call with no separate upload/kernel/download
+  instrumentation. `kernel_seconds` mirrors that single measured span
+  (`best_seconds`); `prep_seconds`/`upload_seconds`/`download_seconds` are
+  `null` rather than a fabricated split.
+- Per row: `provider_linked` (was a GPU hook already self-installed in this
+  binary *before* the row forced it off — independent of `hook_installed`,
+  which tracks whether the hook was active for that specific row), `backend`
+  (always `"cpu"` — this harness has no backend-identification API yet),
+  `device` (`"n/a"`), `driver_version` (`null`), `count`, `validation_hash`
+  (hex SHA-256 over the row's output buffer), `validation_status` (always
+  `"matched_reference"` — a mismatch aborts the run before the row is
+  recorded, see `bench_output`), `evidence_class` (always `"api_correctness"`
+  for this schema, never `"gpu_acceleration"` — this harness cannot yet
+  distinguish device-compute time from CPU orchestration time, so it does not
+  claim GPU acceleration evidence regardless of `hook_installed`).
+
+Rejection rules (full authoritative text in
+`workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json`
+`rejection_rules`, gate implementation docstring in
+`ci/check_lbtc_gpu_workload_evidence.py`): zero/negative timing on a present
+field, `ns_per_row`/`count`/`best_seconds` arithmetic inconsistency (>1%),
+missing/mistyped required fields, backend/device/driver_version
+contradictions, GPU claims without `provider_linked`+`hook_installed`,
+CPU-only rows relabeled `gpu_acceleration`, `validation_status` other than
+`matched_reference`, and one-sided `speedup_vs_cpu_forced` claims.
+
+Reproduce + validate:
+
+```bash
+cmake --build <build-dir> --target bench_lbtc_public_ops -j
+<build-dir>/compat/libbitcoin_direct/bench_lbtc_public_ops \
+  128 1 80 128 64 128 --json /tmp/lbtc_public_ops_evidence_smoke.json
+python3 ci/check_lbtc_gpu_workload_evidence.py /tmp/lbtc_public_ops_evidence_smoke.json
+```
+
+The same gate also validates the future phase-aware
+`ufsecp-lbtc-gpu-workload-benchmark-v1` schema (txid/wtxid/sighash/merkle
+workloads, see `workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json`),
+enforcing the stricter always-measured `prep_seconds`/`kernel_seconds` rule
+documented there.
+
 ## Local Results (2026-07-06, CPU/direct)
 
 Host/build:

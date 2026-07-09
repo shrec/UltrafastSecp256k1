@@ -28,8 +28,14 @@
 #include <fstream>
 #include <iomanip>
 #include <limits>
+#include <optional>
 #include <string>
 #include <vector>
+
+#if defined(__linux__)
+#include <sched.h>
+#include <sys/utsname.h>
+#endif
 
 namespace {
 
@@ -61,11 +67,33 @@ struct BenchResult {
     std::string op;
     std::string mode;
     bool hook_installed = false;
+    // Evidence-gate fields (workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json,
+    // schema ufsecp-lbtc-public-ops-benchmark-v1 variant). This harness has no
+    // backend-identification API and does not yet split upload/kernel/download
+    // timing, so every row is honestly reported as backend="cpu",
+    // evidence_class="api_correctness" regardless of hook_installed --
+    // provider_linked only records whether a GPU hook was self-installed in
+    // this binary BEFORE the row forced it off, not which backend it is.
+    bool provider_linked = false;
+    std::string backend = "cpu";
+    std::string device = "n/a";
     std::size_t payload_bytes = 0;
+    std::size_t count = 0;
+    // Phase timing: this harness measures one wall-clock span per call (see
+    // bench_output) with no instrumented upload/kernel/download split, so
+    // prep/upload/download stay null and kernel_seconds mirrors best_seconds
+    // (the entire measured span) -- never a fabricated sub-split.
+    std::optional<double> prep_seconds;
+    std::optional<double> upload_seconds;
+    std::optional<double> kernel_seconds;
+    std::optional<double> download_seconds;
     double best_seconds = 0.0;
     double m_rows_per_sec = 0.0;
     double payload_mib_per_sec = 0.0;
     double ns_per_row = 0.0;
+    std::string validation_hash;
+    std::string validation_status = "matched_reference";
+    std::string evidence_class = "api_correctness";
 };
 
 std::uint64_t g_xs = 0xA0761D6478BD642Full;
@@ -106,6 +134,86 @@ std::string json_escape(const std::string& s)
         case '\t': out += "\\t"; break;
         default: out += ch; break;
         }
+    }
+    return out;
+}
+
+// Evidence-gate provenance: host/build facts, gathered once per run. Linux-only
+// today (the dev/CI machines this harness runs on); non-Linux hosts fall back to
+// honest "unknown"/false rather than fabricating a value.
+struct HostContext {
+    std::string compiler;
+    std::string cpu_model = "unknown";
+    bool turbo_disabled = false;
+    bool cpu_pinned = false;
+    std::string kernel = "unknown";
+};
+
+std::string detect_compiler()
+{
+#if defined(__clang__)
+    return std::string("clang ") + __clang_version__;
+#elif defined(__GNUC__)
+    return std::string("gcc ") + __VERSION__;
+#elif defined(_MSC_VER)
+    return "msvc " + std::to_string(_MSC_VER);
+#else
+    return "unknown";
+#endif
+}
+
+HostContext detect_host_context()
+{
+    HostContext hc;
+    hc.compiler = detect_compiler();
+#if defined(__linux__)
+    {
+        std::ifstream cpuinfo("/proc/cpuinfo");
+        std::string line;
+        while (std::getline(cpuinfo, line)) {
+            if (line.rfind("model name", 0) == 0) {
+                const auto pos = line.find(':');
+                if (pos != std::string::npos && pos + 2 <= line.size()) {
+                    hc.cpu_model = line.substr(pos + 2);
+                    break;
+                }
+            }
+        }
+    }
+    {
+        // Only honest source available without root/owner tooling: the
+        // intel_pstate no_turbo flag. Absent/unreadable -> honestly "unknown
+        // whether turbo is disabled", reported as false (cannot claim it IS
+        // disabled without evidence).
+        std::ifstream no_turbo("/sys/devices/system/cpu/intel_pstate/no_turbo");
+        int v = 0;
+        if (no_turbo >> v)
+            hc.turbo_disabled = (v != 0);
+    }
+    {
+        cpu_set_t set;
+        CPU_ZERO(&set);
+        if (sched_getaffinity(0, sizeof(set), &set) == 0)
+            hc.cpu_pinned = (CPU_COUNT(&set) == 1);
+    }
+    {
+        struct utsname uts;
+        if (uname(&uts) == 0)
+            hc.kernel = std::string(uts.sysname) + " " + uts.release;
+    }
+#endif
+    return hc;
+}
+
+std::string sha256_hex(const std::vector<std::uint8_t>& data)
+{
+    const auto digest = secp256k1::SHA256::hash(data.data(), data.size());
+    static const char kHex[] = "0123456789abcdef";
+    std::string out;
+    out.reserve(digest.size() * 2);
+    for (auto b: digest) {
+        out += kHex[b >> 4];
+        out += kHex[b & 0x0F];
     }
     return out;
 }
@@ -198,7 +306,8 @@ bool make_gold(std::vector<std::uint8_t>& out, Fn&& call)
 template <typename Fn>
 bool bench_output(std::vector<BenchResult>& results, const Args& args,
                   const char* op, const char* mode, bool hook_installed,
-                  std::size_t payload_bytes, std::vector<std::uint8_t>& out,
+                  bool provider_linked, std::size_t payload_bytes,
+                  std::vector<std::uint8_t>& out,
                   const std::vector<std::uint8_t>& gold, Fn&& call)
 {
     double best = 1e100;
@@ -222,11 +331,18 @@ bool bench_output(std::vector<BenchResult>& results, const Args& args,
     r.op = op;
     r.mode = mode;
     r.hook_installed = hook_installed;
+    r.provider_linked = provider_linked;
     r.payload_bytes = payload_bytes;
+    r.count = args.count;
     r.best_seconds = best;
     r.m_rows_per_sec = static_cast<double>(args.count) / best / 1e6;
     r.payload_mib_per_sec = (static_cast<double>(payload_bytes) / 1048576.0) / best;
     r.ns_per_row = best * 1e9 / static_cast<double>(args.count);
+    // kernel_seconds mirrors the single measured span (best_seconds): this
+    // harness has no separate prep/upload/download instrumentation, so those
+    // stay null (see BenchResult comment) rather than inventing a split.
+    r.kernel_seconds = best;
+    r.validation_hash = sha256_hex(out);  // out == gold, verified above
     results.push_back(r);
 
     std::printf("   %-24s %-18s hook=%-3s %8.2f M rows/s %9.2f MiB/s %8.1f ns/row\n",
@@ -235,7 +351,16 @@ bool bench_output(std::vector<BenchResult>& results, const Args& args,
     return true;
 }
 
+void write_optional_seconds(std::ofstream& out, const std::optional<double>& v)
+{
+    if (v.has_value())
+        out << *v;
+    else
+        out << "null";
+}
+
 bool write_json_artifact(const std::string& path, const Args& args,
+                         const HostContext& hc,
                          const std::vector<BenchResult>& results)
 {
     std::ofstream out(path);
@@ -246,7 +371,7 @@ bool write_json_artifact(const std::string& path, const Args& args,
     out << "{\n";
     out << "  \"schema\": \"ufsecp-lbtc-public-ops-benchmark-v1\",\n";
     out << "  \"target_context\": \"libbitcoin-direct-cpp\",\n";
-    out << "  \"claim_scope\": \"local bridge-free libbitcoin public-data batch-op throughput; production rows use GPU only when the op hook is installed and accepts the batch\",\n";
+    out << "  \"claim_scope\": \"local bridge-free libbitcoin public-data batch-op throughput; production rows use GPU only when the op hook is installed and accepts the batch. This harness has no backend-identification API and no upload/kernel/download phase-split instrumentation yet, so every row is api_correctness evidence, never gpu_acceleration, until backend-specific timing support lands\",\n";
     out << "  \"c_abi_required\": false,\n";
     out << "  \"shim_required\": false,\n";
     out << "  \"bridge_required\": false,\n";
@@ -256,6 +381,14 @@ bool write_json_artifact(const std::string& path, const Args& args,
     out << "  \"stride\": " << args.stride << ",\n";
     out << "  \"var_min\": " << args.var_min << ",\n";
     out << "  \"var_max\": " << args.var_max << ",\n";
+    out << "  \"phase_timing_available\": false,\n";
+    out << "  \"host_context\": {\n";
+    out << "    \"compiler\": \"" << json_escape(hc.compiler) << "\",\n";
+    out << "    \"cpu_model\": \"" << json_escape(hc.cpu_model) << "\",\n";
+    out << "    \"turbo_disabled\": " << (hc.turbo_disabled ? "true" : "false") << ",\n";
+    out << "    \"cpu_pinned\": " << (hc.cpu_pinned ? "true" : "false") << ",\n";
+    out << "    \"kernel\": \"" << json_escape(hc.kernel) << "\"\n";
+    out << "  },\n";
     out << "  \"results\": [\n";
     for (std::size_t i = 0; i < results.size(); ++i) {
         const auto& r = results[i];
@@ -263,11 +396,23 @@ bool write_json_artifact(const std::string& path, const Args& args,
         out << "      \"op\": \"" << json_escape(r.op) << "\",\n";
         out << "      \"mode\": \"" << json_escape(r.mode) << "\",\n";
         out << "      \"hook_installed\": " << (r.hook_installed ? "true" : "false") << ",\n";
+        out << "      \"provider_linked\": " << (r.provider_linked ? "true" : "false") << ",\n";
+        out << "      \"backend\": \"" << json_escape(r.backend) << "\",\n";
+        out << "      \"device\": \"" << json_escape(r.device) << "\",\n";
+        out << "      \"driver_version\": null,\n";
+        out << "      \"count\": " << r.count << ",\n";
         out << "      \"payload_bytes_per_iter\": " << r.payload_bytes << ",\n";
+        out << "      \"prep_seconds\": "; write_optional_seconds(out, r.prep_seconds); out << ",\n";
+        out << "      \"upload_seconds\": "; write_optional_seconds(out, r.upload_seconds); out << ",\n";
+        out << "      \"kernel_seconds\": "; write_optional_seconds(out, r.kernel_seconds); out << ",\n";
+        out << "      \"download_seconds\": "; write_optional_seconds(out, r.download_seconds); out << ",\n";
         out << "      \"best_seconds\": " << r.best_seconds << ",\n";
         out << "      \"m_rows_per_sec\": " << r.m_rows_per_sec << ",\n";
         out << "      \"payload_mib_per_sec\": " << r.payload_mib_per_sec << ",\n";
-        out << "      \"ns_per_row\": " << r.ns_per_row << "\n";
+        out << "      \"ns_per_row\": " << r.ns_per_row << ",\n";
+        out << "      \"validation_hash\": \"" << json_escape(r.validation_hash) << "\",\n";
+        out << "      \"validation_status\": \"" << json_escape(r.validation_status) << "\",\n";
+        out << "      \"evidence_class\": \"" << json_escape(r.evidence_class) << "\"\n";
         out << "    }" << (i + 1 == results.size() ? "\n" : ",\n");
     }
     out << "  ]\n";
@@ -371,6 +516,11 @@ int main(int argc, char** argv)
 
     auto bench_validate_op = [&](const char* op, std::size_t payload,
                                  auto install_hook, auto hook_load, auto call) {
+        // provider_linked: whether a GPU hook was already self-installed in
+        // this binary BEFORE this op forces it off for the CPU-forced row --
+        // an inspectable runtime fact independent of hook_installed (which
+        // tracks whether the hook was active for THIS row).
+        const bool provider_linked = hook_load() != nullptr;
         auto saved = install_hook(nullptr);
         const bool gold_ok = make_gold(gold_validate, [&](std::vector<std::uint8_t>& dst) {
             return call(dst);
@@ -381,7 +531,8 @@ int main(int argc, char** argv)
             return false;
         }
         const bool forced_ok = bench_output(results, args, op, "direct-cpu-forced", false,
-            payload, out_validate, gold_validate, [&](std::vector<std::uint8_t>& dst) {
+            provider_linked, payload, out_validate, gold_validate,
+            [&](std::vector<std::uint8_t>& dst) {
                 return call(dst);
             });
         install_hook(saved);
@@ -389,13 +540,15 @@ int main(int argc, char** argv)
             return false;
         const bool prod_hook = hook_load() != nullptr;
         return bench_output(results, args, op, "direct-production", prod_hook,
-            payload, out_validate, gold_validate, [&](std::vector<std::uint8_t>& dst) {
+            provider_linked, payload, out_validate, gold_validate,
+            [&](std::vector<std::uint8_t>& dst) {
                 return call(dst);
             });
     };
 
     auto bench_hash_op = [&](const char* op, std::size_t payload,
                              auto install_hook, auto hook_load, auto call) {
+        const bool provider_linked = hook_load() != nullptr;
         auto saved = install_hook(nullptr);
         const bool gold_ok = make_gold(gold_hash, [&](std::vector<std::uint8_t>& dst) {
             return call(dst);
@@ -406,7 +559,8 @@ int main(int argc, char** argv)
             return false;
         }
         const bool forced_ok = bench_output(results, args, op, "direct-cpu-forced", false,
-            payload, out_hash, gold_hash, [&](std::vector<std::uint8_t>& dst) {
+            provider_linked, payload, out_hash, gold_hash,
+            [&](std::vector<std::uint8_t>& dst) {
                 return call(dst);
             });
         install_hook(saved);
@@ -414,7 +568,8 @@ int main(int argc, char** argv)
             return false;
         const bool prod_hook = hook_load() != nullptr;
         return bench_output(results, args, op, "direct-production", prod_hook,
-            payload, out_hash, gold_hash, [&](std::vector<std::uint8_t>& dst) {
+            provider_linked, payload, out_hash, gold_hash,
+            [&](std::vector<std::uint8_t>& dst) {
                 return call(dst);
             });
     };
@@ -517,7 +672,8 @@ int main(int argc, char** argv)
         return 1;
 
     if (!args.json_path.empty()) {
-        if (!write_json_artifact(args.json_path, args, results)) {
+        const HostContext hc = detect_host_context();
+        if (!write_json_artifact(args.json_path, args, hc, results)) {
             std::fprintf(stderr, "failed to write JSON benchmark artifact: %s\n",
                 args.json_path.c_str());
             return 1;
