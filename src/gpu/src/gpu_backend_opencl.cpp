@@ -21,11 +21,20 @@
 
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
+#include <cstdint>
 #include <vector>
 #include <string>
 #include <fstream>
 #include <filesystem>
 #include <algorithm>
+#include <system_error>
+
+#ifdef __linux__
+#include <unistd.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
 
 /* -- OpenCL Context (Layer 1) ---------------------------------------------- */
 #include "secp256k1_opencl.hpp"
@@ -61,6 +70,134 @@ std::string load_file_to_string(const std::string& path) {
     std::ifstream f(path, std::ios::binary);
     if (!f) return {};
     return {std::istreambuf_iterator<char>(f), {}};
+}
+
+/** Resolve an OpenCL kernel source file from multiple search strategies.
+ *  Returns {source, kernel_dir} on success, or {{},{}} on failure.
+ *  The kernel_dir is the parent directory of the found file, suitable for -I.
+ *
+ *  Search order (first match wins):
+ *  1. UFSECP_OPENCL_KERNEL_DIR env var + kernel_filename
+ *  2. Executable-relative: <exe_dir>/../../../src/opencl/kernels/<file>
+ *  3. Executable-relative: <exe_dir>/../../src/opencl/kernels/<file>
+ *  4. Executable-relative: <exe_dir>/../src/opencl/kernels/<file>
+ *  5. Executable-relative: <exe_dir>/src/opencl/kernels/<file>
+ *  6. Source-tree guess: walk up from exe dir looking for
+ *     src/opencl/kernels/<file>
+ *  7. CWD-relative legacy paths (../../opencl/kernels/<file>, etc.)
+ *
+ *  On failure, `candidates_searched` is populated with every path tried
+ *  so the caller can produce a useful diagnostic. */
+struct KernelResolveResult {
+    std::string source;
+    std::string kernel_dir;
+    std::string candidates_searched;
+};
+KernelResolveResult resolve_opencl_kernel(const std::string& kernel_filename) {
+    KernelResolveResult result;
+    std::string candidates;
+
+    auto try_path = [&](const std::string& p) -> bool {
+        if (!candidates.empty()) candidates += "\n    ";
+        candidates += p;
+        auto src = load_file_to_string(p);
+        if (!src.empty()) {
+            std::filesystem::path fp(p);
+            result.source     = std::move(src);
+            result.kernel_dir = fp.parent_path().string();
+            return true;
+        }
+        return false;
+    };
+
+    // Strategy 1: Environment variable override
+    const char* env_dir = std::getenv("UFSECP_OPENCL_KERNEL_DIR");
+    if (env_dir && env_dir[0]) {
+        std::filesystem::path env_path(env_dir);
+        env_path /= kernel_filename;
+        if (try_path(env_path.string())) {
+            result.candidates_searched = candidates;
+            return result;
+        }
+    }
+
+    // Strategy 2-5: Executable-relative paths
+    std::string exe_dir;
+#ifdef __linux__
+    {
+        char buf[4096];
+        ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+        if (len > 0) {
+            buf[len] = '\0';
+            std::filesystem::path exe_path(buf);
+            exe_dir = exe_path.parent_path().string();
+        }
+    }
+#elif defined(__APPLE__)
+    {
+        char buf[4096];
+        uint32_t size = sizeof(buf);
+        if (_NSGetExecutablePath(buf, &size) == 0) {
+            std::filesystem::path exe_path(buf);
+            exe_dir = exe_path.parent_path().string();
+        }
+    }
+#endif
+    if (!exe_dir.empty()) {
+        // Try various relative depths from the executable
+        const char* rel_paths[] = {
+            "/../../../src/opencl/kernels/",
+            "/../../src/opencl/kernels/",
+            "/../src/opencl/kernels/",
+            "/src/opencl/kernels/",
+            "/../../../opencl/kernels/",
+            "/../../opencl/kernels/",
+            "/../opencl/kernels/",
+            "/opencl/kernels/",
+        };
+        for (auto* rel : rel_paths) {
+            if (try_path(exe_dir + rel + kernel_filename))
+                { result.candidates_searched = candidates; return result; }
+        }
+    }
+
+    // Strategy 6: Walk up from exe dir (or CWD) looking for src/opencl/kernels/
+    {
+        std::filesystem::path search_root;
+        if (!exe_dir.empty()) {
+            search_root = std::filesystem::path(exe_dir);
+        } else {
+            std::error_code ec;
+            search_root = std::filesystem::current_path(ec);
+            if (ec) search_root = std::filesystem::path(".");
+        }
+        auto root = search_root;
+        for (int i = 0; i < 12; ++i) {
+            auto candidate = root / "src" / "opencl" / "kernels" / kernel_filename;
+            if (try_path(candidate.string()))
+                { result.candidates_searched = candidates; return result; }
+            auto parent = root.parent_path();
+            if (parent == root) break;
+            root = parent;
+        }
+    }
+
+    // Strategy 7: Legacy CWD-relative paths (backward compatibility)
+    const char* legacy_paths[] = {
+        "opencl/kernels/",
+        "../opencl/kernels/",
+        "../../opencl/kernels/",
+        "../../../opencl/kernels/",
+        "kernels/",
+        "../kernels/",
+    };
+    for (auto* rel : legacy_paths) {
+        if (try_path(std::string(rel) + kernel_filename))
+            { result.candidates_searched = candidates; return result; }
+    }
+
+    result.candidates_searched = candidates;
+    return result;
 }
 
 struct OpenCLECDSASig {
@@ -2955,28 +3092,16 @@ private:
         if (!device)
             return set_error(GpuError::Launch, "no OpenCL device found in context");
 
-        /* Search for secp256k1_extended.cl */
-        const char* search_paths[] = {
-            "../../opencl/kernels/secp256k1_extended.cl",
-            "../opencl/kernels/secp256k1_extended.cl",
-            "../../../opencl/kernels/secp256k1_extended.cl",
-            "opencl/kernels/secp256k1_extended.cl",
-            "kernels/secp256k1_extended.cl",
-            "../kernels/secp256k1_extended.cl",
-        };
-
-        std::string src;
-        std::string kernel_dir;
-        for (auto* p : search_paths) {
-            src = load_file_to_string(p);
-            if (!src.empty()) {
-                std::filesystem::path fp(p);
-                kernel_dir = fp.parent_path().string();
-                break;
-            }
+        /* Search for secp256k1_extended.cl using multi-strategy resolver */
+        auto resolved = resolve_opencl_kernel("secp256k1_extended.cl");
+        std::string src       = std::move(resolved.source);
+        std::string kernel_dir = std::move(resolved.kernel_dir);
+        if (src.empty()) {
+            std::string msg = "secp256k1_extended.cl not found. Searched:\n    ";
+            msg += resolved.candidates_searched;
+            msg += "\n  Set UFSECP_OPENCL_KERNEL_DIR to the directory containing secp256k1_extended.cl.";
+            return set_error(GpuError::Launch, msg.c_str());
         }
-        if (src.empty())
-            return set_error(GpuError::Launch, "secp256k1_extended.cl not found");
 
         /* Compile */
         const char* src_ptr = src.c_str();

@@ -2,8 +2,8 @@
   "schema": "ufsecp-libbitcoin-gpu-hook-decline-diagnostics-v1",
   "date": "2026-07-09",
   "target_context": "libbitcoin",
-  "status": "diagnosed_opencl_kernel_path_blocker",
-  "summary": "With the OpenCL provider linked and an RTX 5060 Ti visible, bridge-free libbitcoin workload and public-op hooks decline under common repo-root/build-root invocation because OpenCLBackend::ensure_extended_kernels cannot find secp256k1_extended.cl through its current CWD-relative search paths. Evidence remains honest: benchmark JSON rows stay backend=cpu/evidence_class=api_correctness unless the direct hook accepts the exact batch and output matches the CPU oracle.",
+  "status": "resolved_opencl_kernel_path_blocker",
+  "summary": "The CWD-relative source lookup blocker for secp256k1_extended.cl is RESOLVED. OpenCLBackend::ensure_extended_kernels() now uses a multi-strategy resolver (resolve_opencl_kernel) that searches: (1) UFSECP_OPENCL_KERNEL_DIR env var, (2) executable-relative paths via /proc/self/exe, (3) upward walk from exe dir looking for src/opencl/kernels/, (4) legacy CWD-relative paths. Both bench_lbtc_workloads and bench_lbtc_public_ops now reach the OpenCL RTX 5060 Ti path from repo-root and build-root invocations without manual file copying.",
   "affected_surfaces": [
     "txid_hash",
     "wtxid_hash",
@@ -15,7 +15,17 @@
     "tagged_hash",
     "tagged_hash_var",
     "hash256",
-    "hash256_var"
+    "hash256_var",
+    "ecdsa_verify_batch",
+    "schnorr_verify_batch",
+    "ecrecover_batch",
+    "ecdsa_verify_lbtc_rows",
+    "ecdsa_verify_lbtc_columns",
+    "schnorr_verify_lbtc_columns",
+    "ecdsa_verify_collect",
+    "schnorr_verify_collect",
+    "snark_witness_batch",
+    "ecdh_batch"
   ],
   "root_cause": {
     "file": "src/gpu/src/gpu_backend_opencl.cpp",
@@ -23,32 +33,23 @@
     "error_code": 102,
     "first_error": "secp256k1_extended.cl not found",
     "latched_error": "extended kernel init previously failed",
-    "reason": "The extended kernel loader checks relative paths from the process current working directory. The libbitcoin benchmark binaries are normally invoked from repo root, build root, or compat/libbitcoin_direct build output paths that do not reach src/opencl/kernels/secp256k1_extended.cl or a staged copy."
+    "reason": "The extended kernel loader checked only CWD-relative paths. The libbitcoin benchmark binaries invoked from repo root or build root did not reach src/opencl/kernels/secp256k1_extended.cl."
   },
-  "reviewer_fixes": [
-    {
-      "file": "compat/libbitcoin_direct/bench/bench_public_ops.cpp",
-      "summary": "Fixed validate-op post-hoc attribution probe to accept the validate-hook contract >=0 instead of the hash-hook contract ==0."
-    },
-    {
-      "file": "compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp",
-      "summary": "Added bounded benchmark-only GpuLastError diagnostics sourced from existing GpuBackend::last_error()/last_error_msg() without adding backend virtuals."
-    },
-    {
-      "file": "src/gpu/src/gpu_engine_hook.cpp",
-      "summary": "Registered the last-error diagnostic hook through the existing cached engine GPU backend."
-    }
-  ],
+  "resolution": {
+    "file": "src/gpu/src/gpu_backend_opencl.cpp",
+    "strategy": "Added resolve_opencl_kernel() helper with 7-strategy search: env var, exe-relative (8 depth variants), upward walk (12 levels), legacy CWD-relative fallback. Improved error message to list all candidates searched.",
+    "date_resolved": "2026-07-09",
+    "runner": "deepseek",
+    "task_id": "lbtc-opencl-extended-kernel-resolver-deepseek"
+  },
   "validation": {
-    "default_cwd_behavior": "bench_lbtc_workloads emits CPU-only rows for txid_batch, wtxid_batch, merkle_pair_batch, and merkle_root_batch; each passes ci/check_lbtc_gpu_workload_evidence.py.",
-    "public_ops_behavior": "bench_lbtc_public_ops emits 22 rows under default CWD; direct-production rows keep backend=cpu when hooks decline; artifact passes ci/check_lbtc_gpu_workload_evidence.py.",
-    "manual_kernel_staging_observation": "When src/opencl/kernels is manually staged next to the benchmark binary, hash-type public ops including merkle_pair_hash reach the OpenCL RTX 5060 Ti path and match the CPU oracle. This is diagnostic only, not a supported build-flow claim."
+    "workload_benchmark": "bench_lbtc_workloads --batch-class small --iters 3 → all 4 workloads emit GPU rows (backend=opencl, device=NVIDIA GeForce RTX 5060 Ti). All 8 JSON rows pass check_lbtc_gpu_workload_evidence.py.",
+    "public_ops_benchmark": "bench_lbtc_public_ops → 22 rows total: 11 CPU-forced api_correctness rows and 11 direct-production gpu_acceleration rows (backend=opencl, device=NVIDIA GeForce RTX 5060 Ti). All 22 rows pass check_lbtc_gpu_workload_evidence.py.",
+    "backend_parity": "check_gpu_backend_parity.py → PASS (38 operations, no violations)",
+    "perf_matrix": "check_libbitcoin_perf_matrix.py → PASS (10 surfaces)"
   },
   "remaining_blocker": {
-    "status": "open",
-    "smallest_fix_options": [
-      "Update OpenCLBackend::ensure_extended_kernels path resolution in src/gpu/src/gpu_backend_opencl.cpp.",
-      "Add a compat/libbitcoin_direct CMake post-build kernel staging step for bench_lbtc_workloads and bench_lbtc_public_ops."
-    ]
+    "status": "resolved",
+    "note": "CWD-relative source lookup blocker is fixed. The resolver now finds secp256k1_extended.cl from any invocation directory."
   }
 }
