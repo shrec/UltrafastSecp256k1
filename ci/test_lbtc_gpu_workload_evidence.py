@@ -84,20 +84,20 @@ def valid_v1_artifact():
     }
 
 
-def valid_v2_row(backend="cuda"):
+def valid_v2_row(backend="cuda", driver_version="570.00", phase_split=True):
     return {
         "mode": "direct-cuda-forced",
         "backend": backend,
         "device": "n/a" if backend == "cpu" else "RTX 5060 Ti",
-        "driver_version": None if backend == "cpu" else "570.00",
+        "driver_version": None if backend == "cpu" else driver_version,
         "provider_linked": backend == "cpu" or True,
         "hook_installed": backend != "cpu",
         "count": 2048,
         "payload_bytes_per_iter": 128,
         "prep_seconds": 0.001,
-        "upload_seconds": None if backend == "cpu" else 0.0005,
+        "upload_seconds": None if (backend == "cpu" or not phase_split) else 0.0005,
         "kernel_seconds": 0.01,
-        "download_seconds": None if backend == "cpu" else 0.0003,
+        "download_seconds": None if (backend == "cpu" or not phase_split) else 0.0003,
         "best_seconds": 0.02,
         "m_rows_per_sec": 2048 / 0.02 / 1e6,
         "payload_mib_per_sec": 5.0,
@@ -246,6 +246,87 @@ def main() -> int:
     mutated["results"][0]["best_seconds"] = 0.0
     rep_base = chk.evaluate(base)
     check(rep_base["overall_pass"] is True, "original fixture untouched by mutated copy")
+
+    # 16. Honest gap: driver_version == null on a valid GPU row PASSES (the
+    # GpuBackend interface has no driver-version field; forcing a fabricated
+    # string here would itself be dishonest -- see check_lbtc_gpu_workload_evidence.py
+    # module docstring "Honest gaps").
+    art2 = valid_v2_artifact()
+    art2["results"][0] = valid_v2_row(driver_version=None)
+    rep = chk.evaluate(art2)
+    check(rep["overall_pass"] is True, "driver_version=null on a valid GPU row passes (honest gap, not fabricated)")
+
+    # 17. driver_version == "" (empty string) on a GPU row is still rejected
+    # as malformed -- distinguishable from an honest null.
+    art2 = valid_v2_artifact()
+    art2["results"][0] = valid_v2_row(driver_version="")
+    rep = chk.evaluate(art2)
+    check(rep["overall_pass"] is False, "driver_version='' (empty string) on a GPU row rejected")
+    check("malformed_columns" in rep["problems"], "malformed_columns bucket populated for empty driver_version")
+
+    # 18. Honest gap: upload_seconds/download_seconds == null on a valid GPU
+    # row PASSES (no upload/kernel/download phase-split instrumentation
+    # exists on the caller side for every current harness).
+    art2 = valid_v2_artifact()
+    art2["results"][0] = valid_v2_row(phase_split=False)
+    rep = chk.evaluate(art2)
+    check(rep["overall_pass"] is True,
+          "upload_seconds/download_seconds=null on a valid GPU row passes (honest gap, no fabricated split)")
+
+    # 19. But a present, non-null upload_seconds/download_seconds must still
+    # be positive -- zero/negative is always rejected.
+    art2 = valid_v2_artifact()
+    art2["results"][0] = valid_v2_row(phase_split=True)
+    art2["results"][0]["upload_seconds"] = 0.0
+    rep = chk.evaluate(art2)
+    check(rep["overall_pass"] is False, "zero upload_seconds on a GPU row rejected")
+    check("zero_timing" in rep["problems"], "zero_timing bucket populated for zero upload_seconds")
+
+    # 20. Explicit gpu_acceleration group check: device == 'n/a' on a
+    # gpu_acceleration row is rejected even if every other field looks fine.
+    art2 = valid_v2_artifact()
+    art2["results"][0] = valid_v2_row()
+    art2["results"][0]["device"] = "n/a"
+    rep = chk.evaluate(art2)
+    check(rep["overall_pass"] is False, "gpu_acceleration row with device='n/a' rejected")
+    check("gpu_acceleration_incomplete" in rep["problems"] or "malformed_columns" in rep["problems"],
+          "device='n/a' on a gpu_acceleration row flagged")
+
+    # 21. Explicit gpu_acceleration group check: validation_status mismatch
+    # on an otherwise-valid GPU row is rejected via the dedicated group rule
+    # too (in addition to the pre-existing missing_validation rule).
+    art2 = valid_v2_artifact()
+    art2["results"][0] = valid_v2_row()
+    art2["results"][0]["validation_status"] = "mismatch"
+    rep = chk.evaluate(art2)
+    check(rep["overall_pass"] is False, "gpu_acceleration row with validation_status=mismatch rejected")
+    check("gpu_acceleration_incomplete" in rep["problems"],
+          "gpu_acceleration_incomplete bucket populated for mismatched validation on a GPU row")
+
+    # 22. Explicit gpu_acceleration group check: kernel_seconds missing/null
+    # on a gpu_acceleration row is rejected by the dedicated group rule.
+    art2 = valid_v2_artifact()
+    art2["results"][0] = valid_v2_row()
+    art2["results"][0]["kernel_seconds"] = None
+    rep = chk.evaluate(art2)
+    check(rep["overall_pass"] is False, "gpu_acceleration row with kernel_seconds=null rejected")
+    check("gpu_acceleration_incomplete" in rep["problems"] or "malformed_columns" in rep["problems"],
+          "null kernel_seconds on a gpu_acceleration row flagged")
+
+    # 23. A GPU-backend row under schema v1 (public-ops) with a real
+    # backend/device but evidence_class=api_correctness still passes --
+    # schema v1 permits honest backend identification, it only forbids
+    # claiming gpu_acceleration under that schema (see rule 5 above).
+    art = valid_v1_artifact()
+    art["results"][0]["backend"] = "opencl"
+    art["results"][0]["device"] = "RTX 5060 Ti"
+    art["results"][0]["driver_version"] = None
+    art["results"][0]["provider_linked"] = True
+    art["results"][0]["hook_installed"] = True
+    art["results"][0]["evidence_class"] = "api_correctness"
+    rep = chk.evaluate(art)
+    check(rep["overall_pass"] is True,
+          "schema v1 row with real backend/device but api_correctness evidence_class passes")
 
     print("\n" + ("ALL PASS" if not failures else f"FAILURES: {len(failures)}"))
     return 1 if failures else 0

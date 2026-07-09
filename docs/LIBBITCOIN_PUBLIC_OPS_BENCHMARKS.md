@@ -72,15 +72,37 @@ original throughput columns, validated by
   `null` rather than a fabricated split.
 - Per row: `provider_linked` (was a GPU hook already self-installed in this
   binary *before* the row forced it off — independent of `hook_installed`,
-  which tracks whether the hook was active for that specific row), `backend`
-  (always `"cpu"` — this harness has no backend-identification API yet),
-  `device` (`"n/a"`), `driver_version` (`null`), `count`, `validation_hash`
-  (hex SHA-256 over the row's output buffer), `validation_status` (always
-  `"matched_reference"` — a mismatch aborts the run before the row is
-  recorded, see `bench_output`), `evidence_class` (always `"api_correctness"`
-  for this schema, never `"gpu_acceleration"` — this harness cannot yet
-  distinguish device-compute time from CPU orchestration time, so it does not
-  claim GPU acceleration evidence regardless of `hook_installed`).
+  which tracks whether the hook was active for that specific row), `backend`,
+  `device`, `driver_version`, `count`, `validation_hash` (hex SHA-256 over the
+  row's output buffer), `validation_status` (always `"matched_reference"` — a
+  mismatch aborts the run before the row is recorded, see `bench_output`),
+  `evidence_class` (always `"api_correctness"` for this schema, **never**
+  `"gpu_acceleration"`, regardless of backend — see below).
+- `backend`/`device`/`driver_version` identification: a `direct-cpu-forced`
+  row is always `backend="cpu"`, `device="n/a"`, `driver_version=null`. A
+  `direct-production` row is `backend="cpu"`/`device="n/a"` **unless** the
+  hook was active for that row (`hook_installed=true`), a real GPU backend is
+  linked, initialized, and ready on this host, and an independent direct-hook
+  probe for that op accepts the same batch and matches the CPU-forced oracle.
+  Only then are `backend`/`device` queried live via
+  `ufsecp::lbtc::gpu_hook::g_lbtc_gpu_telemetry_hook`
+  (`GpuTelemetry`, populated only from the already-existing
+  `GpuBackend::backend_id()`/`backend_name()`/`device_info()` — see
+  `compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp` and
+  `src/gpu/src/gpu_engine_hook.cpp`). `driver_version` stays `null` even on a
+  GPU row: `DeviceInfo` (`src/gpu/include/gpu_backend.hpp`) carries no driver
+  field, so this harness reports the honest absence of that data rather than
+  fabricate a string — `ci/check_lbtc_gpu_workload_evidence.py` accepts
+  `driver_version=null` on a non-cpu row for exactly this reason (an empty
+  string `""` is still rejected as malformed).
+- `evidence_class` stays `"api_correctness"` unconditionally under this
+  schema (`ufsecp-lbtc-public-ops-benchmark-v1`) even on a row with a real
+  GPU `backend` — this harness still measures one wall-clock span per call
+  with no upload/kernel/download phase-split, so it does not claim
+  `gpu_acceleration` evidence under schema v1 regardless of which backend
+  served the call. The phase-aware `bench_lbtc_workloads` harness below
+  (schema `ufsecp-lbtc-gpu-workload-benchmark-v1`) is the one that emits
+  `gpu_acceleration` rows.
 
 Rejection rules (full authoritative text in
 `workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json`
@@ -90,22 +112,53 @@ field, `ns_per_row`/`count`/`best_seconds` arithmetic inconsistency (>1%),
 missing/mistyped required fields, backend/device/driver_version
 contradictions, GPU claims without `provider_linked`+`hook_installed`,
 CPU-only rows relabeled `gpu_acceleration`, `validation_status` other than
-`matched_reference`, and one-sided `speedup_vs_cpu_forced` claims.
+`matched_reference`, one-sided `speedup_vs_cpu_forced` claims, and (for
+`evidence_class="gpu_acceleration"` rows specifically) an explicit combined
+check that backend/device/provider_linked/hook_installed/validation/timing
+are ALL simultaneously satisfied, not merely individually plausible.
 
-Reproduce + validate:
+Reproduce + validate (CPU-only host — no GPU backend compiled in, every
+production row honestly stays `backend="cpu"`):
 
 ```bash
-cmake --build <build-dir> --target bench_lbtc_public_ops -j
-<build-dir>/compat/libbitcoin_direct/bench_lbtc_public_ops \
+cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-cpu-only -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON  # SECP256K1_BUILD_LIBBITCOIN_GPU left OFF (default)
+cmake --build out/libbitcoin-cpu-only --target bench_lbtc_public_ops -j
+out/libbitcoin-cpu-only/compat/libbitcoin_direct/bench_lbtc_public_ops \
   128 1 80 128 64 128 --json /tmp/lbtc_public_ops_evidence_smoke.json
 python3 ci/check_lbtc_gpu_workload_evidence.py /tmp/lbtc_public_ops_evidence_smoke.json
 ```
 
-The same gate also validates the future phase-aware
-`ufsecp-lbtc-gpu-workload-benchmark-v1` schema (txid/wtxid/sighash/merkle
-workloads, see `workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json`),
+Reproduce + validate (GPU-linked host — `direct-production` rows carry a
+real, telemetry-identified `backend`/`device` only when the direct hook
+independently accepted and matched the batch; otherwise they remain
+`backend="cpu"`/`device="n/a"`):
+
+```bash
+cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-gpu-linked -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON \
+  -DSECP256K1_BUILD_OPENCL=ON   # or -DSECP256K1_BUILD_CUDA=ON / -DSECP256K1_BUILD_METAL=ON
+cmake --build out/libbitcoin-gpu-linked --target bench_lbtc_public_ops -j
+out/libbitcoin-gpu-linked/compat/libbitcoin_direct/bench_lbtc_public_ops \
+  128 1 80 128 64 128 --json /tmp/lbtc_public_ops_evidence_gpu.json
+python3 ci/check_lbtc_gpu_workload_evidence.py /tmp/lbtc_public_ops_evidence_gpu.json
+```
+
+Review smoke on this machine 2026-07-09 (`build-review-lbtc-gpu`, OpenCL
+provider linked): every `direct-production` row had `hook_installed=true`, but
+the independent direct-hook probes declined the benchmark shapes, so every row
+honestly remained `backend="cpu"`, `device="n/a"`,
+`evidence_class="api_correctness"`. The artifact passed
+`check_lbtc_gpu_workload_evidence.py` (22/22 rows, 0 rejected).
+
+The same gate also validates the phase-aware
+`ufsecp-lbtc-gpu-workload-benchmark-v1` schema (txid/wtxid/merkle workloads,
+see `workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json`),
 enforcing the stricter always-measured `prep_seconds`/`kernel_seconds` rule
-documented there.
+documented there — see "Workload benchmark harness" below for that schema's
+CPU-only vs GPU-linked evidence.
 
 ## Local Results (2026-07-06, CPU/direct)
 
@@ -187,19 +240,49 @@ a single `workload` + `batch_class` value, so `bench_lbtc_workloads` writes
 **one JSON artifact per workload** (via `--json-dir`), not one combined
 file.
 
-Every row in every artifact is `mode="direct-cpu-forced"`,
+Every artifact's first row is always `mode="direct-cpu-forced"`,
 `backend="cpu"`, `evidence_class="api_correctness"`: the GPU hook is
-explicitly forced off before each timed call. This harness has no
-backend/device/driver identification API, so — per the project rule against
-fabricated GPU evidence — it never claims `gpu_acceleration`, regardless of
-whether a GPU provider happens to be linked into the binary
-(`provider_linked` records that fact only as metadata; it never changes
-`backend` or `evidence_class`). Unlike `bench_lbtc_public_ops`
-(schema v1, where `prep_seconds`/`kernel_seconds` may be `null`), schema v2
-requires both to be real positive measurements: `prep_seconds` is the
-one-time wall-clock cost of generating that workload's input buffers
-(measured before the timed loop, not fabricated), and `kernel_seconds`
-mirrors `best_seconds` (the single measured compute span, min-of-`iters`).
+explicitly forced off before that timed call, on every host, GPU-linked or
+not.
+
+**A second, paired row is present only when a real GPU backend is linked,
+initialized, ready, and the direct workload hook independently accepts and
+handles the batch on this host.** Backend identity is queried with
+`ufsecp::lbtc::gpu_hook::g_lbtc_gpu_telemetry_hook` (`GpuTelemetry`, see
+`compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp` and
+`src/gpu/src/gpu_engine_hook.cpp` — populated only from the already-existing
+`GpuBackend::backend_id()`/`backend_name()`/`device_info()`, no new backend
+method, no `gpu_backend.hpp`/`*_cuda.cu`/`*_opencl.cpp`/`*_metal.mm` edit).
+When available and the direct hook accepts the exact benchmark shape, that
+second row is `mode="direct-production"`,
+`hook_installed=true`, `backend`/`device` set to the telemetry-identified
+values (e.g. `"opencl"` / `"NVIDIA GeForce RTX 5060 Ti"`), and
+`evidence_class="gpu_acceleration"` — checked against the **same** independent
+oracle as the CPU-forced row (see below), so a `gpu_acceleration` row is only
+ever emitted when its own output independently verified correct. If a direct
+GPU hook accepts the batch but mismatches the oracle, the run aborts (same
+fail-fast convention as the CPU-forced pass). If no GPU backend is linked or
+ready, or if the hook declines the exact benchmark shape, only the first row
+is emitted — `provider_linked` records whether an op hook was self-installed
+in the binary at all, but never by itself upgrades a row to
+`gpu_acceleration` (that needs `hook_installed=true`, a successfully queried
+real backend/device, and direct-hook acceptance for that specific workload).
+
+`driver_version` is `null` on every row, including `gpu_acceleration` rows:
+`GpuBackend::DeviceInfo` carries no driver-version field, so this is an
+honest absence-of-data marker, not a fabricated value (see
+`ci/check_lbtc_gpu_workload_evidence.py` "Honest gaps").
+`upload_seconds`/`download_seconds` are `null` on every row for the same
+reason — `GpuBackend` exposes each op as a single opaque call with no
+upload/kernel/download phase-split instrumentation on either the CPU or GPU
+path, so `kernel_seconds` mirrors `best_seconds` (the single measured
+compute span, min-of-`iters`) rather than inventing a split.
+`prep_seconds` is the one-time wall-clock cost of generating that workload's
+input buffers (measured before the timed loop, shared by both rows since
+they hash/combine the identical prepared input). A paired
+`gpu_acceleration` row also carries `speedup_vs_cpu_forced` (both
+`compute_only_ratio` and `end_to_end_ratio`, computed from the two real
+measured rows in the same artifact — never a one-sided claim).
 
 ### Independent validation oracles
 
@@ -239,10 +322,15 @@ count, not tied to any specific historical Bitcoin block.
 
 ### Reproduce + validate
 
+CPU-only host (no GPU backend compiled in — every artifact has exactly 1 row):
+
 ```bash
-cmake --build <build-dir> --target bench_lbtc_workloads -j
+cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-cpu-only -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON  # SECP256K1_BUILD_LIBBITCOIN_GPU left OFF (default)
+cmake --build out/libbitcoin-cpu-only --target bench_lbtc_workloads -j
 mkdir -p /tmp/lbtc_workloads_smoke
-<build-dir>/compat/libbitcoin_direct/bench_lbtc_workloads \
+out/libbitcoin-cpu-only/compat/libbitcoin_direct/bench_lbtc_workloads \
   --batch-class small --iters 5 --json-dir /tmp/lbtc_workloads_smoke
 for f in /tmp/lbtc_workloads_smoke/*.json; do
   python3 ci/check_lbtc_gpu_workload_evidence.py "$f"
@@ -250,40 +338,63 @@ done
 python3 ci/test_lbtc_gpu_workload_evidence.py
 ```
 
-### Local Results (2026-07-09, CPU/direct, `batch-class=medium`)
+GPU-linked host (a real backend is linked/ready; artifacts have 2 paired rows
+only for workloads whose direct hook accepts the benchmark shape):
+
+```bash
+cmake -S libs/UltrafastSecp256k1 -B out/libbitcoin-gpu-linked -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON \
+  -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON \
+  -DSECP256K1_BUILD_OPENCL=ON   # or -DSECP256K1_BUILD_CUDA=ON / -DSECP256K1_BUILD_METAL=ON
+cmake --build out/libbitcoin-gpu-linked --target bench_lbtc_workloads -j
+mkdir -p /tmp/lbtc_workloads_gpu
+out/libbitcoin-gpu-linked/compat/libbitcoin_direct/bench_lbtc_workloads \
+  --batch-class small --iters 5 --json-dir /tmp/lbtc_workloads_gpu
+for f in /tmp/lbtc_workloads_gpu/*.json; do
+  python3 ci/check_lbtc_gpu_workload_evidence.py "$f"
+done
+python3 ci/test_lbtc_gpu_workload_evidence.py
+```
+
+### Review Smoke Results (2026-07-09, `batch-class=small`)
 
 Host/build:
 
 - Linux 6.8.0-134-generic, x86_64
 - Intel(R) Core(TM) i5-14400F, GCC 14.2.0, Release
-- `SECP256K1_BUILD_LIBBITCOIN_GPU=ON` (OpenCL provider linked,
-  `provider_linked=true`), but every row's hook is explicitly forced off
-  (`hook_installed=false`) — these are CPU-forced correctness/throughput
-  rows, not GPU acceleration evidence.
+- `SECP256K1_BUILD_LIBBITCOIN_GPU=ON`, `SECP256K1_BUILD_OPENCL=ON`,
+  `SECP256K1_BUILD_CUDA=OFF` in `build-review-lbtc-gpu`.
+- The lbtc GPU hook provider was linked, but the direct hook probes declined
+  the benchmark shapes for `txid_batch`, `wtxid_batch`, `merkle_pair_batch`,
+  and `merkle_root_batch`; therefore every artifact correctly emitted only
+  one CPU-forced `api_correctness` row. All 4 artifacts passed
+  `check_lbtc_gpu_workload_evidence.py` (1/1 row each, 0 rejected).
 
 Command:
 
 ```bash
 <build-dir>/compat/libbitcoin_direct/bench_lbtc_workloads \
-  --batch-class medium --iters 5 --json-dir out/lbtc_workloads_medium
+  --batch-class small --iters 5 --json-dir /tmp/lbtc_workload_gpu_evidence_review
 ```
 
-Shape: `batch_class=medium`, `iters=5` (txid/wtxid: 32768 rows,
-merkle_pair: 65536 rows, merkle_root: 512 trees x 2048 leaves).
+Shape: `batch_class=small`, `iters=5` (txid/wtxid: 64 rows,
+merkle_pair: 128 rows, merkle_root: 8 trees x 2048 leaves).
 
-| Workload | Op | M rows/s | MiB/s | ns/row | prep (s) |
-|---|---|---:|---:|---:|---:|
-| `txid_batch` | `txid_hash` | 4.28 | 1202.72 | 233.8 | 0.023752 |
-| `wtxid_batch` | `wtxid_hash` | 3.76 | 1468.94 | 266.2 | 0.034137 |
-| `merkle_pair_batch` | `merkle_pair_hash` | 8.12 | 495.40 | 123.2 | 0.006827 |
-| `merkle_root_batch` | `merkle_root_from_leaves` | 0.00418 | 261.40 | 239101.7 | 0.059297 |
+| Workload | Op | Mode | Backend | M rows/s | MiB/s | ns/row | prep (s) |
+|---|---|---|---|---:|---:|---:|---:|
+| `txid_batch` | `txid_hash` | direct-cpu-forced | cpu | 4.81 | 1365.13 | 207.7 | 0.000054 |
+| `wtxid_batch` | `wtxid_hash` | direct-cpu-forced | cpu | 3.39 | 1345.72 | 294.7 | 0.000059 |
+| `merkle_pair_batch` | `merkle_pair_hash` | direct-cpu-forced | cpu | 8.52 | 519.76 | 117.4 | 0.000013 |
+| `merkle_root_batch` | `merkle_root_from_leaves` | direct-cpu-forced | cpu | 0.004 | 254.28 | 245791.4 | 0.000800 |
 
 `merkle_root_batch`'s `ns_per_row` is per *tree* (512 trees of 2048 leaves
 each, not per leaf) — the small `M rows/s` value reflects that each row is
 a full merkle tree, not a single hash. This is a single local run, not a
 formal >=5-run controlled comparison (see `CLAUDE.md` Performance
-Optimization Protocol) — no speedup claim is made, and there is nothing
-here to compare against (no GPU row exists in this harness).
+Optimization Protocol). This run is evidence of the current honest state of
+the evidence path, not a GPU speedup claim: although a GPU provider was
+linked, the direct hooks declined these benchmark shapes, so no
+`gpu_acceleration` rows or `speedup_vs_cpu_forced` ratios were emitted.
 
 ## Example
 

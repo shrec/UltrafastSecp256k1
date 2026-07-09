@@ -68,10 +68,15 @@ struct BenchResult {
     std::string mode;
     bool hook_installed = false;
     // Evidence-gate fields (workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json,
-    // schema ufsecp-lbtc-public-ops-benchmark-v1 variant). This harness has no
-    // backend-identification API and does not yet split upload/kernel/download
-    // timing, so every row is honestly reported as backend="cpu",
-    // evidence_class="api_correctness" regardless of hook_installed --
+    // schema ufsecp-lbtc-public-ops-benchmark-v1 variant). backend/device are
+    // "cpu"/"n/a" by default and are overwritten with a REAL identification
+    // (queried via ufsecp::lbtc::gpu_hook::g_lbtc_gpu_telemetry_hook, see
+    // query_gpu_snapshot() below) only on a production row where the hook was
+    // actually installed AND a GPU backend is linked/initialized/ready.
+    // evidence_class stays "api_correctness" UNCONDITIONALLY regardless of
+    // backend -- this harness still has no upload/kernel/download phase-split
+    // instrumentation, so it structurally cannot produce gpu_acceleration
+    // evidence under schema v1 (see ci/check_lbtc_gpu_workload_evidence.py).
     // provider_linked only records whether a GPU hook was self-installed in
     // this binary BEFORE the row forced it off, not which backend it is.
     bool provider_linked = false;
@@ -216,6 +221,40 @@ std::string sha256_hex(const std::vector<std::uint8_t>& data)
         out += kHex[b & 0x0F];
     }
     return out;
+}
+
+// -- GPU telemetry snapshot (benchmark-only; see <ufsecp/lbtc_gpu_ops.hpp>
+// GpuTelemetry). Never used on any production/hot code path -- this
+// benchmark is the only caller. Mirrors the identical helper in
+// bench_workloads.cpp. -------------------------------------------------
+struct GpuSnapshot {
+    bool available = false;
+    std::string backend;  // lowercase schema enum: "cuda" | "opencl" | "metal"
+    std::string device;
+};
+
+GpuSnapshot query_gpu_snapshot()
+{
+    GpuSnapshot snap;
+    const auto fn = ufsecp::lbtc::gpu_hook::g_lbtc_gpu_telemetry_hook.load(std::memory_order_acquire);
+    if (fn == nullptr)
+        return snap;  // no GPU host TU linked into this binary at all
+
+    ufsecp::lbtc::gpu_hook::GpuTelemetry tel{};
+    if (!fn(&tel) || !tel.available)
+        return snap;  // GPU host linked, but no backend initialized/ready on this machine
+
+    switch (tel.backend_id) {
+    case 1: snap.backend = "cuda"; break;
+    case 2: snap.backend = "opencl"; break;
+    case 3: snap.backend = "metal"; break;
+    default: return GpuSnapshot{};  // unrecognized id -> honestly refuse to label rather than guess
+    }
+    if (tel.device_name[0] == '\0')
+        return GpuSnapshot{};  // no device name available -> cannot satisfy non-"n/a" device requirement
+    snap.device = tel.device_name;
+    snap.available = true;
+    return snap;
 }
 
 bool parse_args(int argc, char** argv, Args& args)
@@ -371,7 +410,7 @@ bool write_json_artifact(const std::string& path, const Args& args,
     out << "{\n";
     out << "  \"schema\": \"ufsecp-lbtc-public-ops-benchmark-v1\",\n";
     out << "  \"target_context\": \"libbitcoin-direct-cpp\",\n";
-    out << "  \"claim_scope\": \"local bridge-free libbitcoin public-data batch-op throughput; production rows use GPU only when the op hook is installed and accepts the batch. This harness has no backend-identification API and no upload/kernel/download phase-split instrumentation yet, so every row is api_correctness evidence, never gpu_acceleration, until backend-specific timing support lands\",\n";
+    out << "  \"claim_scope\": \"local bridge-free libbitcoin public-data batch-op throughput; production rows use GPU only when the op hook is installed and accepts the batch. A production row's backend/device are identified via GpuTelemetry (real, not fabricated) when a GPU backend is linked/initialized/ready on this host; otherwise they stay cpu/n/a. This harness still has no upload/kernel/download phase-split instrumentation, so every row is api_correctness evidence, never gpu_acceleration, regardless of backend -- see ci/check_lbtc_gpu_workload_evidence.py schema v1 rule\",\n";
     out << "  \"c_abi_required\": false,\n";
     out << "  \"shim_required\": false,\n";
     out << "  \"bridge_required\": false,\n";
@@ -515,7 +554,8 @@ int main(int argc, char** argv)
     std::vector<std::uint8_t> out_hash(args.count * 32);
 
     auto bench_validate_op = [&](const char* op, std::size_t payload,
-                                 auto install_hook, auto hook_load, auto call) {
+                                 auto install_hook, auto hook_load, auto call,
+                                 auto hook_call) {
         // provider_linked: whether a GPU hook was already self-installed in
         // this binary BEFORE this op forces it off for the CPU-forced row --
         // an inspectable runtime fact independent of hook_installed (which
@@ -539,15 +579,33 @@ int main(int argc, char** argv)
         if (!forced_ok)
             return false;
         const bool prod_hook = hook_load() != nullptr;
-        return bench_output(results, args, op, "direct-production", prod_hook,
+        const bool prod_ok = bench_output(results, args, op, "direct-production", prod_hook,
             provider_linked, payload, out_validate, gold_validate,
             [&](std::vector<std::uint8_t>& dst) {
                 return call(dst);
             });
+        // Real backend/device identification for this production row, only
+        // when the hook actually handled this row AND a GPU backend is linked/
+        // initialized/ready -- otherwise backend/device stay the honest
+        // cpu/n/a default (see BenchResult / query_gpu_snapshot()).
+        if (prod_ok && prod_hook) {
+            const GpuSnapshot snap = query_gpu_snapshot();
+            if (snap.available) {
+                std::vector<std::uint8_t> probe(args.count);
+                if (hook_call(probe) == 0 && probe == gold_validate) {
+                    results.back().backend = snap.backend;
+                    results.back().device = snap.device;
+                } else {
+                    std::printf("%s GPU hook did not independently handle the batch; keeping backend=cpu\n", op);
+                }
+            }
+        }
+        return prod_ok;
     };
 
     auto bench_hash_op = [&](const char* op, std::size_t payload,
-                             auto install_hook, auto hook_load, auto call) {
+                             auto install_hook, auto hook_load, auto call,
+                             auto hook_call) {
         const bool provider_linked = hook_load() != nullptr;
         auto saved = install_hook(nullptr);
         const bool gold_ok = make_gold(gold_hash, [&](std::vector<std::uint8_t>& dst) {
@@ -567,11 +625,27 @@ int main(int argc, char** argv)
         if (!forced_ok)
             return false;
         const bool prod_hook = hook_load() != nullptr;
-        return bench_output(results, args, op, "direct-production", prod_hook,
+        const bool prod_ok = bench_output(results, args, op, "direct-production", prod_hook,
             provider_linked, payload, out_hash, gold_hash,
             [&](std::vector<std::uint8_t>& dst) {
                 return call(dst);
             });
+        // See bench_validate_op above: honest backend/device identification,
+        // only when this row's hook actually handled the batch AND a GPU
+        // backend is ready.
+        if (prod_ok && prod_hook) {
+            const GpuSnapshot snap = query_gpu_snapshot();
+            if (snap.available) {
+                std::vector<std::uint8_t> probe(args.count * 32);
+                if (hook_call(probe) == 0 && probe == gold_hash) {
+                    results.back().backend = snap.backend;
+                    results.back().device = snap.device;
+                } else {
+                    std::printf("%s GPU hook did not independently handle the batch; keeping backend=cpu\n", op);
+                }
+            }
+        }
+        return prod_ok;
     };
 
     bool ok = true;
@@ -580,6 +654,10 @@ int main(int argc, char** argv)
         [] { return ufsecp::lbtc::gpu_hook::g_lbtc_xonly_hook.load(std::memory_order_acquire); },
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::xonly_validate_batch(xonly.data(), args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_xonly_hook.load(std::memory_order_acquire)(
+                xonly.data(), args.count, dst.data());
         });
 
     ok = ok && bench_validate_op("pubkey_validate", args.count * 33,
@@ -587,6 +665,10 @@ int main(int argc, char** argv)
         [] { return ufsecp::lbtc::gpu_hook::g_lbtc_pubkey_hook.load(std::memory_order_acquire); },
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::pubkey_validate_batch(pub33.data(), args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_pubkey_hook.load(std::memory_order_acquire)(
+                pub33.data(), args.count, dst.data());
         });
 
     ok = ok && bench_validate_op("commitment_verify", args.count * (32 * 3 + 1),
@@ -594,6 +676,11 @@ int main(int argc, char** argv)
         [] { return ufsecp::lbtc::gpu_hook::g_lbtc_commit_hook.load(std::memory_order_acquire); },
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::taproot_commitment_verify_batch(
+                internal_x.data(), tweak.data(), tweaked_x.data(), parity.data(),
+                args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_commit_hook.load(std::memory_order_acquire)(
                 internal_x.data(), tweak.data(), tweaked_x.data(), parity.data(),
                 args.count, dst.data());
         });
@@ -604,6 +691,10 @@ int main(int argc, char** argv)
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::tagged_hash_batch(
                 tag_hash.data(), fixed_msgs.data(), args.fixed_len, args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_tagged_hash_hook.load(std::memory_order_acquire)(
+                tag_hash.data(), fixed_msgs.data(), args.fixed_len, args.count, dst.data());
         });
 
     ok = ok && bench_hash_op("tagged_hash_tag_overload", args.count * args.fixed_len,
@@ -612,6 +703,10 @@ int main(int argc, char** argv)
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::tagged_hash_batch(
                 "BIP0340/test", 12, fixed_msgs.data(), args.fixed_len, args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_tagged_hash_hook.load(std::memory_order_acquire)(
+                tag_hash.data(), fixed_msgs.data(), args.fixed_len, args.count, dst.data());
         });
 
     ok = ok && bench_hash_op("tagged_hash_var", static_cast<std::size_t>(var_payload),
@@ -619,6 +714,11 @@ int main(int argc, char** argv)
         [] { return ufsecp::lbtc::gpu_hook::g_lbtc_tagged_hash_var_hook.load(std::memory_order_acquire); },
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::tagged_hash_var_batch(
+                tag_hash.data(), var_msgs.data(), var_lens.data(), args.stride,
+                args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_tagged_hash_var_hook.load(std::memory_order_acquire)(
                 tag_hash.data(), var_msgs.data(), var_lens.data(), args.stride,
                 args.count, dst.data());
         });
@@ -629,6 +729,10 @@ int main(int argc, char** argv)
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::hash256_batch(
                 fixed_msgs.data(), args.fixed_len, args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_hook.load(std::memory_order_acquire)(
+                fixed_msgs.data(), args.fixed_len, args.count, dst.data());
         });
 
     ok = ok && bench_hash_op("hash256_var", static_cast<std::size_t>(var_payload),
@@ -636,6 +740,10 @@ int main(int argc, char** argv)
         [] { return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire); },
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::hash256_var_batch(
+                var_msgs.data(), var_lens.data(), args.stride, args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire)(
                 var_msgs.data(), var_lens.data(), args.stride, args.count, dst.data());
         });
 
@@ -650,6 +758,10 @@ int main(int argc, char** argv)
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::txid_hash_batch(
                 tx_msgs.data(), tx_lens.data(), kTxidStride, args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire)(
+                tx_msgs.data(), tx_lens.data(), kTxidStride, args.count, dst.data());
         });
 
     ok = ok && bench_hash_op("wtxid_hash", static_cast<std::size_t>(wtx_payload),
@@ -658,6 +770,10 @@ int main(int argc, char** argv)
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::wtxid_hash_batch(
                 wtx_msgs.data(), wtx_lens.data(), kWtxidStride, args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire)(
+                wtx_msgs.data(), wtx_lens.data(), kWtxidStride, args.count, dst.data());
         });
 
     ok = ok && bench_hash_op("merkle_pair_hash", args.count * std::size_t{64},
@@ -665,6 +781,10 @@ int main(int argc, char** argv)
         [] { return ufsecp::lbtc::gpu_hook::g_lbtc_merkle_pair_hook.load(std::memory_order_acquire); },
         [&](std::vector<std::uint8_t>& dst) {
             return ufsecp::lbtc::merkle_pair_hash_batch(
+                mp_left.data(), mp_right.data(), args.count, dst.data());
+        },
+        [&](std::vector<std::uint8_t>& dst) {
+            return ufsecp::lbtc::gpu_hook::g_lbtc_merkle_pair_hook.load(std::memory_order_acquire)(
                 mp_left.data(), mp_right.data(), args.count, dst.data());
         });
 

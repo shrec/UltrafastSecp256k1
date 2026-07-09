@@ -84,21 +84,44 @@ zero/negative timing, `ns_per_row`/`count`/`best_seconds` arithmetic
 inconsistency, missing/mistyped fields, backend/device/driver_version
 contradictions, GPU claims without `provider_linked`+`hook_installed`,
 CPU-only rows relabeled `gpu_acceleration`, non-`matched_reference`
-validation status, and one-sided `speedup_vs_cpu_forced` claims. It covers
-both the current `bench_lbtc_public_ops` artifact schema
+validation status, one-sided `speedup_vs_cpu_forced` claims, and (a dedicated
+group check) any `gpu_acceleration` row that does not simultaneously satisfy
+backend/device/provider_linked/hook_installed/validation/positive-timing. It
+covers both the current `bench_lbtc_public_ops` artifact schema
 (`ufsecp-lbtc-public-ops-benchmark-v1`, see
 `docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md`) and the phase-aware libbitcoin
 GPU workload schema (`ufsecp-lbtc-gpu-workload-benchmark-v1`, defined in
 `workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json`, for
-txid/wtxid/sighash/merkle-shaped workloads). `bench_lbtc_workloads`
-(`compat/libbitcoin_direct/bench/bench_workloads.cpp`) produces the v2
-schema today for `txid_batch`/`wtxid_batch`/`merkle_pair_batch`/
+txid/wtxid/sighash/merkle-shaped workloads).
+
+`bench_lbtc_workloads` (`compat/libbitcoin_direct/bench/bench_workloads.cpp`)
+produces the v2 schema for `txid_batch`/`wtxid_batch`/`merkle_pair_batch`/
 `merkle_root_batch` (`sighash_batch` remains unimplemented — descriptor
-contract not accepted); every row is CPU-only `evidence_class:
-api_correctness`, never `gpu_acceleration`, since this harness has no
-backend/device/driver identification API. See
+contract not accepted). Every artifact's first row is always CPU-forced
+`evidence_class: api_correctness`. A second, paired `evidence_class:
+gpu_acceleration` row is emitted only when a real GPU backend is linked,
+initialized, ready, and the direct workload hook independently accepts and
+handles the batch on this host — identified via the
+`ufsecp::lbtc::gpu_hook::g_lbtc_gpu_telemetry_hook` telemetry extension
+(`compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp`,
+`src/gpu/src/gpu_engine_hook.cpp`), which reports backend name/id/device
+straight from the already-existing `GpuBackend::backend_id()`/
+`backend_name()`/`device_info()` — no new backend method, no
+`gpu_backend.hpp`/`*_cuda.cu`/`*_opencl.cpp`/`*_metal.mm` edit, no C ABI or
+bridge dependency, and this telemetry is never called from any
+production/hot-path code (benchmark-only). `driver_version` stays `null` on
+every row (`DeviceInfo` has no driver field: an honest gap, not a fabricated
+value — see the gate's module docstring "Honest gaps"). If no GPU backend is
+linked/ready, or if the direct hook declines the exact benchmark shape, only
+the CPU `api_correctness` row is emitted — absence of handled GPU evidence is
+reported honestly, never papered over. `bench_public_ops.cpp` uses the same
+telemetry only after an independent direct-hook probe succeeds; otherwise its
+`direct-production` rows keep `backend="cpu"`/`device="n/a"` while still
+keeping `evidence_class: api_correctness` unconditionally under schema v1 (no
+phase-split instrumentation exists there yet). See
 `docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md` "Workload benchmark harness" for
-the independent-oracle validation strategy and reproduce commands.
+the independent-oracle validation strategy and exact CPU-only vs
+GPU-linked reproduce commands.
 
 ```bash
 python3 ci/check_lbtc_gpu_workload_evidence.py <benchmark_artifact.json>

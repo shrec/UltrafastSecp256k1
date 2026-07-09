@@ -279,6 +279,51 @@ int engine_lbtc_merkle_pair_hook(const std::uint8_t* left32, const std::uint8_t*
     }
 }
 
+/* Benchmark/evidence-only telemetry trampoline (see lbtc_gpu_ops.hpp
+ * GpuTelemetry doc comment). Reuses engine_gpu_backend() -- the SAME cached
+ * probe used by every op hook above, under the SAME mutex -- so this reports
+ * exactly the backend/device that op hooks above actually dispatch to,
+ * queried through already-existing GpuBackend::backend_id() /
+ * backend_name() / device_info() virtuals only. No new backend method, no
+ * gpu_backend.hpp / *_cuda.cu / *_opencl.cpp / *_metal.mm edit.
+ * driver_version is intentionally not sourced here: DeviceInfo carries no
+ * driver field, so callers must treat it as unavailable rather than
+ * fabricate one (see docs/BENCHMARK_POLICY.md). Never called from any
+ * production/hot-path code -- only benchmark harnesses opt in. */
+bool engine_lbtc_gpu_telemetry(ufsecp::lbtc::gpu_hook::GpuTelemetry* out) noexcept {
+    if (out == nullptr) return false;
+    *out = ufsecp::lbtc::gpu_hook::GpuTelemetry{};
+    try {
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return false;  /* no GPU -> telemetry unavailable, never fabricated */
+
+        out->backend_id = b->backend_id();
+        if (const char* name = b->backend_name()) {
+            std::size_t i = 0;
+            for (; i + 1 < sizeof(out->backend_name) && name[i] != '\0'; ++i)
+                out->backend_name[i] = name[i];
+            out->backend_name[i] = '\0';
+        }
+
+        /* engine_gpu_backend() always init()s device_index 0 (see above), so
+         * device_info(0, ...) queries exactly the bound device. */
+        secp256k1::gpu::DeviceInfo di{};
+        if (b->device_info(0, di) == secp256k1::gpu::GpuError::Ok) {
+            std::size_t i = 0;
+            for (; i + 1 < sizeof(out->device_name) && di.name[i] != '\0'; ++i)
+                out->device_name[i] = di.name[i];
+            out->device_name[i] = '\0';
+            out->device_index = di.device_index;
+        }
+
+        out->available = true;
+        return true;
+    } catch (...) {
+        *out = ufsecp::lbtc::gpu_hook::GpuTelemetry{};
+        return false;
+    }
+}
 
 /* Self-install at load time. Runs when this TU is retained (the direct-GPU
  * profile forces it via the shared -u secp256k1_gpu_columns_provider_anchor). */
@@ -292,6 +337,7 @@ struct EngineLbtcOpsInstaller {
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_hook(&engine_lbtc_hash256_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook(&engine_lbtc_hash256_var_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(&engine_lbtc_merkle_pair_hook);
+        ufsecp::lbtc::gpu_hook::install_lbtc_gpu_telemetry_hook(&engine_lbtc_gpu_telemetry);
     }
 };
 EngineLbtcOpsInstaller g_engine_lbtc_ops_installer;

@@ -121,6 +121,48 @@ inline merkle_pair_hash_fn install_lbtc_merkle_pair_hook(merkle_pair_hash_fn fn)
     return g_lbtc_merkle_pair_hook.exchange(fn, std::memory_order_release);
 }
 
+// ----------------------------------------------------------------------------
+// GPU telemetry (benchmark/evidence-gathering only -- NOT on any hot path)
+// ----------------------------------------------------------------------------
+// Minimal backend-identification snapshot. Benchmark harnesses
+// (bench_workloads.cpp / bench_public_ops.cpp) query this on demand, purely to
+// honestly attribute a hook-active ("production") row to the real
+// backend/device that served it, instead of the historical hardcoded
+// backend="cpu"/device="n/a". Populated straight from the ALREADY-EXISTING
+// secp256k1::gpu::GpuBackend::backend_id() / backend_name() / device_info()
+// virtuals (gpu_backend.hpp) -- this header adds no new backend method and
+// requires zero edits to gpu_backend.hpp or any *_cuda.cu / *_opencl.cpp /
+// *_metal.mm backend file.
+//
+// driver_version is deliberately NOT part of this struct:
+// secp256k1::gpu::DeviceInfo carries no driver field, and adding one is out
+// of this change's writable scope. Callers MUST NOT fabricate a driver
+// string from this struct -- report driver_version as unavailable (null) in
+// any evidence artifact that reads it (see docs/BENCHMARK_POLICY.md).
+//
+// No production code path (the header-only <ufsecp/libbitcoin.hpp> CPU
+// surface) ever calls this hook -- it exists solely for benchmark/evidence
+// callers that opt in explicitly, exactly like the per-op hooks above.
+struct GpuTelemetry {
+    bool          available    = false;  // true iff a backend was probed, init()-ed, and is_ready()
+    std::uint32_t backend_id   = 0;      // GpuBackend::backend_id() of the bound backend (1=CUDA,2=OpenCL,3=Metal)
+    char          backend_name[32]  = {};  // GpuBackend::backend_name(), NUL-terminated, truncated if longer
+    char          device_name[128]  = {};  // DeviceInfo::name of the bound device, NUL-terminated
+    std::uint32_t device_index = 0;      // DeviceInfo::device_index of the bound device
+};
+
+// Fills *out and returns true only when a real GPU backend is linked,
+// initialized, and ready. Returns false (with *out left default/available=false)
+// when out is null, no GPU backend is linked, or none could be initialized --
+// never fabricates a value on failure.
+using gpu_telemetry_fn = bool (*)(GpuTelemetry* out);
+
+inline std::atomic<gpu_telemetry_fn> g_lbtc_gpu_telemetry_hook{nullptr};
+
+inline gpu_telemetry_fn install_lbtc_gpu_telemetry_hook(gpu_telemetry_fn fn) noexcept {
+    return g_lbtc_gpu_telemetry_hook.exchange(fn, std::memory_order_release);
+}
+
 }  // namespace ufsecp::lbtc::gpu_hook
 
 #endif  // UFSECP_LBTC_GPU_OPS_HPP

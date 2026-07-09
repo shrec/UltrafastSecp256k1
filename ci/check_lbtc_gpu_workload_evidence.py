@@ -13,19 +13,47 @@ Two artifact schemas are recognized:
   ufsecp-lbtc-public-ops-benchmark-v1
       The CURRENT `bench_lbtc_public_ops` harness (bench_public_ops.cpp).
       This harness does not yet measure a real upload/kernel/download phase
-      split and has no backend-identification API, so every row's
-      `evidence_class` MUST be "api_correctness" and `backend` MUST be "cpu"
-      -- it structurally cannot produce `gpu_acceleration` evidence yet. The
-      phase timing fields (`prep_seconds`, `upload_seconds`, `kernel_seconds`,
+      split, so every row's `evidence_class` MUST be "api_correctness"
+      unconditionally, even on rows that DO carry a real (non-"cpu")
+      backend/device identification -- it structurally cannot produce
+      `gpu_acceleration` evidence under this schema yet. The phase timing
+      fields (`prep_seconds`, `upload_seconds`, `kernel_seconds`,
       `download_seconds`) may be `null` (not measured) for this schema.
 
   ufsecp-lbtc-gpu-workload-benchmark-v1
-      The FUTURE phase-aware schema for txid/wtxid/sighash/merkle-shaped
-      workloads, defined in
+      The phase-aware schema for txid/wtxid/sighash/merkle-shaped workloads,
+      defined in
       workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json.
-      `prep_seconds` and `kernel_seconds` are always required and positive;
-      `upload_seconds`/`download_seconds` are required and positive for
-      non-cpu backends, and must be null for backend == cpu.
+      `prep_seconds` and `kernel_seconds` are always required and positive.
+      `upload_seconds`/`download_seconds` MUST be null for backend == cpu;
+      for non-cpu backends they may be a positive number (when a harness has
+      genuine phase-split instrumentation) OR null (when it honestly does
+      not -- see "Honest gaps" below) -- either is accepted, but a present
+      non-null value must still be positive (zero/negative is always
+      rejected as zero_timing).
+
+  A row with evidence_class == "gpu_acceleration" (only possible under the
+  v2/gpu-workload schema; v1 bans it unconditionally, see above) MUST
+  additionally satisfy ALL of the following, checked explicitly as a single
+  group (not merely inferred from scattered per-field rules): backend != cpu,
+  device is a real (non-empty, non-"n/a") string, provider_linked == true,
+  hook_installed == true, validation_status == matched_reference, and both
+  best_seconds and kernel_seconds are present, numeric, and > 0.
+
+  Honest gaps (never treated as malformed, never require fabrication):
+    - driver_version may be null on a non-cpu row. secp256k1::gpu::DeviceInfo
+      (gpu_backend.hpp) carries no driver-version field, and adding one is
+      out of scope for the harnesses that produce these artifacts -- null
+      here means "honestly not queryable", not "forgot to fill in". An
+      EMPTY STRING is still rejected as malformed (a caller that actually
+      queried an empty result should use null, not "").
+    - upload_seconds/download_seconds may be null on a non-cpu row: the
+      GpuBackend interface exposes each op as a single opaque call with no
+      internal phase-split instrumentation, so a harness that only measures
+      one wall-clock span per call honestly reports null here rather than
+      inventing a split. kernel_seconds mirroring best_seconds (same
+      single-span convention already used by schema v1) is the documented,
+      accepted way to report that.
 
 Rejection rules enforced on every row (see evidence_matrix_claude.json
 `rejection_rules` for the full authoritative rule text):
@@ -46,6 +74,11 @@ Rejection rules enforced on every row (see evidence_matrix_claude.json
   6. missing_validation       -- validation_status != matched_reference
   7. one_sided_speedup        -- speedup_vs_cpu_forced present with only one
                                   of compute_only_ratio / end_to_end_ratio
+  8. gpu_acceleration_incomplete -- evidence_class == gpu_acceleration but
+                                  one of the explicit group conditions above
+                                  (backend/device/provider_linked/
+                                  hook_installed/validation/positive timing)
+                                  is not satisfied
 
 Not machine-checkable from a single artifact (documented, not enforced here):
   - backend_relabeling: cross-checking `backend` against the actual linked
@@ -142,8 +175,13 @@ def _row_problems(row: dict, schema: str) -> list:
     elif backend in BACKEND_VALUES:
         if "device" in row and (not isinstance(device, str) or device in ("", "n/a")):
             problems.append("malformed_columns:gpu_missing_device")
-        if "driver_version" in row and (driver_version is None or driver_version == ""):
-            problems.append("malformed_columns:gpu_missing_driver_version")
+        # driver_version is an HONEST GAP, not a required field, on non-cpu
+        # rows: secp256k1::gpu::DeviceInfo carries no driver-version field, so
+        # a harness that cannot query one reports null rather than fabricate
+        # a string. Only an explicit empty string is rejected as malformed
+        # (a caller with a real empty result should use null, not "").
+        if "driver_version" in row and driver_version is not None and driver_version == "":
+            problems.append("malformed_columns:gpu_driver_version_empty_string")
 
     provider_linked = row.get("provider_linked")
     if backend in BACKEND_VALUES and backend != "cpu" and provider_linked is not True:
@@ -185,19 +223,21 @@ def _row_problems(row: dict, schema: str) -> list:
         if field not in row:
             continue
         value = row.get(field)
-        must_be_positive = False
         if value is None:
-            if field in ("upload_seconds", "download_seconds"):
-                if backend != "cpu":
-                    problems.append(f"malformed_columns:{field}_null_on_gpu_backend")
-            elif kernel_prep_required:
+            # upload_seconds/download_seconds: null is REQUIRED for backend
+            # == cpu (no device transfer happened) and PERMITTED (not
+            # required) for non-cpu backends -- a harness that cannot
+            # honestly measure a phase-split reports null rather than
+            # fabricate a number (see "Honest gaps" in the module docstring).
+            # prep_seconds/kernel_seconds stay mandatory-non-null for schema
+            # v2 regardless of backend.
+            if field not in ("upload_seconds", "download_seconds") and kernel_prep_required:
                 problems.append(f"malformed_columns:{field}_null_but_required_for_schema")
             continue
         if not _is_number(value):
             problems.append(f"malformed_columns:bad_type:{field}")
             continue
-        must_be_positive = True
-        if must_be_positive and value <= 0:
+        if value <= 0:
             problems.append(f"zero_timing:{field}")
 
     best_seconds = row.get("best_seconds")
@@ -221,6 +261,29 @@ def _row_problems(row: dict, schema: str) -> list:
                 problems.append("one_sided_speedup:missing_pair")
             elif not compute_ok and not e2e_ok:
                 problems.append("one_sided_speedup:empty_object")
+
+    # Explicit gpu_acceleration group check: every condition below is ALSO
+    # implied by one of the individual field rules above (backend/device via
+    # gpu_missing_device, provider_linked via missing_backend_evidence,
+    # hook_installed via gpu_claim_without_hook, validation_status via
+    # missing_validation, positive timing via zero_timing/malformed_columns)
+    # -- this block re-asserts them together, by name, as a single readable
+    # unit so "what does a valid GPU-accelerated row require" has one
+    # unambiguous answer in the code, instead of being inferable only by
+    # reading every other rule in this function.
+    if evidence_class == "gpu_acceleration":
+        kernel_seconds = row.get("kernel_seconds")
+        incomplete = (
+            backend == "cpu"
+            or not isinstance(device, str) or device in ("", "n/a")
+            or provider_linked is not True
+            or hook_installed is not True
+            or validation_status != "matched_reference"
+            or not (_is_number(best_seconds) and best_seconds > 0)
+            or not (_is_number(kernel_seconds) and kernel_seconds > 0)
+        )
+        if incomplete:
+            problems.append("gpu_acceleration_incomplete:missing_required_condition")
 
     return problems
 

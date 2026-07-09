@@ -11,19 +11,36 @@
 // kernel work behind an external libbitcoin-developer review that has not
 // happened) -- see docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md.
 //
-// Evidence honesty (CLAUDE.md benchmark rule): every row in this harness is
-// measured with the GPU hook explicitly forced off before the timed call
-// (mode="direct-cpu-forced", backend="cpu", evidence_class="api_correctness").
-// This harness has no backend/device/driver identification API, so it
-// cannot honestly attribute a row to a specific GPU backend/device -- per
-// the task contract, rows must stay backend="cpu"/api_correctness unless a
-// harness can identify backend/device/driver and measure real
-// upload/kernel/download phases. `provider_linked` is reported only as
-// informational metadata (whether a GPU hook happens to be installed in
-// this binary at all), it never changes `backend` or `evidence_class`.
+// Evidence honesty (CLAUDE.md benchmark rule): every workload always emits a
+// CPU-forced row (GPU hook explicitly forced off before the timed call,
+// mode="direct-cpu-forced", backend="cpu", evidence_class="api_correctness").
+// When a real GPU backend is linked, initialized, and ready on this host --
+// queried through ufsecp::lbtc::gpu_hook::g_lbtc_gpu_telemetry_hook (see
+// <ufsecp/lbtc_gpu_ops.hpp> GpuTelemetry, populated only from the
+// already-existing GpuBackend::backend_id()/backend_name()/device_info()
+// virtuals, no gpu_backend.hpp / backend-file edits) -- each workload ALSO
+// runs a second, hook-active ("production") pass and emits a paired row with
+// a real backend/device identification (backend != "cpu", device = the
+// queried GPU device name) and evidence_class="gpu_acceleration". If no GPU
+// provider is linked or ready on this host, only the CPU api_correctness row
+// is emitted for that workload -- absence of a GPU is reported honestly,
+// never papered over with a fabricated row.
 //
-// Independent validation oracles (never call the ufsecp::lbtc batch
-// function under test):
+// Known, documented limitation: every GpuBackend op used here is a single
+// opaque call (e.g. GpuBackend::merkle_pair_hash) with no
+// upload/kernel/download phase-split instrumentation, and DeviceInfo carries
+// no driver-version field. Adding that instrumentation touches
+// gpu_backend.hpp / *_cuda.cu / *_opencl.cpp / *_metal.mm, which are out of
+// this change's writable scope. So on every row (CPU or GPU):
+// kernel_seconds mirrors best_seconds (the single measured wall-clock span,
+// never a fabricated sub-split), upload_seconds/download_seconds stay null,
+// and driver_version stays null. None of these are fabricated values -- they
+// are honest "not measured" markers. See docs/BENCHMARK_POLICY.md.
+//
+// Independent validation oracles (never call the ufsecp::lbtc batch function
+// under test) -- applied identically to the CPU-forced pass and the
+// GPU/production pass, so a GPU row is only ever emitted when its own output
+// independently verified correct:
 //   txid_batch / wtxid_batch : secp256k1::SHA256::hash256(span) per row,
 //                               called directly -- bypasses
 //                               hash256_var_batch/txid_hash_batch/
@@ -45,7 +62,9 @@
 //  workingdocs/libbitcoin_gpu_workloads/evidence_matrix_claude.json).
 // That schema's envelope carries a single `workload` + `batch_class` value,
 // so this harness writes ONE JSON artifact per workload (not one combined
-// file) via --json-dir.
+// file) via --json-dir; each artifact's `results` array holds 1 row
+// (CPU-only host) or 2 paired rows (CPU-forced + GPU/production) on a
+// GPU-linked host.
 //
 // No ufsecp C ABI, no libsecp256k1 shim, no ufsecp_lbtc bridge.
 //
@@ -65,6 +84,7 @@
 #include <fstream>
 #include <iomanip>
 #include <limits>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -304,8 +324,64 @@ bool parse_args(int argc, char** argv, Args& args)
     return true;
 }
 
-// One measured row. Every row in this harness is direct-cpu-forced /
-// backend=cpu / evidence_class=api_correctness (see file header).
+// -- GPU telemetry snapshot (benchmark-only; see <ufsecp/lbtc_gpu_ops.hpp>
+// GpuTelemetry). Never used on any production/hot code path -- this
+// benchmark is the only caller. --------------------------------------------
+struct GpuSnapshot {
+    bool available = false;
+    std::string backend;  // lowercase schema enum: "cuda" | "opencl" | "metal"
+    std::string device;
+};
+
+GpuSnapshot query_gpu_snapshot()
+{
+    GpuSnapshot snap;
+    const auto fn = ufsecp::lbtc::gpu_hook::g_lbtc_gpu_telemetry_hook.load(std::memory_order_acquire);
+    if (fn == nullptr)
+        return snap;  // no GPU host TU linked into this binary at all
+
+    ufsecp::lbtc::gpu_hook::GpuTelemetry tel{};
+    if (!fn(&tel) || !tel.available)
+        return snap;  // GPU host linked, but no backend initialized/ready on this machine
+
+    switch (tel.backend_id) {
+    case 1: snap.backend = "cuda"; break;
+    case 2: snap.backend = "opencl"; break;
+    case 3: snap.backend = "metal"; break;
+    default: return GpuSnapshot{};  // unrecognized id -> honestly refuse to label rather than guess
+    }
+    if (tel.device_name[0] == '\0')
+        return GpuSnapshot{};  // no device name available -> cannot satisfy non-"n/a" device requirement
+    snap.device = tel.device_name;
+    snap.available = true;
+    return snap;
+}
+
+// Benchmark-only tracking wrapper for merkle_root_from_leaves GPU evidence.
+// The direct API intentionally falls back to CPU if the hook declines; for a
+// gpu_acceleration row, the benchmark must prove that the hook actually
+// handled the level reductions rather than silently falling back.
+ufsecp::lbtc::gpu_hook::merkle_pair_hash_fn g_tracking_merkle_pair_hook = nullptr;
+bool g_tracking_merkle_pair_called = false;
+bool g_tracking_merkle_pair_declined = false;
+
+int tracking_merkle_pair_hook(const std::uint8_t* left32, const std::uint8_t* right32,
+                              std::size_t count, std::uint8_t* out32)
+{
+    g_tracking_merkle_pair_called = true;
+    if (g_tracking_merkle_pair_hook == nullptr) {
+        g_tracking_merkle_pair_declined = true;
+        return -1;
+    }
+    const int rc = g_tracking_merkle_pair_hook(left32, right32, count, out32);
+    if (rc != 0)
+        g_tracking_merkle_pair_declined = true;
+    return rc;
+}
+
+// One measured row. CPU-forced rows are always backend=cpu/api_correctness.
+// GPU/production rows (only emitted when query_gpu_snapshot().available) are
+// backend=<real>/evidence_class=gpu_acceleration; see file header.
 struct BenchRow {
     std::string workload;
     std::string op;
@@ -325,32 +401,78 @@ struct BenchRow {
     std::string validation_hash;
     std::string validation_status = "matched_reference";
     std::string evidence_class = "api_correctness";
+    // Only set on a GPU/production row that has a matching CPU-forced row in
+    // the SAME artifact -- never a one-sided speedup claim (see
+    // ci/check_lbtc_gpu_workload_evidence.py one_sided_speedup rule).
+    std::optional<double> speedup_compute_only_ratio;
+    std::optional<double> speedup_end_to_end_ratio;
 };
 
-bool write_workload_json(const std::string& path, const std::string& batch_class,
-                         int iters, const HostContext& hc, const BenchRow& row)
+// Fills the measured/derived fields shared by every row. kernel_seconds
+// mirrors best_seconds intentionally: this harness has no upload/kernel/
+// download phase-split instrumentation on either the CPU or the GPU path
+// (see file header), so kernel_seconds is never a fabricated sub-split.
+void fill_measured_fields(BenchRow& row, std::size_t count, std::size_t payload_bytes,
+                          double prep_seconds, double best_seconds,
+                          const std::vector<std::uint8_t>& out)
 {
+    row.count = count;
+    row.payload_bytes = payload_bytes;
+    row.prep_seconds = prep_seconds;
+    row.kernel_seconds = best_seconds;
+    row.best_seconds = best_seconds;
+    row.m_rows_per_sec = static_cast<double>(count) / best_seconds / 1e6;
+    row.payload_mib_per_sec = (static_cast<double>(payload_bytes) / 1048576.0) / best_seconds;
+    row.ns_per_row = best_seconds * 1e9 / static_cast<double>(count);
+    row.validation_hash = sha256_hex(out);
+}
+
+// Paired ratio, computed only from two rows that both already exist in the
+// same artifact -- never a one-sided claim.
+void fill_paired_speedup(BenchRow& gpu_row, const BenchRow& cpu_row)
+{
+    if (cpu_row.kernel_seconds > 0.0 && gpu_row.kernel_seconds > 0.0)
+        gpu_row.speedup_compute_only_ratio = cpu_row.kernel_seconds / gpu_row.kernel_seconds;
+    if (cpu_row.best_seconds > 0.0 && gpu_row.best_seconds > 0.0)
+        gpu_row.speedup_end_to_end_ratio = cpu_row.best_seconds / gpu_row.best_seconds;
+}
+
+bool write_workload_json(const std::string& path, const std::string& batch_class,
+                         int iters, const HostContext& hc,
+                         const std::vector<BenchRow>& result_rows)
+{
+    if (result_rows.empty())
+        return false;
+
     std::ofstream out(path);
     if (!out)
         return false;
+
+    const BenchRow& first = result_rows.front();
+    const std::uint64_t payload_total = first.payload_bytes;
 
     out << std::setprecision(12);
     out << "{\n";
     out << "  \"schema\": \"ufsecp-lbtc-gpu-workload-benchmark-v1\",\n";
     out << "  \"target_context\": \"libbitcoin\",\n";
-    out << "  \"workload\": \"" << json_escape(row.workload) << "\",\n";
+    out << "  \"workload\": \"" << json_escape(first.workload) << "\",\n";
     out << "  \"batch_class\": \"" << json_escape(batch_class) << "\",\n";
-    out << "  \"claim_scope\": \"local bridge-free libbitcoin-shaped " << json_escape(row.workload)
-        << " throughput; GPU hook explicitly forced off for every row (mode=direct-cpu-forced) "
-           "because this harness has no backend/device/driver identification API -- every row is "
-           "api_correctness evidence, never gpu_acceleration, until real backend-identified "
-           "phase-split instrumentation lands\",\n";
+    out << "  \"claim_scope\": \"local bridge-free libbitcoin-shaped " << json_escape(first.workload)
+        << " throughput. First row is always mode=direct-cpu-forced (GPU hook explicitly forced "
+           "off, backend=cpu, evidence_class=api_correctness). A second mode=direct-production row "
+           "is present only when a real GPU backend was linked/initialized/ready on this host at "
+           "run time (backend/device identified via GpuTelemetry, evidence_class=gpu_acceleration, "
+           "validated against the same independent oracle as the CPU-forced row); its "
+           "kernel_seconds mirrors best_seconds because no upload/kernel/download phase-split "
+           "instrumentation exists yet, and driver_version is always null because DeviceInfo "
+           "carries no driver field -- neither is a fabricated value, both are honest "
+           "absence-of-data markers\",\n";
     out << "  \"c_abi_required\": false,\n";
     out << "  \"shim_required\": false,\n";
     out << "  \"bridge_required\": false,\n";
-    out << "  \"count\": " << row.count << ",\n";
+    out << "  \"count\": " << first.count << ",\n";
     out << "  \"iters\": " << iters << ",\n";
-    out << "  \"payload_bytes_total\": " << row.payload_bytes << ",\n";
+    out << "  \"payload_bytes_total\": " << payload_total << ",\n";
     out << "  \"host_context\": {\n";
     out << "    \"compiler\": \"" << json_escape(hc.compiler) << "\",\n";
     out << "    \"cpu_model\": \"" << json_escape(hc.cpu_model) << "\",\n";
@@ -359,29 +481,42 @@ bool write_workload_json(const std::string& path, const std::string& batch_class
     out << "    \"kernel\": \"" << json_escape(hc.kernel) << "\"\n";
     out << "  },\n";
     out << "  \"results\": [\n";
-    out << "    {\n";
-    out << "      \"op\": \"" << json_escape(row.op) << "\",\n";
-    out << "      \"workload\": \"" << json_escape(row.workload) << "\",\n";
-    out << "      \"mode\": \"" << json_escape(row.mode) << "\",\n";
-    out << "      \"hook_installed\": " << (row.hook_installed ? "true" : "false") << ",\n";
-    out << "      \"provider_linked\": " << (row.provider_linked ? "true" : "false") << ",\n";
-    out << "      \"backend\": \"" << json_escape(row.backend) << "\",\n";
-    out << "      \"device\": \"" << json_escape(row.device) << "\",\n";
-    out << "      \"driver_version\": null,\n";
-    out << "      \"count\": " << row.count << ",\n";
-    out << "      \"payload_bytes_per_iter\": " << row.payload_bytes << ",\n";
-    out << "      \"prep_seconds\": " << row.prep_seconds << ",\n";
-    out << "      \"upload_seconds\": null,\n";
-    out << "      \"kernel_seconds\": " << row.kernel_seconds << ",\n";
-    out << "      \"download_seconds\": null,\n";
-    out << "      \"best_seconds\": " << row.best_seconds << ",\n";
-    out << "      \"m_rows_per_sec\": " << row.m_rows_per_sec << ",\n";
-    out << "      \"payload_mib_per_sec\": " << row.payload_mib_per_sec << ",\n";
-    out << "      \"ns_per_row\": " << row.ns_per_row << ",\n";
-    out << "      \"validation_hash\": \"" << json_escape(row.validation_hash) << "\",\n";
-    out << "      \"validation_status\": \"" << json_escape(row.validation_status) << "\",\n";
-    out << "      \"evidence_class\": \"" << json_escape(row.evidence_class) << "\"\n";
-    out << "    }\n";
+    for (std::size_t i = 0; i < result_rows.size(); ++i) {
+        const auto& row = result_rows[i];
+        out << "    {\n";
+        out << "      \"op\": \"" << json_escape(row.op) << "\",\n";
+        out << "      \"workload\": \"" << json_escape(row.workload) << "\",\n";
+        out << "      \"mode\": \"" << json_escape(row.mode) << "\",\n";
+        out << "      \"hook_installed\": " << (row.hook_installed ? "true" : "false") << ",\n";
+        out << "      \"provider_linked\": " << (row.provider_linked ? "true" : "false") << ",\n";
+        out << "      \"backend\": \"" << json_escape(row.backend) << "\",\n";
+        out << "      \"device\": \"" << json_escape(row.device) << "\",\n";
+        out << "      \"driver_version\": null,\n";
+        out << "      \"count\": " << row.count << ",\n";
+        out << "      \"payload_bytes_per_iter\": " << row.payload_bytes << ",\n";
+        out << "      \"prep_seconds\": " << row.prep_seconds << ",\n";
+        out << "      \"upload_seconds\": null,\n";
+        out << "      \"kernel_seconds\": " << row.kernel_seconds << ",\n";
+        out << "      \"download_seconds\": null,\n";
+        out << "      \"best_seconds\": " << row.best_seconds << ",\n";
+        out << "      \"m_rows_per_sec\": " << row.m_rows_per_sec << ",\n";
+        out << "      \"payload_mib_per_sec\": " << row.payload_mib_per_sec << ",\n";
+        out << "      \"ns_per_row\": " << row.ns_per_row << ",\n";
+        out << "      \"validation_hash\": \"" << json_escape(row.validation_hash) << "\",\n";
+        out << "      \"validation_status\": \"" << json_escape(row.validation_status) << "\",\n";
+        const bool has_speedup =
+            row.speedup_compute_only_ratio.has_value() && row.speedup_end_to_end_ratio.has_value();
+        if (has_speedup) {
+            out << "      \"evidence_class\": \"" << json_escape(row.evidence_class) << "\",\n";
+            out << "      \"speedup_vs_cpu_forced\": {\n";
+            out << "        \"compute_only_ratio\": " << *row.speedup_compute_only_ratio << ",\n";
+            out << "        \"end_to_end_ratio\": " << *row.speedup_end_to_end_ratio << "\n";
+            out << "      }\n";
+        } else {
+            out << "      \"evidence_class\": \"" << json_escape(row.evidence_class) << "\"\n";
+        }
+        out << "    }" << (i + 1 == result_rows.size() ? "\n" : ",\n");
+    }
     out << "  ]\n";
     out << "}\n";
     return out.good();
@@ -409,19 +544,24 @@ int main(int argc, char** argv)
     std::printf("batch_class=%s iters=%d\n", args.batch_class.c_str(), args.iters);
     std::printf("workloads: txid_batch wtxid_batch merkle_pair_batch merkle_root_batch "
                 "(sighash_batch excluded -- descriptor contract not accepted)\n");
-    std::printf("every row: mode=direct-cpu-forced backend=cpu evidence_class=api_correctness\n\n");
+    std::printf("every workload: row 0 = mode=direct-cpu-forced backend=cpu evidence_class=api_correctness;\n"
+                "  row 1 (only when a real GPU backend is linked+ready) = mode=direct-production "
+                "backend=<identified> evidence_class=gpu_acceleration\n\n");
 
-    std::vector<std::pair<std::string, BenchRow>> rows;
+    // (workload_name, rows) -- 1 row (CPU-only host) or 2 paired rows
+    // (CPU-forced + GPU/production) per workload.
+    std::vector<std::pair<std::string, std::vector<BenchRow>>> workload_rows;
     bool ok = true;
 
     // txid_batch / wtxid_batch share this shape: variable-length serialized
     // records hashed via hash256_var_batch aliases, validated against a
     // per-row direct secp256k1::SHA256::hash256 call (independent of the
-    // batch function under test).
+    // batch function under test). Runs a CPU-forced pass, then (only when a
+    // real GPU backend is linked+ready) a second hook-active pass.
     auto run_hash_alias = [&](const char* workload_name, const char* op_name,
                               std::size_t count, std::size_t min_len, std::size_t max_len,
                               std::size_t stride, auto batch_fn, auto install_hook,
-                              auto hook_load, BenchRow& row_out) -> bool {
+                              auto hook_load) -> bool {
         const auto prep_t0 = clock_t_::now();
         std::vector<std::uint8_t> msgs(count * stride);
         std::vector<std::uint32_t> lens(count);
@@ -435,6 +575,7 @@ int main(int argc, char** argv)
             payload += static_cast<std::uint64_t>(len);
         }
         const double prep_seconds = secs_since(prep_t0);
+        const std::size_t payload_bytes = static_cast<std::size_t>(payload);
 
         std::vector<std::uint8_t> expected(count * 32);
         for (std::size_t i = 0; i < count; ++i) {
@@ -442,66 +583,108 @@ int main(int argc, char** argv)
             std::memcpy(expected.data() + i * 32, d.data(), 32);
         }
 
+        auto run_pass = [&](std::vector<std::uint8_t>& out, double& best,
+                            bool require_hook_handled, bool& hook_declined) -> bool {
+            hook_declined = false;
+            best = 1e100;
+            const auto direct_hook = hook_load();
+            if (require_hook_handled && direct_hook == nullptr) {
+                std::fprintf(stderr, "%s GPU evidence requested but hook is not installed\n", op_name);
+                hook_declined = true;
+                return false;
+            }
+            for (int it = 0; it < args.iters; ++it) {
+                std::fill(out.begin(), out.end(), 0);
+                const auto t0 = clock_t_::now();
+                if (require_hook_handled) {
+                    if (direct_hook(msgs.data(), lens.data(), stride, count, out.data()) != 0) {
+                        std::printf("%s GPU hook declined; skipping GPU evidence row\n", op_name);
+                        hook_declined = true;
+                        return false;
+                    }
+                } else {
+                    if (!batch_fn(msgs.data(), lens.data(), stride, count, out.data(), std::size_t{0})) {
+                        std::fprintf(stderr, "%s returned false\n", op_name);
+                        return false;
+                    }
+                }
+                const auto dt = secs_since(t0);
+                if (out != expected) {
+                    std::fprintf(stderr, "%s mismatched independent HASH256 oracle\n", op_name);
+                    return false;
+                }
+                if (dt < best)
+                    best = dt;
+            }
+            return true;
+        };
+
         const bool provider_linked = hook_load() != nullptr;
-        auto saved = install_hook(nullptr);
+        std::vector<BenchRow> rows_out;
 
-        std::vector<std::uint8_t> out(count * 32);
-        double best = 1e100;
-        bool call_ok = true;
-        for (int it = 0; it < args.iters; ++it) {
-            std::fill(out.begin(), out.end(), 0);
-            const auto t0 = clock_t_::now();
-            if (!batch_fn(msgs.data(), lens.data(), stride, count, out.data(), std::size_t{0})) {
-                std::fprintf(stderr, "%s returned false\n", op_name);
-                call_ok = false;
-                break;
-            }
-            const auto dt = secs_since(t0);
-            if (out != expected) {
-                std::fprintf(stderr, "%s mismatched independent HASH256 oracle\n", op_name);
-                call_ok = false;
-                break;
-            }
-            if (dt < best)
-                best = dt;
+        {
+            auto saved = install_hook(nullptr);
+            std::vector<std::uint8_t> out(count * 32);
+            double best = 0.0;
+            bool hook_declined = false;
+            const bool pass_ok = run_pass(out, best, false, hook_declined);
+            install_hook(saved);
+            if (!pass_ok)
+                return false;
+
+            BenchRow row;
+            row.workload = workload_name;
+            row.op = op_name;
+            row.mode = "direct-cpu-forced";
+            row.hook_installed = false;
+            row.provider_linked = provider_linked;
+            row.backend = "cpu";
+            row.device = "n/a";
+            fill_measured_fields(row, count, payload_bytes, prep_seconds, best, out);
+            rows_out.push_back(std::move(row));
         }
-        install_hook(saved);
-        if (!call_ok)
-            return false;
 
-        row_out.workload = workload_name;
-        row_out.op = op_name;
-        row_out.hook_installed = false;
-        row_out.provider_linked = provider_linked;
-        row_out.count = count;
-        row_out.payload_bytes = static_cast<std::size_t>(payload);
-        row_out.prep_seconds = prep_seconds;
-        row_out.kernel_seconds = best;
-        row_out.best_seconds = best;
-        row_out.m_rows_per_sec = static_cast<double>(count) / best / 1e6;
-        row_out.payload_mib_per_sec = (static_cast<double>(payload) / 1048576.0) / best;
-        row_out.ns_per_row = best * 1e9 / static_cast<double>(count);
-        row_out.validation_hash = sha256_hex(out);
+        if (provider_linked) {
+            const GpuSnapshot snap = query_gpu_snapshot();
+            if (snap.available) {
+                std::vector<std::uint8_t> out(count * 32);
+                double best = 0.0;
+                bool hook_declined = false;
+                if (!run_pass(out, best, true, hook_declined)) {
+                    if (!hook_declined)
+                        return false;  // handled-but-wrong GPU output aborts the run
+                } else {
+                    BenchRow row;
+                    row.workload = workload_name;
+                    row.op = op_name;
+                    row.mode = "direct-production";
+                    row.hook_installed = true;
+                    row.provider_linked = provider_linked;
+                    row.backend = snap.backend;
+                    row.device = snap.device;
+                    fill_measured_fields(row, count, payload_bytes, prep_seconds, best, out);
+                    row.evidence_class = "gpu_acceleration";
+                    fill_paired_speedup(row, rows_out.front());
+                    rows_out.push_back(std::move(row));
+                }
+            }
+        }
+
+        workload_rows.emplace_back(workload_name, std::move(rows_out));
         return true;
     };
 
-    BenchRow txid_row;
     ok = ok && run_hash_alias("txid_batch", "txid_hash", sizing.txid_wtxid_count,
         kTxidMinLen, kTxidMaxLen, kTxidStride,
         &ufsecp::lbtc::txid_hash_batch,
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook,
-        [] { return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire); },
-        txid_row);
-    if (ok) rows.emplace_back("txid_batch", txid_row);
+        [] { return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire); });
 
-    BenchRow wtxid_row;
     ok = ok && run_hash_alias("wtxid_batch", "wtxid_hash", sizing.txid_wtxid_count,
         kWtxidMinLen, kWtxidMaxLen, kWtxidStride,
         &ufsecp::lbtc::wtxid_hash_batch,
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook,
-        [] { return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire); },
-        wtxid_row);
-    if (ok) rows.emplace_back("wtxid_batch", wtxid_row);
+        [] { return ufsecp::lbtc::gpu_hook::g_lbtc_hash256_var_hook.load(std::memory_order_acquire); });
 
     // merkle_pair_batch: fixed 32+32-byte SoA columns, validated against a
     // direct secp256k1::SHA256::hash256(left32||right32) call.
@@ -514,6 +697,7 @@ int main(int argc, char** argv)
             right[i] = rng8();
         }
         const double prep_seconds = secs_since(prep_t0);
+        const std::size_t payload_bytes = count * 64;
 
         std::vector<std::uint8_t> expected(count * 32);
         for (std::size_t i = 0; i < count; ++i) {
@@ -524,51 +708,99 @@ int main(int argc, char** argv)
             std::memcpy(expected.data() + i * 32, d.data(), 32);
         }
 
+        auto run_pass = [&](std::vector<std::uint8_t>& out, double& best,
+                            ufsecp::lbtc::gpu_hook::merkle_pair_hash_fn direct_hook,
+                            bool& hook_declined) -> bool {
+            hook_declined = false;
+            best = 1e100;
+            if (direct_hook == nullptr && ufsecp::lbtc::gpu_hook::g_lbtc_merkle_pair_hook.load(std::memory_order_acquire) != nullptr) {
+                std::fprintf(stderr, "merkle_pair_hash GPU evidence requested but hook is not installed\n");
+                hook_declined = true;
+                return false;
+            }
+            for (int it = 0; it < args.iters; ++it) {
+                std::fill(out.begin(), out.end(), 0);
+                const auto t0 = clock_t_::now();
+                if (direct_hook != nullptr) {
+                    if (direct_hook(left.data(), right.data(), count, out.data()) != 0) {
+                        std::printf("merkle_pair_hash GPU hook declined; skipping GPU evidence row\n");
+                        hook_declined = true;
+                        return false;
+                    }
+                } else {
+                    if (!ufsecp::lbtc::merkle_pair_hash_batch(left.data(), right.data(), count, out.data())) {
+                        std::fprintf(stderr, "merkle_pair_hash returned false\n");
+                        return false;
+                    }
+                }
+                const auto dt = secs_since(t0);
+                if (out != expected) {
+                    std::fprintf(stderr, "merkle_pair_hash mismatched independent HASH256 oracle\n");
+                    return false;
+                }
+                if (dt < best)
+                    best = dt;
+            }
+            return true;
+        };
+
         const bool provider_linked =
             ufsecp::lbtc::gpu_hook::g_lbtc_merkle_pair_hook.load(std::memory_order_acquire) != nullptr;
-        auto saved = ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(nullptr);
+        std::vector<BenchRow> rows_out;
 
-        std::vector<std::uint8_t> out(count * 32);
-        double best = 1e100;
-        bool call_ok = true;
-        for (int it = 0; it < args.iters; ++it) {
-            std::fill(out.begin(), out.end(), 0);
-            const auto t0 = clock_t_::now();
-            if (!ufsecp::lbtc::merkle_pair_hash_batch(left.data(), right.data(), count, out.data())) {
-                std::fprintf(stderr, "merkle_pair_hash returned false\n");
-                call_ok = false;
-                break;
+        {
+            auto saved = ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(nullptr);
+            std::vector<std::uint8_t> out(count * 32);
+            double best = 0.0;
+            bool hook_declined = false;
+            const bool pass_ok = run_pass(out, best, nullptr, hook_declined);
+            ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(saved);
+            if (!pass_ok) {
+                ok = false;
+            } else {
+                BenchRow row;
+                row.workload = "merkle_pair_batch";
+                row.op = "merkle_pair_hash";
+                row.mode = "direct-cpu-forced";
+                row.hook_installed = false;
+                row.provider_linked = provider_linked;
+                row.backend = "cpu";
+                row.device = "n/a";
+                fill_measured_fields(row, count, payload_bytes, prep_seconds, best, out);
+                rows_out.push_back(std::move(row));
             }
-            const auto dt = secs_since(t0);
-            if (out != expected) {
-                std::fprintf(stderr, "merkle_pair_hash mismatched independent HASH256 oracle\n");
-                call_ok = false;
-                break;
-            }
-            if (dt < best)
-                best = dt;
         }
-        ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(saved);
 
-        if (!call_ok) {
-            ok = false;
-        } else {
-            BenchRow row;
-            row.workload = "merkle_pair_batch";
-            row.op = "merkle_pair_hash";
-            row.hook_installed = false;
-            row.provider_linked = provider_linked;
-            row.count = count;
-            row.payload_bytes = count * 64;
-            row.prep_seconds = prep_seconds;
-            row.kernel_seconds = best;
-            row.best_seconds = best;
-            row.m_rows_per_sec = static_cast<double>(count) / best / 1e6;
-            row.payload_mib_per_sec = (static_cast<double>(count * 64) / 1048576.0) / best;
-            row.ns_per_row = best * 1e9 / static_cast<double>(count);
-            row.validation_hash = sha256_hex(out);
-            rows.emplace_back("merkle_pair_batch", row);
+        if (ok && provider_linked) {
+            const GpuSnapshot snap = query_gpu_snapshot();
+            if (snap.available) {
+                const auto direct_hook =
+                    ufsecp::lbtc::gpu_hook::g_lbtc_merkle_pair_hook.load(std::memory_order_acquire);
+                std::vector<std::uint8_t> out(count * 32);
+                double best = 0.0;
+                bool hook_declined = false;
+                if (!run_pass(out, best, direct_hook, hook_declined)) {
+                    if (!hook_declined)
+                        ok = false;
+                } else {
+                    BenchRow row;
+                    row.workload = "merkle_pair_batch";
+                    row.op = "merkle_pair_hash";
+                    row.mode = "direct-production";
+                    row.hook_installed = true;
+                    row.provider_linked = provider_linked;
+                    row.backend = snap.backend;
+                    row.device = snap.device;
+                    fill_measured_fields(row, count, payload_bytes, prep_seconds, best, out);
+                    row.evidence_class = "gpu_acceleration";
+                    fill_paired_speedup(row, rows_out.front());
+                    rows_out.push_back(std::move(row));
+                }
+            }
         }
+
+        if (ok)
+            workload_rows.emplace_back("merkle_pair_batch", std::move(rows_out));
     }
 
     // merkle_root_batch: `trees` simulated blocks, kMerkleRootLeavesPerTree
@@ -582,83 +814,132 @@ int main(int argc, char** argv)
         for (auto& b: leaves)
             b = rng8();
         const double prep_seconds = secs_since(prep_t0);
+        const std::size_t payload_bytes = trees * leaves_per_tree * 32;
 
         std::vector<std::uint8_t> expected(trees * 32);
         for (std::size_t t = 0; t < trees; ++t)
             independent_merkle_root(leaves.data() + t * leaves_per_tree * 32, leaves_per_tree,
                                     expected.data() + t * 32);
 
+        std::vector<std::uint8_t> scratch(leaves_per_tree * 64);
+
+        auto run_pass = [&](std::vector<std::uint8_t>& out, double& best) -> bool {
+            best = 1e100;
+            for (int it = 0; it < args.iters; ++it) {
+                std::fill(out.begin(), out.end(), 0);
+                const auto t0 = clock_t_::now();
+                bool trees_ok = true;
+                for (std::size_t t = 0; t < trees; ++t) {
+                    if (!ufsecp::lbtc::merkle_root_from_leaves(
+                            leaves.data() + t * leaves_per_tree * 32, leaves_per_tree,
+                            scratch.data(), scratch.size(), out.data() + t * 32)) {
+                        trees_ok = false;
+                        break;
+                    }
+                }
+                const auto dt = secs_since(t0);
+                if (!trees_ok) {
+                    std::fprintf(stderr, "merkle_root_from_leaves returned false\n");
+                    return false;
+                }
+                if (out != expected) {
+                    std::fprintf(stderr, "merkle_root_from_leaves mismatched independent merkle oracle\n");
+                    return false;
+                }
+                if (dt < best)
+                    best = dt;
+            }
+            return true;
+        };
+
         const bool provider_linked =
             ufsecp::lbtc::gpu_hook::g_lbtc_merkle_pair_hook.load(std::memory_order_acquire) != nullptr;
-        auto saved = ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(nullptr);
+        std::vector<BenchRow> rows_out;
 
-        std::vector<std::uint8_t> scratch(leaves_per_tree * 64);
-        std::vector<std::uint8_t> out(trees * 32);
-        double best = 1e100;
-        bool call_ok = true;
-        for (int it = 0; it < args.iters; ++it) {
-            std::fill(out.begin(), out.end(), 0);
-            const auto t0 = clock_t_::now();
-            bool trees_ok = true;
-            for (std::size_t t = 0; t < trees; ++t) {
-                if (!ufsecp::lbtc::merkle_root_from_leaves(
-                        leaves.data() + t * leaves_per_tree * 32, leaves_per_tree,
-                        scratch.data(), scratch.size(), out.data() + t * 32)) {
-                    trees_ok = false;
-                    break;
+        {
+            auto saved = ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(nullptr);
+            std::vector<std::uint8_t> out(trees * 32);
+            double best = 0.0;
+            const bool pass_ok = run_pass(out, best);
+            ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(saved);
+            if (!pass_ok) {
+                ok = false;
+            } else {
+                BenchRow row;
+                row.workload = "merkle_root_batch";
+                row.op = "merkle_root_from_leaves";
+                row.mode = "direct-cpu-forced";
+                row.hook_installed = false;
+                row.provider_linked = provider_linked;
+                row.backend = "cpu";
+                row.device = "n/a";
+                fill_measured_fields(row, trees, payload_bytes, prep_seconds, best, out);
+                rows_out.push_back(std::move(row));
+            }
+        }
+
+        if (ok && provider_linked) {
+            const GpuSnapshot snap = query_gpu_snapshot();
+            if (snap.available) {
+                auto saved = ufsecp::lbtc::gpu_hook::g_lbtc_merkle_pair_hook.load(std::memory_order_acquire);
+                g_tracking_merkle_pair_hook = saved;
+                g_tracking_merkle_pair_called = false;
+                g_tracking_merkle_pair_declined = false;
+                ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(&tracking_merkle_pair_hook);
+
+                std::vector<std::uint8_t> out(trees * 32);
+                double best = 0.0;
+                const bool pass_ok = run_pass(out, best);
+                ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(saved);
+                g_tracking_merkle_pair_hook = nullptr;
+
+                if (!pass_ok || !g_tracking_merkle_pair_called || g_tracking_merkle_pair_declined) {
+                    if (g_tracking_merkle_pair_declined) {
+                        std::printf("merkle_root_from_leaves GPU hook declined; skipping GPU evidence row\n");
+                    } else if (pass_ok) {
+                        std::fprintf(stderr, "merkle_root_from_leaves GPU hook did not handle every level\n");
+                        ok = false;
+                    } else {
+                        ok = false;
+                    }
+                } else {
+                    BenchRow row;
+                    row.workload = "merkle_root_batch";
+                    row.op = "merkle_root_from_leaves";
+                    row.mode = "direct-production";
+                    row.hook_installed = true;
+                    row.provider_linked = provider_linked;
+                    row.backend = snap.backend;
+                    row.device = snap.device;
+                    fill_measured_fields(row, trees, payload_bytes, prep_seconds, best, out);
+                    row.evidence_class = "gpu_acceleration";
+                    fill_paired_speedup(row, rows_out.front());
+                    rows_out.push_back(std::move(row));
                 }
             }
-            const auto dt = secs_since(t0);
-            if (!trees_ok) {
-                std::fprintf(stderr, "merkle_root_from_leaves returned false\n");
-                call_ok = false;
-                break;
-            }
-            if (out != expected) {
-                std::fprintf(stderr, "merkle_root_from_leaves mismatched independent merkle oracle\n");
-                call_ok = false;
-                break;
-            }
-            if (dt < best)
-                best = dt;
         }
-        ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(saved);
 
-        if (!call_ok) {
-            ok = false;
-        } else {
-            BenchRow row;
-            row.workload = "merkle_root_batch";
-            row.op = "merkle_root_from_leaves";
-            row.hook_installed = false;
-            row.provider_linked = provider_linked;
-            row.count = trees;
-            row.payload_bytes = trees * leaves_per_tree * 32;
-            row.prep_seconds = prep_seconds;
-            row.kernel_seconds = best;
-            row.best_seconds = best;
-            row.m_rows_per_sec = static_cast<double>(trees) / best / 1e6;
-            row.payload_mib_per_sec = (static_cast<double>(row.payload_bytes) / 1048576.0) / best;
-            row.ns_per_row = best * 1e9 / static_cast<double>(trees);
-            row.validation_hash = sha256_hex(out);
-            rows.emplace_back("merkle_root_batch", row);
-        }
+        if (ok)
+            workload_rows.emplace_back("merkle_root_batch", std::move(rows_out));
     }
 
     if (!ok)
         return 1;
 
-    for (const auto& [name, row]: rows) {
-        std::printf("   %-18s %8.2f M rows/s %9.2f MiB/s %8.1f ns/row  prep=%.6fs\n",
-            name.c_str(), row.m_rows_per_sec, row.payload_mib_per_sec, row.ns_per_row,
-            row.prep_seconds);
+    for (const auto& [name, rows]: workload_rows) {
+        for (const auto& row: rows) {
+            std::printf("   %-18s %-18s %8.2f M rows/s %9.2f MiB/s %8.1f ns/row  prep=%.6fs "
+                        "backend=%-6s device=%s\n",
+                name.c_str(), row.mode.c_str(), row.m_rows_per_sec, row.payload_mib_per_sec,
+                row.ns_per_row, row.prep_seconds, row.backend.c_str(), row.device.c_str());
+        }
     }
 
     if (!args.json_dir.empty()) {
         const HostContext hc = detect_host_context();
-        for (const auto& [name, row]: rows) {
+        for (const auto& [name, rows]: workload_rows) {
             const std::string path = args.json_dir + "/" + name + ".json";
-            if (!write_workload_json(path, args.batch_class, args.iters, hc, row)) {
+            if (!write_workload_json(path, args.batch_class, args.iters, hc, rows)) {
                 std::fprintf(stderr, "failed to write JSON artifact: %s\n", path.c_str());
                 return 1;
             }

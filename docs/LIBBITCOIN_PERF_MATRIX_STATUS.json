@@ -1,6 +1,6 @@
 {
   "schema": "ufsecp-libbitcoin-perf-matrix-v1",
-  "last_verified": "2026-06-23",
+  "last_verified": "2026-07-09",
   "notes": "B21 libbitcoin integration/performance evidence ledger. This is an evidence and overclaim gate, not a substitute for owner-run full-chain benchmarks.",
   "surfaces": [
     {
@@ -147,17 +147,38 @@
       "target_context": "libbitcoin",
       "status": "implemented",
       "severity": "blocking",
-      "claim_scope": "CPU-only correctness/throughput evidence for 4 libbitcoin block-processing-shaped workloads, validated against independent (non-library) oracles. Every row is backend=cpu, evidence_class=api_correctness, mode=direct-cpu-forced -- no GPU acceleration claim is made by this harness. sighash_batch is intentionally excluded (descriptor contract not accepted, see workingdocs/libbitcoin_gpu_workloads/api_plan_blocker_resolution_deepseek.md blocker B1).",
+      "claim_scope": "Every workload always emits a backend=cpu/evidence_class=api_correctness/mode=direct-cpu-forced row, validated against an independent (non-library) oracle. On a host where a real GPU backend is linked, initialized, ready, and the direct workload hook accepts the exact benchmark shape (identified via GpuTelemetry, see lbtc_gpu_workload_backend_telemetry below), that workload ALSO emits a paired backend!=cpu/evidence_class=gpu_acceleration/mode=direct-production row, validated against the SAME independent oracle, with a real (non-fabricated) speedup_vs_cpu_forced ratio. On a CPU-only host, or when the direct hook declines the benchmark shape, only the api_correctness row is emitted -- absence of handled GPU evidence is reported honestly, never papered over. sighash_batch is intentionally excluded (descriptor contract not accepted, see workingdocs/libbitcoin_gpu_workloads/api_plan_blocker_resolution_deepseek.md blocker B1). Reviewer smoke on 2026-07-09 with the OpenCL provider linked showed all 4 workload hooks declining the benchmark shapes; the resulting CPU-only artifacts all passed ci/check_lbtc_gpu_workload_evidence.py.",
       "evidence_paths": [
         "compat/libbitcoin_direct/bench/bench_workloads.cpp",
+        "compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp",
+        "src/gpu/src/gpu_engine_hook.cpp",
         "ci/check_lbtc_gpu_workload_evidence.py",
         "ci/test_lbtc_gpu_workload_evidence.py",
         "docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md"
       ],
-      "reproduce_command": "cmake -S . -B out/libbitcoin-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON && cmake --build out/libbitcoin-bench --target bench_lbtc_workloads -j && mkdir -p /tmp/lbtc_workloads_smoke && out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_workloads --batch-class small --iters 5 --json-dir /tmp/lbtc_workloads_smoke && for f in /tmp/lbtc_workloads_smoke/*.json; do python3 ci/check_lbtc_gpu_workload_evidence.py \"$f\"; done",
+      "reproduce_command": "cmake -S . -B out/libbitcoin-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON -DSECP256K1_BUILD_OPENCL=ON && cmake --build out/libbitcoin-bench --target bench_lbtc_workloads -j && mkdir -p /tmp/lbtc_workloads_smoke && out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_workloads --batch-class small --iters 5 --json-dir /tmp/lbtc_workloads_smoke && for f in /tmp/lbtc_workloads_smoke/*.json; do python3 ci/check_lbtc_gpu_workload_evidence.py \"$f\"; done",
       "native_hardware_claim": false,
       "benchmark_artifact_contract": true,
-      "copy_policy": "cpu_only_api_correctness_evidence"
+      "copy_policy": "paired_cpu_and_gpu_evidence_when_available"
+    },
+    {
+      "id": "lbtc_gpu_workload_backend_telemetry",
+      "surface": "GpuTelemetry hook -- lets libbitcoin-direct benchmark harnesses honestly identify the linked GPU backend name/id/device without routing through the C ABI or bridge",
+      "target_context": "libbitcoin",
+      "status": "implemented",
+      "severity": "blocking",
+      "claim_scope": "Benchmark/evidence-only telemetry extension of the existing self-installing lbtc GPU hook layer. Populated strictly from the already-existing secp256k1::gpu::GpuBackend::backend_id()/backend_name()/device_info() virtuals (gpu_backend.hpp) -- adds no new backend method and required zero edits to gpu_backend.hpp or any *_cuda.cu/*_opencl.cpp/*_metal.mm backend file. driver_version is NOT sourced by this telemetry (DeviceInfo carries no driver field); benchmark artifacts report driver_version=null on GPU rows as an honest gap, never a fabricated string. Telemetry is only used to label a row after the benchmark independently proves the direct hook accepted and matched the batch; otherwise rows remain backend=cpu/device=n/a. Never called from any production/hot-path code -- only bench_workloads.cpp and bench_public_ops.cpp opt in.",
+      "evidence_paths": [
+        "compat/libbitcoin_direct/include/ufsecp/lbtc_gpu_ops.hpp",
+        "src/gpu/src/gpu_engine_hook.cpp",
+        "compat/libbitcoin_direct/bench/bench_workloads.cpp",
+        "compat/libbitcoin_direct/bench/bench_public_ops.cpp",
+        "ci/check_lbtc_gpu_workload_evidence.py"
+      ],
+      "reproduce_command": "cmake -S . -B out/libbitcoin-bench -G Ninja -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_LIBBITCOIN=ON -DSECP256K1_BUILD_LIBBITCOIN_BENCH=ON -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON -DSECP256K1_BUILD_OPENCL=ON && cmake --build out/libbitcoin-bench --target bench_lbtc_public_ops -j && out/libbitcoin-bench/compat/libbitcoin_direct/bench_lbtc_public_ops 128 1 80 128 64 128 --json /tmp/lbtc_public_ops_telemetry_smoke.json && python3 -c \"import json;d=json.load(open('/tmp/lbtc_public_ops_telemetry_smoke.json'));print([r['backend'] for r in d['results'] if r['mode']=='direct-production'])\"",
+      "native_hardware_claim": false,
+      "benchmark_artifact_contract": true,
+      "copy_policy": "telemetry_evidence_only"
     }
   ]
 }
