@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <string>
 #include <vector>
 
 using namespace secp256k1;
@@ -57,6 +58,27 @@ int fake_merkle_pair_hook(const std::uint8_t*, const std::uint8_t*, std::size_t 
 int decline_merkle_pair_hook(const std::uint8_t*, const std::uint8_t*, std::size_t,
                              std::uint8_t*) {
     return -1;
+}
+
+// Fake GPU hook for sighash_descriptor_hash_batch: writes a fixed sentinel
+// pattern per-row (0xAA repeated) to prove the hook was called.  Returns 0
+// (handled).
+int fake_sighash_hook(const std::uint8_t*, std::size_t,
+                       const std::uint8_t* const*, const std::uint32_t*,
+                       const std::uint32_t* const*,
+                       std::size_t count, std::uint8_t* out32) {
+    if (!out32) return -1;
+    std::memset(out32, 0xAA, count * 32);
+    return 0;  // handled
+}
+
+// Fake GPU hook for sighash_descriptor_hash_batch that always declines (-1),
+// forcing the CPU fallback path.
+int decline_sighash_hook(const std::uint8_t*, std::size_t,
+                          const std::uint8_t* const*, const std::uint32_t*,
+                          const std::uint32_t* const*,
+                          std::size_t, std::uint8_t*) {
+    return -1;  // always decline → CPU fallback
 }
 } // namespace
 
@@ -976,9 +998,7 @@ int main() {
                 case 0x09: fl = 4; break;
                 case 0x0A: fl = 36; break;
                 case 0x0B: fl = 4; break;
-                case 0x0D: fl = 32; break;
-                case 0x0E: fl = 4; break;
-                case 0x0F: fl = 4; break;
+                // 0x0C..0x0F are Taproot-only, rejected by the parser.
                 default: fl = 0; break;
                 }
                 const std::uint8_t* src = fields[fid] + row * flens[fid];
@@ -1362,11 +1382,11 @@ int main() {
         for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
         check(untouched, "sighash 129-byte reserved leaves out untouched");
 
-        // Test: valid max-length descriptor with all supported fields (17 fields = 35 bytes)
-        // List all supported field_ids
+        // Test: valid max-length descriptor with all supported fields
+        // (excluding reserved 0x0C..0x0F = 13 fields = 27 bytes)
         std::uint16_t all_fields[] = {
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0xF0
+            0x08, 0x09, 0x0A, 0x0B, 0xF0
         };
         constexpr std::size_t NF = sizeof(all_fields) / sizeof(all_fields[0]);
 
@@ -1378,17 +1398,16 @@ int main() {
         for (std::size_t i = 0; i < NF; ++i) {
             std::uint16_t fid = all_fields[i];
             desc_all[i * 2 + 0] = static_cast<std::uint8_t>(fid & 0xFF);
-            bool is_var = (fid == 0x04 || fid == 0x0C || fid == 0xF0);
+            bool is_var = (fid == 0x04 || fid == 0xF0);
             std::uint8_t flags = is_var ? 0x10 : 0x00;  // HAS_LENGTH for variable
             desc_all[i * 2 + 1] = static_cast<std::uint8_t>(((fid >> 8) & 0x0F) | flags);
             // Allocate dummy buffers
             static std::vector<std::uint8_t> abuf[256];
-            std::uint32_t alen = is_var ? 64u : 8u;  // reasonable stride
-            // Don't exceed supported fixed len for fixed fields
+            std::uint32_t alen = is_var ? 64u : 8u;
             switch (fid) {
-            case 0x00: case 0x06: case 0x08: case 0x09: case 0x0B: case 0x0E: case 0x0F:
+            case 0x00: case 0x06: case 0x08: case 0x09: case 0x0B:
                 alen = 4; break;
-            case 0x01: case 0x02: case 0x07: case 0x0D: alen = 32; break;
+            case 0x01: case 0x02: case 0x07: alen = 32; break;
             case 0x03: case 0x0A: alen = 36; break;
             case 0x05: alen = 8; break;
             default: alen = 64; break;  // variable fields
@@ -1400,7 +1419,7 @@ int main() {
             if (is_var) {
                 static std::vector<std::uint32_t> vbuf[256];
                 vbuf[fid].resize(1);
-                vbuf[fid][0] = alen / 2;  // use half stride
+                vbuf[fid][0] = alen / 2;
                 fvars_all[fid] = vbuf[fid].data();
             }
         }
@@ -1409,7 +1428,7 @@ int main() {
         std::uint8_t out_all[32];
         check(ufsecp::lbtc::sighash_descriptor_hash_batch(
                   desc_all, NF * 2 + 1, fdata_all, flens_all, fvars_all, 1, out_all),
-              "sighash max-supported-fields (17 fields) computes true");
+              "sighash max-supported-fields (13 fields) computes true");
     }
 
     // ─── Missing nHashType rejected ───────────────────────────────────
@@ -1585,6 +1604,372 @@ int main() {
         check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
                   desc, 3, &dptr, &dummy_len, nullptr, 1, out),
               "sighash missing terminator at expected position rejected");
+    }
+
+    // ─── Sighash GPU hook: handled (fake hook writes sentinel) ────────
+    {
+        // Install a fake hook that writes 0xAA to all output rows.
+        auto prev = ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(fake_sighash_hook);
+
+        std::uint8_t desc[] = {0x00, 0x00, 0x09, 0x00, 0xFF};
+        std::uint8_t nver[4] = {2, 0, 0, 0};
+        std::uint8_t nht[4]  = {1, 0, 0, 0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver; flens[0x00] = 4;
+        fdata[0x09] = nht;  flens[0x09] = 4;
+
+        constexpr std::size_t N = 3;
+        std::uint8_t out[N * 32];
+        std::memset(out, 0xCD, sizeof(out));
+
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, N, out),
+              "sighash GPU hook handled returns true");
+
+        // Hook should have written 0xAA to every byte.
+        bool all_AA = true;
+        for (std::size_t i = 0; i < sizeof(out); ++i)
+            if (out[i] != 0xAA) { all_AA = false; break; }
+        check(all_AA, "sighash GPU hook wrote sentinel 0xAA to output");
+
+        // Restore previous hook (or null).
+        ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(prev);
+    }
+
+    // ─── Sighash GPU hook: decline → CPU fallback (byte-identical) ────
+    {
+        // Install a hook that always declines.
+        auto prev = ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(decline_sighash_hook);
+
+        std::uint8_t desc[] = {0x00, 0x00, 0x05, 0x00, 0x09, 0x00, 0xFF};
+        std::uint8_t nver[4] = {2, 0, 0, 0};
+        std::uint8_t val[8]  = {0x40, 0x0D, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00};
+        std::uint8_t nht[4]  = {1, 0, 0, 0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver; flens[0x00] = 4;
+        fdata[0x05] = val;  flens[0x05] = 8;
+        fdata[0x09] = nht;  flens[0x09] = 4;
+
+        std::uint8_t out_decline[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 7, fdata, flens, nullptr, 1, out_decline),
+              "sighash decline hook → CPU fallback returns true");
+
+        // Now run with no hook → pure CPU path.
+        ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(nullptr);
+
+        std::uint8_t out_cpu[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 7, fdata, flens, nullptr, 1, out_cpu),
+              "sighash no-hook CPU returns true");
+
+        // Results must be byte-identical.
+        check(std::memcmp(out_decline, out_cpu, 32) == 0,
+              "sighash decline→CPU byte-identical to pure CPU");
+
+        // Restore.
+        ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(prev);
+    }
+
+    // ─── Sighash GPU hook: null hook → straight to CPU ─────────────────
+    {
+        // Ensure no hook is installed.
+        auto prev = ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(nullptr);
+
+        std::uint8_t desc[] = {0x00, 0x00, 0x09, 0x00, 0xFF};
+        std::uint8_t nver[4] = {2, 0, 0, 0};
+        std::uint8_t nht[4]  = {1, 0, 0, 0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver; flens[0x00] = 4;
+        fdata[0x09] = nht;  flens[0x09] = 4;
+
+        std::uint8_t out[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash null hook computes true");
+
+        // Verify against independent oracle.
+        std::uint8_t oracle[32];
+        {
+            // Build preimage: nVersion[4] || nHashType[4]
+            std::uint8_t preimage[8];
+            std::memcpy(preimage,     nver, 4);
+            std::memcpy(preimage + 4, nht,  4);
+            ref_hash256(preimage, 8, oracle);
+        }
+        check(std::memcmp(out, oracle, 32) == 0,
+              "sighash null hook byte-identical vs independent oracle");
+
+        // Restore.
+        ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(prev);
+    }
+
+    // ─── Sighash GPU hook: out32 untouched on validation failure ───────
+    {
+        auto prev = ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(fake_sighash_hook);
+
+        // Malformed descriptor (even length) → must fail BEFORE hook is called.
+        std::uint8_t desc[] = {0x00, 0x00, 0x09, 0x00};  // even length, no terminator
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 4, nullptr, nullptr, nullptr, 1, out),
+              "sighash malformed descriptor (before hook) rejected");
+
+        // out32 must be untouched (still 0xAB).
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i) if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash malformed descriptor leaves out untouched (hook not called)");
+
+        ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(prev);
+    }
+
+    // ─── Taproot field IDs 0x0C..0x0F rejected ────────────────────────
+    // These four field IDs are reserved for future BIP-341 TapSighash
+    // tagged-hash mode and must be rejected by the current HASH256 parser.
+    {
+        const std::uint16_t taproot_fids[] = {0x0C, 0x0D, 0x0E, 0x0F};
+        std::uint8_t nht[4] = {1,0,0,0};
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x09] = nht; flens[0x09] = 4;
+
+        for (int ti = 0; ti < 4; ++ti) {
+            std::uint16_t fid = taproot_fids[ti];
+            std::uint8_t desc[] = {
+                static_cast<std::uint8_t>(fid & 0xFF),
+                static_cast<std::uint8_t>((fid >> 8) & 0x0F),
+                0x09, 0x00, 0xFF
+            };
+            std::uint8_t out[32];
+            std::memset(out, 0xAB, 32);
+            bool ok = ufsecp::lbtc::sighash_descriptor_hash_batch(
+                desc, 5, fdata, flens, nullptr, 1, out);
+            check(!ok, ("sighash Taproot field 0x" +
+                        std::string(fid <= 0x0F ? "0" : "") +
+                        std::to_string(fid) + " rejected").c_str());
+            // out32 must be untouched on rejection.
+            bool untouched = true;
+            for (int i = 0; i < 32; ++i)
+                if (out[i] != 0xAB) { untouched = false; break; }
+            check(untouched, ("sighash Taproot field 0x" +
+                             std::string(fid <= 0x0F ? "0" : "") +
+                             std::to_string(fid) + " leaves out untouched").c_str());
+        }
+    }
+
+    // ─── Field-boundary HASH256 KATs: var-len 0/1/63/64/65 ────────────
+    // These lengths span every interesting SHA-256 block-boundary case:
+    //   empty field (0), single byte (1), one byte short of block (63),
+    //   exactly one block (64), one byte into second block (65).
+    // Uses raw_literal (0xF0) with HAS_LENGTH for precise length control,
+    // plus nHashType to satisfy the mandatory nHashType requirement.
+    // vlen=0 still requires non-null backing storage (stride≥1) while
+    // var_len[] correctly reports 0 actual bytes.
+    {
+        const std::uint32_t test_lens[] = {0, 1, 63, 64, 65};
+        for (int ti = 0; ti < 5; ++ti) {
+            std::uint32_t vlen = test_lens[ti];
+
+            // descriptor: raw_literal (0xF0, HAS_LENGTH) + nHashType (0x09)
+            std::uint8_t desc[] = {
+                0xF0, 0x10,  // raw_literal, HAS_LENGTH
+                0x09, 0x00,  // nHashType
+                0xFF
+            };
+
+            // Non-null backing even for vlen=0: allocate at least 1 byte.
+            std::vector<std::uint8_t> raw_lit(vlen > 0 ? vlen : 1u, 0);
+            for (std::uint32_t j = 0; j < vlen; ++j) raw_lit[j] = static_cast<std::uint8_t>(j + ti);
+            std::uint8_t nht[4] = {1, 0, 0, 0};
+
+            const std::uint8_t* fdata[256] = {};
+            std::uint32_t flens[256] = {};
+            const std::uint32_t* fvars[256] = {};
+            std::vector<std::uint32_t> vlens(1, vlen);
+
+            // Stride must be ≥1 for referenced fields; for vlen=0 use stride=1
+            // with var_len=0 so no bytes are actually consumed.
+            fdata[0xF0] = raw_lit.data(); flens[0xF0] = vlen > 0 ? vlen : 1u;
+            fdata[0x09] = nht;            flens[0x09] = 4;
+            fvars[0xF0] = vlens.data();
+
+            std::uint8_t out[32];
+            bool ok = ufsecp::lbtc::sighash_descriptor_hash_batch(
+                desc, 5, fdata, flens, fvars, 1, out);
+            check(ok, ("sighash var-len=" + std::to_string(vlen) + " computes true").c_str());
+
+            // Independent oracle: concatenate raw_literal (vlen bytes only) || nHashType, HASH256.
+            // For vlen=0, raw_lit has 1-byte non-null backing but we must only hash 0 bytes.
+            std::vector<std::uint8_t> preimage;
+            preimage.insert(preimage.end(), raw_lit.begin(), raw_lit.begin() + vlen);
+            preimage.insert(preimage.end(), nht, nht + 4);
+            std::uint8_t oracle[32];
+            ref_hash256(preimage.data(), preimage.size(), oracle);
+            check(std::memcmp(out, oracle, 32) == 0,
+                  ("sighash var-len=" + std::to_string(vlen) + " bit-exact vs oracle").c_str());
+        }
+    }
+
+    // ─── Multi-block field HASH256 KAT (129+ bytes) ───────────────────
+    {
+        const std::uint32_t vlen = 129;  // spans 3 SHA-256 blocks (64+64+1)
+        std::uint8_t desc[] = {
+            0xF0, 0x10,  // raw_literal, HAS_LENGTH
+            0x09, 0x00,  // nHashType
+            0xFF
+        };
+
+        std::vector<std::uint8_t> raw_lit(vlen);
+        for (std::uint32_t j = 0; j < vlen; ++j) raw_lit[j] = static_cast<std::uint8_t>(j);
+        std::uint8_t nht[4] = {1, 0, 0, 0};
+
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        const std::uint32_t* fvars[256] = {};
+        std::vector<std::uint32_t> vlens(1, vlen);
+
+        fdata[0xF0] = raw_lit.data(); flens[0xF0] = vlen;
+        fdata[0x09] = nht;            flens[0x09] = 4;
+        fvars[0xF0] = vlens.data();
+
+        std::uint8_t out[32];
+        bool ok = ufsecp::lbtc::sighash_descriptor_hash_batch(
+            desc, 5, fdata, flens, fvars, 1, out);
+        check(ok, "sighash multi-block var-len=129 computes true");
+
+        // Oracle
+        std::vector<std::uint8_t> preimage;
+        preimage.insert(preimage.end(), raw_lit.begin(), raw_lit.end());
+        preimage.insert(preimage.end(), nht, nht + 4);
+        std::uint8_t oracle[32];
+        ref_hash256(preimage.data(), preimage.size(), oracle);
+        check(std::memcmp(out, oracle, 32) == 0,
+              "sighash multi-block var-len=129 bit-exact vs oracle");
+    }
+
+    // ─── Adjacent short fixed fields: cross-field partial block ───────
+    // nVersion(4) + nLocktime(4) = 8 bytes → one SHA-256 block with
+    // proper streaming (no separate padding per field).
+    {
+        std::uint8_t desc[] = {
+            0x00, 0x00,  // nVersion (4)
+            0x08, 0x00,  // nLocktime (4)
+            0x09, 0x00,  // nHashType (4)
+            0xFF
+        };
+
+        std::uint8_t nver[4] = {2, 0, 0, 0};
+        std::uint8_t nlock[4] = {0x10, 0x27, 0x00, 0x00};
+        std::uint8_t nht[4] = {1, 0, 0, 0};
+
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver;  flens[0x00] = 4;
+        fdata[0x08] = nlock; flens[0x08] = 4;
+        fdata[0x09] = nht;   flens[0x09] = 4;
+
+        std::uint8_t out[32];
+        bool ok = ufsecp::lbtc::sighash_descriptor_hash_batch(
+            desc, 7, fdata, flens, nullptr, 1, out);
+        check(ok, "sighash adjacent short fixed fields computes true");
+
+        // Oracle: nVersion || nLocktime || nHashType
+        std::uint8_t preimage[12];
+        std::memcpy(preimage,      nver,  4);
+        std::memcpy(preimage + 4,  nlock, 4);
+        std::memcpy(preimage + 8,  nht,   4);
+        std::uint8_t oracle[32];
+        ref_hash256(preimage, 12, oracle);
+        check(std::memcmp(out, oracle, 32) == 0,
+              "sighash adjacent short fields bit-exact vs oracle");
+    }
+
+    // ─── Stride < fixed_len rejected (OOB read prevention) ────────────
+    // A fixed field's stride MUST be ≥ its fixed serialized length.
+    // stride=1 with nVersion (fixed_len=4) would cause a 3-byte
+    // out-of-bounds read per row if not rejected early.
+    {
+        // Descriptor: nVersion(4) + nHashType(4). Set nVersion stride=1.
+        std::uint8_t desc[] = {0x00, 0x00, 0x09, 0x00, 0xFF};
+
+        std::uint8_t nver[4] = {2, 0, 0, 0};   // 4-byte data, but stride=1
+        std::uint8_t nht[4]  = {1, 0, 0, 0};
+
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver; flens[0x00] = 1;    // Stride 1 < fixed_len=4
+        fdata[0x09] = nht;  flens[0x09] = 4;
+
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash stride<fixed_len (nVersion stride=1<4) rejected");
+        // out32 must be untouched on rejection.
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i)
+            if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash stride<fixed_len leaves out untouched");
+    }
+
+    // ─── Stride == fixed_len is valid ─────────────────────────────────
+    // Regression: ensure stride == fixed_len is NOT accidentally rejected.
+    {
+        std::uint8_t desc[] = {0x00, 0x00, 0x09, 0x00, 0xFF};
+
+        std::uint8_t nver[4] = {2, 0, 0, 0};
+        std::uint8_t nht[4]  = {1, 0, 0, 0};
+
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver; flens[0x00] = 4;    // Stride == fixed_len=4
+        fdata[0x09] = nht;  flens[0x09] = 4;
+
+        std::uint8_t out[32];
+        check(ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash stride==fixed_len (nVersion stride=4==4) computes true");
+
+        // Verify against oracle.
+        std::uint8_t preimage[8];
+        std::memcpy(preimage,     nver, 4);
+        std::memcpy(preimage + 4, nht,  4);
+        std::uint8_t oracle[32];
+        ref_hash256(preimage, 8, oracle);
+        check(std::memcmp(out, oracle, 32) == 0,
+              "sighash stride==fixed_len bit-exact vs oracle");
+    }
+
+    // ─── stride < fixed_len with backing memory large enough ──────────
+    // The backing buffer has enough bytes (4 bytes allocated) but the
+    // declared stride is undersized (1). This must be rejected by the
+    // host-side parser BEFORE any memory access, not relying on the
+    // kernel to catch it.
+    {
+        std::uint8_t desc[] = {0x00, 0x00, 0x09, 0x00, 0xFF};
+
+        // 4 bytes of valid data — enough to read fixed_len=4 if stride were correct.
+        std::uint8_t nver[4] = {2, 0, 0, 0};
+        std::uint8_t nht[4]  = {1, 0, 0, 0};
+
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        fdata[0x00] = nver; flens[0x00] = 1;    // Stride=1 < 4, but 4 bytes allocated
+        fdata[0x09] = nht;  flens[0x09] = 4;
+
+        std::uint8_t out[32];
+        std::memset(out, 0xAB, 32);
+        check(!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                  desc, 5, fdata, flens, nullptr, 1, out),
+              "sighash stride<fixed_len w/ adequate backing rejected (host-side gate)");
+        bool untouched = true;
+        for (int i = 0; i < 32; ++i)
+            if (out[i] != 0xAB) { untouched = false; break; }
+        check(untouched, "sighash stride<fixed_len w/ backing leaves out untouched");
     }
 
 

@@ -166,6 +166,7 @@ int test_gpu_collect_verify_parity_run(); // native collect verdict == verify_ba
 int test_regression_hash256_var_batch_run(); // hash256_var batch structural/boundary KAT vs SHA256::hash256 oracle
 int test_regression_hash256_var_parity_run(); // hash256_var cross-backend (CUDA/OpenCL/Metal) byte-identical parity
 int test_regression_merkle_pair_hash_run(); // merkle_pair_hash structural/boundary KAT + cross-backend parity vs SHA256::hash256 oracle
+int test_regression_sighash_descriptor_gpu_run(); // sighash_descriptor_hash structural/boundary KAT vs direct-concatenation SHA256::hash256 oracle
 
 // ============================================================================
 // Forward declarations -- adversarial / fuzz tests
@@ -399,6 +400,7 @@ int test_infinity_edge_cases_run();
 int test_exploit_invalid_curve_twist_run();
 int test_exploit_keccak256_kat_run();
 int test_exploit_merkle_pair_bounds_run(); // merkle_pair_hash hostile-input / bounds contract (ctx-null, n=0, oversize n, NULL left32/right32/out32)
+int test_exploit_sighash_descriptor_malformed_run(); // sighash_descriptor_hash hostile-input / malformed-descriptor contract (ctx-null, count=0, oversize count, malformed grammar, var_len>stride, preimage>4MiB)
 int test_exploit_multiscalar_run();
 int test_exploit_musig2_run();
 int test_exploit_musig2_key_agg_run();
@@ -896,6 +898,12 @@ static const AuditModule ALL_MODULES[] = {
     // backend overrides merkle_pair_hash natively (base virtual default is
     // GpuError::Unsupported).
     { "merkle_pair_hash",  "merkle_pair_hash structural/boundary KAT + cross-backend parity vs SHA256::hash256 oracle", "differential", test_regression_merkle_pair_hash_run, false },
+    // advisory=false: null-ctx contract runs CPU-only and MUST pass everywhere;
+    // the on-device KAT checks self-skip when no GPU backend overrides
+    // sighash_descriptor_hash natively (base virtual default is
+    // GpuError::Unsupported). Oracle concatenates the same per-row field
+    // bytes directly (not by re-parsing the descriptor).
+    { "sighash_descriptor_gpu", "sighash_descriptor_hash structural/boundary KAT vs direct-concatenation SHA256::hash256 oracle", "differential", test_regression_sighash_descriptor_gpu_run, false },
     { "fault_injection",   "Fault injection simulation",                   "fuzzing",        test_fault_injection_run, false },
 
     // ===================================================================
@@ -1057,6 +1065,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_invalid_curve_twist",    "Invalid Curve / Twist Point Injection",       "exploit_poc", test_exploit_invalid_curve_twist_run, false },
     { "exploit_keccak256_kat",          "Keccak-256 KAT Vectors",                      "exploit_poc", test_exploit_keccak256_kat_run, false },
     { "exploit_merkle_pair_bounds",     "merkle_pair_hash Hostile-Input / Bounds Contract", "exploit_poc", test_exploit_merkle_pair_bounds_run, false },
+    { "exploit_sighash_descriptor_malformed", "sighash_descriptor_hash Hostile-Input / Malformed-Descriptor Contract", "exploit_poc", test_exploit_sighash_descriptor_malformed_run, false },
     { "exploit_multiscalar",            "Multi-Scalar Multiplication",                 "exploit_poc", test_exploit_multiscalar_run, false },
     { "exploit_musig2",                 "MuSig2 Multi-Signature Security",             "exploit_poc", test_exploit_musig2_run, false },
     { "exploit_musig2_key_agg",         "MuSig2 Key Aggregation (BIP-327)",            "exploit_poc", test_exploit_musig2_key_agg_run, false },

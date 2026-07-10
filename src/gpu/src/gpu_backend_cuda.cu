@@ -298,6 +298,20 @@ struct CudaBatchScratch {
     std::size_t lbtc_cols_bytes = 0;
     std::size_t lbtc_results_count = 0;
 
+    // Reusable sighash-descriptor staging (grow-only, freed at thread exit).
+    // Column data + var-lens are placed sequentially in one pool; output and
+    // small metadata tables get their own reusable allocations.
+    uint8_t*  lbtc_sighash_pool        = nullptr;
+    std::size_t lbtc_sighash_pool_bytes = 0;
+    uint8_t*  lbtc_sighash_out         = nullptr;
+    std::size_t lbtc_sighash_out_bytes  = 0;
+    uint8_t*  lbtc_sighash_meta        = nullptr;  // plan + ptrs + strides + vlptrs
+    std::size_t lbtc_sighash_meta_bytes = 0;
+
+    // Track which CUDA device this scratch was allocated on.
+    // A context switch/recreate must never reuse pointers from another device.
+    int staging_device_idx = -1;  // -1 = uninitialised
+
     ~CudaBatchScratch() {
         free_lbtc_device();
     }
@@ -310,6 +324,9 @@ struct CudaBatchScratch {
     }
 
     void free_lbtc_device() {
+        if (lbtc_sighash_meta)   { cudaFree(lbtc_sighash_meta);   lbtc_sighash_meta = nullptr;   lbtc_sighash_meta_bytes = 0; }
+        if (lbtc_sighash_out)    { cudaFree(lbtc_sighash_out);    lbtc_sighash_out = nullptr;    lbtc_sighash_out_bytes = 0; }
+        if (lbtc_sighash_pool)   { cudaFree(lbtc_sighash_pool);   lbtc_sighash_pool = nullptr;   lbtc_sighash_pool_bytes = 0; }
         if (lbtc_results) {
             cudaFree(lbtc_results);
             lbtc_results = nullptr;
@@ -328,6 +345,11 @@ struct CudaBatchScratch {
     }
 
     cudaError_t ensure_lbtc_rows(std::size_t bytes) {
+        int cur_dev = -1;
+        if (cudaGetDevice(&cur_dev) == cudaSuccess && cur_dev != staging_device_idx) {
+            free_lbtc_device();
+            staging_device_idx = cur_dev;
+        }
         if (bytes <= lbtc_rows_bytes) {
             return cudaSuccess;
         }
@@ -347,6 +369,11 @@ struct CudaBatchScratch {
     // successive engine calls so the hot libbitcoin verify loop performs no
     // fresh per-call cudaMalloc/cudaFree (acceptance A6). Freed at thread exit.
     cudaError_t ensure_lbtc_cols(std::size_t bytes) {
+        int cur_dev = -1;
+        if (cudaGetDevice(&cur_dev) == cudaSuccess && cur_dev != staging_device_idx) {
+            free_lbtc_device();
+            staging_device_idx = cur_dev;
+        }
         if (bytes <= lbtc_cols_bytes) {
             return cudaSuccess;
         }
@@ -363,6 +390,11 @@ struct CudaBatchScratch {
     }
 
     cudaError_t ensure_lbtc_results(std::size_t count) {
+        int cur_dev = -1;
+        if (cudaGetDevice(&cur_dev) == cudaSuccess && cur_dev != staging_device_idx) {
+            free_lbtc_device();
+            staging_device_idx = cur_dev;
+        }
         if (count <= lbtc_results_count) {
             return cudaSuccess;
         }
@@ -375,6 +407,48 @@ struct CudaBatchScratch {
         if (err == cudaSuccess) {
             lbtc_results_count = count;
         }
+        return err;
+    }
+
+    // Grow-only sighash pool: holds column data + var-lens for all fields.
+    cudaError_t ensure_lbtc_sighash_pool(std::size_t bytes) {
+        // If the CUDA device changed since last allocation, free old buffers
+        // so we never reuse pointers from another device/context.
+        int cur_dev = -1;
+        if (cudaGetDevice(&cur_dev) == cudaSuccess && cur_dev != staging_device_idx) {
+            free_lbtc_device();
+            staging_device_idx = cur_dev;
+        }
+        if (bytes <= lbtc_sighash_pool_bytes) return cudaSuccess;
+        if (lbtc_sighash_pool) { cudaFree(lbtc_sighash_pool); lbtc_sighash_pool = nullptr; lbtc_sighash_pool_bytes = 0; }
+        const cudaError_t err = cudaMalloc(&lbtc_sighash_pool, bytes);
+        if (err == cudaSuccess) lbtc_sighash_pool_bytes = bytes;
+        return err;
+    }
+
+    cudaError_t ensure_lbtc_sighash_out(std::size_t bytes) {
+        int cur_dev = -1;
+        if (cudaGetDevice(&cur_dev) == cudaSuccess && cur_dev != staging_device_idx) {
+            free_lbtc_device();
+            staging_device_idx = cur_dev;
+        }
+        if (bytes <= lbtc_sighash_out_bytes) return cudaSuccess;
+        if (lbtc_sighash_out) { cudaFree(lbtc_sighash_out); lbtc_sighash_out = nullptr; lbtc_sighash_out_bytes = 0; }
+        const cudaError_t err = cudaMalloc(&lbtc_sighash_out, bytes);
+        if (err == cudaSuccess) lbtc_sighash_out_bytes = bytes;
+        return err;
+    }
+
+    cudaError_t ensure_lbtc_sighash_meta(std::size_t bytes) {
+        int cur_dev = -1;
+        if (cudaGetDevice(&cur_dev) == cudaSuccess && cur_dev != staging_device_idx) {
+            free_lbtc_device();
+            staging_device_idx = cur_dev;
+        }
+        if (bytes <= lbtc_sighash_meta_bytes) return cudaSuccess;
+        if (lbtc_sighash_meta) { cudaFree(lbtc_sighash_meta); lbtc_sighash_meta = nullptr; lbtc_sighash_meta_bytes = 0; }
+        const cudaError_t err = cudaMalloc(&lbtc_sighash_meta, bytes);
+        if (err == cudaSuccess) lbtc_sighash_meta_bytes = bytes;
         return err;
     }
 };
@@ -836,6 +910,158 @@ __global__ void lbtc_hash256_var_kernel(
     uint8_t h1[32];
     lbtc_sha256(inputs + (size_t)i*stride, (int)input_lens[i], h1);
     lbtc_sha256(h1, 32, out + i*32);
+}
+
+// Batch sighash descriptor hash.  Parses the compact descriptor bytecode on the
+// host, copies referenced field columns to the GPU, then each thread streams its
+// row's fields directly through SHA-256 -- NO per-row preimage buffer.
+//
+// Device-side plan (mirrors host-side FieldPlan in libbitcoin.hpp):
+struct DeviceSighashFieldPlan {
+    uint16_t field_id;
+    uint8_t  flags;       // bit0 = HAS_LENGTH, bit1 = ZERO_PAD
+    uint8_t  pad;
+    uint32_t fixed_len;   // 0 = variable-length field
+};
+
+// ── SHA-256 transform helper (device, shared by sighash streaming kernel) ──
+__device__ __forceinline__ void lbtc_sha256_transform(uint32_t h[8], const uint8_t block[64])
+{
+    uint32_t w[64];
+    for (int j = 0; j < 16; ++j) {
+        const uint8_t* b = block + j * 4;
+        w[j] = ((uint32_t)b[0]<<24)|((uint32_t)b[1]<<16)|
+               ((uint32_t)b[2]<<8)|(uint32_t)b[3];
+    }
+    for (int j = 16; j < 64; ++j) {
+        uint32_t s0 = lbtc_rr32(w[j-15],7)^lbtc_rr32(w[j-15],18)^(w[j-15]>>3);
+        uint32_t s1 = lbtc_rr32(w[j-2],17)^lbtc_rr32(w[j-2],19)^(w[j-2]>>10);
+        w[j] = w[j-16]+s0+w[j-7]+s1;
+    }
+    uint32_t a=h[0],b=h[1],c=h[2],d=h[3],e=h[4],fval=h[5],g=h[6],hh=h[7];
+    const uint32_t K[64] = {
+      0x428a2f98u,0x71374491u,0xb5c0fbcfu,0xe9b5dba5u,0x3956c25bu,0x59f111f1u,0x923f82a4u,0xab1c5ed5u,
+      0xd807aa98u,0x12835b01u,0x243185beu,0x550c7dc3u,0x72be5d74u,0x80deb1feu,0x9bdc06a7u,0xc19bf174u,
+      0xe49b69c1u,0xefbe4786u,0x0fc19dc6u,0x240ca1ccu,0x2de92c6fu,0x4a7484aau,0x5cb0a9dcu,0x76f988dau,
+      0x983e5152u,0xa831c66du,0xb00327c8u,0xbf597fc7u,0xc6e00bf3u,0xd5a79147u,0x06ca6351u,0x14292967u,
+      0x27b70a85u,0x2e1b2138u,0x4d2c6dfcu,0x53380d13u,0x650a7354u,0x766a0abbu,0x81c2c92eu,0x92722c85u,
+      0xa2bfe8a1u,0xa81a664bu,0xc24b8b70u,0xc76c51a3u,0xd192e819u,0xd6990624u,0xf40e3585u,0x106aa070u,
+      0x19a4c116u,0x1e376c08u,0x2748774cu,0x34b0bcb5u,0x391c0cb3u,0x4ed8aa4au,0x5b9cca4fu,0x682e6ff3u,
+      0x748f82eeu,0x78a5636fu,0x84c87814u,0x8cc70208u,0x90befffau,0xa4506cebu,0xbef9a3f7u,0xc67178f2u};
+    for (int j = 0; j < 64; ++j) {
+        uint32_t S1=lbtc_rr32(e,6)^lbtc_rr32(e,11)^lbtc_rr32(e,25); uint32_t ch=(e&fval)^(~e&g);
+        uint32_t t1=hh+S1+ch+K[j]+w[j]; uint32_t S0=lbtc_rr32(a,2)^lbtc_rr32(a,13)^lbtc_rr32(a,22);
+        uint32_t mj=(a&b)^(a&c)^(b&c); uint32_t t2=S0+mj;
+        hh=g;g=fval;fval=e;e=d+t1;d=c;c=b;b=a;a=t1+t2;
+    }
+    h[0]+=a;h[1]+=b;h[2]+=c;h[3]+=d;h[4]+=e;h[5]+=fval;h[6]+=g;h[7]+=hh;
+}
+
+__global__ void lbtc_sighash_descriptor_hash_kernel(
+    const DeviceSighashFieldPlan* __restrict__ plan,
+    int num_fields,
+    const uint8_t* const* __restrict__ d_field_ptrs,
+    const uint32_t* __restrict__ d_field_strides,
+    const uint32_t* const* __restrict__ d_var_len_ptrs,
+    int n,
+    uint8_t* __restrict__ out32)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= n) return;
+
+    // Per-thread SHA-256 state for streaming field data.
+    // One inner SHA-256 context covers the concatenated field byte stream:
+    //   field_0 || field_1 || ... || field_{N-1}
+    // Partial blocks are carried across field boundaries; SHA-256 padding
+    // (0x80 + zeroes + 64-bit big-endian length) is applied exactly ONCE
+    // after the final field. This matches the HASH256 definition for
+    // legacy/BIP143 sighash preimages.
+    uint32_t h[8] = {0x6a09e667u,0xbb67ae85u,0x3c6ef372u,0xa54ff53au,
+                     0x510e527fu,0x9b05688cu,0x1f83d9abu,0x5be0cd19u};
+    uint64_t total_bits = 0;
+    uint8_t  partial[64];
+    int      partial_len = 0;
+
+    for (int fi = 0; fi < num_fields; ++fi) {
+        const DeviceSighashFieldPlan f = plan[fi];
+        const uint8_t* col = d_field_ptrs[fi];
+        const uint32_t stride = d_field_strides[fi];
+
+        int field_bytes;
+        const uint8_t* row_data;
+
+        if (f.fixed_len > 0) {
+            field_bytes = (int)f.fixed_len;
+            row_data = col + (size_t)i * stride;
+        } else {
+            const uint32_t* var_lens = d_var_len_ptrs[fi];
+            field_bytes = (int)var_lens[i];
+            row_data = col + (size_t)i * stride;
+        }
+
+        int off = 0;
+
+        // If we have a partial block from a previous field, fill it first.
+        if (partial_len > 0) {
+            int copy = 64 - partial_len;
+            if (copy > field_bytes) copy = field_bytes;
+            for (int j = 0; j < copy; ++j)
+                partial[partial_len + j] = row_data[j];
+            partial_len += copy;
+            off += copy;
+            if (partial_len == 64) {
+                lbtc_sha256_transform(h, partial);
+                total_bits += 512;
+                partial_len = 0;
+            }
+        }
+
+        // Process full 64-byte blocks.
+        while (off + 64 <= field_bytes) {
+            lbtc_sha256_transform(h, row_data + off);
+            total_bits += 512;
+            off += 64;
+        }
+
+        // Save remainder as new partial block.
+        int rem = field_bytes - off;
+        if (rem > 0) {
+            for (int j = 0; j < rem; ++j)
+                partial[partial_len + j] = row_data[off + j];
+            partial_len += rem;
+        }
+    }
+
+    // ── Finalise inner SHA-256: pad (0x80 + zeroes + 64-bit BE bit-length) ──
+    total_bits += (uint64_t)partial_len * 8;
+
+    // Build the final padded block(s) in a local buffer.
+    uint8_t blk[128];
+    for (int j = 0; j < 128; ++j) blk[j] = 0;
+    for (int j = 0; j < partial_len; ++j) blk[j] = partial[j];
+    blk[partial_len] = 0x80;
+
+    // One or two final blocks depending on where the 8-byte length falls.
+    int nb = (partial_len + 1 + 8 <= 64) ? 1 : 2;
+    int last = nb * 64;
+    for (int j = 0; j < 8; ++j)
+        blk[last - 1 - j] = (uint8_t)(total_bits >> (8 * j));
+
+    for (int b = 0; b < nb; ++b) {
+        lbtc_sha256_transform(h, blk + b * 64);
+    }
+
+    // Write inner hash: h[0..7] as big-endian bytes.
+    uint8_t inner_hash[32];
+    for (int j = 0; j < 8; ++j) {
+        inner_hash[j*4]   = (uint8_t)(h[j]>>24);
+        inner_hash[j*4+1] = (uint8_t)(h[j]>>16);
+        inner_hash[j*4+2] = (uint8_t)(h[j]>>8);
+        inner_hash[j*4+3] = (uint8_t)(h[j]);
+    }
+
+    // Outer SHA-256: hash the 32-byte inner digest → HASH256.
+    lbtc_sha256(inner_hash, 32, out32 + (size_t)i * 32);
 }
 
 }  // anonymous namespace (libbitcoin-bridge kernels)
@@ -1843,6 +2069,322 @@ h2v_cleanup:
         clear_error();
 mp_cleanup:
         if(d_left)cudaFree(d_left); if(d_right)cudaFree(d_right); if(d_out)cudaFree(d_out);
+        return ret;
+    }
+
+    /* libbitcoin-bridge: batch sighash descriptor hash. PUBLIC-DATA ONLY.
+     * Parses the compact descriptor bytecode on the host, copies referenced
+     * field columns to the GPU, then each thread streams its row's fields
+     * directly through SHA-256 -- NO per-row preimage buffer is materialised
+     * on the CPU or GPU.
+     *
+     * Descriptor format (v2, accepted Phase 3a):
+     *   LE field_ref pairs, terminated by 0xFF at odd-aligned position.
+     *   field_ref = (field_id & 0xFF) | ((field_id>>8) << 0) in byte0,
+     *               flags nibble in byte1[7:4], field_id>>8 in byte1[3:0].
+     *   1..129 bytes, odd length. All field_ids with low byte 0xFF reserved. */
+    GpuError sighash_descriptor_hash(
+        const uint8_t* descriptor, size_t descriptor_len,
+        const uint8_t* const* field_data, const uint32_t* field_lengths,
+        const uint32_t* const* field_var_lens, size_t count,
+        uint8_t* out32) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!descriptor || !field_data || !field_lengths || !out32)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // ── Host-side descriptor parse ──────────────────────────────
+        constexpr int MAX_FIELDS = 64;
+        struct HostPlan { uint16_t fid; bool has_len; uint32_t fixed_len; };
+        HostPlan hplan[MAX_FIELDS];
+        int num_fields = 0;
+        bool has_nHashType = false;
+
+        if (descriptor_len < 1 || descriptor_len > 129) return set_error(GpuError::BadInput, "descriptor_len");
+        if ((descriptor_len & 1u) == 0) return set_error(GpuError::BadInput, "descriptor_len even");
+        if (descriptor[descriptor_len - 1] != 0xFF) return set_error(GpuError::BadInput, "no terminator");
+        for (size_t i = 0; i < descriptor_len - 1; i += 2)
+            if (descriptor[i] == 0xFF) return set_error(GpuError::BadInput, "mid-0xFF");
+
+        const uint8_t* p = descriptor;
+        const uint8_t* dend = descriptor + descriptor_len;
+        while (p < dend && *p != 0xFF) {
+            if (num_fields >= MAX_FIELDS) return set_error(GpuError::BadInput, "too many fields");
+            if (p + 1 >= dend) return set_error(GpuError::BadInput, "truncated ref");
+            uint16_t fid = (uint16_t)p[0] | ((uint16_t)(p[1] & 0x0Fu) << 8);
+            uint8_t flags_nib = p[1] >> 4;
+            if ((flags_nib & 0x0Cu) != 0) return set_error(GpuError::BadInput, "reserved flags");
+            if ((fid & 0xFFu) == 0xFFu) return set_error(GpuError::BadInput, "reserved low-byte");
+            for (int j = 0; j < num_fields; ++j)
+                if (hplan[j].fid == fid) return set_error(GpuError::BadInput, "duplicate field");
+            bool has_len = (flags_nib & 0x01u) != 0;
+            uint32_t flen = 0;
+            switch (fid) {
+            case 0x00: flen=4;  break; case 0x01: flen=32; break; case 0x02: flen=32; break;
+            case 0x03: flen=36; break; case 0x04:/*var*/break; case 0x05: flen=8;  break;
+            case 0x06: flen=4;  break; case 0x07: flen=32; break; case 0x08: flen=4;  break;
+            case 0x09: flen=4; has_nHashType=true; break;
+            case 0x0A: flen=36; break; case 0x0B: flen=4;  break;
+            // 0x0C..0x0F reserved for future Taproot tagged-hash mode.
+            // Reject them until a separately reviewed tagged-hash mode exists
+            // (coordinated with OpenCL/Metal parses in the Claude card).
+            case 0x0C: case 0x0D: case 0x0E: case 0x0F:
+                return set_error(GpuError::BadInput, "Taproot field_id reserved");
+            case 0xF0:/*var*/break;
+            default: return set_error(GpuError::BadInput, "unsupported field_id");
+            }
+            bool is_var = (flen == 0);
+            if (is_var && !has_len) return set_error(GpuError::BadInput, "var w/o HAS_LENGTH");
+            if (!is_var && has_len) return set_error(GpuError::BadInput, "fixed w/ HAS_LENGTH");
+            if (!field_data[fid]) return set_error(GpuError::BadInput, "null field_data");
+            if (field_lengths[fid] == 0) return set_error(GpuError::BadInput, "zero stride");
+            // Fixed-field stride must be ≥ its fixed serialized length.
+            if (!is_var && field_lengths[fid] < flen) return set_error(GpuError::BadInput, "stride < fixed_len");
+            // Bounds: count * stride must not overflow size_t.
+            if (count > SIZE_MAX / (size_t)field_lengths[fid])
+                return set_error(GpuError::BadInput, "count*stride overflow");
+            hplan[num_fields].fid = fid;
+            hplan[num_fields].has_len = has_len;
+            hplan[num_fields].fixed_len = flen;
+            ++num_fields;
+            p += 2;
+        }
+        if (p != dend - 1) return set_error(GpuError::BadInput, "bad terminator pos");
+        if (!has_nHashType) return set_error(GpuError::BadInput, "missing nHashType");
+
+        // ── Bounds: variable-length fields + per-row 4 MiB limit ────
+        // Every var-len row must be ≤ its column stride.
+        // Per-row actual preimage (fixed_len + var_len[i]) must be ≤ 4 MiB.
+        // Uses actual per-row var_lens, not stride, so large strides with
+        // short valid rows are accepted while oversized rows are rejected.
+        constexpr size_t MAX_PREIMAGE = 4u * 1024u * 1024u;  // 4 MiB
+
+        for (int fi = 0; fi < num_fields; ++fi) {
+            if (hplan[fi].fixed_len != 0) continue;
+            uint16_t fid = hplan[fi].fid;
+            if (!field_var_lens || !field_var_lens[fid])
+                return set_error(GpuError::BadInput, "null var_lens");
+            uint32_t stride = field_lengths[fid];
+            for (size_t r = 0; r < count; ++r) {
+                if (field_var_lens[fid][r] > stride)
+                    return set_error(GpuError::BadInput, "var_len > stride");
+            }
+        }
+
+        // Per-row actual preimage length ≤ 4 MiB (checked-add, not stride).
+        for (size_t r = 0; r < count; ++r) {
+            size_t row_len = 0;
+            for (int fi = 0; fi < num_fields; ++fi) {
+                if (hplan[fi].fixed_len > 0) {
+                    if (hplan[fi].fixed_len > MAX_PREIMAGE - row_len)
+                        return set_error(GpuError::BadInput, "preimage > 4 MiB");
+                    row_len += hplan[fi].fixed_len;
+                } else {
+                    uint32_t vl = field_var_lens[hplan[fi].fid][r];
+                    if (vl > MAX_PREIMAGE - row_len)
+                        return set_error(GpuError::BadInput, "preimage > 4 MiB");
+                    row_len += vl;
+                }
+            }
+            if (row_len > MAX_PREIMAGE)
+                return set_error(GpuError::BadInput, "preimage > 4 MiB");
+        }
+
+        // ── Upload column data to GPU (reusable buffers) ────────────
+        // Column data + var-lens go into one grow-only pool;
+        // output and metadata tables each get their own reusable allocation.
+        // No per-call cudaMalloc/cudaFree on the hot path — allocations
+        // grow once and persist until thread exit.
+
+        // count must fit in CUDA kernel index type (int).
+        if (count > static_cast<size_t>(INT32_MAX))
+            return set_error(GpuError::BadInput, "count > INT32_MAX");
+
+        const int n_int = static_cast<int>(count);
+        const int threads = 256;
+        const int blocks = (n_int + threads - 1) / threads;
+
+        // ── Checked pool-size computation ───────────────────────────
+        // Pool holds: [col_0 | col_1 | ... | align | var-len_0 | var-len_1 | ...]
+        // Each column is count*stride bytes (byte-aligned).
+        // Each var-len array is count*uint32_t, aligned to alignof(uint32_t)=4.
+        // Overflow is checked additively before accumulation.
+
+        constexpr size_t VARLEN_ALIGN = alignof(uint32_t);  // 4
+        constexpr size_t PTR_ALIGN    = alignof(uint8_t*);   // 8
+        constexpr size_t PLAN_ALIGN   = alignof(DeviceSighashFieldPlan); // 8
+
+        // Pre-check: count*stride must not overflow size_t for any field.
+        for (int fi = 0; fi < num_fields; ++fi) {
+            uint16_t fid = hplan[fi].fid;
+            if (field_lengths[fid] > 0 && count > SIZE_MAX / field_lengths[fid])
+                return set_error(GpuError::BadInput, "count*stride overflow");
+        }
+        // count * 32 must not overflow (output buffer).
+        if (count > SIZE_MAX / 32u)
+            return set_error(GpuError::BadInput, "count*32 overflow");
+
+        // checked_add helper (returns false on overflow).
+        auto checked_add = [](size_t& acc, size_t add) -> bool {
+            if (add > SIZE_MAX - acc) return false;
+            acc += add; return true;
+        };
+        auto align_up = [](size_t x, size_t a) -> size_t {
+            return (x + a - 1u) & ~(a - 1u);
+        };
+
+        size_t pool_bytes = 0;
+        for (int fi = 0; fi < num_fields; ++fi) {
+            uint16_t fid = hplan[fi].fid;
+            size_t col_bytes = (size_t)count * field_lengths[fid];
+            if (!checked_add(pool_bytes, col_bytes))
+                return set_error(GpuError::BadInput, "pool overflow cols");
+            if (hplan[fi].fixed_len == 0) {
+                // Align pool_off to uint32_t boundary before var-len array.
+                size_t var_bytes = (size_t)count * sizeof(uint32_t);
+                pool_bytes = align_up(pool_bytes, VARLEN_ALIGN);
+                if (!checked_add(pool_bytes, var_bytes))
+                    return set_error(GpuError::BadInput, "pool overflow varlens");
+            }
+        }
+
+        // Compute aligned meta-buffer layout:
+        //   [plan: align=PLAN_ALIGN] [field_ptrs: align=PTR_ALIGN]
+        //   [strides: align=4]       [var_len_ptrs: align=PTR_ALIGN]
+        size_t plan_sz       = (size_t)num_fields * sizeof(DeviceSighashFieldPlan);
+        size_t fptrs_sz      = (size_t)num_fields * sizeof(uint8_t*);
+        size_t strides_sz    = (size_t)num_fields * sizeof(uint32_t);
+        size_t vlptrs_sz     = (size_t)num_fields * sizeof(uint32_t*);
+        size_t meta_off      = 0;
+        meta_off = align_up(meta_off, PLAN_ALIGN);
+        size_t plan_off      = meta_off; meta_off += plan_sz;
+        meta_off = align_up(meta_off, PTR_ALIGN);
+        size_t fptrs_off     = meta_off; meta_off += fptrs_sz;
+        meta_off = align_up(meta_off, alignof(uint32_t));
+        size_t strides_off   = meta_off; meta_off += strides_sz;
+        meta_off = align_up(meta_off, PTR_ALIGN);
+        size_t vlptrs_off    = meta_off; meta_off += vlptrs_sz;
+        size_t meta_bytes    = meta_off;
+
+        // ── Allocate / grow reusable buffers ────────────────────────
+        GpuError ret = GpuError::Ok;
+        if (g_cuda_batch_scratch.ensure_lbtc_sighash_pool(pool_bytes) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "sighash pool"); goto sh_decline;
+        }
+        if (g_cuda_batch_scratch.ensure_lbtc_sighash_out(count * 32) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "sighash out"); goto sh_decline;
+        }
+        if (g_cuda_batch_scratch.ensure_lbtc_sighash_meta(meta_bytes) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "sighash meta"); goto sh_decline;
+        }
+
+        // ── Sub-allocate + upload (scoped: no goto crosses initialisations) ──
+        // nvcc forbids goto that bypasses variable initialisation, so this
+        // entire block is wrapped in {}.  goto sh_decline from inside this
+        // block exits the scope, destroying locals, before reaching the label.
+        {
+            uint8_t* pool_base = g_cuda_batch_scratch.lbtc_sighash_pool;
+            size_t pool_off = 0;
+
+            uint8_t*  d_cols[MAX_FIELDS] = {};
+            uint32_t* d_varlens[MAX_FIELDS] = {};
+            uint8_t*  h_field_ptrs[MAX_FIELDS] = {};
+            uint32_t* h_var_len_ptrs[MAX_FIELDS] = {};
+            uint32_t  h_strides[MAX_FIELDS] = {};
+
+            for (int fi = 0; fi < num_fields; ++fi) {
+                uint16_t fid = hplan[fi].fid;
+                uint32_t stride = field_lengths[fid];
+                h_strides[fi] = stride;
+
+                size_t col_bytes = (size_t)count * stride;
+                d_cols[fi] = pool_base + pool_off;
+                pool_off += col_bytes;
+                if (cudaMemcpy(d_cols[fi], field_data[fid], col_bytes,
+                               cudaMemcpyHostToDevice) != cudaSuccess) {
+                    ret = set_error(GpuError::Launch, "sighash up col"); goto sh_decline;
+                }
+                h_field_ptrs[fi] = d_cols[fi];
+
+                if (hplan[fi].fixed_len == 0) {
+                    // Align to uint32_t before var-len array.
+                    pool_off = align_up(pool_off, VARLEN_ALIGN);
+                    d_varlens[fi] = reinterpret_cast<uint32_t*>(pool_base + pool_off);
+                    pool_off += count * sizeof(uint32_t);
+                    if (cudaMemcpy(d_varlens[fi], field_var_lens[fid],
+                                   count * sizeof(uint32_t),
+                                   cudaMemcpyHostToDevice) != cudaSuccess) {
+                        ret = set_error(GpuError::Launch, "sighash up varlen"); goto sh_decline;
+                    }
+                    h_var_len_ptrs[fi] = d_varlens[fi];
+                } else {
+                    h_var_len_ptrs[fi] = nullptr;
+                }
+            }
+
+            // Sub-allocate metadata from the reusable meta buffer (aligned).
+            uint8_t* meta_base = g_cuda_batch_scratch.lbtc_sighash_meta;
+            DeviceSighashFieldPlan* d_plan =
+                reinterpret_cast<DeviceSighashFieldPlan*>(meta_base + plan_off);
+            uint8_t**  d_field_ptrs =
+                reinterpret_cast<uint8_t**>(meta_base + fptrs_off);
+            uint32_t*  d_strides =
+                reinterpret_cast<uint32_t*>(meta_base + strides_off);
+            uint32_t** d_var_len_ptrs =
+                reinterpret_cast<uint32_t**>(meta_base + vlptrs_off);
+
+            DeviceSighashFieldPlan h_plan_arr[MAX_FIELDS];
+            for (int fi = 0; fi < num_fields; ++fi) {
+                h_plan_arr[fi].field_id  = hplan[fi].fid;
+                h_plan_arr[fi].flags     = hplan[fi].has_len ? 1u : 0u;
+                h_plan_arr[fi].pad       = 0;
+                h_plan_arr[fi].fixed_len = hplan[fi].fixed_len;
+            }
+            if (cudaMemcpy(d_plan, h_plan_arr,
+                           num_fields * sizeof(DeviceSighashFieldPlan),
+                           cudaMemcpyHostToDevice) != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "sighash up plan"); goto sh_decline;
+            }
+            if (cudaMemcpy(d_field_ptrs, h_field_ptrs,
+                           num_fields * sizeof(uint8_t*),
+                           cudaMemcpyHostToDevice) != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "sighash up ptrs"); goto sh_decline;
+            }
+            if (cudaMemcpy(d_strides, h_strides,
+                           num_fields * sizeof(uint32_t),
+                           cudaMemcpyHostToDevice) != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "sighash up strides"); goto sh_decline;
+            }
+            if (cudaMemcpy(d_var_len_ptrs, h_var_len_ptrs,
+                           num_fields * sizeof(uint32_t*),
+                           cudaMemcpyHostToDevice) != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "sighash up vlptrs"); goto sh_decline;
+            }
+
+            uint8_t* d_out = g_cuda_batch_scratch.lbtc_sighash_out;
+
+            // Launch kernel.
+            lbtc_sighash_descriptor_hash_kernel<<<blocks, threads>>>(
+                d_plan, num_fields, d_field_ptrs, d_strides, d_var_len_ptrs,
+                n_int, d_out);
+            if (cudaGetLastError() != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "sighash kernel"); goto sh_decline;
+            }
+            if (cudaDeviceSynchronize() != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "sighash sync"); goto sh_decline;
+            }
+
+            // Download results.
+            if (cudaMemcpy(out32, d_out, count * 32, cudaMemcpyDeviceToHost) != cudaSuccess) {
+                ret = set_error(GpuError::Launch, "sighash download"); goto sh_decline;
+            }
+            clear_error();
+        }
+
+sh_decline:
+        // Reusable buffers persist across calls — do NOT free them here.
+        // On error, out32 was cleared by the C ABI wrapper (fail-closed).
         return ret;
     }
 

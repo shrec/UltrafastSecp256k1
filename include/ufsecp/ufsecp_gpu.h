@@ -571,6 +571,48 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_merkle_pair_hash(
     size_t n,
     uint8_t* out32);
 
+/**
+ * ufsecp_gpu_sighash_descriptor_hash - batch sighash descriptor hash.
+ *
+ * Computes legacy/BIP-143-style sighash preimage HASH256 from a compact
+ * descriptor bytecode and column-major field data.  Each row's sighash =
+ * SHA256(SHA256(preimage)) where the preimage is assembled by streaming
+ * referenced field columns in descriptor order — no per-row preimage buffer
+ * is materialized on the CPU or GPU.
+ *
+ * This is NOT BIP-341 TapSighash.  Taproot-only field IDs 0x0C..0x0F are
+ * reserved and rejected by all backends until a separately reviewed
+ * tagged-hash mode exists.
+ *
+ * Descriptor format (v2, accepted Phase 3a):
+ *   - Little-endian field_ref pairs: byte0=field_id&0xFF, byte1[3:0]=field_id>>8,
+ *     byte1[7:4]=flags (bit0=HAS_LENGTH, bit1=ZERO_PAD, bits2-3=reserved=0).
+ *   - Terminated by a single 0xFF byte at an odd-aligned position.
+ *   - 1..129 bytes, must be odd length.
+ *   - All field_ids with (field_id & 0xFF) == 0xFF are permanently reserved.
+ *
+ * PUBLIC-DATA operation. Variable-time on GPU and CPU. No secret material.
+ *
+ * @param ctx             GPU context.
+ * @param descriptor      Input: descriptor bytecode (1..129 bytes, odd length).
+ * @param descriptor_len  Input: descriptor bytecode length in bytes.
+ * @param field_data      Input: array of 4096 column pointers (indexed by field_id).
+ * @param field_lengths   Input: array of 4096 strides (bytes per row for each field_id).
+ * @param field_var_lens  Input: array of 4096 per-row-length pointers (non-null iff HAS_LENGTH).
+ * @param count           Number of rows to hash.
+ * @param out32           Output: count * 32 bytes (sighash digests).
+ * @return UFSECP_OK on success.
+ */
+UFSECP_API ufsecp_error_t ufsecp_gpu_sighash_descriptor_hash(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* descriptor,
+    size_t descriptor_len,
+    const uint8_t* const* field_data,
+    const uint32_t* field_lengths,
+    const uint32_t* const* field_var_lens,
+    size_t count,
+    uint8_t* out32);
+
 
 /* ============================================================================
  * GPU error string extension

@@ -171,6 +171,7 @@ ABI_SYMBOL_FOR_OP = {
     "bip324_aead_decrypt_batch": "ufsecp_gpu_bip324_aead_decrypt_batch",
     "bip352_scan_batch": "ufsecp_gpu_bip352_scan_batch",
     "merkle_pair_hash": "ufsecp_gpu_merkle_pair_hash",
+    "sighash_descriptor_hash": "ufsecp_gpu_sighash_descriptor_hash",
 }
 
 VIRTUAL_DECL_RE = re.compile(

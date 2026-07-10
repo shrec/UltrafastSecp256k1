@@ -29,6 +29,8 @@
 #include <filesystem>
 #include <algorithm>
 #include <system_error>
+#include <limits>
+#include <mutex>
 
 #ifdef __linux__
 #include <unistd.h>
@@ -333,6 +335,96 @@ struct OclColumnsPool {
 
 static thread_local OclColumnsPool g_ocl_columns_pool;
 
+/* libbitcoin sighash-descriptor persistent buffer pool -- grow-only, reused
+ * across engine calls so the hot sighash path performs no per-call
+ * clCreateBuffer/CL_MEM_COPY_HOST_PTR (mirrors OclColumnsPool above, same
+ * thread_local-per-thread strategy, no locking needed). Holds PUBLIC sighash
+ * preimage data only (tx field columns, var-lens, output digests) -- no
+ * secret material, so no pre-release zeroing is required.
+ *
+ * The four per-field metadata buffers (col_offsets/strides/fixed_lens/
+ * varlen_offsets) are sized once at the compile-time-bounded MAX_FIELDS (64)
+ * -- that upper bound never changes, so they need no grow check, only a
+ * one-time allocation. The three bulk buffers (packed_cols, packed_varlens,
+ * out) grow independently by BYTE capacity via ensure_bytes(), since their
+ * size depends on which fields a caller's descriptor references and how many
+ * rows are hashed -- not a fixed row count like OclColumnsPool. */
+struct OclSighashPool {
+    static constexpr size_t MAX_FIELDS = 64;
+
+    cl_mem d_col_offsets    = nullptr;  // MAX_FIELDS x uint64, allocated once
+    cl_mem d_strides        = nullptr;  // MAX_FIELDS x uint32, allocated once
+    cl_mem d_fixed_lens     = nullptr;  // MAX_FIELDS x uint32, allocated once
+    cl_mem d_varlen_offsets = nullptr;  // MAX_FIELDS x uint32, allocated once
+    bool meta_ready = false;
+    cl_context owning_ctx   = nullptr;  // context the buffers above are bound to
+
+    cl_mem d_packed_cols    = nullptr;  // grow-only, bytes
+    size_t packed_cols_cap  = 0;
+    cl_mem d_packed_varlens = nullptr;  // grow-only, bytes
+    size_t packed_varlens_cap = 0;
+    cl_mem d_out            = nullptr;  // grow-only, bytes (count * 32)
+    size_t out_cap          = 0;
+
+    bool ensure_meta(cl_context ctx) {
+        // This pool is thread_local, but a single thread can still drive two
+        // independent GPU contexts over its lifetime (backend re-init, or a
+        // test that creates two contexts and calls both from one thread). If
+        // the owning context changed, the meta_ready short-circuit below would
+        // otherwise hand back cl_mem handles bound to a stale/foreign context
+        // -- invalid and unsafe. Release and reallocate against the new
+        // context first; free_all() also resets the three bulk-buffer caps to
+        // 0, which forces ensure_bytes() to reallocate them against ctx too.
+        if (owning_ctx != nullptr && owning_ctx != ctx) free_all();
+        if (meta_ready) return true;
+        cl_int err = CL_SUCCESS;
+        d_col_offsets    = clCreateBuffer(ctx, CL_MEM_READ_ONLY, MAX_FIELDS * sizeof(uint64_t), nullptr, &err);
+        if (err != CL_SUCCESS || !d_col_offsets)    { free_all(); return false; }
+        d_strides        = clCreateBuffer(ctx, CL_MEM_READ_ONLY, MAX_FIELDS * sizeof(uint32_t), nullptr, &err);
+        if (err != CL_SUCCESS || !d_strides)        { free_all(); return false; }
+        d_fixed_lens     = clCreateBuffer(ctx, CL_MEM_READ_ONLY, MAX_FIELDS * sizeof(uint32_t), nullptr, &err);
+        if (err != CL_SUCCESS || !d_fixed_lens)     { free_all(); return false; }
+        d_varlen_offsets = clCreateBuffer(ctx, CL_MEM_READ_ONLY, MAX_FIELDS * sizeof(uint32_t), nullptr, &err);
+        if (err != CL_SUCCESS || !d_varlen_offsets) { free_all(); return false; }
+        meta_ready = true;
+        owning_ctx = ctx;
+        return true;
+    }
+
+    // Grow-only-by-bytes helper shared by the three bulk buffers: releases +
+    // recreates only the one buffer that is too small, leaving the other two
+    // (and any already-adequate capacity) untouched.
+    static bool ensure_bytes(cl_mem& buf, size_t& cap, size_t need, cl_context ctx, cl_mem_flags flags) {
+        if (buf && need <= cap) return true;
+        if (buf) { clReleaseMemObject(buf); buf = nullptr; cap = 0; }
+        cl_int err = CL_SUCCESS;
+        cl_mem created = clCreateBuffer(ctx, flags, need, nullptr, &err);
+        if (err != CL_SUCCESS || !created) { return false; }
+        buf = created;
+        cap = need;
+        return true;
+    }
+
+    void free_all() {
+        if (d_col_offsets)    { clReleaseMemObject(d_col_offsets);    d_col_offsets = nullptr; }
+        if (d_strides)        { clReleaseMemObject(d_strides);        d_strides = nullptr; }
+        if (d_fixed_lens)     { clReleaseMemObject(d_fixed_lens);     d_fixed_lens = nullptr; }
+        if (d_varlen_offsets) { clReleaseMemObject(d_varlen_offsets); d_varlen_offsets = nullptr; }
+        meta_ready = false;
+        owning_ctx = nullptr;
+        if (d_packed_cols)    { clReleaseMemObject(d_packed_cols);    d_packed_cols = nullptr; }
+        packed_cols_cap = 0;
+        if (d_packed_varlens) { clReleaseMemObject(d_packed_varlens); d_packed_varlens = nullptr; }
+        packed_varlens_cap = 0;
+        if (d_out)            { clReleaseMemObject(d_out);            d_out = nullptr; }
+        out_cap = 0;
+    }
+
+    ~OclSighashPool() { free_all(); }
+};
+
+static thread_local OclSighashPool g_ocl_sighash_pool;
+
 } // anonymous namespace
 
 namespace secp256k1 {
@@ -426,6 +518,7 @@ public:
         if (ext_hash256_)              { clReleaseKernel(ext_hash256_);              ext_hash256_              = nullptr; }
         if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
         if (ext_merkle_pair_)          { clReleaseKernel(ext_merkle_pair_);          ext_merkle_pair_          = nullptr; }
+        if (ext_sighash_descriptor_)   { clReleaseKernel(ext_sighash_descriptor_);   ext_sighash_descriptor_   = nullptr; }
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
@@ -1389,6 +1482,366 @@ public:
         e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
         release_all();
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "merkle_pair_hash result read failed");
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* out32[i] = HASH256(descriptor-shaped concatenation of per-row field
+     * columns) -- Bitcoin sighash preimage hashing without a CPU-assembled
+     * per-row preimage. OpenCL 1.2 cannot bind an array of __global buffer
+     * pointers as a single kernel argument (unlike CUDA's device pointer
+     * array), so referenced field columns are written directly from the
+     * caller's own field_data/field_var_lens pointers into the pool's packed
+     * device buffers via clEnqueueWriteBuffer, one field at a time -- no
+     * intermediate host-side packing vector, no COPY_HOST_PTR -- plus a
+     * small per-field metadata table (byte offset / stride / fixed_len /
+     * var-lens offset) the kernel uses to locate each field.
+     *
+     * Full descriptor grammar validation is repeated here rather than
+     * trusted from the caller: this method is reachable both from the
+     * libbitcoin direct API (which fully validates before dispatch) and
+     * directly from the ufsecp_gpu C ABI (which only pre-checks
+     * length/terminator/mid-0xFF) -- field-id/duplicate/nHashType/var-len/
+     * preimage-size checks are this backend's own responsibility.
+     *
+     * The device-side pool buffers, the kernel object, and the command queue
+     * are all shared per backend instance (the pool is thread_local per
+     * calling thread; the kernel/queue are not): sighash_dispatch_mtx_ below
+     * serializes the whole dispatch (pool alloc through readback) so two
+     * threads calling this method concurrently on the same backend/context
+     * can never interleave clSetKernelArg with each other.
+     * Public data only, variable-time, no secret material. */
+    GpuError sighash_descriptor_hash(
+        const uint8_t* descriptor, size_t descriptor_len,
+        const uint8_t* const* field_data, const uint32_t* field_lengths,
+        const uint32_t* const* field_var_lens, size_t count,
+        uint8_t* out32) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!descriptor || !field_data || !field_lengths || !out32)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // `count` is narrowed to cl_uint (32-bit) further down -- both as the
+        // kernel's row-count argument and via static_cast<uint32_t> when
+        // deriving per-field varlen offsets. Reject anything that would
+        // silently truncate through either cast before it can reach them:
+        // the overflow checks below only bound count*32 / count*stride
+        // against 64-bit/size_t limits, which still pass for count values
+        // far beyond UINT32_MAX (e.g. count=5e9).
+        if (count > 0xFFFFFFFFull)
+            return set_error(GpuError::BadInput, "count exceeds uint32_t range");
+
+        // Overflow-safe output size, checked before any use in allocation/copy
+        // -- this backend is directly reachable from the C ABI, not just the
+        // pre-validated C++ direct-API caller, so `count` cannot be trusted to
+        // keep count*32 within size_t. Fail-closed: zero out32 up front so any
+        // early non-Ok return below (validation, alloc, launch, read) leaves
+        // no stale or partially-written digests behind.
+        constexpr uint64_t kU64Max = (std::numeric_limits<uint64_t>::max)();
+        uint64_t out_bytes64 = static_cast<uint64_t>(count);
+        if (out_bytes64 > kU64Max / 32) return set_error(GpuError::BadInput, "output size overflow");
+        out_bytes64 *= 32;
+        if (out_bytes64 > static_cast<uint64_t>((std::numeric_limits<size_t>::max)()))
+            return set_error(GpuError::BadInput, "output size overflow");
+        const size_t out_bytes = static_cast<size_t>(out_bytes64);
+        std::memset(out32, 0, out_bytes);
+
+        // ── Descriptor pre-dispatch validation (mirrors libbitcoin.hpp / CUDA parser) ──
+        constexpr size_t MAX_FIELDS = 64;
+        constexpr size_t MAX_PREIMAGE = 4u * 1024u * 1024u;  // 4 MiB per row
+        struct HostPlan { uint16_t field_id; bool has_len; uint32_t fixed_len; };
+        HostPlan plan[MAX_FIELDS];
+        size_t num_fields = 0;
+        bool has_nHashType = false;
+
+        if (descriptor_len < 1 || descriptor_len > 129) return set_error(GpuError::BadInput, "descriptor_len");
+        if ((descriptor_len & 1u) == 0) return set_error(GpuError::BadInput, "descriptor_len even");
+        if (descriptor[descriptor_len - 1] != 0xFF) return set_error(GpuError::BadInput, "no terminator");
+        for (size_t i = 0; i < descriptor_len - 1; i += 2)
+            if (descriptor[i] == 0xFF) return set_error(GpuError::BadInput, "mid-0xFF");
+
+        const uint8_t* p = descriptor;
+        const uint8_t* dend = descriptor + descriptor_len;
+        while (p < dend && *p != 0xFF) {
+            if (num_fields >= MAX_FIELDS) return set_error(GpuError::BadInput, "too many fields");
+            if (p + 1 >= dend) return set_error(GpuError::BadInput, "truncated ref");
+            const uint16_t fid = static_cast<uint16_t>(p[0]) | (static_cast<uint16_t>(p[1] & 0x0Fu) << 8);
+            const uint8_t flags_nib = p[1] >> 4;
+            if ((flags_nib & 0x0Cu) != 0) return set_error(GpuError::BadInput, "reserved flags");
+            if ((fid & 0xFFu) == 0xFFu) return set_error(GpuError::BadInput, "reserved low-byte");
+            for (size_t j = 0; j < num_fields; ++j)
+                if (plan[j].field_id == fid) return set_error(GpuError::BadInput, "duplicate field");
+            const bool has_len = (flags_nib & 0x01u) != 0;
+            uint32_t flen = 0;
+            switch (fid) {
+            case 0x00: flen = 4;  break; case 0x01: flen = 32; break; case 0x02: flen = 32; break;
+            case 0x03: flen = 36; break; case 0x04: /*var*/    break; case 0x05: flen = 8;  break;
+            case 0x06: flen = 4;  break; case 0x07: flen = 32; break; case 0x08: flen = 4;  break;
+            case 0x09: flen = 4;  has_nHashType = true; break;
+            case 0x0A: flen = 36; break; case 0x0B: flen = 4;  break;
+            // 0x0C..0x0F are Taproot-only (annex / tapleaf_hash / key_version /
+            // codesep_pos). This op computes legacy/BIP143-style HASH256, not
+            // BIP-341 TapSighash -- reject explicitly rather than silently
+            // accepting fields this backend does not implement. Independently
+            // enforced here (not just trusted from the caller) because this
+            // backend is also reachable directly from the C ABI.
+            case 0x0C: case 0x0D: case 0x0E: case 0x0F:
+                return set_error(GpuError::BadInput, "reserved taproot field id");
+            case 0xF0: /*var*/ break;
+            default: return set_error(GpuError::BadInput, "unsupported field_id");
+            }
+            const bool is_var = (flen == 0);
+            if (is_var && !has_len)  return set_error(GpuError::BadInput, "var w/o HAS_LENGTH");
+            if (!is_var && has_len)  return set_error(GpuError::BadInput, "fixed w/ HAS_LENGTH");
+            if (!field_data[fid])    return set_error(GpuError::BadInput, "null field_data");
+            if (field_lengths[fid] == 0) return set_error(GpuError::BadInput, "zero stride");
+            // Fixed-field stride must be >= its fixed serialized length --
+            // otherwise a row's fixed-length read would run past the bytes the
+            // caller actually populated for that field (undersized declared
+            // stride vs. protocol-fixed width). Mirrors the CPU direct parser
+            // (compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp) and the
+            // CUDA backend (gpu_backend_cuda.cu); same error text as CUDA.
+            if (!is_var && field_lengths[fid] < flen)
+                return set_error(GpuError::BadInput, "stride < fixed_len");
+            if (is_var && (!field_var_lens || !field_var_lens[fid]))
+                return set_error(GpuError::BadInput, "null var_lens");
+            plan[num_fields].field_id  = fid;
+            plan[num_fields].has_len   = has_len;
+            plan[num_fields].fixed_len = flen;
+            ++num_fields;
+            p += 2;
+        }
+        if (p != dend - 1) return set_error(GpuError::BadInput, "bad terminator pos");
+        if (!has_nHashType) return set_error(GpuError::BadInput, "missing nHashType");
+
+        // The kernel (lbtc_sighash_descriptor) indexes
+        // packed_varlens[varlen_offsets[fi] + gid] with both operands `uint`
+        // (32-bit) OpenCL device types. h_varlen_offsets[fi] is assigned
+        // num_var_fields * count further below (32-bit host multiply that can
+        // silently wrap) -- prove the total var-field element count fits
+        // uint32_t here, before any h_varlen_offsets[] value is computed or
+        // used, so a wrap can never let one work item read another field's or
+        // another row's varlen entry. Companion check to the count-range
+        // guard above (same "narrows to 32 bits" hazard).
+        {
+            uint64_t num_var_fields64 = 0;
+            for (size_t fi = 0; fi < num_fields; ++fi)
+                if (plan[fi].fixed_len == 0) ++num_var_fields64;
+            const uint64_t count64_guard = static_cast<uint64_t>(count);
+            if (num_var_fields64 != 0 && count64_guard != 0 &&
+                num_var_fields64 > kU64Max / count64_guard)
+                return set_error(GpuError::BadInput, "varlen element count overflow");
+            if (num_var_fields64 * count64_guard > 0xFFFFFFFFull)
+                return set_error(GpuError::BadInput, "varlen element count overflow");
+        }
+
+        // Per-row bounds: var_len <= stride, total preimage <= 4 MiB. Defense
+        // in depth -- the libbitcoin direct-API caller already enforces this,
+        // but this backend is also reachable directly from the C ABI, which
+        // does not repeat the per-row check.
+        for (size_t row = 0; row < count; ++row) {
+            size_t preimage_len = 0;
+            for (size_t fi = 0; fi < num_fields; ++fi) {
+                const auto& pf = plan[fi];
+                uint32_t field_len;
+                if (pf.fixed_len > 0) {
+                    field_len = pf.fixed_len;
+                } else {
+                    const uint32_t var_len = field_var_lens[pf.field_id][row];
+                    if (var_len > field_lengths[pf.field_id])
+                        return set_error(GpuError::BadInput, "var_len exceeds stride");
+                    field_len = var_len;
+                }
+                // Check-before-add, enforced per field rather than after the
+                // whole row has been accumulated. field_len alone can already
+                // exceed MAX_PREIMAGE (field_lengths/var_len are caller-
+                // controlled uint32_t, not pre-bounded to 4 MiB), so that case
+                // is rejected explicitly first -- otherwise
+                // `MAX_PREIMAGE - field_len` would underflow (both operands
+                // unsigned) and silently pass the second half of the check.
+                if (field_len > MAX_PREIMAGE || preimage_len > MAX_PREIMAGE - field_len)
+                    return set_error(GpuError::BadInput, "preimage exceeds 4 MiB");
+                preimage_len += field_len;
+            }
+        }
+
+        // ext_sighash_descriptor_ (the cl_kernel), the ext_* program/kernel
+        // members ensure_extended_kernels() lazily builds, and the queue are
+        // all backend-instance members, not thread-local -- so two threads
+        // racing into this op on a COLD (never-yet-initialized) backend
+        // instance would both enter ensure_extended_kernels() concurrently
+        // and unsynchronized, mutating the shared ext_* pointers and
+        // ext_init_attempted_ with no lock (see that function's sequential
+        // clCreateKernel/clReleaseKernel/clReleaseProgram cleanup chains).
+        // Acquiring sighash_dispatch_mtx_ here -- before the lazy init --
+        // rather than only around the pool/upload/launch span below closes
+        // that race: a pre-warmed kernel (already initialized before any
+        // concurrent caller arrives) must not be the only way this op is
+        // dispatch-safe.
+        std::lock_guard<std::mutex> sighash_lk(sighash_dispatch_mtx_);
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_sighash_descriptor_)
+            return set_error(GpuError::Launch, "lbtc_sighash_descriptor kernel unavailable");
+
+        // Per-field metadata (col_offsets/strides/fixed_lens/varlen_offsets)
+        // is derived purely from the parsed descriptor plan -- not a copy of
+        // caller-supplied bulk data -- so building it in small host vectors
+        // here is fine; only the bulk column/var-len data below must avoid a
+        // host-side packing copy. total_col_bytes / packed_varlens_bytes are
+        // accumulated with explicit overflow checks (count and per-field
+        // stride are both attacker/caller controlled via the C ABI).
+        std::vector<uint64_t> h_col_offsets(num_fields);
+        std::vector<uint32_t> h_strides(num_fields);
+        std::vector<uint32_t> h_fixed_lens(num_fields);
+        std::vector<uint32_t> h_varlen_offsets(num_fields, 0);
+
+        uint64_t total_col_bytes = 0;
+        uint32_t num_var_fields = 0;
+        for (size_t fi = 0; fi < num_fields; ++fi) {
+            const auto& pf = plan[fi];
+            const uint32_t stride = field_lengths[pf.field_id];
+            h_strides[fi]     = stride;
+            h_fixed_lens[fi]  = pf.fixed_len;
+            h_col_offsets[fi] = total_col_bytes;
+            const uint64_t count64 = static_cast<uint64_t>(count);
+            if (stride != 0 && count64 > kU64Max / stride)
+                return set_error(GpuError::BadInput, "packed column size overflow");
+            const uint64_t field_bytes = count64 * stride;
+            if (field_bytes > kU64Max - total_col_bytes)
+                return set_error(GpuError::BadInput, "packed column size overflow");
+            total_col_bytes += field_bytes;
+            if (pf.fixed_len == 0) {
+                h_varlen_offsets[fi] = num_var_fields * static_cast<uint32_t>(count);
+                ++num_var_fields;
+            }
+        }
+        if (total_col_bytes > static_cast<uint64_t>((std::numeric_limits<size_t>::max)()))
+            return set_error(GpuError::BadInput, "packed column size overflow");
+
+        uint64_t packed_varlens_bytes = 0;
+        if (num_var_fields != 0) {
+            const uint64_t nvf64 = num_var_fields;
+            const uint64_t count64 = static_cast<uint64_t>(count);
+            if (count64 != 0 && nvf64 > kU64Max / count64)
+                return set_error(GpuError::BadInput, "packed varlens size overflow");
+            const uint64_t elems = nvf64 * count64;
+            if (elems > kU64Max / sizeof(uint32_t))
+                return set_error(GpuError::BadInput, "packed varlens size overflow");
+            packed_varlens_bytes = elems * sizeof(uint32_t);
+        }
+        if (packed_varlens_bytes > static_cast<uint64_t>((std::numeric_limits<size_t>::max)()))
+            return set_error(GpuError::BadInput, "packed varlens size overflow");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+
+        // ext_sighash_descriptor_ (the cl_kernel) and queue are backend-
+        // instance members, not thread-local like the pool below: clSetKernelArg
+        // + clEnqueueNDRangeKernel are not atomic against each other, so two
+        // threads dispatching this op concurrently on the same backend/context
+        // could interleave clSetKernelArg calls and launch with a mix of both
+        // callers' buffer arguments -- silently wrong digests, not fail-closed.
+        // sighash_dispatch_mtx_ (acquired above, before ensure_extended_kernels)
+        // serializes the entire dispatch (lazy init, pool alloc, uploads,
+        // kernel-arg binding, launch, finish, readback) under one lock; this
+        // deliberately trades concurrency for correctness on this op.
+
+        // Reusable, grow-only device buffer pool (same thread_local strategy
+        // as g_ocl_columns_pool / ecdsa_verify_lbtc_columns above): no
+        // per-call clCreateBuffer, no CL_MEM_COPY_HOST_PTR (which is invalid
+        // with a null host pointer -- the bug this replaces, hit whenever a
+        // descriptor has zero variable-length fields, e.g. an all-fixed
+        // legacy sighash). The four metadata buffers are fixed at MAX_FIELDS;
+        // the three bulk buffers grow only when a wider descriptor/count
+        // needs more bytes than are already allocated.
+        if (!g_ocl_sighash_pool.ensure_meta(cl_ctx))
+            return set_error(GpuError::Memory, "sighash metadata device alloc");
+        const size_t packed_cols_need = static_cast<size_t>(total_col_bytes) > 0
+                                             ? static_cast<size_t>(total_col_bytes) : 1;
+        if (!OclSighashPool::ensure_bytes(g_ocl_sighash_pool.d_packed_cols, g_ocl_sighash_pool.packed_cols_cap,
+                                           packed_cols_need, cl_ctx, CL_MEM_READ_ONLY))
+            return set_error(GpuError::Memory, "sighash packed_cols device alloc");
+        const size_t packed_varlens_need = static_cast<size_t>(packed_varlens_bytes) > 0
+                                                ? static_cast<size_t>(packed_varlens_bytes) : sizeof(uint32_t);
+        if (!OclSighashPool::ensure_bytes(g_ocl_sighash_pool.d_packed_varlens, g_ocl_sighash_pool.packed_varlens_cap,
+                                           packed_varlens_need, cl_ctx, CL_MEM_READ_ONLY))
+            return set_error(GpuError::Memory, "sighash packed_varlens device alloc");
+        if (!OclSighashPool::ensure_bytes(g_ocl_sighash_pool.d_out, g_ocl_sighash_pool.out_cap,
+                                           out_bytes, cl_ctx, CL_MEM_WRITE_ONLY))
+            return set_error(GpuError::Memory, "sighash output device alloc");
+
+        cl_mem d_col_offsets    = g_ocl_sighash_pool.d_col_offsets;
+        cl_mem d_strides        = g_ocl_sighash_pool.d_strides;
+        cl_mem d_fixed_lens     = g_ocl_sighash_pool.d_fixed_lens;
+        cl_mem d_varlen_offsets = g_ocl_sighash_pool.d_varlen_offsets;
+        cl_mem d_packed_cols    = g_ocl_sighash_pool.d_packed_cols;
+        cl_mem d_packed_varlens = g_ocl_sighash_pool.d_packed_varlens;
+        cl_mem d_out            = g_ocl_sighash_pool.d_out;
+
+        // Metadata uploads: small, host-derived-from-plan arrays, one async
+        // write each into the pool's fixed-size buffers.
+        if (num_fields > 0 &&
+            (clEnqueueWriteBuffer(queue, d_col_offsets, CL_FALSE, 0,
+                 num_fields * sizeof(uint64_t), h_col_offsets.data(), 0, nullptr, nullptr) != CL_SUCCESS ||
+             clEnqueueWriteBuffer(queue, d_strides, CL_FALSE, 0,
+                 num_fields * sizeof(uint32_t), h_strides.data(), 0, nullptr, nullptr) != CL_SUCCESS ||
+             clEnqueueWriteBuffer(queue, d_fixed_lens, CL_FALSE, 0,
+                 num_fields * sizeof(uint32_t), h_fixed_lens.data(), 0, nullptr, nullptr) != CL_SUCCESS ||
+             clEnqueueWriteBuffer(queue, d_varlen_offsets, CL_FALSE, 0,
+                 num_fields * sizeof(uint32_t), h_varlen_offsets.data(), 0, nullptr, nullptr) != CL_SUCCESS))
+            return set_error(GpuError::Memory, "sighash metadata upload failed");
+
+        // Column data written directly from the caller's own field_data
+        // pointers into the persistent packed_cols buffer at each field's
+        // byte offset -- no host-side packing vector, no COPY_HOST_PTR.
+        for (size_t fi = 0; fi < num_fields; ++fi) {
+            const size_t field_bytes = static_cast<size_t>(count) * h_strides[fi];
+            if (field_bytes == 0) continue;
+            if (clEnqueueWriteBuffer(queue, d_packed_cols, CL_FALSE,
+                    static_cast<size_t>(h_col_offsets[fi]), field_bytes,
+                    field_data[plan[fi].field_id], 0, nullptr, nullptr) != CL_SUCCESS)
+                return set_error(GpuError::Memory, "sighash column upload failed");
+        }
+
+        // Var-len arrays written directly from the caller's field_var_lens
+        // pointers, same direct-write pattern (no packing vector).
+        {
+            uint32_t vfi = 0;
+            for (size_t fi = 0; fi < num_fields; ++fi) {
+                if (h_fixed_lens[fi] != 0) continue;
+                const size_t off_bytes = static_cast<size_t>(vfi) * count * sizeof(uint32_t);
+                const size_t len_bytes = count * sizeof(uint32_t);
+                if (len_bytes > 0 &&
+                    clEnqueueWriteBuffer(queue, d_packed_varlens, CL_FALSE, off_bytes, len_bytes,
+                        field_var_lens[plan[fi].field_id], 0, nullptr, nullptr) != CL_SUCCESS)
+                    return set_error(GpuError::Memory, "sighash varlens upload failed");
+                ++vfi;
+            }
+        }
+
+        cl_uint cl_num_fields = static_cast<cl_uint>(num_fields);
+        cl_uint cl_count = static_cast<cl_uint>(count);
+        if (clSetKernelArg(ext_sighash_descriptor_, 0, sizeof(cl_mem), &d_col_offsets) != CL_SUCCESS ||
+            clSetKernelArg(ext_sighash_descriptor_, 1, sizeof(cl_mem), &d_strides) != CL_SUCCESS ||
+            clSetKernelArg(ext_sighash_descriptor_, 2, sizeof(cl_mem), &d_fixed_lens) != CL_SUCCESS ||
+            clSetKernelArg(ext_sighash_descriptor_, 3, sizeof(cl_mem), &d_varlen_offsets) != CL_SUCCESS ||
+            clSetKernelArg(ext_sighash_descriptor_, 4, sizeof(cl_uint), &cl_num_fields) != CL_SUCCESS ||
+            clSetKernelArg(ext_sighash_descriptor_, 5, sizeof(cl_mem), &d_packed_cols) != CL_SUCCESS ||
+            clSetKernelArg(ext_sighash_descriptor_, 6, sizeof(cl_mem), &d_packed_varlens) != CL_SUCCESS ||
+            clSetKernelArg(ext_sighash_descriptor_, 7, sizeof(cl_uint), &cl_count) != CL_SUCCESS ||
+            clSetKernelArg(ext_sighash_descriptor_, 8, sizeof(cl_mem), &d_out) != CL_SUCCESS)
+            return set_error(GpuError::Launch, "sighash kernel arg binding failed");
+
+        size_t global = count;
+        if (clEnqueueNDRangeKernel(queue, ext_sighash_descriptor_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr) != CL_SUCCESS)
+            return set_error(GpuError::Launch, "sighash kernel launch failed");
+        if (clFinish(queue) != CL_SUCCESS)
+            return set_error(GpuError::Launch, "sighash queue finish failed");
+        if (clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, out_bytes, out32, 0, nullptr, nullptr) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "sighash result read failed");
         clear_error();
         return GpuError::Ok;
     }
@@ -3003,6 +3456,16 @@ private:
     cl_kernel  ext_hash256_                = nullptr;
     cl_kernel  ext_hash256_var_            = nullptr;
     cl_kernel  ext_merkle_pair_            = nullptr;
+    cl_kernel  ext_sighash_descriptor_     = nullptr;
+    /* ext_sighash_descriptor_ + the queue are backend-instance members (NOT
+     * thread-local like g_ocl_sighash_pool): clSetKernelArg + clEnqueueND-
+     * RangeKernel are not atomic against each other, so two threads calling
+     * sighash_descriptor_hash() concurrently on the same backend instance
+     * could interleave clSetKernelArg calls and launch with a mix of both
+     * callers' buffer arguments. This mutex serializes the whole dispatch
+     * (pool alloc -> uploads -> kernel args -> launch -> readback) per
+     * backend/context -- correctness over concurrency for this op. */
+    std::mutex sighash_dispatch_mtx_;
     cl_kernel  ext_schnorr_verify_         = nullptr;
     cl_kernel  ext_ecrecover_       = nullptr;
     cl_kernel  ext_ecdsa_snark_            = nullptr;
@@ -3077,7 +3540,7 @@ private:
             ext_ecdh_scalar_mul_compressed_ && ext_schnorr_snark_ &&
             ext_xonly_validate_ && ext_pubkey_validate_ && ext_commitment_verify_ &&
             ext_tagged_hash_ && ext_tagged_hash_var_ && ext_hash256_ && ext_hash256_var_ &&
-            ext_merkle_pair_ &&
+            ext_merkle_pair_ && ext_sighash_descriptor_ &&
             ext_ecdsa_lbtc_collect_ && ext_schnorr_lbtc_collect_)
             return GpuError::Ok;
         if (ext_init_attempted_)
@@ -3250,6 +3713,7 @@ private:
         // (each handle is nullptr until created) make one shared cleanup safe
         // regardless of which clCreateKernel failed — no double-release.
         auto release_all_extended = [&]() {
+            if (ext_sighash_descriptor_)   { clReleaseKernel(ext_sighash_descriptor_);   ext_sighash_descriptor_   = nullptr; }
             if (ext_merkle_pair_)          { clReleaseKernel(ext_merkle_pair_);          ext_merkle_pair_          = nullptr; }
             if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
             if (ext_hash256_)              { clReleaseKernel(ext_hash256_);              ext_hash256_              = nullptr; }
@@ -3290,6 +3754,8 @@ private:
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_hash256_var kernel not found"); }
         ext_merkle_pair_ = clCreateKernel(ext_program_, "lbtc_merkle_pair", &err);
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_merkle_pair kernel not found"); }
+        ext_sighash_descriptor_ = clCreateKernel(ext_program_, "lbtc_sighash_descriptor", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "lbtc_sighash_descriptor kernel not found"); }
 
         // libbitcoin COLLECT verify kernels (native OpenCL). Same device parse/
         // verify as the column kernels; only the output convention differs.

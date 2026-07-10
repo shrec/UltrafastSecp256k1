@@ -51,7 +51,7 @@
 
 > This is a historical baseline report (v3.9.0, 2026-02-11). The audit system has grown
 > significantly since then. See [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) for the current state:
-> See [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) for current counts (maintained dynamically by `ci/sync_module_count.py`). At time of this snapshot: 379 modules, ~1,000,000+ checks, 271 exploit PoC tests, 0 failures.
+> See [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) for current counts (maintained dynamically by `ci/sync_module_count.py`). At time of this snapshot: 379 modules, ~1,000,000+ checks, 272 exploit PoC tests, 0 failures.
 > **To verify current state**: `cmake --build build && ./build/audit/unified_audit_runner`
 
 ### What this report IS
@@ -72,7 +72,7 @@ PRNG seeds, and exact check counts are preserved for independent reproduction.
 |--------|---------------------|---------|
 | Total checks | 641,194 | ~1,000,000+ |
 | Audit modules | 8 suites | 371 modules (see [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md)) |
-| Exploit PoC tests | — | 271 exploit-PoC modules (see [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md)) |
+| Exploit PoC tests | — | 272 exploit-PoC modules (see [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md)) |
 | Formal Cryptol properties | — | 39 properties (39/39 pass) |
 | Failures | 0 | 0 |
 | Verdict | ALL PASSED | AUDIT-READY |

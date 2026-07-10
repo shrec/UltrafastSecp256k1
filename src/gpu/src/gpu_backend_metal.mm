@@ -20,6 +20,8 @@
 #include <fstream>
 #include <filesystem>
 #include <sstream>
+#include <limits>
+#include <mutex>
 
 /* -- Metal Runtime (Layer 1) ----------------------------------------------- */
 #include "metal_runtime.h"
@@ -280,6 +282,69 @@ struct MetalMsmPool {
         buf_partials = secp256k1::metal::MetalBuffer{};
         buf_blocks   = secp256k1::metal::MetalBuffer{};
         capacity = 0;
+    }
+};
+
+/* Sighash-descriptor persistent buffer pool — grow-only, avoids per-call
+ * alloc_buffer_shared overhead (mirrors MetalMsmPool above).
+ * The four metadata buffers (col_offsets/strides/fixed_lens/varlen_offsets)
+ * plus the two scalar buffers (num_fields/count) are bounded by the
+ * compile-time MAX_FIELDS cap in sighash_descriptor_hash, so they are sized
+ * once at the max and never regrow. packed_cols/packed_varlens/out depend on
+ * which fields are referenced and on row count, so each tracks its own
+ * grow-only capacity. */
+struct MetalSighashPool {
+    static constexpr size_t kMaxFields = 64;  // must match sighash_descriptor_hash::MAX_FIELDS
+
+    secp256k1::metal::MetalBuffer buf_col_offsets;     // kMaxFields x uint64  (fixed size)
+    secp256k1::metal::MetalBuffer buf_strides;         // kMaxFields x uint32  (fixed size)
+    secp256k1::metal::MetalBuffer buf_fixed_lens;      // kMaxFields x uint32  (fixed size)
+    secp256k1::metal::MetalBuffer buf_varlen_offsets;  // kMaxFields x uint32  (fixed size)
+    secp256k1::metal::MetalBuffer buf_num_fields;      // 1 x uint32           (fixed size)
+    secp256k1::metal::MetalBuffer buf_count;           // 1 x uint32           (fixed size)
+    bool   metadata_ready = false;
+
+    secp256k1::metal::MetalBuffer buf_packed_cols;     // grow-only, sized in bytes
+    secp256k1::metal::MetalBuffer buf_packed_varlens;  // grow-only, sized in bytes
+    secp256k1::metal::MetalBuffer buf_out;             // grow-only, sized in bytes
+    size_t packed_cols_capacity    = 0;
+    size_t packed_varlens_capacity = 0;
+    size_t out_capacity            = 0;
+
+    void ensure(size_t packed_cols_bytes, size_t packed_varlens_bytes, size_t out_bytes,
+                secp256k1::metal::MetalRuntime* rt) {
+        if (!metadata_ready) {
+            buf_col_offsets    = rt->alloc_buffer_shared(kMaxFields * sizeof(uint64_t));
+            buf_strides        = rt->alloc_buffer_shared(kMaxFields * sizeof(uint32_t));
+            buf_fixed_lens     = rt->alloc_buffer_shared(kMaxFields * sizeof(uint32_t));
+            buf_varlen_offsets = rt->alloc_buffer_shared(kMaxFields * sizeof(uint32_t));
+            buf_num_fields     = rt->alloc_buffer_shared(sizeof(uint32_t));
+            buf_count          = rt->alloc_buffer_shared(sizeof(uint32_t));
+            metadata_ready = buf_col_offsets.valid() && buf_strides.valid() &&
+                             buf_fixed_lens.valid() && buf_varlen_offsets.valid() &&
+                             buf_num_fields.valid() && buf_count.valid();
+        }
+        if (packed_cols_bytes > packed_cols_capacity) {
+            buf_packed_cols = rt->alloc_buffer_shared(packed_cols_bytes);
+            packed_cols_capacity = buf_packed_cols.valid() ? packed_cols_bytes : 0;
+        }
+        if (packed_varlens_bytes > packed_varlens_capacity) {
+            buf_packed_varlens = rt->alloc_buffer_shared(packed_varlens_bytes);
+            packed_varlens_capacity = buf_packed_varlens.valid() ? packed_varlens_bytes : 0;
+        }
+        if (out_bytes > out_capacity) {
+            buf_out = rt->alloc_buffer_shared(out_bytes);
+            out_capacity = buf_out.valid() ? out_bytes : 0;
+        }
+    }
+
+    /* True once metadata buffers exist and every grow-only buffer's capacity
+     * covers this call's requirement. */
+    bool ready(size_t packed_cols_bytes, size_t packed_varlens_bytes, size_t out_bytes) const {
+        return metadata_ready &&
+               packed_cols_capacity    >= packed_cols_bytes &&
+               packed_varlens_capacity >= packed_varlens_bytes &&
+               out_capacity            >= out_bytes;
     }
 };
 
@@ -1269,6 +1334,307 @@ public:
         return GpuError::Ok;
     }
 
+    /* out32[i] = HASH256(descriptor-shaped concatenation of per-row field
+     * columns) -- Bitcoin sighash preimage hashing without a CPU-assembled
+     * per-row preimage. This codebase has no argument-buffer/pointer-array
+     * precedent on Metal (confirmed: every kernel here binds a small number
+     * of explicit [[buffer(N)]] slots), so referenced field columns are
+     * copied via memcpy directly into sighash_pool_'s shared (unified-memory)
+     * storage -- columns copied verbatim, never a row-assembled preimage --
+     * plus a small per-field metadata table (byte offset / stride /
+     * fixed_len / var-lens offset) the kernel uses to locate each field.
+     * Mirrors OpenCLBackend::sighash_descriptor_hash's packed-buffer design
+     * exactly.
+     *
+     * Full descriptor grammar validation is repeated here rather than
+     * trusted from the caller: this method is reachable both from the
+     * libbitcoin direct API (which fully validates before dispatch) and
+     * directly from the ufsecp_gpu C ABI (which only pre-checks
+     * length/terminator/mid-0xFF) -- field-id/duplicate/nHashType/var-len/
+     * preimage-size checks are this backend's own responsibility.
+     * Public data only, variable-time, no secret material -- relies on the
+     * blanket MetalBuffer::~MetalBuffer() zero-on-destruct (Rule 10), same
+     * as hash256_var/merkle_pair_hash; no explicit secure_erase needed.
+     *
+     * Thread-safety: `sighash_pool_` is a plain MetalBackend member (not
+     * thread_local like OpenCL's pool), so its buffers -- and their
+     * contents, since Metal shared buffers are memcpy'd into directly --
+     * would race if two threads called this on the same backend instance
+     * concurrently. `sighash_pool_mtx_` serializes the whole span from pool
+     * allocation through the final device->host readback below; this
+     * deliberately trades concurrency for correctness on one instance. */
+    GpuError sighash_descriptor_hash(
+        const uint8_t* descriptor, size_t descriptor_len,
+        const uint8_t* const* field_data, const uint32_t* field_lengths,
+        const uint32_t* const* field_var_lens, size_t count,
+        uint8_t* out32) override
+    {
+        // count==0 and out32==NULL are checked before anything else: neither
+        // can be resolved by zeroing out32 (0 rows means nothing should be
+        // written; a NULL out32 has nothing to zero). Every other failure
+        // mode below -- not-ready context, a NULL descriptor/field_data/
+        // field_lengths, malformed descriptor, per-row bounds, pool
+        // allocation, launch, readback -- is deferred until AFTER out_bytes
+        // is computed and out32 is zeroed, so it is fail-closed: a caller
+        // that passes a valid non-NULL out32 alongside some other bad
+        // argument gets an all-zero digest back, never untouched/stale
+        // memory.
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!out32) return set_error(GpuError::NullArg, "NULL buffer");
+
+        // Overflow-safe output size, checked before any use in allocation or
+        // copy -- this backend is directly reachable from the C ABI, not
+        // just the pre-validated C++ direct-API caller, so `count` cannot be
+        // trusted to keep count*32 within size_t, nor to fit uint32_t: every
+        // later use (dispatch thread count, buf_count upload, the per-field
+        // varlen-offset multiply below) casts count down to uint32_t, and an
+        // unchecked huge count would silently truncate there -- wrong
+        // dispatch size, wrong on-device row count, wrong varlen indexing.
+        // count alone (no pointer dereference) is enough to compute and
+        // apply this bound, so it can run before the is_ready()/NULL checks
+        // below.
+        constexpr uint64_t kU64Max = (std::numeric_limits<uint64_t>::max)();
+        const uint64_t count64 = static_cast<uint64_t>(count);
+        if (count64 > 0xFFFFFFFFull)
+            return set_error(GpuError::BadInput, "count exceeds uint32_t range");
+        if (count64 > kU64Max / 32u)
+            return set_error(GpuError::BadInput, "count overflows output size");
+        const size_t out_bytes = static_cast<size_t>(count64 * 32u);
+        std::memset(out32, 0, out_bytes);
+
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (!descriptor || !field_data || !field_lengths)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+        // ── Descriptor pre-dispatch validation (mirrors libbitcoin.hpp / CUDA parser) ──
+        constexpr size_t MAX_FIELDS = 64;
+        constexpr size_t MAX_PREIMAGE = 4u * 1024u * 1024u;  // 4 MiB per row
+        struct HostPlan { uint16_t field_id; bool has_len; uint32_t fixed_len; };
+        HostPlan plan[MAX_FIELDS];
+        size_t num_fields = 0;
+        bool has_nHashType = false;
+
+        if (descriptor_len < 1 || descriptor_len > 129) return set_error(GpuError::BadInput, "descriptor_len");
+        if ((descriptor_len & 1u) == 0) return set_error(GpuError::BadInput, "descriptor_len even");
+        if (descriptor[descriptor_len - 1] != 0xFF) return set_error(GpuError::BadInput, "no terminator");
+        for (size_t i = 0; i < descriptor_len - 1; i += 2)
+            if (descriptor[i] == 0xFF) return set_error(GpuError::BadInput, "mid-0xFF");
+
+        const uint8_t* p = descriptor;
+        const uint8_t* dend = descriptor + descriptor_len;
+        while (p < dend && *p != 0xFF) {
+            if (num_fields >= MAX_FIELDS) return set_error(GpuError::BadInput, "too many fields");
+            if (p + 1 >= dend) return set_error(GpuError::BadInput, "truncated ref");
+            const uint16_t fid = static_cast<uint16_t>(p[0]) | (static_cast<uint16_t>(p[1] & 0x0Fu) << 8);
+            const uint8_t flags_nib = p[1] >> 4;
+            if ((flags_nib & 0x0Cu) != 0) return set_error(GpuError::BadInput, "reserved flags");
+            if ((fid & 0xFFu) == 0xFFu) return set_error(GpuError::BadInput, "reserved low-byte");
+            for (size_t j = 0; j < num_fields; ++j)
+                if (plan[j].field_id == fid) return set_error(GpuError::BadInput, "duplicate field");
+            const bool has_len = (flags_nib & 0x01u) != 0;
+            uint32_t flen = 0;
+            switch (fid) {
+            case 0x00: flen = 4;  break; case 0x01: flen = 32; break; case 0x02: flen = 32; break;
+            case 0x03: flen = 36; break; case 0x04: /*var*/    break; case 0x05: flen = 8;  break;
+            case 0x06: flen = 4;  break; case 0x07: flen = 32; break; case 0x08: flen = 4;  break;
+            case 0x09: flen = 4;  has_nHashType = true; break;
+            case 0x0A: flen = 36; break; case 0x0B: flen = 4;  break;
+            // 0x0C..0x0F are reserved for BIP-341 TapSighash fields (annex,
+            // tapleaf_hash, key_version, codesep_pos). This op computes
+            // legacy/BIP143-style HASH256, not TapSighash — reject them.
+            case 0x0C: case 0x0D: case 0x0E: case 0x0F:
+                return set_error(GpuError::BadInput, "reserved taproot field id");
+            case 0xF0: /*var*/ break;
+            default: return set_error(GpuError::BadInput, "unsupported field_id");
+            }
+            const bool is_var = (flen == 0);
+            if (is_var && !has_len)  return set_error(GpuError::BadInput, "var w/o HAS_LENGTH");
+            if (!is_var && has_len)  return set_error(GpuError::BadInput, "fixed w/ HAS_LENGTH");
+            if (!field_data[fid])    return set_error(GpuError::BadInput, "null field_data");
+            if (field_lengths[fid] == 0) return set_error(GpuError::BadInput, "zero stride");
+            // Fixed-field stride must be >= its fixed serialized length --
+            // otherwise a row's fixed-length read would run past the bytes the
+            // caller actually populated for that field (undersized declared
+            // stride vs. protocol-fixed width). Mirrors the CPU direct parser
+            // (compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp) and the
+            // CUDA backend (gpu_backend_cuda.cu); same error text as CUDA.
+            if (!is_var && field_lengths[fid] < flen)
+                return set_error(GpuError::BadInput, "stride < fixed_len");
+            if (is_var && (!field_var_lens || !field_var_lens[fid]))
+                return set_error(GpuError::BadInput, "null var_lens");
+            plan[num_fields].field_id  = fid;
+            plan[num_fields].has_len   = has_len;
+            plan[num_fields].fixed_len = flen;
+            ++num_fields;
+            p += 2;
+        }
+        if (p != dend - 1) return set_error(GpuError::BadInput, "bad terminator pos");
+        if (!has_nHashType) return set_error(GpuError::BadInput, "missing nHashType");
+
+        // Bound the on-device varlen element index space up front, folded
+        // into the same early-validation phase as the count/out_bytes check
+        // above. The kernel indexes packed_varlens[varlen_offsets[fi] + tid]
+        // using 32-bit uint arithmetic. Every element offset assigned later
+        // is running_var_field_index * count, and the highest index any
+        // thread ever touches is (num_var_fields - 1) * count + (count - 1),
+        // which is always < num_var_fields * count. Bounding that product to
+        // uint32_t range here -- before any h_varlen_offsets[fi] is ever
+        // assigned -- guarantees the uint32_t multiply in the stride loop
+        // below cannot silently wrap.
+        uint32_t num_var_fields_bound = 0;
+        for (size_t fi = 0; fi < num_fields; ++fi)
+            if (plan[fi].fixed_len == 0) ++num_var_fields_bound;
+        const uint64_t num_var_fields_bound64 = static_cast<uint64_t>(num_var_fields_bound);
+        if (num_var_fields_bound64 != 0 && count64 > kU64Max / num_var_fields_bound64)
+            return set_error(GpuError::BadInput, "varlens element count overflows");
+        if (num_var_fields_bound64 * count64 > 0xFFFFFFFFull)
+            return set_error(GpuError::BadInput, "varlens element index exceeds uint32_t range");
+
+        // Per-row bounds: var_len <= stride, total preimage <= 4 MiB. Defense
+        // in depth -- the libbitcoin direct-API caller already enforces this,
+        // but this backend is also reachable directly from the C ABI, which
+        // does not repeat the per-row check. Cap-before-add: the running
+        // total is checked against MAX_PREIMAGE before each field's length is
+        // folded in, rather than accumulating every field first and checking
+        // once after -- accumulate-then-check can only ever detect the
+        // violation after the unbounded add already happened.
+        for (size_t row = 0; row < count; ++row) {
+            size_t preimage_len = 0;
+            for (size_t fi = 0; fi < num_fields; ++fi) {
+                const auto& pf = plan[fi];
+                uint32_t field_len = 0;
+                if (pf.fixed_len > 0) {
+                    field_len = pf.fixed_len;
+                } else {
+                    const uint32_t var_len = field_var_lens[pf.field_id][row];
+                    if (var_len > field_lengths[pf.field_id])
+                        return set_error(GpuError::BadInput, "var_len exceeds stride");
+                    field_len = var_len;
+                }
+                if (field_len > MAX_PREIMAGE || preimage_len > MAX_PREIMAGE - field_len)
+                    return set_error(GpuError::BadInput, "preimage exceeds 4 MiB");
+                preimage_len += field_len;
+            }
+        }
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+        auto pipe = runtime_->make_pipeline("lbtc_sighash_descriptor");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: lbtc_sighash_descriptor kernel missing from loaded library");
+
+        // Gather referenced field columns into ONE packed host buffer plus a
+        // small per-field metadata table (col_offsets/strides/fixed_lens/
+        // varlen_offsets). Columns are copied verbatim -- never row-assembled
+        // preimages -- so the kernel still streams each field independently.
+        std::vector<uint64_t> h_col_offsets(num_fields);
+        std::vector<uint32_t> h_strides(num_fields);
+        std::vector<uint32_t> h_fixed_lens(num_fields);
+        std::vector<uint32_t> h_varlen_offsets(num_fields, 0);
+
+        // Overflow safety: `count` and per-field strides are attacker-controlled
+        // when this backend is reached directly via the C ABI (not just the
+        // pre-validated C++ direct-API caller), so every count*stride multiply
+        // and the running byte totals below must be checked before they feed
+        // an allocation size or a memcpy length. (count itself and the varlen
+        // element index space were already validated above, alongside the
+        // out_bytes/memset fail-closed block.)
+        uint64_t total_col_bytes = 0;
+        uint32_t num_var_fields = 0;
+        for (size_t fi = 0; fi < num_fields; ++fi) {
+            const auto& pf = plan[fi];
+            const uint32_t stride = field_lengths[pf.field_id];
+            h_strides[fi]     = stride;
+            h_fixed_lens[fi]  = pf.fixed_len;
+            h_col_offsets[fi] = total_col_bytes;
+            if (stride != 0 && count64 > kU64Max / stride)
+                return set_error(GpuError::BadInput, "count * stride overflows");
+            const uint64_t col_bytes = count64 * stride;
+            if (total_col_bytes > kU64Max - col_bytes)
+                return set_error(GpuError::BadInput, "total column bytes overflow");
+            total_col_bytes += col_bytes;
+            if (pf.fixed_len == 0) {
+                h_varlen_offsets[fi] = num_var_fields * static_cast<uint32_t>(count);
+                ++num_var_fields;
+            }
+        }
+        // packed_varlens_elems == num_var_fields_bound64 * count64, already
+        // proven <= 0xFFFFFFFF above (fix 3), so this cannot overflow when
+        // multiplied by sizeof(uint32_t) here. `num_var_fields` (the running
+        // per-field counter above) and `num_var_fields_bound` are always
+        // equal -- both count fields with fixed_len == 0 over the same plan.
+        const uint64_t packed_varlens_elems = num_var_fields_bound64 * count64;
+        uint64_t packed_varlens_bytes64 = packed_varlens_elems * sizeof(uint32_t);
+        if (packed_varlens_bytes64 == 0) packed_varlens_bytes64 = sizeof(uint32_t);
+
+        // Explicit proof that both byte totals fit size_t before the
+        // narrowing casts below -- every prior check above bounds these as
+        // uint64_t, which is wider than size_t on ILP32-style targets even
+        // though every currently shipping Metal target is LP64 (size_t == 64
+        // bits); assert the fit at the cast site rather than relying on that
+        // platform fact implicitly.
+        constexpr uint64_t kSizeMax = static_cast<uint64_t>((std::numeric_limits<size_t>::max)());
+        if (packed_varlens_bytes64 > kSizeMax)
+            return set_error(GpuError::BadInput, "packed varlens size exceeds size_t");
+        if (total_col_bytes > kSizeMax)
+            return set_error(GpuError::BadInput, "packed column size exceeds size_t");
+        const size_t packed_varlens_bytes = static_cast<size_t>(packed_varlens_bytes64);
+        const size_t packed_cols_bytes    = static_cast<size_t>(total_col_bytes);
+
+        // Persistent, grow-only pool buffers (mirrors msm_pool_) instead of a
+        // fresh alloc_buffer_shared() per call. The metadata buffers are
+        // allocated once at MAX_FIELDS capacity; packed_cols/packed_varlens/out
+        // grow to fit the largest call seen so far. sighash_pool_ is a plain
+        // (non-thread_local) member shared across every caller of this
+        // MetalBackend instance, so sighash_pool_mtx_ serializes the whole
+        // span below -- allocation through the final readback -- to prevent
+        // concurrent calls from racing on the same pool buffers/contents.
+        std::lock_guard<std::mutex> sighash_pool_lock(sighash_pool_mtx_);
+        sighash_pool_.ensure(packed_cols_bytes, packed_varlens_bytes, out_bytes, runtime_.get());
+        if (!sighash_pool_.ready(packed_cols_bytes, packed_varlens_bytes, out_bytes))
+            return set_error(GpuError::Memory,
+                             "Metal: lbtc_sighash_descriptor pool allocation failed");
+
+        std::memcpy(sighash_pool_.buf_col_offsets.contents(), h_col_offsets.data(), num_fields * sizeof(uint64_t));
+        std::memcpy(sighash_pool_.buf_strides.contents(), h_strides.data(), num_fields * sizeof(uint32_t));
+        std::memcpy(sighash_pool_.buf_fixed_lens.contents(), h_fixed_lens.data(), num_fields * sizeof(uint32_t));
+        std::memcpy(sighash_pool_.buf_varlen_offsets.contents(), h_varlen_offsets.data(), num_fields * sizeof(uint32_t));
+        uint32_t num_fields32 = static_cast<uint32_t>(num_fields);
+        std::memcpy(sighash_pool_.buf_num_fields.contents(), &num_fields32, sizeof(num_fields32));
+
+        for (size_t fi = 0; fi < num_fields; ++fi) {
+            std::memcpy(static_cast<uint8_t*>(sighash_pool_.buf_packed_cols.contents()) + h_col_offsets[fi],
+                        field_data[plan[fi].field_id],
+                        static_cast<size_t>(count) * h_strides[fi]);
+        }
+        {
+            uint32_t vfi = 0;
+            for (size_t fi = 0; fi < num_fields; ++fi) {
+                if (h_fixed_lens[fi] != 0) continue;
+                std::memcpy(static_cast<uint32_t*>(sighash_pool_.buf_packed_varlens.contents()) +
+                                static_cast<size_t>(vfi) * count,
+                            field_var_lens[plan[fi].field_id],
+                            count * sizeof(uint32_t));
+                ++vfi;
+            }
+        }
+        uint32_t count32 = static_cast<uint32_t>(count);
+        std::memcpy(sighash_pool_.buf_count.contents(), &count32, sizeof(count32));
+
+        runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
+                                {&sighash_pool_.buf_col_offsets, &sighash_pool_.buf_strides,
+                                 &sighash_pool_.buf_fixed_lens, &sighash_pool_.buf_varlen_offsets,
+                                 &sighash_pool_.buf_num_fields, &sighash_pool_.buf_packed_cols,
+                                 &sighash_pool_.buf_packed_varlens, &sighash_pool_.buf_count,
+                                 &sighash_pool_.buf_out});
+
+        std::memcpy(out32, sighash_pool_.buf_out.contents(), out_bytes);
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
     GpuError ecdh_batch(
         const uint8_t* privkeys32, const uint8_t* peer_pubkeys33,
         size_t count, uint8_t* out_secrets32) override
@@ -2087,6 +2453,13 @@ private:
     bool lib_init_attempted_ = false;
     bool lib_ready_          = false;
     MetalMsmPool msm_pool_;
+    MetalSighashPool sighash_pool_;
+    // sighash_pool_ is a plain (non-thread_local) member, so its buffers and
+    // their contents are shared/racy across concurrent callers of the same
+    // MetalBackend instance -- unlike OpenCL's thread_local pool. This mutex
+    // serializes sighash_descriptor_hash's pool-touching span; see that
+    // function's doc comment.
+    std::mutex sighash_pool_mtx_;
     GpuError last_err_ = GpuError::Ok;
     char     last_msg_[256] = {};
 

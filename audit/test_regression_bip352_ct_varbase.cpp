@@ -17,6 +17,7 @@
 #endif
 
 #include "ufsecp256k1.h"
+#include "ufsecp/ufsecp_gpu.h"
 
 #include <cstring>
 #include <cstdio>
@@ -70,24 +71,28 @@ static void test_bcv_cpu_correctness() {
 // Verifies that the ct::ct_scalar_mul_varbase kernel produces the same
 // prefix as the CPU reference for a known scan key + input pubkey pair.
 static void test_bcv_gpu_batch_matches_cpu() {
-#ifdef SECP256K1_HAVE_CUDA
-    // Import GPU backend
-    extern ufsecp_gpu_error_t ufsecp_gpu_create_context(ufsecp_gpu_ctx**, int, unsigned);
-    extern ufsecp_gpu_error_t ufsecp_gpu_bip352_scan_batch(
-        ufsecp_gpu_ctx*, const uint8_t*, const uint8_t*, const uint8_t*, size_t, uint64_t*);
-    extern void ufsecp_gpu_destroy_context(ufsecp_gpu_ctx*);
+    // Runtime GPU availability check (advisory module — CUDA may not be present).
+    if (!ufsecp_gpu_is_available(UFSECP_GPU_BACKEND_CUDA)) {
+        std::printf("SKIP BCV-5..8: CUDA GPU not available (advisory)\n");
+        return;
+    }
 
     ufsecp_gpu_ctx* gctx = nullptr;
-    ufsecp_gpu_error_t grc = ufsecp_gpu_create_context(&gctx, 0 /* CUDA */, 0);
-    if (grc != 0 || !gctx) {
-        std::printf("SKIP BCV-5: no CUDA GPU (advisory)\n"); return;
+    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, UFSECP_GPU_BACKEND_CUDA, 0);
+    if (grc != UFSECP_OK || !gctx) {
+        std::printf("SKIP BCV-5: CUDA ctx creation failed (advisory)\n"); return;
     }
 
     uint8_t scan_sk[32] = {};
     scan_sk[31] = 0x07;
     uint8_t spend_pk33[33] = {};
 
-    ufsecp_ctx* ctx = ufsecp_ctx_create();
+    ufsecp_ctx* ctx = nullptr;
+    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) {
+        std::printf("SKIP BCV-5: CPU ctx creation failed (advisory)\n");
+        ufsecp_gpu_ctx_destroy(gctx);
+        return;
+    }
     uint8_t spend_sk[32] = {}; spend_sk[31] = 0x0B;
     ASSERT_TRUE(ufsecp_pubkey_create(ctx, spend_sk, spend_pk33) == UFSECP_OK, "BCV: spend pubkey_create");
 
@@ -100,20 +105,17 @@ static void test_bcv_gpu_batch_matches_cpu() {
 
     uint64_t prefix = 0;
     grc = ufsecp_gpu_bip352_scan_batch(gctx, scan_sk, spend_pk33, g33, 1, &prefix);
-    ASSERT_TRUE(grc == 0, "BCV-5: GPU bip352_scan_batch must succeed");
+    ASSERT_TRUE(grc == UFSECP_OK, "BCV-5: GPU bip352_scan_batch must succeed");
     ASSERT_FALSE(prefix == 0, "BCV-6: GPU bip352 prefix must not be zero for valid inputs");
 
     // BCV-7: run twice with same inputs → same prefix (deterministic CT path)
     uint64_t prefix2 = 0;
     grc = ufsecp_gpu_bip352_scan_batch(gctx, scan_sk, spend_pk33, g33, 1, &prefix2);
-    ASSERT_TRUE(grc == 0, "BCV-7: second GPU bip352 run must succeed");
+    ASSERT_TRUE(grc == UFSECP_OK, "BCV-7: second GPU bip352 run must succeed");
     ASSERT_TRUE(prefix == prefix2, "BCV-8: GPU bip352 must be deterministic");
 
     ufsecp_ctx_destroy(ctx);
-    ufsecp_gpu_destroy_context(gctx);
-#else
-    std::printf("SKIP BCV-5..8: CUDA not built (advisory)\n");
-#endif
+    ufsecp_gpu_ctx_destroy(gctx);
 }
 
 int test_regression_bip352_ct_varbase_run() {

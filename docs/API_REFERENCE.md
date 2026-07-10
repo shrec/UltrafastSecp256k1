@@ -668,7 +668,7 @@ parity with the other batch ops but is currently unused by the CPU fallback
 (single-pass per-row hashing; the GPU hook, when installed, does its own
 internal parallelism) — reserved for a future threaded CPU fallback.
 
-Fail-closed contract — **validate ops**: `count==0`→`true` (out untouched); null ptr or `count×elem` overflow → zero `out_results` (if non-null) and `false`; operational GPU failure declines → CPU overwrites every row (never all-zero). **Hash ops** never pre-zero `out32` (zero = wrong/consensus-invalid hash): `count==0`→`true`; null ptr, `msg_len/input_len==0`, `stride < msg_lens[i]`, or overflow → `false` **without touching** `out32`; operational GPU failure declines → CPU writes the correct hash for every row. **`hash256_var_batch`** additionally rejects any individual `input_lens[i]==0` or `input_lens[i]>stride` (per-row bounds check, not just a scalar `stride` check) before touching `out32` or dispatching to GPU.
+Fail-closed contract — **validate ops**: `count==0`→`true` (out untouched); null ptr or `count×elem` overflow → zero `out_results` (if non-null) and `false`; operational GPU failure declines → CPU overwrites every row (never all-zero). **Hash ops** never pre-zero `out32` (zero = wrong/consensus-invalid hash): `count==0`→`true`; null ptr, `msg_len/input_len==0`, `stride < msg_lens[i]` (variable-length), **`stride < fixed_len` (fixed-length fields in sighash)**, or overflow → `false` **without touching** `out32`; operational GPU failure declines → CPU writes the correct hash for every row. **`hash256_var_batch`** additionally rejects any individual `input_lens[i]==0` or `input_lens[i]>stride` (per-row bounds check, not just a scalar `stride` check) before touching `out32` or dispatching to GPU.
 
 **Consumer CMake example:**
 ```cmake
@@ -2818,8 +2818,21 @@ a rejected call):
 
 Computes `SHA256(SHA256(preimage))` for N transaction inputs where the preimage
 is assembled from column-major field data according to a compact descriptor
-bytecode. CPU/reference surface only (GPU hook deferred). No bridge, no shim,
-no C ABI.
+bytecode. No bridge, no shim, no C ABI dependency in the canonical libbitcoin
+C++ path.
+
+**GPU acceleration (Phase 3b):** The production path transparently attempts a
+GPU hook (`g_lbtc_sighash_hook` → `GpuBackend::sighash_descriptor_hash`). Hook
+return `0` = handled (out32 fully written); `-1` = operational decline →
+deterministic CPU fallback (the existing per-row streaming loop). CUDA, OpenCL,
+and Metal all provide native kernels. The GPU path streams referenced field
+columns directly through SHA-256 — no per-row preimage buffer is materialised
+on the CPU or GPU.
+
+**This computes HASH256 for legacy/BIP143-style sighash preimages only.
+It is NOT BIP341 TapSighash.** Taproot-only field IDs `0x0C`..`0x0F` are
+reserved and rejected by all backends until a separately reviewed tagged-hash
+mode exists.
 
 **Descriptor format (v2, LE):** sequence of 2-byte little-endian `field_ref`
 entries terminated by a single `0xFF` byte.
@@ -2874,7 +2887,7 @@ All other field_ids → rejected (reserved/unsupported). `field_id & 0xFF == 0xF
 
 ```cpp
 // HASH256 of descriptor-shaped sighash preimage for N transaction inputs.
-// CPU/reference path only — no GPU hook in this phase.
+// Transparently attempts GPU hook; falls back to deterministic CPU on decline.
 [[nodiscard]] bool sighash_descriptor_hash_batch(
     const uint8_t* descriptor, size_t descriptor_len,
     const uint8_t* const* field_data, const uint32_t* field_lengths,

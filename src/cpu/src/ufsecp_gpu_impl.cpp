@@ -740,6 +740,49 @@ ufsecp_error_t ufsecp_gpu_merkle_pair_hash(
     } UFSECP_GPU_CATCH
 }
 
+ufsecp_error_t ufsecp_gpu_sighash_descriptor_hash(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* descriptor,
+    size_t descriptor_len,
+    const uint8_t* const* field_data,
+    const uint32_t* field_lengths,
+    const uint32_t* const* field_var_lens,
+    size_t count,
+    uint8_t* out32)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    if (!clear_output_bytes(out32, count, 32)) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!descriptor || !field_data || !field_lengths || !out32))
+        return UFSECP_ERR_NULL_ARG;
+
+    /* Descriptor pre-dispatch validation (mirrors libbitcoin.hpp v2 contract).
+     * Fail-closed: reject malformed descriptors, count*stride overflow,
+     * var_len > stride, and total preimage > 4 MiB before any GPU dispatch;
+     * out32 is already cleared by clear_output_bytes above on error paths.
+     * Taproot field IDs 0x0C..0x0F are rejected by the backend parser. */
+    if (descriptor_len < 1 || descriptor_len > 129) return UFSECP_ERR_BAD_INPUT;
+    if ((descriptor_len & 1u) == 0) return UFSECP_ERR_BAD_INPUT;
+    if (descriptor[descriptor_len - 1] != 0xFF) return UFSECP_ERR_BAD_INPUT;
+    for (size_t i = 0; i < descriptor_len - 1; i += 2) {
+        if (descriptor[i] == 0xFF) return UFSECP_ERR_BAD_INPUT;
+    }
+
+    /* Bounds: count must fit in int32 for the kernel launch, and field_data
+     * stride must not overflow. The backend performs deeper per-field checks
+     * (count*stride overflow, var_len <= stride, total preimage <= 4 MiB). */
+    if (count > static_cast<size_t>(INT32_MAX)) return UFSECP_ERR_BAD_INPUT;
+
+    try {
+        return to_abi_error_clear_on_fail(
+            ctx->backend->sighash_descriptor_hash(
+                descriptor, descriptor_len, field_data, field_lengths,
+                field_var_lens, count, out32),
+            out32, count, 32);
+    } UFSECP_GPU_CATCH
+}
+
 
 ufsecp_error_t ufsecp_gpu_frost_verify_partial_batch(
     ufsecp_gpu_ctx* ctx,

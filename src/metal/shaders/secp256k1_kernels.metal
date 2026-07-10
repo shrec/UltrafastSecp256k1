@@ -950,6 +950,55 @@ kernel void lbtc_hash256_var(
     for (uint j = 0; j < 32; ++j) out[ulong(tid) * 32 + j] = h2[j];
 }
 
+// HASH256 (double SHA-256) of a descriptor-shaped concatenation of per-row
+// field columns — Bitcoin sighash preimage hashing. The host pre-parses the
+// descriptor (same grammar as libbitcoin.hpp's CPU parser) and gathers every
+// referenced field's column into one packed buffer (columns copied verbatim,
+// never a row-assembled preimage) plus four small per-field metadata arrays,
+// since this codebase has no argument-buffer/pointer-array precedent on
+// Metal. Each thread streams its row's fields directly from packed_cols
+// through one running SHA-256 context via sha256_update_device — no per-row
+// preimage buffer, so preimage length is effectively unbounded on-device
+// (the host still enforces the 4 MiB/row policy cap before dispatch).
+// Public data only, no secret material.
+//
+//   col_offsets[fi]     byte offset of field fi's column within packed_cols
+//   strides[fi]         per-row byte stride of field fi within packed_cols
+//   fixed_lens[fi]      0 => variable-length field (read real length below)
+//   varlen_offsets[fi]  element offset of field fi's lengths within packed_varlens
+kernel void lbtc_sighash_descriptor(
+    device const ulong *col_offsets     [[buffer(0)]],
+    device const uint  *strides         [[buffer(1)]],
+    device const uint  *fixed_lens      [[buffer(2)]],
+    device const uint  *varlen_offsets  [[buffer(3)]],
+    constant uint &num_fields           [[buffer(4)]],
+    device const uchar *packed_cols     [[buffer(5)]],
+    device const uint  *packed_varlens  [[buffer(6)]],
+    constant uint &count                [[buffer(7)]],
+    device uchar *out32                 [[buffer(8)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+
+    SHA256Ctx inner; sha256_init(inner);
+    for (uint fi = 0; fi < num_fields; ++fi) {
+        uint stride = strides[fi];
+        uint fixed_len = fixed_lens[fi];
+        uint len = (fixed_len > 0) ? fixed_len : packed_varlens[varlen_offsets[fi] + tid];
+        if (len > stride) len = stride;   // defense in depth: host already enforces var_len<=stride
+        device const uchar *ptr = packed_cols + col_offsets[fi] + ulong(tid) * stride;
+        sha256_update_device(inner, ptr, len);
+    }
+    thread uchar h1[32];
+    sha256_final(inner, h1);                        // SHA256(concatenated fields)
+
+    SHA256Ctx outer; sha256_init(outer);
+    sha256_update(outer, h1, 32);
+    thread uchar h2[32];
+    sha256_final(outer, h2);                         // SHA256(SHA256(concatenated fields))
+    for (uint j = 0; j < 32; ++j) out32[ulong(tid) * 32 + j] = h2[j];
+}
+
 // =============================================================================
 // Kernel 11: Batch Schnorr Sign (BIP-340)
 // =============================================================================

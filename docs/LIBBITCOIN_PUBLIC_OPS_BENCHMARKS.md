@@ -10,7 +10,7 @@ This page is the shareable benchmark/example index for the bridge-free
 | `bench_lbtc_direct_batch` | ECDSA/Schnorr row + column verify | Signature verification throughput, including libbitcoin's packed row and SoA column layouts |
 | `bench_lbtc_public_ops` | `xonly_validate_batch`, `pubkey_validate_batch`, `taproot_commitment_verify_batch`, `tagged_hash_batch`, tag-string overload, `tagged_hash_var_batch`, `hash256_batch`, `hash256_var_batch` | Block-connect-scale public-data entrypoints |
 | `bench_lbtc_hash256_var` | `hash256_var_batch` only, larger count | txid/wtxid-shaped variable-length HASH256 preimage throughput |
-| `bench_lbtc_workloads` | `txid_batch`, `wtxid_batch`, `merkle_pair_batch`, `merkle_root_batch` (`sighash_batch` excluded, see below) | libbitcoin block-processing-shaped workload evidence, schema `ufsecp-lbtc-gpu-workload-benchmark-v1`, one JSON artifact per workload |
+| `bench_lbtc_workloads` | `txid_batch`, `wtxid_batch`, `merkle_pair_batch`, `merkle_root_batch`, `sighash_batch` | libbitcoin block-processing-shaped workload evidence, schema `ufsecp-lbtc-gpu-workload-benchmark-v1`, one JSON artifact per workload |
 | `example_lbtc_public_ops` | All public-data entrypoints | Runnable minimal integration example |
 
 All targets link the direct C++ libbitcoin surface only:
@@ -252,17 +252,47 @@ out/libbitcoin-public-ops-bench/compat/libbitcoin_direct/bench_lbtc_hash256_var 
 
 ## Workload benchmark harness (`bench_lbtc_workloads`, schema v2)
 
-`bench_lbtc_workloads` benchmarks 4 libbitcoin block-processing-shaped
+`bench_lbtc_workloads` benchmarks 5 libbitcoin block-processing-shaped
 workloads over the same bridge-free `ufsecp::lbtc::*` surface:
-`txid_batch`, `wtxid_batch`, `merkle_pair_batch`, `merkle_root_batch`.
+`txid_batch`, `wtxid_batch`, `merkle_pair_batch`, `merkle_root_batch`,
+`sighash_batch`.
 
-`sighash_batch` is intentionally **not** implemented here: no
-`sighash_descriptor_hash_batch` exists anywhere in this codebase yet, and
-`workingdocs/libbitcoin_gpu_workloads/api_plan_blocker_resolution_deepseek.md`
-(blocker B1) explicitly gates any sighash descriptor kernel work behind an
-external libbitcoin-developer review that has not happened. Do not add a
-`sighash_batch` row to this harness until that descriptor contract is
-accepted.
+`sighash_batch` uses the canonical BIP-143 legacy sighash ALL descriptor
+(`nVersion`, `hashPrevouts`, `hashSequence`, `outpoint`, `scriptCode`
+(variable), `value`, `nSequence`, `hashOutputs`, `nLocktime`, `nHashType`),
+validated against a direct per-row field-concatenation +
+`secp256k1::SHA256::hash256` oracle that never calls
+`sighash_descriptor_hash_batch`'s own parser. On this reviewer's host
+(OpenCL-enabled build profile, RTX 5060 Ti), the workload reached
+`backend=opencl`/`device=NVIDIA GeForce RTX 5060 Ti`/`evidence_class=gpu_acceleration`,
+matching the independent oracle byte-for-byte. See
+`docs/BACKEND_ASSURANCE_MATRIX.md` for the per-backend
+`sighash_descriptor_hash` parity status (CUDA landed separately, does not
+currently compile as of 2026-07-10 — see that doc; Metal is
+compile/static-parity only, pending Apple hardware).
+
+**Repair round (2026-07-10):** after replacing OpenCL/Metal's per-call buffer
+allocation with a grow-only reusable pool (see `BACKEND_ASSURANCE_MATRIX.md`),
+`sighash_batch` was re-measured on both `small` and `medium` batch classes on
+the same `build-review-lbtc-gpu` OpenCL profile (RTX 5060 Ti):
+
+| batch_class | mode | rows/s | ns/row |
+|---|---|---:|---:|
+| small (count=64) | direct-cpu-forced | 3.31 M | 301.8 |
+| small (count=64) | direct-production (opencl) | 0.74 M | 1356.1 |
+| medium | direct-cpu-forced | 3.48 M | 287.6 |
+| medium | direct-production (opencl) | 13.65 M | 73.3 |
+
+Both rows validated byte-identical against the independent oracle at both
+batch sizes (the harness aborts on any mismatch; it did not). At `small`,
+per-call dispatch/upload/download overhead still dominates and GPU is slower
+than CPU — consistent with the other 4 workloads in this harness at the same
+batch size. At `medium`, GPU overtakes CPU now that the reusable pool removes
+the per-call allocation cost. This is a **single 5-iteration run**, not a
+controlled ≥5-run/CPU-pinned/turbo-disabled measurement per this repo's
+Performance Optimization Protocol — it is functional/hardware-execution
+evidence of correct GPU execution at both batch sizes, not a confirmed
+speedup claim.
 
 ### Schema and evidence honesty
 

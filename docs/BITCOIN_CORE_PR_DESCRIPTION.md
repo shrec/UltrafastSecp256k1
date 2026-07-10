@@ -52,7 +52,7 @@ and `docs/bench_unified_2026-05-30_gcc14_x86-64.json`.
 ## Security properties
 
 - Constant-time signing paths: LLVM ct-verif + Valgrind taint + dudect (600s)
-- 271 exploit PoCs tests, 0 failures
+- 272 exploit PoCs tests, 0 failures
 - Wycheproof ECDSA/ECDH: all vectors pass
 - RFC 6979 nonce: 35/35 test vectors
 - BIP-340 Schnorr: 27/27 test vectors

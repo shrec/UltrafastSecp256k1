@@ -1331,9 +1331,14 @@ inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
 // ============================================================================
 // Computes SHA256(SHA256(preimage)) for N transaction inputs where the preimage
 // is assembled from column-major field data according to a compact descriptor
-// bytecode. The descriptor is a sequence of 2-byte little-endian field_refs
-// terminated by a single 0xFF byte. This is a direct C++ CPU/reference surface
-// — no bridge, no shim, no C ABI, no GPU backend virtual (GPU hook deferred).
+// bytecode. This is legacy/BIP-143 sighash HASH256 only — it is NOT BIP-341
+// TapSighash. Taproot-only field IDs 0x0C..0x0F are reserved and rejected until
+// a separately reviewed tagged-hash mode exists.
+//
+// The descriptor is a sequence of 2-byte little-endian field_refs terminated by
+// a single 0xFF byte. GPU acceleration (Phase 3b) transparently attempts a GPU
+// hook (GpuBackend::sighash_descriptor_hash) with native CUDA/OpenCL/Metal
+// kernels; on decline the deterministic CPU fallback runs.
 //
 // Descriptor byte layout (v2, LE):
 //   Each field_ref = 2 bytes LE:
@@ -1351,14 +1356,13 @@ inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
 //   field_lengths[f]   — fixed byte length (or stride for variable fields)
 //   field_var_lens[f]  — per-item length array (non-null iff HAS_LENGTH)
 //
-// Supported field IDs:
+// supported field IDs:
 //   0x00 nVersion(4)   0x01 hashPrevouts(32)  0x02 hashSequence(32)
 //   0x03 outpoint(36)  0x04 scriptCode(var)    0x05 value(8)
 //   0x06 nSequence(4)  0x07 hashOutputs(32)    0x08 nLocktime(4)
 //   0x09 nHashType(4)  0x0A prevout_individual(36) 0x0B nInputIndex(4)
-//   0x0C annex(var)    0x0D tapleaf_hash(32)   0x0E key_version(4)
-//   0x0F codesep_pos(4)
 //   0xF0 raw_literal(var)
+//   0x0C..0x0F reserved (Taproot-only, rejected — not BIP-341 TapSighash)
 //   All other field_ids → rejected (reserved/unsupported).
 //
 // Failure semantics (fail-closed, HASH op — out32 untouched on bad input):
@@ -1465,10 +1469,10 @@ inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
         case 0x09: fixed_len =  4; supported = true; has_nHashType = true; break; // nHashType
         case 0x0A: fixed_len = 36; supported = true; break;   // prevout_individual
         case 0x0B: fixed_len =  4; supported = true; break;   // nInputIndex
-        case 0x0C: /* variable */ supported = true; break;   // annex
-        case 0x0D: fixed_len = 32; supported = true; break;   // tapleaf_hash
-        case 0x0E: fixed_len =  4; supported = true; break;   // key_version
-        case 0x0F: fixed_len =  4; supported = true; break;   // codesep_pos
+        case 0x0C: return false;   // annex (Taproot-only, reserved)
+        case 0x0D: return false;   // tapleaf_hash (Taproot-only, reserved)
+        case 0x0E: return false;   // key_version (Taproot-only, reserved)
+        case 0x0F: return false;   // codesep_pos (Taproot-only, reserved)
         case 0xF0: /* variable */ supported = true; break;   // raw_literal
         default:   return false;   // unsupported / reserved
         }
@@ -1492,6 +1496,9 @@ inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
 
         // Stride must be non-zero for any referenced field.
         if (field_lengths[field_id] == 0) return false;
+
+        // Fixed-field stride must be ≥ its fixed serialized length.
+        if (!is_variable && field_lengths[field_id] < fixed_len) return false;
 
         plan[num_fields].field_id   = field_id;
         plan[num_fields].has_length = has_len;
@@ -1534,7 +1541,20 @@ inline void tagged_hash_precomputed(const std::uint8_t tag_hash32[32],
         if (preimage_len > MAX_PREIMAGE) return false;
     }
 
-    // ─── Per-row streaming HASH256 ──────────────────────────────────────
+    // ─── GPU hook attempt (production path) ─────────────────────────────
+    // After all host-side validation passes, attempt the GPU hook once.
+    // Hook return: 0 = handled (out32 fully written) → return true.
+    //              -1 = decline (no GPU / operational error) → CPU fallback.
+    // null hook = CPU-only build → straight to CPU fallback.
+    if (auto hook = gpu_hook::g_lbtc_sighash_hook.load(std::memory_order_acquire)) {
+        if (hook(descriptor, descriptor_len, field_data, field_lengths,
+                 field_var_lens, count, out32) == 0) {
+            return true;
+        }
+        // Hook declined → fall through to deterministic CPU fallback.
+    }
+
+    // ─── Per-row streaming HASH256 (CPU fallback) ───────────────────────
     for (std::size_t row = 0; row < count; ++row) {
         // Inner SHA-256: stream each field into the context.
         secp256k1::SHA256 inner;

@@ -1,5 +1,140 @@
 # Audit Changelog
 
+## 2026-07-10 — `sighash_descriptor_hash`: OpenCL/Metal fixed-stride validation parity, OpenCL concurrency fix, Metal fail-closed reorder
+
+Follow-on repair to the OpenCL/Metal `sighash_descriptor_hash` native-parity
+round below (same day) — three fixes, all host-side, no kernel (`.cl`/`.metal`)
+changes:
+
+- **Fixed-stride validation gap closed (OpenCL + Metal):** neither backend's
+  descriptor-parse loop checked that a FIXED-width field's declared row stride
+  (`field_lengths[fid]`) is at least that field's protocol-fixed serialized
+  length (`fixed_len` — e.g. txid/hashPrevouts=32, sequence=4, amount=8),
+  unlike the CPU direct parser
+  (`compat/libbitcoin_direct/include/ufsecp/libbitcoin.hpp:1500-1501`) and the
+  CUDA backend, which both already enforced it. Both kernels already clamp the
+  per-row read length to `min(fixed_len_or_varlen, stride)`, so this was not a
+  memory-safety OOB read — it was a silent-wrong-digest bug: an undersized
+  declared stride for a fixed field produced a HASH256 computed over
+  truncated field bytes with no error, instead of the deterministic
+  `BadInput` rejection every other backend already gave. Fixed:
+  `if (!is_var && field_lengths[fid] < flen) return
+  set_error(GpuError::BadInput, "stride < fixed_len");` added to both
+  backends' parse loop (`src/gpu/src/gpu_backend_opencl.cpp`,
+  `src/gpu/src/gpu_backend_metal.mm`), same position and same error text as
+  CUDA. All four implementations (CPU direct, CUDA, OpenCL, Metal) now reject
+  this case identically.
+- **OpenCL lazy-kernel-init concurrency race closed:** `sighash_dispatch_mtx_`
+  previously only wrapped the pool-alloc/upload/kernel-arg-bind/launch/readback
+  span, not the lazy `ensure_extended_kernels()` call preceding it, so two
+  threads racing a cold (never-yet-dispatched) backend instance could race the
+  unsynchronized lazy kernel-program-build/cache-init path (unguarded
+  `ext_init_attempted_` and sequential `clCreateKernel`/cleanup chains). The
+  mutex acquisition in `gpu_backend_opencl.cpp`'s `sighash_descriptor_hash`
+  was moved earlier to cover `ensure_extended_kernels()` too. Scoped to this
+  one op only (the other `ensure_extended_kernels()` call sites in the file
+  are unchanged/out of scope for this fix).
+- **Metal fail-closed on early return + explicit size_t bound checks:** two
+  early-return paths in `gpu_backend_metal.mm`'s `sighash_descriptor_hash`
+  (`is_ready()` failure, and a NULL `descriptor`/`field_data`/`field_lengths`
+  with a valid non-NULL `out32`) previously returned before the fail-closed
+  `memset(out32, 0, out_bytes)`, so a caller could get an untouched (not
+  zeroed) `out32` on those two specific failure paths. Reordered so
+  `count==0` and `out32==NULL` are checked first (neither can be resolved by
+  zeroing), then `out_bytes` is computed and `out32` is zeroed, then
+  `is_ready()` and the remaining NULL checks run — so every failure path
+  after that point returns an all-zero `out32`. Also added explicit
+  `uint64_t` vs `SIZE_MAX` bound checks immediately before the two
+  `static_cast<size_t>(...)` narrowing casts of
+  `packed_varlens_bytes64`/`total_col_bytes`.
+- **Tests:** `audit/test_exploit_sighash_descriptor_malformed.cpp` adds
+  `test_fixed_field_stride_less_than_fixed_len()` to the existing
+  `exploit_sighash_descriptor_malformed` module (`ALL_MODULES` entry
+  unchanged). `audit/test_regression_sighash_descriptor_gpu.cpp` adds
+  `test_ocl_cold_concurrent_dispatch()` — the same 6-thread concurrent-dispatch
+  pattern as the existing `test_ocl_concurrent_dispatch()`, but without the
+  pre-spawn warm-up call, so the first `ensure_extended_kernels()` call races
+  across all 6 threads against a freshly created ctx — to the existing
+  `sighash_descriptor_gpu` module (`ALL_MODULES` entry unchanged). No new
+  `ALL_MODULES` entries; `ci/sync_module_count.py --check` passes clean.
+- **Docs:** `docs/BACKEND_ASSURANCE_MATRIX.md` (new "Second repair round"
+  paragraph + updated OpenCL/Metal `sighash_descriptor_hash` table rows),
+  `docs/EXPLOIT_TEST_CATALOG.md` (`exploit_sighash_descriptor_malformed` entry
+  updated with the new test case) updated in this pass.
+  `docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md` and
+  `docs/LIBBITCOIN_PERF_MATRIX_STATUS.json` do not mention this specific
+  validation gap and were left unchanged; a separate hardware validation pass
+  is expected to update them with real OpenCL/CUDA measurements.
+
+## 2026-07-10 — native OpenCL/Metal parity for `sighash_descriptor_hash` (task `lbtc-sighash-gpu-opencl-metal-evidence-claude`)
+
+Adds native OpenCL and Metal kernels/overrides for the `GpuBackend::sighash_descriptor_hash`
+virtual whose CUDA-first implementation and shared contract (virtual signature,
+hook trampoline, C ABI wrapper `ufsecp_gpu_sighash_descriptor_hash`) landed via
+the companion task `lbtc-sighash-gpu-core-cuda-deepseek`
+(`src/gpu/include/gpu_backend.hpp`, `src/gpu/src/gpu_backend_cuda.cu`,
+`src/gpu/src/gpu_engine_hook.cpp`, `include/ufsecp/ufsecp_gpu.h`,
+`src/cpu/src/ufsecp_gpu_impl.cpp` — none of those files were edited by this task).
+
+- **OpenCL:** `src/gpu/src/gpu_backend_opencl.cpp` (`OpenCLBackend::sighash_descriptor_hash`)
+  + `src/opencl/kernels/secp256k1_extended.cl` (`lbtc_sighash_descriptor` kernel).
+  OpenCL 1.2 cannot bind an array of `__global` buffer pointers as a single
+  kernel argument (unlike CUDA's device pointer array), so referenced field
+  columns are gathered host-side into one packed buffer (columns copied
+  verbatim, never a row-assembled preimage) plus four small per-field
+  metadata arrays (`col_offsets`/`strides`/`fixed_lens`/`varlen_offsets`);
+  the kernel streams each field via `sha256_update_global`, mirroring
+  `lbtc_hash256_var`'s O(1)-local-memory design. Independently re-validates
+  the full descriptor grammar plus per-row `var_len > stride` and the 4 MiB
+  preimage cap (defense in depth — this backend is reachable directly from
+  the C ABI, which does not repeat those checks).
+- **Metal:** `src/gpu/src/gpu_backend_metal.mm` (`MetalBackend::sighash_descriptor_hash`)
+  + `src/metal/shaders/secp256k1_kernels.metal` (`lbtc_sighash_descriptor` kernel),
+  mirroring the OpenCL packed-buffer design (`sha256_update_device`). Not
+  built/run on this Linux host — Metal compiles only on Apple.
+- **Benchmark:** `compat/libbitcoin_direct/bench/bench_workloads.cpp` adds a
+  `sighash_batch` workload (legacy BIP-143 sighash ALL descriptor: nVersion,
+  hashPrevouts, hashSequence, outpoint, scriptCode(variable), value,
+  nSequence, hashOutputs, nLocktime, nHashType), validated against a direct
+  per-row field-concatenation + `secp256k1::SHA256::hash256` oracle.
+- **Audit — new modules:**
+  - `audit/test_regression_sighash_descriptor_gpu.cpp` (`test_regression_sighash_descriptor_gpu_run()`,
+    `ALL_MODULES` key `sighash_descriptor_gpu`, section `differential`): KAT vs
+    a from-scratch per-row field-concatenation oracle (not the implementation's
+    own descriptor parser), `count==0` no-op, moderate-count row-by-row check.
+  - `audit/test_exploit_sighash_descriptor_malformed.cpp` (`test_exploit_sighash_descriptor_malformed_run()`,
+    `ALL_MODULES` key `exploit_sighash_descriptor_malformed`, section
+    `exploit_poc`): hostile-descriptor coverage (grammar violations,
+    `var_len > stride`, preimage `> 4 MiB`, NULL-pointer isolation, positive
+    control).
+  Both build clean and pass as standalone CTest targets and inside
+  `unified_audit_runner` (differential/exploit_poc sections); on-device
+  checks self-skip cleanly in build profiles without a linked GPU backend.
+  Reviewer-verified against real hardware separately via
+  `bench_lbtc_workloads` (RTX 5060 Ti, OpenCL) — see the benchmark bullet
+  above.
+- **Docs:** `docs/BACKEND_ASSURANCE_MATRIX.md` (new `sighash_descriptor_hash`
+  section + feature-matrix row), `docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md`
+  (workload table + narrative), `docs/LIBBITCOIN_PERF_MATRIX_STATUS.json`
+  (`lbtc_workload_bench_harness` surface), `docs/EXPLOIT_TEST_CATALOG.md`
+  (new `sighash_descriptor_malformed` entry), `docs/ABI_NEGATIVE_TEST_MANIFEST.json`/`.md`
+  (regenerated via `ci/generate_abi_negative_tests.py` — full coverage,
+  `blocking: false`, `missing_checks: []`) updated in the same pass.
+  `ci/sync_module_count.py` was run but reported drift across ~29 doc files
+  outside this task's `allowed_writes` (README.md, docs/WHY_ULTRAFASTSECP256K1.md,
+  and others) — flagged for Codex/owner to run `ci/sync_all_docs.py`, not
+  applied here to stay inside scope.
+- **Known gap (not fixed here, out of `allowed_writes`):** `gpu_backend_cuda.cu:2048-2232`'s
+  `sighash_descriptor_hash` host validation does not independently re-check
+  per-row `var_len > stride` or the 4 MiB preimage cap before dispatch (the
+  CPU direct-API caller already enforces both; only reachable via the C ABI
+  entry with a caller that bypasses that pre-validation). Flagged in
+  `docs/BACKEND_ASSURANCE_MATRIX.md` for the owning card/Codex review.
+- **Known gap (not fixed here, out of `allowed_writes`):** `ci/check_gpu_backend_parity.py`
+  needs a new `ABI_SYMBOL_FOR_OP` entry for `sighash_descriptor_hash` — the
+  gate currently fails with `abi_mapping_missing` until that mapping file is
+  updated.
+
 ## 2026-07-08 — new audit modules for `txid_hash_batch` / `wtxid_hash_batch` / `merkle_pair_hash_batch`
 
 Tests, audit wiring, and bench coverage for three GPU workload primitives that
@@ -2322,7 +2457,7 @@ Resolved the audit's only P1 (GPU-CT cluster) on a GPU host (RTX 5060 Ti, sm_120
   crossing, MR5 adapt determinism, MR6 witness correspondence across distinct adaptors.
   10/10 relations hold. The positive twin of `soundness_adaptor_dleq_forgery` (GHSA-c7q2):
   a structural break in adapt/extract escapes a single honest roundtrip but breaks the
-  relation. Module count 421 → 422 (153 non-exploit + 271 exploit PoCs).
+  relation. Module count 421 → 422 (153 non-exploit + 272 exploit PoCs).
 - **Ledger also institutionalizes existing coverage:** `pedersen-additive-homomorphism`
   marked `covered` → existing `exploit_pedersen_homomorphism` module; MuSig2 aggregate≡single
   and FROST threshold-reconstruction equivalence declared `roadmap`.
@@ -3935,7 +4070,7 @@ No code issues found. Findings recorded in knowledge_base (CT-AUDIT-FROST/ADAPTO
 - **audit/test_exploit_frost_absent_signer_id.cpp (NEW — P1-SEC-001):** 3 sub-tests (FSI-1..3): absent signer → zero z_i; present signer → non-zero z_i; below-threshold → zero z_i. Wired to `unified_audit_runner` as `exploit_poc`, `advisory=false`.
 - **audit/test_regression_schnorr_sign_e_hash_erased.cpp (NEW — P1-SEC-002):** 4 sub-tests (SHE-1..4): sign+verify round-trip; 50 round-trips with varied messages; deterministic output; different messages → different sigs. Wired as `ct_analysis`, `advisory=false`.
 - **audit/test_exploit_musig2_infinity_pubnonce.cpp (NEW — P1-SEC-003):** 6 sub-tests (MIP-1..6): valid pubnonce accepted; zero input (prefix 0x00) rejected; uncompressed prefix (0x04) rejected; off-curve x handled; NULL args rejected; invalid second-point prefix rejected. Wired as `exploit_poc`, `advisory=true` (requires shim).
-- **ci/sync_module_count.py:** Module count propagated — 382 total (271 exploit-PoC, 115 non-exploit).
+- **ci/sync_module_count.py:** Module count propagated — 382 total (272 exploit-PoC, 115 non-exploit).
 
 ## 2026-05-21 — Fix: doc sync, stale paths, canonical benchmark JSON machine-generation (REL-001..011, BENCH-003/006, CI-001)
 
@@ -4412,7 +4547,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
   FAST variable-time row now labeled `[diag FAST]` — clearly marked as not production-equivalent.
   This eliminates the invalid VT-Ultra vs CT-libsecp comparison from the ratio table.
 
-### Module count: 357 total (101 non-exploit + 271 exploit PoC)
+### Module count: 357 total (101 non-exploit + 272 exploit PoC)
 
 ---
 
@@ -4558,7 +4693,7 @@ evidence upgrades, and changes to what the repository can honestly claim.
 - `docs/SHIM_KNOWN_DIVERGENCES.md` created: complete list of intentional shim vs libsecp256k1 behavioral differences.
 - `CLAUDE.md` updated: Canonical Data Synchronization rules added (module counts via `sync_module_count.py`, benchmark data via canonical JSON, ConnectBlock claim wording rules).
 - `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`: GCC CT signing regression (0.82–0.85×) disclosed; commit SHA mismatch corrected.
-- Module counts synced via `sync_module_count.py`: 98 non-exploit + 271 exploit PoC = 350 total.
+- Module counts synced via `sync_module_count.py`: 98 non-exploit + 272 exploit PoC = 350 total.
 
 ---
 
@@ -5433,7 +5568,7 @@ All 4 wired into `unified_audit_runner.cpp` + `audit/CMakeLists.txt`.
 
 ### Documentation Sync
 
-- `sync_module_count.py` run: WHY/README updated to 271 exploit PoCs, 80 non-exploit, 312 total.
+- `sync_module_count.py` run: WHY/README updated to 272 exploit PoCs, 80 non-exploit, 312 total.
 - `sync_version_refs.py` run: 26 doc files updated from v3.60/v3.66 → v3.68.0.
 - CT pipeline count: "3" → "5" (LLVM ct-verif, Valgrind taint, ct-prover, dudect, ARM64 native) across README + WHY.
 - `docs/EXPLOIT_TEST_CATALOG.md`: `test_exploit_der_parsing_differential` updated to 13 tests.
@@ -7833,7 +7968,7 @@ tests PASS.**
   double-hash confusion (H(msg) ≠ H(H(msg))); domain prefix isolation (domain-A sig ≠ domain-B
   sig).  Committed `c843979c`.
 
-**Running total after this wave: 271 exploit PoC files, 59 new checks.**
+**Running total after this wave: 272 exploit PoC files, 59 new checks.**
 
 ---
 

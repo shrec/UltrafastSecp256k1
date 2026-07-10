@@ -1,15 +1,16 @@
 // Direct C++ libbitcoin-shaped workload benchmark harness (schema v2).
 //
-// Benchmarks 4 libbitcoin block-processing-shaped workloads over the
+// Benchmarks 5 libbitcoin block-processing-shaped workloads over the
 // bridge-free ufsecp::lbtc direct surface:
-//   txid_batch, wtxid_batch, merkle_pair_batch, merkle_root_batch
+//   txid_batch, wtxid_batch, merkle_pair_batch, merkle_root_batch, sighash_batch
 //
-// sighash_batch is intentionally excluded: the descriptor contract has not
-// been accepted (no sighash_descriptor_hash_batch exists anywhere in this
-// codebase, and workingdocs/libbitcoin_gpu_workloads/
-// api_plan_blocker_resolution_deepseek.md B1 explicitly gates any sighash
-// kernel work behind an external libbitcoin-developer review that has not
-// happened) -- see docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md.
+// sighash_batch uses the canonical BIP-143 legacy sighash ALL field order
+// (nVersion, hashPrevouts, hashSequence, outpoint, scriptCode(variable),
+// value, nSequence, hashOutputs, nLocktime, nHashType) from
+// workingdocs/libbitcoin_gpu_workloads/api_plan_deepseek.md -- one fixed+
+// variable descriptor mixing both HAS_LENGTH shapes, per that plan's
+// "Byte Layout Example (Legacy Sighash ALL)". See
+// docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md.
 //
 // Evidence honesty (CLAUDE.md benchmark rule): every workload always emits a
 // CPU-forced row (GPU hook explicitly forced off before the timed call,
@@ -113,15 +114,25 @@ struct BatchSizing {
     std::size_t txid_wtxid_count;
     std::size_t merkle_pair_count;
     std::size_t merkle_root_trees;
+    std::size_t sighash_count;
 };
 
 BatchSizing sizing_for(const std::string& batch_class)
 {
-    if (batch_class == "medium")      return {32768, 65536, 512};
-    if (batch_class == "block_scale") return {4096, 8192, 64};
-    if (batch_class == "stress")      return {1048576, 2097152, 4096};
-    return {64, 128, 8}; // "small" (default / smoke)
+    if (batch_class == "medium")      return {32768, 65536, 512, 32768};
+    if (batch_class == "block_scale") return {4096, 8192, 64, 4096};
+    if (batch_class == "stress")      return {1048576, 2097152, 4096, 1048576};
+    return {64, 128, 8, 64}; // "small" (default / smoke)
 }
+
+// sighash_batch: legacy BIP-143 sighash ALL descriptor byte layout (see
+// workingdocs/libbitcoin_gpu_workloads/api_plan_deepseek.md, "Byte Layout
+// Example (Legacy Sighash ALL)"): nVersion(4), hashPrevouts(32),
+// hashSequence(32), outpoint(36), scriptCode(variable), value(8),
+// nSequence(4), hashOutputs(32), nLocktime(4), nHashType(4).
+constexpr std::size_t kSighashScriptStride = 256;   // stride wide enough for realistic scriptCode sizes
+constexpr std::size_t kSighashScriptMinLen = 25;    // typical P2PKH scriptCode
+constexpr std::size_t kSighashScriptMaxLen = 200;   // typical P2SH/multisig scriptCode
 
 // merkle_root_batch: leaves per simulated tree. Fixed regardless of
 // batch_class (batch_class controls how many trees/blocks are benchmarked,
@@ -550,15 +561,15 @@ int main(int argc, char** argv)
     if (mul_overflows(sizing.txid_wtxid_count, kWtxidStride) ||
         mul_overflows(sizing.merkle_pair_count, std::size_t{32}) ||
         mul_overflows(sizing.merkle_root_trees, kMerkleRootLeavesPerTree) ||
-        mul_overflows(sizing.merkle_root_trees * kMerkleRootLeavesPerTree, std::size_t{32})) {
+        mul_overflows(sizing.merkle_root_trees * kMerkleRootLeavesPerTree, std::size_t{32}) ||
+        mul_overflows(sizing.sighash_count, kSighashScriptStride)) {
         std::fprintf(stderr, "batch-class sizing overflows buffer bounds\n");
         return 2;
     }
 
     std::printf("== libbitcoin direct C++ workload benchmark (schema v2) ==\n");
     std::printf("batch_class=%s iters=%d\n", args.batch_class.c_str(), args.iters);
-    std::printf("workloads: txid_batch wtxid_batch merkle_pair_batch merkle_root_batch "
-                "(sighash_batch excluded -- descriptor contract not accepted)\n");
+    std::printf("workloads: txid_batch wtxid_batch merkle_pair_batch merkle_root_batch sighash_batch\n");
     std::printf("every workload: row 0 = mode=direct-cpu-forced backend=cpu evidence_class=api_correctness;\n"
                 "  row 1 (only when a real GPU backend is linked+ready) = mode=direct-production "
                 "backend=<identified> evidence_class=gpu_acceleration\n\n");
@@ -939,6 +950,176 @@ int main(int argc, char** argv)
 
         if (ok)
             workload_rows.emplace_back("merkle_root_batch", std::move(rows_out));
+    }
+
+    // sighash_batch: legacy BIP-143 sighash ALL descriptor (10 fields, mixing
+    // fixed-length columns with one HAS_LENGTH scriptCode column), validated
+    // against a direct per-row concatenation + secp256k1::SHA256::hash256
+    // call (independent of sighash_descriptor_hash_batch's own parser).
+    if (ok) {
+        const std::size_t count = sizing.sighash_count;
+        const std::size_t stride = kSighashScriptStride;
+        const auto prep_t0 = clock_t_::now();
+        std::vector<std::uint8_t> nver(count * 4), hashprev(count * 32), hashseq(count * 32),
+            outpoint(count * 36), script(count * stride, 0), value(count * 8), nseq(count * 4),
+            hashout(count * 32), nlock(count * 4), nht(count * 4);
+        std::vector<std::uint32_t> script_lens(count);
+        const std::size_t script_span = kSighashScriptMaxLen - kSighashScriptMinLen + 1;
+        for (auto* col : {&hashprev, &hashseq, &outpoint, &value, &nseq, &hashout, &nlock, &nht})
+            for (auto& b : *col) b = rng8();
+        for (auto& b : nver) b = rng8();
+        std::uint64_t payload = static_cast<std::uint64_t>(count) * (4 + 32 + 32 + 36 + 8 + 4 + 32 + 4 + 4);
+        for (std::size_t i = 0; i < count; ++i) {
+            const auto len = kSighashScriptMinLen + static_cast<std::size_t>(rng64() % script_span);
+            script_lens[i] = static_cast<std::uint32_t>(len);
+            for (std::size_t j = 0; j < len; ++j)
+                script[i * stride + j] = rng8();
+            payload += len;
+        }
+        const double prep_seconds = secs_since(prep_t0);
+        const std::size_t payload_bytes = static_cast<std::size_t>(payload);
+
+        // Descriptor: nVersion, hashPrevouts, hashSequence, outpoint,
+        // scriptCode(HAS_LENGTH), value, nSequence, hashOutputs, nLocktime,
+        // nHashType, terminator.
+        const std::uint8_t descriptor[21] = {
+            0x00, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x10, 0x05, 0x00,
+            0x06, 0x00, 0x07, 0x00, 0x08, 0x00, 0x09, 0x00, 0xFF,
+        };
+        const std::uint8_t* fdata[256] = {};
+        std::uint32_t flens[256] = {};
+        const std::uint32_t* fvarlens[256] = {};
+        fdata[0x00] = nver.data();     flens[0x00] = 4;
+        fdata[0x01] = hashprev.data(); flens[0x01] = 32;
+        fdata[0x02] = hashseq.data();  flens[0x02] = 32;
+        fdata[0x03] = outpoint.data(); flens[0x03] = 36;
+        fdata[0x04] = script.data();   flens[0x04] = static_cast<std::uint32_t>(stride);
+        fvarlens[0x04] = script_lens.data();
+        fdata[0x05] = value.data();    flens[0x05] = 8;
+        fdata[0x06] = nseq.data();     flens[0x06] = 4;
+        fdata[0x07] = hashout.data();  flens[0x07] = 32;
+        fdata[0x08] = nlock.data();    flens[0x08] = 4;
+        fdata[0x09] = nht.data();      flens[0x09] = 4;
+
+        // Independent oracle: concatenate this row's 10 fields directly (NOT
+        // via the descriptor parser under test) and HASH256 the result.
+        std::vector<std::uint8_t> expected(count * 32);
+        {
+            std::vector<std::uint8_t> preimage;
+            preimage.reserve(4 + 32 + 32 + 36 + kSighashScriptMaxLen + 8 + 4 + 32 + 4 + 4);
+            for (std::size_t i = 0; i < count; ++i) {
+                preimage.clear();
+                preimage.insert(preimage.end(), nver.data() + i * 4, nver.data() + i * 4 + 4);
+                preimage.insert(preimage.end(), hashprev.data() + i * 32, hashprev.data() + i * 32 + 32);
+                preimage.insert(preimage.end(), hashseq.data() + i * 32, hashseq.data() + i * 32 + 32);
+                preimage.insert(preimage.end(), outpoint.data() + i * 36, outpoint.data() + i * 36 + 36);
+                preimage.insert(preimage.end(), script.data() + i * stride,
+                                script.data() + i * stride + script_lens[i]);
+                preimage.insert(preimage.end(), value.data() + i * 8, value.data() + i * 8 + 8);
+                preimage.insert(preimage.end(), nseq.data() + i * 4, nseq.data() + i * 4 + 4);
+                preimage.insert(preimage.end(), hashout.data() + i * 32, hashout.data() + i * 32 + 32);
+                preimage.insert(preimage.end(), nlock.data() + i * 4, nlock.data() + i * 4 + 4);
+                preimage.insert(preimage.end(), nht.data() + i * 4, nht.data() + i * 4 + 4);
+                const auto d = secp256k1::SHA256::hash256(preimage.data(), preimage.size());
+                std::memcpy(expected.data() + i * 32, d.data(), 32);
+            }
+        }
+
+        auto run_pass = [&](std::vector<std::uint8_t>& out, double& best,
+                            ufsecp::lbtc::gpu_hook::sighash_descriptor_hash_fn direct_hook,
+                            bool& hook_declined) -> bool {
+            hook_declined = false;
+            best = 1e100;
+            if (direct_hook == nullptr && ufsecp::lbtc::gpu_hook::g_lbtc_sighash_hook.load(std::memory_order_acquire) != nullptr) {
+                std::fprintf(stderr, "sighash_descriptor_hash GPU evidence requested but hook is not installed\n");
+                hook_declined = true;
+                return false;
+            }
+            for (int it = 0; it < args.iters; ++it) {
+                std::fill(out.begin(), out.end(), 0);
+                const auto t0 = clock_t_::now();
+                if (direct_hook != nullptr) {
+                    if (direct_hook(descriptor, sizeof(descriptor), fdata, flens, fvarlens, count, out.data()) != 0) {
+                        std::printf("sighash_descriptor_hash GPU hook declined; skipping GPU evidence row\n");
+                        print_gpu_decline_reason("sighash_descriptor_hash");
+                        hook_declined = true;
+                        return false;
+                    }
+                } else {
+                    if (!ufsecp::lbtc::sighash_descriptor_hash_batch(
+                            descriptor, sizeof(descriptor), fdata, flens, fvarlens, count, out.data())) {
+                        std::fprintf(stderr, "sighash_descriptor_hash_batch returned false\n");
+                        return false;
+                    }
+                }
+                const auto dt = secs_since(t0);
+                if (out != expected) {
+                    std::fprintf(stderr, "sighash_descriptor_hash_batch mismatched independent HASH256 oracle\n");
+                    return false;
+                }
+                if (dt < best)
+                    best = dt;
+            }
+            return true;
+        };
+
+        const bool provider_linked =
+            ufsecp::lbtc::gpu_hook::g_lbtc_sighash_hook.load(std::memory_order_acquire) != nullptr;
+        std::vector<BenchRow> rows_out;
+
+        {
+            auto saved = ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(nullptr);
+            std::vector<std::uint8_t> out(count * 32);
+            double best = 0.0;
+            bool hook_declined = false;
+            const bool pass_ok = run_pass(out, best, nullptr, hook_declined);
+            ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(saved);
+            if (!pass_ok) {
+                ok = false;
+            } else {
+                BenchRow row;
+                row.workload = "sighash_batch";
+                row.op = "sighash_descriptor_hash";
+                row.mode = "direct-cpu-forced";
+                row.hook_installed = false;
+                row.provider_linked = provider_linked;
+                row.backend = "cpu";
+                row.device = "n/a";
+                fill_measured_fields(row, count, payload_bytes, prep_seconds, best, out);
+                rows_out.push_back(std::move(row));
+            }
+        }
+
+        if (ok && provider_linked) {
+            const GpuSnapshot snap = query_gpu_snapshot();
+            if (snap.available) {
+                const auto direct_hook =
+                    ufsecp::lbtc::gpu_hook::g_lbtc_sighash_hook.load(std::memory_order_acquire);
+                std::vector<std::uint8_t> out(count * 32);
+                double best = 0.0;
+                bool hook_declined = false;
+                if (!run_pass(out, best, direct_hook, hook_declined)) {
+                    if (!hook_declined)
+                        ok = false;
+                } else {
+                    BenchRow row;
+                    row.workload = "sighash_batch";
+                    row.op = "sighash_descriptor_hash";
+                    row.mode = "direct-production";
+                    row.hook_installed = true;
+                    row.provider_linked = provider_linked;
+                    row.backend = snap.backend;
+                    row.device = snap.device;
+                    fill_measured_fields(row, count, payload_bytes, prep_seconds, best, out);
+                    row.evidence_class = "gpu_acceleration";
+                    fill_paired_speedup(row, rows_out.front());
+                    rows_out.push_back(std::move(row));
+                }
+            }
+        }
+
+        if (ok)
+            workload_rows.emplace_back("sighash_batch", std::move(rows_out));
     }
 
     if (!ok)

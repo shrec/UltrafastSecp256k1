@@ -52,7 +52,108 @@ macro(audit_target_defaults target_name)
     if(_atd_sources MATCHES "ufsecp_gpu_impl" AND NOT _atd_sources MATCHES "gpu_engine_hook")
         target_compile_definitions(${target_name} PRIVATE UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR)
     endif()
+    # NOTE: real GPU backend wiring (CUDA/OpenCL/Metal translation units) is
+    # NOT attached implicitly here by scanning ${target_name}'s SOURCES for
+    # gpu_registry.cpp. An earlier round did that (any target whose sources
+    # happened to include gpu_registry.cpp silently inherited ALL GPU backend
+    # compilation) -- that implicit pattern-match trigger was fragile and could
+    # unintentionally couple a future, unrelated audit target into heavyweight
+    # CUDA/OpenCL/Metal compilation merely for referencing gpu_registry.cpp.
+    # Targets that legitimately need real on-device GPU backend coverage call
+    # audit_wire_real_gpu_backends(<target_name>) EXPLICITLY, by name, right
+    # after their own audit_target_defaults(<target_name>) call below -- see
+    # audit_wire_real_gpu_backends() and audit_gpu_backends_provider further
+    # down in this file for the full rationale and the shared provider target.
 endmacro()
+
+# -- Helper: shared GPU backend provider -----------------------------------
+# Single INTERFACE target that bundles the real CUDA/OpenCL/Metal backend
+# translation unit(s) for standalone audit binaries that raw-compile
+# src/gpu/src/gpu_registry.cpp as a direct source (rather than linking the
+# fully-configured secp256k1_gpu_host static library -- see
+# src/gpu/CMakeLists.txt). Those targets (sighash_descriptor_gpu/malformed,
+# hash256_var_batch/parity/bounds, merkle_pair_hash/bounds, c_abi_negative,
+# unified_audit_runner, ...) are built this way so they compile cleanly with
+# ZERO GPU backends compiled at all (CPU-only CI has no secp256k1_gpu_host
+# target). But gpu_registry.cpp's create_backend()/backend_ids() are gated
+# behind #if defined(SECP256K1_HAVE_CUDA/OPENCL/METAL), and NOTHING ever
+# defined those macros for this raw compilation, nor were
+# gpu_backend_opencl.cpp / gpu_backend_cuda.cu / gpu_backend_metal.mm ever
+# added as sources -- so every on-device GPU check unconditionally
+# self-skipped, reporting zero backends even on a real GPU-enabled build
+# (SECP256K1_BUILD_OPENCL/CUDA=ON, a physical device present). This produced
+# misleading "GPU coverage" (null-ctx-only, 100% self-skip) that was flagged
+# in review. Fix: mirror src/gpu/CMakeLists.txt's own backend accumulation
+# ONCE in this shared INTERFACE target so these standalone binaries see the
+# SAME backend availability secp256k1_gpu_host does. Remains an empty, clean
+# no-op on CPU-only builds, where neither SECP256K1_BUILD_OPENCL/CUDA/METAL
+# nor the backend TARGET exist -- verified via target_sources(... INTERFACE)
+# propagation, which compiles these sources into whichever target links this
+# provider (no separate object files retained when nothing is linked).
+#
+# This target is intentionally NOT attached automatically to any target whose
+# sources happen to include gpu_registry.cpp (that was the fragile, implicit
+# behavior this replaces). audit_wire_real_gpu_backends(<name>) below must be
+# called EXPLICITLY, by name, for each target that needs it.
+add_library(audit_gpu_backends_provider INTERFACE)
+
+if(SECP256K1_BUILD_OPENCL AND TARGET secp256k1_opencl)
+    target_sources(audit_gpu_backends_provider INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_opencl.cpp)
+    target_compile_definitions(audit_gpu_backends_provider INTERFACE SECP256K1_HAVE_OPENCL=1)
+    target_link_libraries(audit_gpu_backends_provider INTERFACE secp256k1_opencl)
+    target_include_directories(audit_gpu_backends_provider INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/opencl/include)
+endif()
+
+if(SECP256K1_BUILD_CUDA AND TARGET secp256k1_cuda_lib)
+    target_sources(audit_gpu_backends_provider INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_cuda.cu)
+    target_compile_definitions(audit_gpu_backends_provider INTERFACE SECP256K1_HAVE_CUDA=1)
+    target_link_libraries(audit_gpu_backends_provider INTERFACE secp256k1_cuda_lib)
+    target_include_directories(audit_gpu_backends_provider INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/cuda/include)
+    set_source_files_properties(
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_cuda.cu
+        PROPERTIES LANGUAGE CUDA)
+endif()
+
+if(SECP256K1_BUILD_METAL AND TARGET secp256k1_metal_lib)
+    target_sources(audit_gpu_backends_provider INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_metal.mm)
+    target_compile_definitions(audit_gpu_backends_provider INTERFACE SECP256K1_HAVE_METAL=1)
+    target_link_libraries(audit_gpu_backends_provider INTERFACE secp256k1_metal_lib)
+    target_include_directories(audit_gpu_backends_provider INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/metal/include)
+    set_source_files_properties(
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_metal.mm
+        PROPERTIES LANGUAGE OBJCXX)
+    if(APPLE)
+        target_link_libraries(audit_gpu_backends_provider INTERFACE
+            "-framework Metal"
+            "-framework Foundation")
+    endif()
+endif()
+
+# -- Helper: explicitly wire audit_gpu_backends_provider (see above) into a
+#    single named target. Called directly, by name, both for standalone
+#    add_executable() targets that already went through audit_target_defaults()
+#    and for unified_audit_runner, which is assembled via its own
+#    add_executable() + many scattered target_sources() calls below and does
+#    not go through audit_target_defaults().
+function(audit_wire_real_gpu_backends target_name)
+    if(NOT TARGET ${target_name})
+        return()
+    endif()
+    target_link_libraries(${target_name} PRIVATE audit_gpu_backends_provider)
+    if(SECP256K1_BUILD_CUDA AND TARGET secp256k1_cuda_lib)
+        # nvcc LTO version differs from the host compiler -- disable IPO for
+        # this GPU-linked target (same reasoning as the test_gpu_* group above).
+        set_target_properties(${target_name} PROPERTIES
+            CUDA_RUNTIME_LIBRARY "${CMAKE_CUDA_RUNTIME_LIBRARY}"
+            INTERPROCEDURAL_OPTIMIZATION FALSE)
+    endif()
+endfunction()
 
 # ===========================================================================
 # Standalone CTest targets
@@ -389,6 +490,7 @@ add_executable(test_c_abi_negative_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_c_abi_negative_standalone)
+audit_wire_real_gpu_backends(test_c_abi_negative_standalone)
 target_include_directories(test_c_abi_negative_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -1184,6 +1286,7 @@ add_executable(test_exploit_batch_verify_low_s_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_batch_verify_low_s_standalone)
+audit_wire_real_gpu_backends(test_exploit_batch_verify_low_s_standalone)
 target_include_directories(test_exploit_batch_verify_low_s_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -1201,6 +1304,7 @@ add_executable(test_exploit_binding_retval_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_binding_retval_standalone)
+audit_wire_real_gpu_backends(test_exploit_binding_retval_standalone)
 target_include_directories(test_exploit_binding_retval_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2592,6 +2696,7 @@ add_executable(test_exploit_thread_unsafe_lazy_init_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_thread_unsafe_lazy_init_standalone)
+audit_wire_real_gpu_backends(test_exploit_thread_unsafe_lazy_init_standalone)
 target_include_directories(test_exploit_thread_unsafe_lazy_init_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2611,6 +2716,7 @@ add_executable(test_regression_z_fe_nonzero_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_regression_z_fe_nonzero_standalone)
+audit_wire_real_gpu_backends(test_regression_z_fe_nonzero_standalone)
 target_include_directories(test_regression_z_fe_nonzero_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2687,6 +2793,7 @@ add_executable(test_exploit_recoverable_sign_ct_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_recoverable_sign_ct_standalone)
+audit_wire_real_gpu_backends(test_exploit_recoverable_sign_ct_standalone)
 target_include_directories(test_exploit_recoverable_sign_ct_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2704,6 +2811,7 @@ add_executable(test_exploit_pippenger_batch_regression_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_pippenger_batch_regression_standalone)
+audit_wire_real_gpu_backends(test_exploit_pippenger_batch_regression_standalone)
 target_include_directories(test_exploit_pippenger_batch_regression_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2761,6 +2869,7 @@ add_executable(test_exploit_monolith_split_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_monolith_split_standalone)
+audit_wire_real_gpu_backends(test_exploit_monolith_split_standalone)
 target_include_directories(test_exploit_monolith_split_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2778,6 +2887,7 @@ add_executable(test_exploit_gpu_secret_erase_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_gpu_secret_erase_standalone)
+audit_wire_real_gpu_backends(test_exploit_gpu_secret_erase_standalone)
 target_include_directories(test_exploit_gpu_secret_erase_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2795,6 +2905,7 @@ add_executable(test_exploit_libsecp_eckey_api_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_libsecp_eckey_api_standalone)
+audit_wire_real_gpu_backends(test_exploit_libsecp_eckey_api_standalone)
 target_include_directories(test_exploit_libsecp_eckey_api_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2945,6 +3056,7 @@ add_executable(test_exploit_thread_local_blinding_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_thread_local_blinding_standalone)
+audit_wire_real_gpu_backends(test_exploit_thread_local_blinding_standalone)
 target_include_directories(test_exploit_thread_local_blinding_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2979,6 +3091,7 @@ add_executable(test_exploit_gpu_memory_safety_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_gpu_memory_safety_standalone)
+audit_wire_real_gpu_backends(test_exploit_gpu_memory_safety_standalone)
 target_include_directories(test_exploit_gpu_memory_safety_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -2999,6 +3112,7 @@ add_executable(test_exploit_rs_zero_check_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_rs_zero_check_standalone)
+audit_wire_real_gpu_backends(test_exploit_rs_zero_check_standalone)
 target_include_directories(test_exploit_rs_zero_check_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -3018,6 +3132,7 @@ add_executable(test_exploit_bip352_address_collision_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_bip352_address_collision_standalone)
+audit_wire_real_gpu_backends(test_exploit_bip352_address_collision_standalone)
 target_include_directories(test_exploit_bip352_address_collision_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -3052,6 +3167,7 @@ add_executable(test_exploit_bug001_addr_overflow_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_bug001_addr_overflow_standalone)
+audit_wire_real_gpu_backends(test_exploit_bug001_addr_overflow_standalone)
 target_include_directories(test_exploit_bug001_addr_overflow_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -3084,6 +3200,7 @@ add_executable(test_exploit_bug004_batch_failclosed_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_bug004_batch_failclosed_standalone)
+audit_wire_real_gpu_backends(test_exploit_bug004_batch_failclosed_standalone)
 target_include_directories(test_exploit_bug004_batch_failclosed_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -3236,6 +3353,7 @@ add_executable(test_exploit_frost_ocl_shim_bip32_ct_regression_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_recovery.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/src/shim_context.cpp)
 audit_target_defaults(test_exploit_frost_ocl_shim_bip32_ct_regression_standalone)
+audit_wire_real_gpu_backends(test_exploit_frost_ocl_shim_bip32_ct_regression_standalone)
 target_include_directories(test_exploit_frost_ocl_shim_bip32_ct_regression_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -5857,6 +5975,7 @@ add_executable(test_regression_hash256_var_batch_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_regression_hash256_var_batch_standalone)
+audit_wire_real_gpu_backends(test_regression_hash256_var_batch_standalone)
 target_include_directories(test_regression_hash256_var_batch_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -5879,6 +5998,7 @@ add_executable(test_regression_hash256_var_parity_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_regression_hash256_var_parity_standalone)
+audit_wire_real_gpu_backends(test_regression_hash256_var_parity_standalone)
 target_include_directories(test_regression_hash256_var_parity_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -5902,6 +6022,7 @@ add_executable(test_exploit_hash256_var_bounds_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_hash256_var_bounds_standalone)
+audit_wire_real_gpu_backends(test_exploit_hash256_var_bounds_standalone)
 target_include_directories(test_exploit_hash256_var_bounds_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -5925,6 +6046,7 @@ add_executable(test_regression_merkle_pair_hash_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_regression_merkle_pair_hash_standalone)
+audit_wire_real_gpu_backends(test_regression_merkle_pair_hash_standalone)
 target_include_directories(test_regression_merkle_pair_hash_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -5948,6 +6070,7 @@ add_executable(test_exploit_merkle_pair_bounds_standalone
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_exploit_merkle_pair_bounds_standalone)
+audit_wire_real_gpu_backends(test_exploit_merkle_pair_bounds_standalone)
 target_include_directories(test_exploit_merkle_pair_bounds_standalone PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../include
     ${CMAKE_BINARY_DIR}/include
@@ -5959,6 +6082,57 @@ add_test(NAME exploit_merkle_pair_bounds
 set_tests_properties(exploit_merkle_pair_bounds PROPERTIES TIMEOUT 30
     LABELS "audit;exploit_poc;gpu;merkle;merkle-pair;bounds")
 target_sources(unified_audit_runner PRIVATE test_exploit_merkle_pair_bounds.cpp)
+
+# sighash_descriptor_hash structural/boundary KAT vs a direct-concatenation
+# CPU oracle (secp256k1::SHA256::hash256, not the implementation's own
+# parser). advisory=false: null-ctx contract runs CPU-only and MUST pass
+# everywhere; the on-device KAT checks self-skip when no GPU backend
+# overrides sighash_descriptor_hash natively.
+add_executable(test_regression_sighash_descriptor_gpu_standalone
+    test_regression_sighash_descriptor_gpu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_regression_sighash_descriptor_gpu_standalone)
+audit_wire_real_gpu_backends(test_regression_sighash_descriptor_gpu_standalone)
+target_include_directories(test_regression_sighash_descriptor_gpu_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+)
+target_compile_definitions(test_regression_sighash_descriptor_gpu_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME regression_sighash_descriptor_gpu
+    COMMAND test_regression_sighash_descriptor_gpu_standalone)
+set_tests_properties(regression_sighash_descriptor_gpu PROPERTIES TIMEOUT 60
+    LABELS "audit;differential;gpu;sighash;libbitcoin")
+target_sources(unified_audit_runner PRIVATE test_regression_sighash_descriptor_gpu.cpp)
+
+# sighash_descriptor_hash hostile-input / malformed-descriptor exploit
+# coverage (ctx-null, count=0 no-op, oversize count, malformed descriptor
+# grammar, NULL field arrays, var_len>stride, preimage>4MiB).
+# advisory=false: CPU/GPU C ABI only, no shim dependency; ctx-dependent
+# checks self-skip when no GPU backend overrides sighash_descriptor_hash
+# natively.
+add_executable(test_exploit_sighash_descriptor_malformed_standalone
+    test_exploit_sighash_descriptor_malformed.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_sighash_descriptor_malformed_standalone)
+audit_wire_real_gpu_backends(test_exploit_sighash_descriptor_malformed_standalone)
+target_include_directories(test_exploit_sighash_descriptor_malformed_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+)
+target_compile_definitions(test_exploit_sighash_descriptor_malformed_standalone PRIVATE STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_sighash_descriptor_malformed
+    COMMAND test_exploit_sighash_descriptor_malformed_standalone)
+set_tests_properties(exploit_sighash_descriptor_malformed PROPERTIES TIMEOUT 30
+    LABELS "audit;exploit_poc;gpu;sighash;libbitcoin;bounds")
+target_sources(unified_audit_runner PRIVATE test_exploit_sighash_descriptor_malformed.cpp)
 
 # Aggregate target used by .github/workflows/gate.yml's shim security job. The
 # ctest -R expression there matches test names, not build target names, so the
@@ -6035,3 +6209,19 @@ foreach(_src IN LISTS _v1_musig2_v1_callers_unfortunately)
     endif()
 endforeach()
 unset(_v1_musig2_v1_callers_unfortunately)
+
+# ---------------------------------------------------------------------------
+# unified_audit_runner: wire real GPU backend implementations.
+# ---------------------------------------------------------------------------
+# unified_audit_runner does not go through audit_target_defaults() (it is
+# assembled via its own add_executable() plus the many target_sources() calls
+# scattered throughout this file), so it independently raw-compiles
+# src/gpu/src/gpu_registry.cpp + gpu_engine_hook.cpp without ever compiling
+# gpu_backend_opencl.cpp / gpu_backend_cuda.cu or defining
+# SECP256K1_HAVE_OPENCL/CUDA -- meaning every GPU-dependent differential
+# module it runs (merkle_pair_hash, sighash_descriptor_gpu, hash256_var, ...)
+# always reported zero backends available, even on a real GPU-enabled build.
+# See the audit_wire_real_gpu_backends() definition near the top of this file
+# (next to audit_target_defaults()) for the full rationale; apply the same
+# wiring here so the unified runner sees real backends too.
+audit_wire_real_gpu_backends(unified_audit_runner)

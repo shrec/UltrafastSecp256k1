@@ -279,6 +279,30 @@ int engine_lbtc_merkle_pair_hook(const std::uint8_t* left32, const std::uint8_t*
     }
 }
 
+int engine_lbtc_sighash_hook(const std::uint8_t* descriptor, std::size_t descriptor_len,
+                              const std::uint8_t* const* field_data,
+                              const std::uint32_t* field_lengths,
+                              const std::uint32_t* const* field_var_lens,
+                              std::size_t count, std::uint8_t* out32) noexcept {
+    try {
+        // Sighash preimages may span multiple megabytes (scriptCode, annex,
+        // raw_literal); the CUDA kernel streams 64-byte blocks directly from
+        // device global memory, so no per-op device-cap check is needed here.
+        // The hook contract is: 0 = handled, -1 = decline -> CPU fallback.
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        secp256k1::gpu::GpuBackend* b = engine_gpu_backend();
+        if (b == nullptr) return -1;  /* no GPU -> CPU fallback */
+        if (b->sighash_descriptor_hash(descriptor, descriptor_len,
+                                       field_data, field_lengths,
+                                       field_var_lens, count, out32)
+                != secp256k1::gpu::GpuError::Ok)
+            return -1;  /* operational error -> decline (never invalid rows) */
+        return 0;  /* handled: every out32 row written */
+    } catch (...) {
+        return -1;
+    }
+}
+
 /* Benchmark/evidence-only telemetry trampoline (see lbtc_gpu_ops.hpp
  * GpuTelemetry doc comment). Reuses engine_gpu_backend() -- the SAME cached
  * probe used by every op hook above, under the SAME mutex -- so this reports
@@ -368,6 +392,7 @@ struct EngineLbtcOpsInstaller {
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_hook(&engine_lbtc_hash256_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_hash256_var_hook(&engine_lbtc_hash256_var_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_merkle_pair_hook(&engine_lbtc_merkle_pair_hook);
+        ufsecp::lbtc::gpu_hook::install_lbtc_sighash_hook(&engine_lbtc_sighash_hook);
         ufsecp::lbtc::gpu_hook::install_lbtc_gpu_telemetry_hook(&engine_lbtc_gpu_telemetry);
         ufsecp::lbtc::gpu_hook::install_lbtc_gpu_last_error_hook(&engine_lbtc_gpu_last_error);
     }

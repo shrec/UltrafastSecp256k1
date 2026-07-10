@@ -2507,6 +2507,59 @@ __kernel void lbtc_hash256_var(
     for (int i = 0; i < 32; ++i) out32[(ulong)gid * 32 + i] = h2[i];
 }
 
+/* out32[i] = HASH256(descriptor-shaped concatenation of per-row field columns)
+ * -- Bitcoin sighash preimage hashing. The host pre-parses the descriptor
+ * (same grammar as libbitcoin.hpp's CPU parser) and gathers every referenced
+ * field's column into one packed buffer (columns copied verbatim, never a
+ * row-assembled preimage) plus four small per-field metadata arrays, since
+ * OpenCL 1.2 cannot bind an array of __global buffer pointers as a single
+ * kernel argument (unlike CUDA's device pointer array). Each work item
+ * streams its row's fields directly from packed_cols through one running
+ * SHA-256 context via sha256_update_global -- no per-row preimage buffer, so
+ * preimage length is effectively unbounded on-device (the host still enforces
+ * the 4 MiB/row policy cap before dispatch). Public data only, no secret
+ * material.
+ *
+ *   col_offsets[fi]    byte offset of field fi's column within packed_cols
+ *   strides[fi]        per-row byte stride of field fi within packed_cols
+ *   fixed_lens[fi]      0 => variable-length field (read real length below)
+ *   varlen_offsets[fi]  element offset of field fi's lengths within packed_varlens
+ */
+__kernel void lbtc_sighash_descriptor(
+    __global const ulong* col_offsets,
+    __global const uint*  strides,
+    __global const uint*  fixed_lens,
+    __global const uint*  varlen_offsets,
+    const uint num_fields,
+    __global const uchar* packed_cols,
+    __global const uint*  packed_varlens,
+    const uint count,
+    __global uchar* out32
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    SHA256Ctx inner;
+    sha256_init(&inner);
+    for (uint fi = 0; fi < num_fields; ++fi) {
+        const uint stride = strides[fi];
+        const uint fixed_len = fixed_lens[fi];
+        uint len = (fixed_len > 0) ? fixed_len : packed_varlens[varlen_offsets[fi] + gid];
+        if (len > stride) len = stride;   /* defense in depth: host already enforces var_len<=stride */
+        __global const uchar* ptr = packed_cols + col_offsets[fi] + (ulong)gid * stride;
+        sha256_update_global(&inner, ptr, len);
+    }
+    uchar h1[32];
+    sha256_final(&inner, h1);             // SHA256(concatenated fields)
+
+    SHA256Ctx outer;
+    sha256_init(&outer);
+    sha256_update(&outer, h1, 32);
+    uchar h2[32];
+    sha256_final(&outer, h2);             // SHA256(SHA256(concatenated fields))
+    for (int j = 0; j < 32; ++j) out32[(ulong)gid * 32 + j] = h2[j];
+}
+
 /* ecdh_scalar_mul_compressed — GPU-side pubkey decompress + scalar multiplication.
  * Takes 33-byte SEC1 compressed pubkeys + private scalars.
  * Decompresses pubkeys in registers, then multiplies by scalar.

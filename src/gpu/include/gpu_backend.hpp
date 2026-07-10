@@ -348,6 +348,30 @@ public:
         return GpuError::Unsupported;
     }
 
+    /** libbitcoin-bridge: batch sighash descriptor hash.
+     *  Streams referenced field columns directly through SHA-256 per row;
+     *  does NOT build per-row preimages on the CPU. PUBLIC-DATA ONLY.
+     *  Computes HASH256 for legacy/BIP143-style sighash preimages.
+     *  This is NOT BIP341 TapSighash — Taproot field IDs 0x0C..0x0F are
+     *  reserved and rejected until a separately reviewed tagged-hash mode
+     *  exists.
+     *  descriptor format: little-endian field_ref pairs terminated by 0xFF.
+     *  CUDA, OpenCL, and Metal all provide native overrides. */
+    virtual GpuError sighash_descriptor_hash(
+        const uint8_t* descriptor,
+        size_t descriptor_len,
+        const uint8_t* const* field_data,
+        const uint32_t* field_lengths,
+        const uint32_t* const* field_var_lens,
+        size_t count,
+        uint8_t* out32)
+    {
+        (void)descriptor; (void)descriptor_len; (void)field_data;
+        (void)field_lengths; (void)field_var_lens; (void)count; (void)out32;
+        // Abstract-safe fallback only: CUDA/OpenCL/Metal all override natively.
+        return GpuError::Unsupported;
+    }
+
         /** Batch FROST partial signature verification.
      *  Each item verifies: R_i = D_i + rho_i*E_i, lhs = z_i*G, rhs = R_i + lambda_ie*Y_i
      *  result[i] = (lhs == rhs). */
