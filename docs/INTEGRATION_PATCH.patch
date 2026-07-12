@@ -146,7 +146,7 @@ index c82f361..1275cc5 100644
 +#   - GLV endomorphism for variable-base scalar multiplication
 +#   - SafeGCD (Bernstein-Yang) scalar inversion — 6.5x faster than Fermat
 +#   - CUDA/OpenCL GPU acceleration (optional, not required)
-+#   - Continuous assurance: 270 exploit PoC modules, CT-verified, 57 CI workflows
++#   - Continuous assurance: 272 exploit PoC modules, CT-verified, 57 CI workflows
 +#
 +# API compatibility:
 +#   secp256k1_context*, secp256k1_pubkey, secp256k1_ecdsa_signature, and all

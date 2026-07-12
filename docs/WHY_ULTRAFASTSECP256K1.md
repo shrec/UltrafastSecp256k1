@@ -67,7 +67,7 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | Scalar arithmetic (ℤ_n) | Reduction mod n, overflow, GLV decomposition, negation, edge cases (0, 1, n−1) | 93,215 |
 | Point operations | Infinity handling, Jacobian↔Affine round-trip, scalar multiplication, 100K stress | 116,124 |
 | Constant-time layer | No secret-dependent branches, no secret-dependent memory access, formal CT verification | 120,652 |
-| Exploit PoC tests | 270 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 270 wired, 0 failures |
+| Exploit PoC tests | 272 dedicated adversarial PoC modules across 20+ coverage categories (`audit/test_exploit_*.cpp`) | 272 wired, 0 failures |
 | Fuzz / adversarial | libFuzzer harnesses + hundreds of thousands of deterministic corpus adversarial checks (count grows with CI runs; see `audit/test_exploit_kat_corpus.cpp`) | ~hundreds of thousands+ |
 | Wycheproof vectors | Google's cryptographic test vectors for ECDSA and ECDH | Hundreds of vectors |
 | Independent reference linkage | Cross-validates field arithmetic against independent schoolbook oracle + golden vectors | Full suite |

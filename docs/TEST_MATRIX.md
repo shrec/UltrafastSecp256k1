@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 436 modules (166 non-exploit + 272 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 441 modules (169 non-exploit + 272 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -446,6 +446,33 @@ libbitcoin-direct `hash256_var_batch`):
   bounds validation — null `inputs`/`input_lens`/`out32`, `n==0`,
   `input_lens[i]==0`, `input_lens[i]>stride`, `stride==0`, stride/count
   overflow (section exploit_poc, advisory=false)
+
+### Generated Inventory Sync (2026-07-10)
+
+The following active CTest targets were added for the new GPU
+`sighash_descriptor_hash` batch primitive (`GpuBackend::sighash_descriptor_hash`
+with native CUDA/OpenCL/Metal kernels and C ABI
+`ufsecp_gpu_sighash_descriptor_hash`) that hashes a descriptor-shaped Bitcoin
+sighash preimage (legacy/BIP143-style fields only) directly from per-row field
+columns without materializing a full preimage buffer:
+
+- `regression_sighash_descriptor_gpu` — `test_regression_sighash_descriptor_gpu.cpp`:
+  structural/boundary KAT differential against an independent CPU oracle that
+  concatenates the same per-row field bytes directly (not by re-parsing the
+  descriptor) and hashes with `secp256k1::SHA256::hash256`; covers the
+  null-ctx contract (no GPU required) plus on-device legacy BIP143-shaped
+  fixture KATs and a concurrent-dispatch race regression (section
+  differential, advisory=false)
+- `exploit_sighash_descriptor_malformed` — `test_exploit_sighash_descriptor_malformed.cpp`:
+  hostile-input / malformed-descriptor coverage for
+  `ufsecp_gpu_sighash_descriptor_hash` — null ctx/descriptor/field_data/
+  field_lengths/out32, count==0 (no-op), count>cap, descriptor_len out of
+  [1,129] / even length / missing terminator / mid-stream 0xFF, duplicate
+  field_id, unsupported/reserved/Taproot-only (0x0C-0x0F) field_id, reserved
+  flag bits, fixed-field stride smaller than the field's fixed length,
+  var_len>stride, preimage>4 MiB — every reject must fail closed with out32
+  either untouched (pre-`clear_output_bytes`) or all-zero (post-clear)
+  (section exploit_poc, advisory=false)
 
 ---
 

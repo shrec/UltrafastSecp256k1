@@ -9,7 +9,7 @@
 |------|---------|
 | Audit checks per run | ~1,000,000+ |
 | Nightly random checks | ~1,300,000+ |
-| Audit modules | 436 across 9 failure classes |
+| Audit modules | 441 across 9 failure classes |
 | Exploit PoC tests | 272 exploit-PoC modules, 200+ attack vectors |
 | Platforms | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm (16 configurations) |
 | Fuzz inputs | seed corpus: ~530K entries (runtime corpus grows dynamically) |
@@ -46,7 +46,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 |----------------------|---------------------------------------------|
 | Audit Sections       | 8                                           |
 | Audit Modules        | 169 (non-exploit modules) |
-| **Exploit PoC Tests** | **270 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
+| **Exploit PoC Tests** | **272 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
 | Audit assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ZK ~1.5K, ...) |
 | Nightly differential | ~1,300,000+ additional random checks (daily) |
 | CI Workflows         | 57 GitHub Actions workflows                 |

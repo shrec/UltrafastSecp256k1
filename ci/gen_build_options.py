@@ -29,6 +29,21 @@ SKIP_PARTS = {
     ".claude", "node_modules", "cmake-build-debug", "cmake-build-release",
 }
 
+# Local/scratch build-output directory NAME PATTERNS, not just the exact
+# literals above. Agents and developers routinely create ad-hoc build trees
+# such as "build-audit", "build_bench_run", "build-review-lbtc-gpu",
+# "out-review" — these contain CMake-*generated* probe files (e.g.
+# `CMakeFiles/CheckCUDA/CMakeLists.txt`) that must never feed the option scan
+# or the "Generated from:" footer. Without this, docs/BUILD_OPTIONS.md becomes
+# non-deterministic: --check passes or fails purely depending on which
+# transient build directories happen to exist on the machine that last ran
+# this generator, even when zero option() declarations actually changed.
+SKIP_PART_RE = re.compile(r"^(?:build|out|cmake-build)(?:[-_].*)?$")
+
+
+def _is_skipped_part(part: str) -> bool:
+    return part in SKIP_PARTS or bool(SKIP_PART_RE.match(part))
+
 # Map a CMakeLists' directory (relative to ROOT) to a human scope label + sort order.
 SCOPE_ORDER = [
     (".",          "Global / top-level (backends, GPU op selection, install)"),
@@ -105,7 +120,7 @@ def collect():
     files = []
     for p in sorted(ROOT.rglob("CMakeLists.txt")):
         rel = p.relative_to(ROOT)
-        if any(part in SKIP_PARTS for part in rel.parts):
+        if any(_is_skipped_part(part) for part in rel.parts):
             continue
         files.append(rel)
         rel_dir = str(rel.parent) if str(rel.parent) != "." else "."
