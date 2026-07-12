@@ -187,6 +187,7 @@ run "Required exploit-module floor (attack classes)" ci/check_required_exploit_m
 run "Required-module floor self-test (proof-it-blocks)" ci/test_check_required_exploit_modules.py
 run "Nonce erase coverage (BIP-327)"           ci/check_nonce_erase_coverage.py
 run "Doc drift (badges, removed files)"        ci/check_doc_drift.py
+run "README CI badges branch-aware (main/dev)" ci/check_readme_ci_badges.py
 run "Bench/doc consistency (banned patterns)" ci/check_bench_doc_consistency.py
 
 # Regression gates for the 2026-05-29 read-only-review fixes:

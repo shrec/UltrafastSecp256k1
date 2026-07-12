@@ -1,5 +1,39 @@
 # Audit Changelog
 
+## 2026-07-12 — README CI badges made branch-aware (main vs dev); new regression gate; ci_gate_detect.py baseline audited clean
+
+- **README.md badge fix:** replaced the single dev-only GitHub Actions badge row
+  (which made `main`'s README page misleadingly display `dev`'s CI results) with
+  two explicitly labeled rows -- `main` (release) and `dev` (development) -- each
+  carrying its own branch-qualified Gate/CI/Security Audit/CAAS/CodeQL badge image
+  AND a branch-filtered workflow-run link (`?query=branch%3A<branch>`). Removed the
+  now-false "All CI badges track dev" statement; replaced with an accurate note
+  that static README Markdown cannot detect which branch a viewer is on, so both
+  branches are shown explicitly. Project-wide badges (SonarCloud, OSSF Scorecard,
+  DOI) are now explicitly labeled branch-independent. Also relabeled the
+  secondary standalone `Gate`/`Research` badges (near the stars/forks row) as
+  `Gate (dev)` / `Research (dev)` for the same reason.
+- **New CI gate `ci/check_readme_ci_badges.py`:** parses the
+  `<!-- CI-STATUS-TABLE-START/END -->` block in README.md and fails if either
+  branch row is missing/mislabeled, a badge under one row leaks the other
+  branch's `branch=` param (image or link), or any of the 5 required workflows
+  is absent from either row. Wired into `ci/run_fast_gates.sh` (called by
+  `ci_local.sh`, `gate.yml`'s Fast CAAS Gates step, and `caas.yml`'s
+  fast-gates-replay step) so it runs on every push/PR, not as an orphan script.
+- **`ci/ci_gate_detect.py` change-impact baseline audited, no defect found:**
+  verified push events (main and dev) diff from the actual `github.event.before`
+  SHA (bypassing the `--base` main/dev fallback entirely) whenever before-SHA is
+  valid and reachable; PR events correctly use `github.event.pull_request.base.ref`.
+  The `--base` fallback is only reached when before-SHA is absent/unreachable
+  (e.g. branch creation), and is fail-safe (produces a wider diff, not a bypass)
+  by design. Locked in with a new git-fixture regression test
+  `test_ci_gate_detect_push_uses_before_sha_not_base` in
+  `ci/test_caas_integrity.py` (19/19 tests pass). No behavioral change was made
+  to `ci_gate_detect.py` or any of the 5 `.github/workflows/*.yml` files --
+  their `push`/`pull_request` trigger coverage (`[main, dev]`) and
+  `concurrency.group` keys (all include `github.ref`, so main/dev runs never
+  cancel each other) were audited and found already correct.
+
 ## 2026-07-10 — `sighash_descriptor_hash`: OpenCL/Metal fixed-stride validation parity, OpenCL concurrency fix, Metal fail-closed reorder
 
 Follow-on repair to the OpenCL/Metal `sighash_descriptor_hash` native-parity
