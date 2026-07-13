@@ -49,6 +49,6 @@
   "devDependencies": {
     "react": "^19.2.4",
     "react-native": "^0.85.1",
-    "typescript": "^6.0.2"
+    "typescript": "^7.0.2"
   }
 }
