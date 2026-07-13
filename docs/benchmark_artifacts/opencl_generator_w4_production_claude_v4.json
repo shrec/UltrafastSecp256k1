@@ -1,0 +1,128 @@
+{
+  "artifact_version": "opencl_generator_w4_production_evidence/1.2",
+  "task_id": "opencl-generator-w4-production-claude-v4",
+  "repair_task_id": "opencl-generator-w4-acceptance-repair-claude-v5",
+  "final_acceptance_task_id": "opencl-generator-w4-final-acceptance-claude-v6",
+  "status": "measured",
+  "self_contained_note": "This artifact is tracked inside the standalone UltrafastSecp256k1 repository (docs/benchmark_artifacts/). All raw aggregate cells, resource values, correctness counts, and metadata needed to read the measurement are embedded directly in this JSON -- it is a self-contained measurement record, not a reproduction script. The capture harness that produced these numbers (benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/ and related run_generator_w4.sh, referenced below in provenance/reproduction fields) lives in the outer multi-repo workspace and is NOT shipped in this standalone library repository -- those paths are external-workspace provenance only, not library-local reproduction commands. It mirrors the fuller working note at workingdocs/secondary_invariant_constants/opencl_generator_w4_production_claude_v4.json, which is itself an outer-workspace file (outside this standalone repository, local-only) and adds a re-verified in-context measurement cell table captured on 2026-07-12.",
+  "claim": {
+    "claim_id": "opencl_generator_w4_production",
+    "function": "scalar_mul_generator_windowed_impl",
+    "file": "src/opencl/kernels/secp256k1_extended.cl",
+    "callers": [
+      "__kernel generator_mul_windowed (src/opencl/kernels/secp256k1_extended.cl)",
+      "BIP-352 pipeline kernels (src/opencl/kernels/secp256k1_bip352.cl, via #include of secp256k1_extended.cl)"
+    ],
+    "description": "scalar_mul_generator_windowed_impl (window w=4 precomputed generator table {0*G..15*G}) used to declare 'AffinePoint table[16]' as an unqualified function-scope array. In OpenCL C 1.2, an unqualified array declared inside a function body is PRIVATE address-space, per-work-item memory -- it is NOT __local (work-group-shared) memory. The table was rebuilt via 128 individual per-limb literal assignments on every kernel-thread invocation. The table is now declared exactly once at OpenCL program scope in __constant address space as GENERATOR_TABLE_W4[16] and read by index. This is a storage-only optimization: scalar-nibble extraction, doubling-and-add control flow, and point arithmetic (point_double_unchecked / point_from_affine / point_add_mixed_unchecked call sequence) are unchanged; only WHERE the 16-entry table lives changed."
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "driver_version": "580.173.02",
+    "opencl_platform_version": "OpenCL 3.0 CUDA",
+    "host_compiler": "g++ -O2 -std=c++17 -I/usr/include (benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/host.cpp -- external-workspace-only, not present in this standalone library repository)",
+    "device_compiler": "NVIDIA OpenCL device compiler via clBuildProgram",
+    "production_build_flags": "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable",
+    "arch": "x86_64",
+    "timer": "clGetEventProfilingInfo"
+  },
+  "private_memory_bytes": {
+    "method": "clGetKernelWorkGroupInfo, CL_KERNEL_PRIVATE_MEM_SIZE",
+    "before_unqualified_function_scope_table_private_per_work_item_array": 1056,
+    "after_constant_address_space_table": 32,
+    "production_kernel_generator_mul_windowed_measured_directly": 32,
+    "note": "Measured directly against the real, shipped production secp256k1_extended.cl kernel (generator_mul_windowed_PRODUCTION build), not a benchmark-only copy. The logical table itself is 16*sizeof(AffinePoint)=16*64=1024 bytes; the reported private-mem footprint is 32 bytes larger than that on both sides, presumably other promoted locals/spill accounting by the NVIDIA OpenCL compiler.",
+    "raw_capture_file_external_workspace_provenance": "external-workspace-only, NOT present in this standalone library repository: benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/resource_result.txt (outer multi-repo workspace, captured during a prior task session)"
+  },
+  "correctness": {
+    "batch_tested": 4096,
+    "oracle": "Independent from-scratch Python secp256k1 EC scalar multiplication (affine double-and-add, y^2=x^3+7 mod p, SEC2 domain parameters), imports no project code (benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/oracle_ecmul.py -- external-workspace-only, not present in this standalone library repository).",
+    "scalar_class_composition": {
+      "zero": 1,
+      "one": 1,
+      "n_minus_1": 1,
+      "n_malformed": 1,
+      "n_plus_1_malformed": 1,
+      "max256_malformed": 1,
+      "random": 4090
+    },
+    "mismatches_vs_oracle_opA_local_array_reference": 0,
+    "mismatches_vs_oracle_opB_constant_table_candidate": 0,
+    "mismatches_vs_oracle_opProd_real_production_kernel": 0,
+    "mismatches_opA_vs_opB": 0,
+    "mismatches_opB_vs_opProd": 0,
+    "production_kernel_tested": true,
+    "method": "generator_mul_windowed_op_a / generator_mul_windowed_op_b / generator_mul_windowed_PRODUCTION OpenCL kernels, one scalar_mul_generator_windowed call per thread (matches production generator_mul_windowed shape exactly, no chaining), compared against the independent oracle and against each other.",
+    "raw_capture_files_external_workspace_provenance": {
+      "note": "external-workspace-only, NOT present in this standalone library repository (outer multi-repo workspace, captured during a prior task session)",
+      "files": [
+        "benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/correctness_result.txt",
+        "benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/oracle_report.txt"
+      ]
+    }
+  },
+  "in_context_benchmark": {
+    "method": "clGetEventProfilingInfo wall-time, 5 independent runs x 7 profiled passes per (batch) cell, scale-aware iteration count calibrated once per cell from a real single-iteration measurement on this device (target ~20ms/pass), same iteration count used for op A (private array) and op B (constant table) at that cell.",
+    "measured_2026_07_12": true,
+    "cells": [
+      {
+        "batch_size": 1024,
+        "iters_per_thread": 19,
+        "baseline_range_ns": { "min": 20151808.0, "median": 20152160.0, "max": 20154112.0, "variance_pct": 0.0114 },
+        "new_range_ns": { "min": 20065536.0, "median": 20066464.0, "max": 20069600.0, "variance_pct": 0.0203 },
+        "median_pct_delta_new_vs_baseline": -0.4252,
+        "ranges_overlap": false,
+        "verdict": "improvement (noise-level magnitude, not a regression)"
+      },
+      {
+        "batch_size": 65536,
+        "iters_per_thread": 2,
+        "baseline_range_ns": { "min": 17590976.0, "median": 17607200.0, "max": 17625088.0, "variance_pct": 0.1937 },
+        "new_range_ns": { "min": 15889824.0, "median": 15898016.0, "max": 15903840.0, "variance_pct": 0.0882 },
+        "median_pct_delta_new_vs_baseline": -9.7073,
+        "ranges_overlap": false,
+        "verdict": "improvement"
+      },
+      {
+        "batch_size": 1048576,
+        "iters_per_thread": 1,
+        "baseline_range_ns": { "min": 120409728.0, "median": 120812256.0, "max": 120860416.0, "variance_pct": 0.373 },
+        "new_range_ns": { "min": 108256768.0, "median": 108307296.0, "max": 108325536.0, "variance_pct": 0.0635 },
+        "median_pct_delta_new_vs_baseline": -10.3507,
+        "ranges_overlap": false,
+        "verdict": "improvement"
+      }
+    ],
+    "production_claim": "batch=1024 approximately -0.43% (noise-level, not a regression); batch=65536 approximately -9.71%; batch=1,048,576 approximately -10.35% in-context wall-time improvement. All three cells have non-overlapping baseline/new ranges and <3% run-to-run variance on both sides.",
+    "raw_capture_file_external_workspace_provenance": "external-workspace-only, NOT present in this standalone library repository: benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/run_log.txt (outer multi-repo workspace, captured during a prior task session)"
+  },
+  "isolated_microbenchmark_excluded_from_production_claim": {
+    "note": "Isolated mode measures ONLY the table build/access step plus one point_from_affine call in total complete isolation -- it is NOT amortized against the ~64 point_double_unchecked / point_add_mixed_unchecked calls that dominate real generator_mul_windowed runtime. These deltas are diagnostic only and are NEVER cited as the production throughput claim (per this repository's absolute benchmark-evidence rule).",
+    "batch_1024_pct_delta": -99.571,
+    "batch_65536_pct_delta": -99.771,
+    "batch_1048576_pct_delta": -99.386,
+    "raw_capture_file_external_workspace_provenance": "external-workspace-only, NOT present in this standalone library repository: benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/run_log_isolated.txt (outer multi-repo workspace, captured during a prior task session)"
+  },
+  "overall_verdict": "improvement",
+  "recommendation": "hoist_to_constant_memory (already applied in production secp256k1_extended.cl)",
+  "reproduction": {
+    "not_reproducible_from_this_repository": true,
+    "note": "The ab_bench capture harness that produced the cells/values above is NOT shipped in this standalone library repository -- it lives only in the outer multi-repo workspace used to develop this optimization. The paths below are external-workspace provenance records (documenting how the numbers were originally captured), not library-local reproduction commands: nothing under these paths exists inside this repository's checkout.",
+    "external_workspace_harness_dir": "benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/",
+    "external_workspace_build_command": "bash benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/build.sh",
+    "external_workspace_full_capture_command": "bash benchmarks/secondary_invariant_constants/run_generator_w4.sh --json <output_path> --full",
+    "library_local_alternative": "The static gate ci/check_opencl_generator_w4.py (in this repository) independently recomputes the 16 canonical GENERATOR_TABLE_W4 values and verifies the storage-only source-scan invariants; it does not re-run the GPU timing capture."
+  },
+  "referenced_by": [
+    "docs/BACKEND_ASSURANCE_MATRIX.md (section: OpenCL generator w4 table storage optimization -- production)",
+    "docs/AUDIT_CHANGELOG.md (2026-07-12 entries)",
+    "docs/LIBBITCOIN_PUBLIC_OPS_BENCHMARKS.md (Related GPU kernel storage optimization note)"
+  ],
+  "not_changed": [
+    "GENERATOR_TABLE_W4 values (16 canonical i*G entries, i=0..15)",
+    "lookup/indexing semantics",
+    "doubling-and-add control flow",
+    "public API / GpuBackend / C ABI",
+    "CUDA kernel sources",
+    "Metal kernel sources"
+  ]
+}

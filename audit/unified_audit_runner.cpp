@@ -251,6 +251,7 @@ int test_regression_ecdh_off_curve_run();            // SEC-005: ecdh_compute* r
 int test_regression_musig_xonly_zero_tweak_run();    // SHIM-001: xonly_tweak_add accepts zero tweak (2026-05-23)
 int test_regression_shim_tweak_recover_null_cb_run(); // TRNC-1..4: NULL non-ctx arg fires illegal_callback in xonly_tweak_add, tweak_add_check, keypair_xonly_tweak_add, recoverable_sig_convert (2026-05-28)
 int test_regression_gpu_beta_constants_run();      // Metal + OpenCL CT GLV beta constant mismatch fix — canonical β verified (2026-07-08)
+int test_regression_opencl_generator_w4_run();     // OpenCL scalar_mul_generator_windowed_impl: table[16] hoisted from per-call local rebuild to single __constant GENERATOR_TABLE_W4[16] (storage-only, ~1056B->~32B private mem, RTX 5060 Ti measured) (2026-07-12)
 
 // ============================================================================
 // Forward declarations -- Wycheproof & batch-randomness (Track I3, I6-3)
@@ -1611,6 +1612,9 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-07-08 Metal + OpenCL CT GLV beta constant mismatch fix ===
     // advisory=false: static constant check, no GPU/shim dependency.
     { "regression_gpu_beta_constants", "Metal + OpenCL CT GLV beta constant matches canonical secp256k1 β", "math_invariants", test_regression_gpu_beta_constants_run, false },
+    // === 2026-07-12 OpenCL generator w4 constant-table hoist (storage-only) ===
+    // advisory=false: static source scan + value check, no GPU/shim dependency.
+    { "regression_opencl_generator_w4", "OpenCL generator_mul_windowed table[16] hoisted to single __constant GENERATOR_TABLE_W4[16], values match canonical {0*G..15*G}", "math_invariants", test_regression_opencl_generator_w4_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

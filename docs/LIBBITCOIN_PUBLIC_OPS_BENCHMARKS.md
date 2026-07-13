@@ -20,6 +20,31 @@ All targets link the direct C++ libbitcoin surface only:
 - no `ufsecp_lbtc` bridge;
 - no caller-visible CPU/GPU split.
 
+## Related GPU kernel storage optimization (not benchmarked in this doc)
+
+Task `opencl-generator-w4-production-claude-v4` (2026-07-12) hoisted the
+OpenCL window-4 generator table (`GENERATOR_TABLE_W4`,
+`src/opencl/kernels/secp256k1_extended.cl`) from a per-call private
+per-work-item array rebuild (an unqualified function-scope `AffinePoint
+table[16]` — PRIVATE address-space, per-work-item storage in OpenCL C 1.2,
+NOT `__local`) to a
+single `__constant` declaration. **None of the targets tracked on this
+page are affected** — `taproot_commitment_verify_batch` /
+`lbtc_commitment_verify` computes `Q = tweak*G + P` via
+`shamir_double_mul_glv_impl` (deliberately avoiding
+`scalar_mul_generator_windowed_impl` + `point_add_mixed_unchecked`, per the
+comment in that kernel), and none of the other public-ops/workload targets
+in the table above call `generator_mul_windowed` or
+`scalar_mul_generator_windowed_impl` either. The only OpenCL entry points
+that exercise the optimized function are `__kernel generator_mul_windowed`
+and the BIP-352 scan pipeline (`bip352_pipeline_kernel` /
+`bip352_pipeline_kernel_compressed`, `src/opencl/kernels/secp256k1_bip352.cl`)
+— neither is part of the bridge-free `ufsecp::lbtc::*` surface this document
+covers. See `docs/BACKEND_ASSURANCE_MATRIX.md` (section "OpenCL generator w4
+table storage optimization") and the tracked, repository-local
+[`docs/benchmark_artifacts/opencl_generator_w4_production_claude_v4.json`](benchmark_artifacts/opencl_generator_w4_production_claude_v4.json)
+for the actual measured evidence.
+
 ## Build
 
 CPU/direct:

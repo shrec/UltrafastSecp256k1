@@ -648,6 +648,60 @@ their respective `apply_endomorphism_impl` implementations.
   on this Linux host (Metal requires Apple hardware). Owner validation on real
   Apple hardware is needed before promotion to HIGH assurance.
 
+### OpenCL generator w4 table storage optimization — production (2026-07-12)
+
+**Not a bug fix — a measured storage-only performance optimization** from the
+same `secondary_invariant_constants` investigation workstream that found the
+GLV β bug above. `scalar_mul_generator_windowed_impl` (window w=4 precomputed
+generator table {0*G..15*G}, `src/opencl/kernels/secp256k1_extended.cl`,
+called from `__kernel generator_mul_windowed` and from the BIP-352 pipeline
+kernels in `secp256k1_bip352.cl`) used to declare `AffinePoint table[16]` as
+an unqualified function-scope array — in OpenCL C 1.2 this is
+**PRIVATE address-space, per-work-item memory, NOT `__local`
+(work-group-shared) memory** — and rebuild all 16 entries via 128 individual
+per-limb literal assignments on **every kernel-thread invocation**. The table is now declared
+**once** at OpenCL program scope in `__constant` address space
+(`GENERATOR_TABLE_W4[16]`) and read by index instead — a storage-only change:
+scalar-nibble extraction, doubling-and-add control flow, and point arithmetic
+are byte-for-byte unchanged.
+
+- **Measured private memory** (`clGetKernelWorkGroupInfo`,
+  `CL_KERNEL_PRIVATE_MEM_SIZE`, RTX 5060 Ti, NVIDIA OpenCL driver 580.173.02,
+  `-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable`): **1056 bytes → 32
+  bytes** for the real production `generator_mul_windowed` kernel (measured
+  directly on the shipped kernel, not a benchmark copy).
+- **Measured in-context throughput** (5 independent runs × 7 profiled passes
+  per cell, `clGetEventProfilingInfo`, same hardware/driver, re-verified
+  2026-07-12): batch=1024 **−0.43%** (noise-level, not a regression),
+  batch=65536 **−9.71%** wall time, batch=1,048,576 **−10.35%** wall time —
+  all non-overlapping across all 5 runs with <3% run-to-run variance. The
+  isolated-microbenchmark-only ~99% delta from the initial candidate
+  evidence is NOT the production claim (it measures only the table
+  build/access step in total isolation, not amortized against the ~64
+  point-doubling/addition calls that dominate real `generator_mul_windowed`
+  runtime).
+- **Correctness:** zero mismatches for the real production kernel against an
+  independent from-scratch Python EC oracle across zero, one, n-1, n, n+1,
+  2^256-1, and 4090 deterministic random scalars; zero mismatches against the
+  pre-optimization shape. BIP-352 scan pipeline (`bip352_scan_batch`) is
+  unaffected — `secp256k1_bip352.cl` inherits the single `GENERATOR_TABLE_W4`
+  declaration via `#include "secp256k1_extended.cl"`, no duplicate table.
+- **CUDA and Metal are unchanged** — this task touched OpenCL kernel source
+  only. No public API, GpuBackend/C-ABI, scalar format, or byte-order change.
+- **Test:** `audit/test_regression_opencl_generator_w4.cpp` (math_invariants,
+  advisory=false) — canonical table value check + source-coupled scan
+  confirming the local rebuild is absent and `GENERATOR_TABLE_W4` is declared
+  exactly once. Static gate: `ci/check_opencl_generator_w4.py` (wired into
+  `ci/run_fast_gates.sh`).
+- **Evidence:** [`docs/benchmark_artifacts/opencl_generator_w4_production_claude_v4.json`](benchmark_artifacts/opencl_generator_w4_production_claude_v4.json)
+  — a self-contained measurement record tracked in this repository (all
+  aggregate cells, resource values, and correctness counts are embedded
+  directly in the JSON). The capture harness that produced it
+  (`benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/`
+  `ab_bench`) is **external-workspace provenance only** — it lives in the
+  outer multi-repo workspace, not in this standalone library repository, and
+  is not shipped or reproducible from here.
+
 ## Parity Status
 
 > **Parity tracking is machine-generated.** The source graph (`tools/source_graph_kit/source_graph.py`)

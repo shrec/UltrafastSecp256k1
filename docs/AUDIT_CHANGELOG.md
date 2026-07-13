@@ -1,5 +1,82 @@
 # Audit Changelog
 
+## 2026-07-12 — OpenCL generator w4 constant-table storage optimization (production)
+
+Task `opencl-generator-w4-production-claude-v4`, with evidence-link and
+terminology corrections folded in from the follow-up acceptance-defect
+passes `opencl-generator-w4-acceptance-repair-claude-v5` and
+`opencl-generator-w4-final-acceptance-claude-v6`. Promotes the measured
+`GENERATOR_TABLE_W4` optimization from the `opencl_generator_w4_ab` A/B
+candidate (task `secondary-invariant-generator-w4-ab-claude-v3`) into
+production. This is a **storage-only** change — no scalar-nibble semantics,
+control flow, arithmetic, public API, GpuBackend/C-ABI, or CUDA/Metal
+behavior changed.
+
+- **What changed:** `scalar_mul_generator_windowed_impl`
+  (`src/opencl/kernels/secp256k1_extended.cl`, called from `__kernel
+  generator_mul_windowed` and from the BIP-352 pipeline kernels in
+  `secp256k1_bip352.cl`) used to rebuild a 16-entry `AffinePoint table[16]`
+  via 128 per-limb literal assignments on every kernel-thread invocation.
+  In OpenCL C 1.2, an unqualified function-scope array such as that
+  `table[16]` is **PRIVATE address-space, per-work-item storage** — it was
+  never `__local` (work-group-shared) memory. (Earlier drafts of this
+  changelog used imprecise terminology for this array — first calling it a
+  "LOCAL array", then attributing it to an address-space concept that does
+  not exist in OpenCL C 1.2; `__local`/local-address-space wording is now
+  reserved exclusively for actual `__local` storage.) The kernel now reads
+  from a single program-scope `__constant AffinePoint
+  GENERATOR_TABLE_W4[16]` declaration instead. All 128 table literals
+  verified byte-identical to the removed private per-work-item table
+  (programmatic diff, not eyeballed). `secp256k1_bip352.cl` inherits the
+  single declaration via its existing `#include "secp256k1_extended.cl"` —
+  no duplicate table across files.
+- **Measured evidence (RTX 5060 Ti, NVIDIA OpenCL driver 580.173.02,
+  `-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable`):**
+  - `clGetKernelWorkGroupInfo` `CL_KERNEL_PRIVATE_MEM_SIZE` on the REAL
+    production `generator_mul_windowed` kernel (not a benchmark copy):
+    **1056 bytes → 32 bytes**.
+  - 5 independent runs × 7 profiled passes, 3 batch sizes: batch=1024
+    −0.43% (noise, no regression), batch=65536 **−9.71%**, batch=1,048,576
+    **−10.35%** in-context wall time, all non-overlapping ranges with <3%
+    variance. A follow-up re-verification capture (same hardware, driver,
+    and flags; 5 runs × 7 passes) reproduced the same verdict — batch=1024
+    **−0.4252%**, batch=65536 **−9.7073%**, batch=1,048,576 **−10.3507%**,
+    all within the originally accepted noise / medium-large-batch
+    improvement envelope; zero correctness mismatches. The isolated ~99%
+    microbenchmark delta remains explicitly excluded from the production
+    claim. Full artifact — a self-contained measurement record tracked in
+    this repository (all aggregate cells, resource values, and correctness
+    counts embedded directly), not a reproducible-from-this-repo script:
+    [`docs/benchmark_artifacts/opencl_generator_w4_production_claude_v4.json`](benchmark_artifacts/opencl_generator_w4_production_claude_v4.json).
+    The `ab_bench` capture harness that produced these numbers
+    (`benchmarks/secondary_invariant_constants/opencl_generator_w4_ab/`)
+    lives only in the outer multi-repo workspace and is **not shipped in
+    the standalone `UltrafastSecp256k1` repository** — its paths in the
+    artifact JSON are external-workspace provenance, not library-local
+    reproduction commands.
+  - Correctness: zero mismatches for the real production kernel vs an
+    independent from-scratch Python EC oracle, across zero/one/n-1/n/n+1/
+    2^256-1 and 4090 deterministic random scalars (`ab_bench --mode
+    correctness --batch 4096`, extended with a direct build+launch of
+    `secp256k1_extended.cl`'s actual `generator_mul_windowed` kernel).
+  - BIP-352 pipeline (`bip352_pipeline_kernel`): kernel build, 3-edge-case
+    no-crash regression, and determinism checks re-verified directly against
+    the edited kernel source (mirrors `audit_bip352_kernel_build` /
+    `audit_bip352_no_crash` / `audit_bip352_correct` in
+    `src/opencl_audit_runner.cpp`) — all pass.
+- **Test:** `audit/test_regression_opencl_generator_w4.cpp` (`math_invariants`,
+  advisory=false) — canonical-table value check + source-coupled scan
+  (declared exactly once, private per-work-item rebuild absent,
+  `secp256k1_bip352.cl` has no duplicate declaration). Wired in
+  `audit/unified_audit_runner.cpp` /
+  `audit/CMakeLists.txt`.
+- **Gate:** `ci/check_opencl_generator_w4.py` — static source scan
+  (independently recomputes the 16 canonical `i*G` values, not just
+  presence-checks them), wired into `ci/run_fast_gates.sh`.
+- **Not changed:** `GENERATOR_TABLE_W4` values, lookup semantics, control
+  flow, public API, CUDA and Metal kernel sources, GpuBackend/C-ABI
+  surface, scalar format, byte order.
+
 ## 2026-07-12 — Fast-gate drift repair, round 2: sighash_descriptor_hash CUDA/OpenCL hardware evidence + INTEGRATION_PATCH.patch count fix
 
 This is a corrected revision of the round-1 entry immediately below (same

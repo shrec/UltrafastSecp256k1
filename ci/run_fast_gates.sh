@@ -157,6 +157,7 @@ run "Assurance validation"   ci/validate_assurance.py
 # protocol invariant violations (root cause of confirmed red-team bugs C1–C8).
 run "Backend parity"                           ci/check_backend_parity.py
 run "GPU backend parity (CUDA/OpenCL/Metal)"   ci/check_gpu_backend_parity.py
+run "OpenCL generator w4 constant-table regression" ci/check_opencl_generator_w4.py
 run "ZK Fiat-Shamir tag conformance"           ci/check_zk_tag_conformance.py
 run "Tagged-hash tag conformance (all tags)"   ci/check_tag_conformance.py
 run "Secret parse strictness (Rule 11)"        ci/check_secret_parse_strictness.py
