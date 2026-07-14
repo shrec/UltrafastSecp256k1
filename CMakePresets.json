@@ -169,7 +169,7 @@
     {
       "name": "cuda-release-5060ti",
       "displayName": "CUDA Release RTX 5060 Ti",
-      "description": "Optimized for RTX 5060 Ti (SM 8.9)",
+      "description": "RTX 5060 Ti is Blackwell (compute capability 12.0 / sm_120), not Ada/SM 8.9 -- uses the ci-bounded-recent named profile (89-real;89-virtual;120-real;120-virtual, nvcc >= 13.0 required) for real deterministic sm_120 coverage. This host's default `nvcc` on PATH resolves to CUDA 12.0 (ceiling compute_90), so CMAKE_CUDA_COMPILER is pinned explicitly to the installed CUDA 13.2 toolkit -- without this pin, a fresh invocation of this preset would resolve nvcc 12.0 and FATAL_ERROR on the ci-bounded-recent version guard instead of building sm_120. This is a named local-hardware preset: the path is specific to this documented host, not a portable default (generic/portable presets must not hardcode it). See cmake/CUDA_ARCHITECTURE_POLICY.md.",
       "inherits": "base",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
@@ -177,9 +177,10 @@
         "SECP256K1_BUILD_CUDA": "ON",
         "SECP256K1_BUILD_TESTS": "ON",
         "SECP256K1_BUILD_BENCH": "ON",
-        "CMAKE_CUDA_ARCHITECTURES": "89",
+        "SECP256K1_CUDA_ARCH_PROFILE": "ci-bounded-recent",
         "CMAKE_CUDA_SEPARABLE_COMPILATION": "ON",
-        "SECP256K1_ENABLE_OPENMP": "ON"
+        "SECP256K1_ENABLE_OPENMP": "ON",
+        "CMAKE_CUDA_COMPILER": "/usr/local/cuda-13.2/bin/nvcc"
       }
     },
     {

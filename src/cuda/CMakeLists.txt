@@ -22,9 +22,19 @@ if(_GPU_LANG STREQUAL "CUDA")
             "CUDA runtime linkage (Static by default so engine binaries do not depend on libcudart.so/cudart64*.dll)"
             FORCE)
     endif()
-    # Set CUDA architecture if not already set by parent (fallback to 89 = Ada Lovelace)
+    # CMAKE_CUDA_ARCHITECTURES is set by the parent CMakeLists.txt before this
+    # subdirectory is entered (explicit caller value, CUDAARCHS, or a named
+    # SECP256K1_CUDA_ARCH_PROFILE -- see cmake/CudaArchPolicy.cmake). There is
+    # intentionally no local fallback here: a fallback at this scope would be
+    # a second, redundant place that could silently pick an architecture list,
+    # defeating the fail-fast policy enforced at the parent scope.
     if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES OR CMAKE_CUDA_ARCHITECTURES STREQUAL "" OR CMAKE_CUDA_ARCHITECTURES STREQUAL "OFF")
-        set(CMAKE_CUDA_ARCHITECTURES 89)
+        message(FATAL_ERROR
+            "src/cuda/CMakeLists.txt: CMAKE_CUDA_ARCHITECTURES is unset. This "
+            "subdirectory must only be reached after the parent CMakeLists.txt "
+            "has resolved an explicit value, a CUDAARCHS env value, or a named "
+            "SECP256K1_CUDA_ARCH_PROFILE. This is a build-graph invariant "
+            "violation, not a normal user-facing configuration error.")
     endif()
     # Required for device-code linking when secp256k1_cuda_lib uses separable
     # compilation. Without this, executables that link the static lib get

@@ -56,6 +56,52 @@ jobs:
       with:
         persist-credentials: false
 
+    # -- CUDA 13 toolchain selection (mandatory preflight) --------------------
+    # This runner's default `nvcc` on PATH resolves to CUDA 12.0 (ceiling
+    # compute_90 -- see cmake/CUDA_ARCHITECTURE_POLICY.md). Every configure
+    # step below selects SECP256K1_CUDA_ARCH_PROFILE=ci-bounded-recent, which
+    # requires nvcc >= 13.0 for compute_120/sm_120 real-target codegen. Select
+    # the real installed CUDA 13 toolkit explicitly here, before anything else
+    # runs, so a missing/too-old toolkit fails loudly at this ONE step instead
+    # of a confusing FATAL_ERROR deep inside a later cmake configure -- and so
+    # every later step (manifest, policy gate, both configures) reports and
+    # uses the exact SAME resolved compiler, never a silently re-derived one.
+    - name: Select CUDA 13 toolchain (preflight)
+      id: cuda-toolchain
+      run: |
+        set -euo pipefail
+        CANDIDATE="${UFSECP_CUDA13_NVCC:-/usr/local/cuda-13.2/bin/nvcc}"
+        if [ ! -x "${CANDIDATE}" ]; then
+          echo "::error::CUDA 13 nvcc not found (or not executable) at '${CANDIDATE}'. This self-hosted RTX 5060 Ti runner requires an installed CUDA >= 13.0 toolkit for sm_120 codegen -- see cmake/CUDA_ARCHITECTURE_POLICY.md. Set UFSECP_CUDA13_NVCC to override the path if it moved; never fall back to the default (nvcc 12.0) PATH compiler."
+          exit 1
+        fi
+        RAW_MAJOR="$("${CANDIDATE}" --version | grep -oP 'release \K[0-9]+' || true)"
+        if [ -z "${RAW_MAJOR}" ]; then
+          echo "::error::Could not parse a major version out of '${CANDIDATE} --version' output. Refusing to guess."
+          exit 1
+        fi
+        if [ "${RAW_MAJOR}" -lt 13 ]; then
+          echo "::error::${CANDIDATE} reports major version ${RAW_MAJOR}, expected >= 13. Refusing to silently use a compiler that cannot satisfy the ci-bounded-recent profile guard."
+          exit 1
+        fi
+        echo "CUDACXX=${CANDIDATE}" >> "$GITHUB_ENV"
+        echo "cudacxx=${CANDIDATE}" >> "$GITHUB_OUTPUT"
+        echo "Selected CUDA toolchain: ${CANDIDATE}"
+        "${CANDIDATE}" --version
+
+    # -- CUDA architecture policy gate (real CI gate; wired here so this is
+    #    actually exercised on every run, not a standalone script nobody
+    #    invokes). Runs AFTER toolchain selection so the policy gate's static
+    #    coherence checks can see the resolved CUDACXX. Exercises the fail-
+    #    fast/named-profile precedence, all four named profiles, every
+    #    version guard (including legacy-compat's lower AND upper bound), and
+    #    static proof that this workflow + the 5060 Ti presets cannot resolve
+    #    an nvcc13-only profile without an explicit nvcc13 compiler pin. See
+    #    cmake/CUDA_ARCHITECTURE_POLICY.md.
+    - name: CUDA architecture policy gate
+      env:
+        UFSECP_CI_NVCC13: ${{ steps.cuda-toolchain.outputs.cudacxx }}
+      run: python3 ci/check_cuda_arch_policy.py
 
     # -- P0 #3: Environment manifest ------------------------------------------
     - name: Emit GPU environment manifest
@@ -75,12 +121,13 @@ jobs:
             "driver": "$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null || echo 'N/A')",
             "compute_cap": "$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null || echo 'N/A')",
             "memory_mb": "$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null || echo 'N/A')",
-            "cuda_version": "$(nvcc --version 2>/dev/null | grep -oP 'release \K[0-9.]+' || echo 'N/A')"
+            "cuda_version": "$("${CUDACXX}" --version 2>/dev/null | grep -oP 'release \K[0-9.]+' || echo 'N/A')"
           },
           "compiler": {
             "cxx": "$(g++ --version 2>/dev/null | head -1 || echo 'N/A')",
             "cmake": "$(cmake --version 2>/dev/null | head -1 || echo 'N/A')",
-            "ninja": "$(ninja --version 2>/dev/null || echo 'N/A')"
+            "ninja": "$(ninja --version 2>/dev/null || echo 'N/A')",
+            "cuda_cxx": "${CUDACXX}"
           },
           "os": {
             "kernel": "$(uname -r)",
@@ -96,6 +143,12 @@ jobs:
     # -- Configure + Build ----------------------------------------------------
     - name: Configure (CUDA + OpenCL Release)
       run: |
+        # ci-bounded-recent named profile: 89-real;89-virtual;120-real;120-virtual
+        # (requires nvcc >= 13.0; this self-hosted runner's RTX 5060 Ti is
+        # sm_120/Blackwell -- see cmake/CUDA_ARCHITECTURE_POLICY.md). Selected
+        # explicitly by name, never a silent default. CMAKE_CUDA_COMPILER is
+        # passed explicitly (not left to env-only auto-detection) using the
+        # exact compiler the preflight step resolved and validated above.
         cmake -S . -B out/gpu-ci \
           -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
@@ -104,7 +157,8 @@ jobs:
           -DSECP256K1_BUILD_TESTS=ON \
           -DSECP256K1_BUILD_BENCH=ON \
           -DSECP256K1_BUILD_EXAMPLES=ON \
-          -DCMAKE_CUDA_ARCHITECTURES="89"
+          -DSECP256K1_CUDA_ARCH_PROFILE=ci-bounded-recent \
+          -DCMAKE_CUDA_COMPILER="${CUDACXX}"
 
     - name: Build (all targets)
       run: cmake --build out/gpu-ci -j$(nproc)
@@ -145,7 +199,8 @@ jobs:
           -DSECP256K1_BUILD_LIBBITCOIN=ON \
           -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON \
           -DSECP256K1_BUILD_CUDA=ON \
-          -DCMAKE_CUDA_ARCHITECTURES="89"
+          -DSECP256K1_CUDA_ARCH_PROFILE=ci-bounded-recent \
+          -DCMAKE_CUDA_COMPILER="${CUDACXX}"
         cmake --build out/lbtc-consensus --target test_lbtc_consensus_diff -j$(nproc)
         ctest --test-dir out/lbtc-consensus/include/ufsecp \
           -R "^lbtc_consensus_diff$" \

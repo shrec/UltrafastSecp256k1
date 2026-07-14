@@ -22,7 +22,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_BUILD_BENCH` | `ON` | Build benchmarks |
 | `SECP256K1_BUILD_CABI` | `ON` | Build optional libufsecp C ABI package (ufsecp_* FFI/bridge surface; native engine consumers link secp256k1::fast) |
 | `SECP256K1_BUILD_CPU` | `ON` | Build CPU implementation |
-| `SECP256K1_BUILD_CUDA` | `OFF` | Build CUDA GPU support |
+| `SECP256K1_BUILD_CUDA` | `OFF` | Build CUDA GPU support (requires explicit -DCMAKE_CUDA_ARCHITECTURES, CUDAARCHS, or -DSECP256K1_CUDA_ARCH_PROFILE=local-native\|ci-bounded-recent\|legacy-compat\|redistributable -- see cmake/CUDA_ARCHITECTURE_POLICY.md) |
 | `SECP256K1_BUILD_ETHEREUM` | `ON` | Build Ethereum module (Keccak, EIP-55/155/191, ecrecover) |
 | `SECP256K1_BUILD_EXAMPLES` | `ON` | Build example programs |
 | `SECP256K1_BUILD_JAVA` | `ON` | Build Java JNI bindings |

@@ -62,7 +62,7 @@ configure_file(
 
 # Build options
 option(SECP256K1_BUILD_CPU "Build CPU implementation" ON)
-option(SECP256K1_BUILD_CUDA "Build CUDA GPU support" OFF)
+option(SECP256K1_BUILD_CUDA "Build CUDA GPU support (requires explicit -DCMAKE_CUDA_ARCHITECTURES, CUDAARCHS, or -DSECP256K1_CUDA_ARCH_PROFILE=local-native|ci-bounded-recent|legacy-compat|redistributable -- see cmake/CUDA_ARCHITECTURE_POLICY.md)" OFF)
 option(SECP256K1_BUILD_ROCM "Build ROCm/HIP GPU support (AMD)" OFF)
 option(SECP256K1_BUILD_OPENCL "Build OpenCL support" OFF)
 option(SECP256K1_BUILD_METAL "Build Apple Metal GPU support" OFF)
@@ -608,6 +608,22 @@ if(SECP256K1_BUILD_CUDA)
     # On some platforms (notably Windows), nvcc requires an MSVC host compiler (cl.exe).
     # If it's not available, we'd rather fall back to CPU-only than fail configuration.
     include(CheckLanguage)
+
+    # CUDA architecture policy precedence tiers #1/#2: an explicit caller value
+    # must never be overwritten by tier #3 (named profile) below. See
+    # cmake/CudaArchPolicy.cmake and cmake/CUDA_ARCHITECTURE_POLICY.md.
+    set(_ufsecp_cuda_arch_user_supplied FALSE)
+    if(DEFINED CMAKE_CUDA_ARCHITECTURES AND NOT CMAKE_CUDA_ARCHITECTURES STREQUAL "")
+        set(_ufsecp_cuda_arch_user_supplied TRUE)   # precedence #1: explicit -D
+    elseif(DEFINED ENV{CUDAARCHS} AND NOT "$ENV{CUDAARCHS}" STREQUAL "")
+        set(_ufsecp_cuda_arch_user_supplied TRUE)   # precedence #2: CUDAARCHS env
+        # Manual honor: identical behavior on CMake 3.18-3.19 (no internal
+        # auto-init yet) and >=3.20 (pre-empts CMake's equivalent internal
+        # logic with the same value) -- see cmake_minimum_required(VERSION 3.18)
+        # above and CUDA_ARCHITECTURE_POLICY.md's cmake_3_18_3_19_gap note.
+        set(CMAKE_CUDA_ARCHITECTURES "$ENV{CUDAARCHS}" CACHE STRING "From CUDAARCHS env")
+    endif()
+
     check_language(CUDA)
     if(CMAKE_CUDA_COMPILER)
         if(NOT DEFINED CMAKE_CUDA_RUNTIME_LIBRARY OR CMAKE_CUDA_RUNTIME_LIBRARY STREQUAL "")
@@ -617,6 +633,16 @@ if(SECP256K1_BUILD_CUDA)
         endif()
         set_property(CACHE CMAKE_CUDA_RUNTIME_LIBRARY PROPERTY STRINGS Static Shared None)
         enable_language(CUDA)
+
+        if(NOT _ufsecp_cuda_arch_user_supplied)
+            # precedence #3 (named profile) / #4 (fail-fast) -- see
+            # cmake/CudaArchPolicy.cmake. Runs AFTER enable_language(CUDA) so
+            # CMAKE_CUDA_COMPILER_VERSION is available for the profile version
+            # guards, and BEFORE add_subdirectory(src/cuda) creates any CUDA target.
+            include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/CudaArchPolicy.cmake")
+            ufsecp_apply_cuda_arch_profile()
+        endif()
+
         add_subdirectory(src/cuda)
     else()
         message(WARNING "SECP256K1_BUILD_CUDA=ON but CUDA toolchain was not found or failed to configure (e.g. nvcc cannot find cl.exe). Falling back to CPU-only build.")
