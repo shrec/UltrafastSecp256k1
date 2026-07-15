@@ -192,6 +192,111 @@ GPU-accelerated; by default it is pure CPU. The C ABI
 `ufsecp_gpu_ecdsa_verify_lbtc_columns` / `ufsecp_gpu_schnorr_verify_lbtc_columns`
 exist only for C ABI completeness and are not the libbitcoin-direct surface.
 
+### OpenCL lbtc_columns latency cliff fix (Added 2026-07-13, opencl-signature-chunk-cliff-fix-claude-v1)
+
+A prior measurement task (`workingdocs/libbitcoin_gpu_workloads/signature_batch_overlap_measurement_claude_v1.json`,
+`benchmarks/libbitcoin_signature_overlap/aggregated_results.json`) found real,
+reproducible OpenCL-only latency cliffs on `ecdsa_verify_lbtc_columns` /
+`schnorr_verify_lbtc_columns` for specific non-round batch sizes: up to ~39x
+slower than an adjacent round-number batch, at two distinct batch sizes
+(`central=65,536 excess=1.2` → 78,643 rows; `central=1,048,576 excess=1.2` →
+1,258,291 rows) that were actually *worse than CPU* (`cpu_faster`
+classification) for **both** algorithms — i.e. **four** algorithm-specific
+`cpu_faster` cells (ECDSA×2 + Schnorr×2) at those two batch sizes, verified
+directly against `aggregated_results.json`'s own
+`classification_counts.cpu_faster: 4` field. That artifact's `total_cells` is
+**64** (verify_only + concurrent modes across both backends and algorithms),
+not 54; all four `cpu_faster` cells are OpenCL-only (CUDA has zero `cpu_faster`
+cells in the same sweep). That artifact's own author explicitly flagged the
+mechanism as **observed but not root-caused**
+("pattern_observed_not_root_caused"), hypothesizing the engine's internal
+memory-bounded chunking (`lbtc_columns_chunk`) as the likely cause.
+
+**Root cause (verified, not assumed).** The chunking hypothesis was checked
+first and ruled out: `lbtc_columns_chunk`'s hard cap is 4,194,304 rows, and
+`clGetDeviceInfo(CL_DEVICE_MAX_MEM_ALLOC_SIZE)` on the RTX 5060 Ti used for
+this task returned ~3.96 GiB (`by_mem` ≈ 64.9M rows) — so the memory-derived
+cap never tightens below the hard cap, and every measured cliff row count
+(≤1,258,291) is below the cap, meaning `chunk == count` and the per-call loop
+runs exactly once. The chunk/remainder loop was therefore never the mechanism.
+Bounded instrumentation (a standalone harness driving the real
+`ufsecp_gpu_ecdsa_verify_lbtc_columns` C ABI entrypoint,
+`benchmarks/opencl_signature_chunk_fix/harness/bench_opencl_columns_cliff.cpp`)
+reproduced the exact cliffs and revealed the real pattern: **every cliff row
+count has no small integer factors — the two catastrophic cells are PRIME**
+(78,643 and 1,258,291, confirmed via `sympy.factorint`), the milder-but-real
+degradations are counts with only large prime factors (1,153,434 = 2·3·192239;
+314,573 = 7·44939), and **every fast cell is a power of two** (65,536=2¹⁶,
+262,144=2¹⁸, 1,048,576=2²⁰). Every `clEnqueueNDRangeKernel` call for these two
+kernels passed `local_work_size = nullptr`, letting the OpenCL driver
+auto-select a work-group size for the launch's global size (the row count).
+For a global size with no small factors, the NVIDIA OpenCL driver used on this
+host falls back to a degenerate local size, collapsing occupancy — the
+textbook signature of this exact symptom (severity scales with the size of
+the row count's largest prime factor, worst when the count itself is prime).
+
+**Fix (OpenCL-only, `src/gpu/src/gpu_backend_opencl.cpp`).** Both
+`ecdsa_verify_lbtc_columns` and `schnorr_verify_lbtc_columns` now compute an
+explicit local work-group size per kernel/device
+(`lbtc_columns_local_size`, via `CL_KERNEL_WORK_GROUP_SIZE` +
+`CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE`) and pad the global NDRange up
+to the next multiple of it (`lbtc_columns_padded_global`) instead of passing
+`nullptr`. Padding is safe only because both kernels already bounds-check
+`if (gid >= count) return;` in `secp256k1_extended.cl` **before any buffer
+access** — the extra "ghost" work-items past `count` never read or write any
+buffer, so the padding never depends on (or exceeds) the allocated column
+buffer capacity being safe. No allocation strategy changed: `lbtc_columns_chunk`
+and the grow-only `OclColumnsPool` (peak memory, chunk cap, buffer reuse) are
+byte-for-byte unchanged — this is a dispatch-parameter fix only, entirely
+internal to `OpenCLBackend`. No new public method, C ABI function, or
+caller-visible parameter was added; CUDA and Metal source files were not
+touched (CUDA already launches with an explicit `threads_per_block`; Metal's
+`MTLComputePipelineState` threadgroup sizing is a separate, unaffected code
+path).
+
+Before/after evidence is a **separate, dedicated 16-cell dataset** (8 ECDSA +
+8 Schnorr batch sizes; ≥5 independent processes × 7 timed passes per cell,
+same host/binary/methodology as the originating 64-cell measurement task, but
+not itself part of that 64-cell sweep): see
+`benchmarks/opencl_signature_chunk_fix/raw_runs/` and
+`workingdocs/libbitcoin_gpu_workloads/opencl_signature_chunk_fix_claude_v1.json`.
+Differential regression coverage (chunk/remainder boundary counts AND prime
+row counts through the real unforced launch path) was added to
+`test_gpu_lbtc_columns_diff.cpp` (`test_chunk_boundary_and_prime_counts`, part
+of the existing wired `lbtc_gpu_columns_diff` audit module — no new module).
+
+**Acceptance repair (opencl-signature-chunk-acceptance-repair-claude-v2).**
+v1's fix above was performance-proven but not accepted outright; this narrow
+follow-up closed the specific gaps a review found, without touching the fix's
+production dispatch logic: (1) every OpenCL control call in the two functions'
+per-chunk loop that was previously unchecked — every `clSetKernelArg` and
+`clFinish` — now has its return code checked, OR-accumulated for the five
+`clSetKernelArg` calls per chunk, and on any failure the function fails
+closed: a local `fail_closed(...)` helper re-zeroes the **entire**
+`out_results` buffer (not just the untouched tail) before returning a non-OK
+`GpuError`, so a failure on a later chunk can never leave earlier chunks'
+real GPU verdicts sitting in the output alongside a failure return. `arg 4`
+(the per-chunk row count) was the specific risk: a silently-failed bind there
+would leave the kernel launched with a stale count from a previous chunk
+while reading the CURRENT chunk's correctly re-uploaded buffers, with no
+downstream check able to catch it. `lbtc_columns_local_size`'s three
+device/kernel queries now also explicitly capture and check their return
+codes (previously discarded entirely); a query failure still degrades to the
+pre-existing conservative fallback (correctness is unaffected either way,
+since the padded launch is bounds-checked and the enqueue return code is
+fail-closed), but the check is now explicit and auditable rather than
+implicit. (2) `test_gpu_lbtc_columns_diff.cpp` gained
+`test_chunk_boundary_invalid_positions` (first/middle/last/multiple-invalid,
+malformed-key, malformed-signature rows at the same six forced-chunk boundary
+counts, byte-for-byte against an independent CPU oracle, both algorithms) and
+`test_control_call_decline_no_partial_leak` (a practical failure-injection
+probe via the existing `GpuColumnsVerifyHook` test double, proving a backend
+decline can never leak partial/valid-looking output and the fallback always
+reproduces the exact per-row CPU verdict). All 222 checks in the
+`gpu_lbtc_columns_diff` module passed on real OpenCL hardware (RTX 5060 Ti,
+driver 580.173.02) with zero skips. CUDA, Metal, the `GpuBackend` virtual
+surface, and the public C ABI were not touched.
+
 ### libbitcoin public-data batch ops: validate / commitment / hashing (Added 2026-07-04)
 
 Six header-only `ufsecp::lbtc::*` batch primitives — `xonly_validate_batch`,

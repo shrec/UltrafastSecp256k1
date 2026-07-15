@@ -45,6 +45,40 @@ table storage optimization") and the tracked, repository-local
 [`docs/benchmark_artifacts/opencl_generator_w4_production_claude_v4.json`](benchmark_artifacts/opencl_generator_w4_production_claude_v4.json)
 for the actual measured evidence.
 
+## Related OpenCL lbtc_columns latency cliff fix (not benchmarked in this doc)
+
+Task `opencl-signature-chunk-cliff-fix-claude-v1` (2026-07-13) fixed an
+OpenCL-only latency cliff in `ecdsa_verify_lbtc_columns` /
+`schnorr_verify_lbtc_columns` (`src/gpu/src/gpu_backend_opencl.cpp`) that
+affected `ufsecp::lbtc::ecdsa_verify_columns` / `schnorr_verify_columns` —
+signature-batch verify, **not** any op tracked in this doc's own
+`bench_lbtc_public_ops`/`bench_lbtc_workloads` targets (those cover
+`xonly_validate_batch`, `pubkey_validate_batch`,
+`taproot_commitment_verify_batch`, `tagged_hash*`, `hash256*`,
+`txid`/`wtxid`/`merkle`/`sighash`, none of which call
+`ecdsa_verify_lbtc_columns`/`schnorr_verify_lbtc_columns`). Root cause: a
+missing explicit OpenCL `local_work_size` on the column-verify kernel launch
+let the driver's local-size auto-selection collapse for batch sizes with no
+small integer factors (worst case: a prime row count), producing up to ~39x
+slower verify latency and, at two distinct batch sizes (four algorithm-
+specific cells — ECDSA and Schnorr each — out of 64 total cells in the
+originating sweep), latency worse than CPU.
+Fixed by computing an explicit kernel/device-derived local size and padding
+the global NDRange to a multiple of it (safe because both kernels already
+bounds-check `gid >= count` before any buffer access) — a dispatch-parameter
+change only, no allocation/chunking/API change. A follow-up acceptance repair
+(`opencl-signature-chunk-acceptance-repair-claude-v2`) added return-code
+checks on every `clSetKernelArg`/`clFinish` call in the same dispatch loop
+(fail-closed: any control-call failure re-zeroes the whole output buffer) and
+extended differential coverage (invalid-position + malformed-row checks at the
+forced-chunk boundary counts, both algorithms) without changing the measured
+fix itself. See `docs/BACKEND_ASSURANCE_MATRIX.md` (section "OpenCL
+lbtc_columns latency cliff fix") for the full root-cause writeup and
+`benchmarks/opencl_signature_chunk_fix/` /
+`workingdocs/libbitcoin_gpu_workloads/opencl_signature_chunk_fix_claude_v1.json`
+for the measured before/after evidence (a separate, dedicated 16-cell dataset,
+distinct from the 64-cell originating sweep).
+
 ## Build
 
 CPU/direct:

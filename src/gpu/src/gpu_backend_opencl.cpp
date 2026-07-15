@@ -862,6 +862,88 @@ public:
         return (count < cap) ? count : cap;
     }
 
+    /* Explicit local work-group size for a 1-D lbtc_columns kernel launch,
+     * derived from THIS kernel object's own device-compiled limits (kernels
+     * differ in register pressure, so CL_KERNEL_WORK_GROUP_SIZE is queried
+     * per kernel, never assumed as a global constant).
+     *
+     * WHY THIS EXISTS (measured root cause of the OpenCL lbtc_columns latency
+     * cliff): every column-verify launch used to pass local_work_size=nullptr
+     * and let the OpenCL driver auto-select a local size for the requested
+     * global size (== the row count). Bounded instrumentation on this host
+     * (RTX 5060 Ti, NVIDIA driver 580.173.02) confirmed: the two catastrophic
+     * (cpu_faster) cliffs in the evidence artifact are at row counts 78,643
+     * and 1,258,291 -- both are PRIME (sympy.factorint confirms neither has
+     * any factor besides 1 and itself), and the milder-but-real regressions
+     * are at 1,153,434 (=2*3*192239, largest prime factor 192239) and
+     * 314,573 (=7*44939). Every FAST cell is a power of two (65536=2^16,
+     * 262144=2^18, 1048576=2^20). The engine-owned chunk cap
+     * (lbtc_columns_chunk, hard cap 4,194,304) never actually engages for any
+     * row count in the measured cliff range, so the chunk/remainder loop
+     * itself was ruled out as the cause -- this was verified with
+     * clGetDeviceInfo(CL_DEVICE_MAX_MEM_ALLOC_SIZE) on this host, not
+     * assumed. The pattern (severity scales with the size of the row count's
+     * largest prime factor, worst when the count IS prime) is the textbook
+     * signature of an OpenCL driver choosing a degenerate local work-group
+     * size (observed effect consistent with falling back toward
+     * local_size=1) when it cannot find a local size that evenly divides a
+     * NULL-local global size with few/no small factors. Requesting an
+     * explicit, kernel/device-derived local size here and padding the global
+     * range up to a multiple of it (lbtc_columns_padded_global) removes the
+     * launch's dependency on the row count's factorization entirely --
+     * regardless of backend/vendor, never just this one driver.
+     *
+     * Padding is safe ONLY because every lbtc_columns kernel already
+     * bounds-checks `if (gid >= count) return;` (secp256k1_extended.cl,
+     * ecdsa_verify_lbtc_columns / schnorr_verify_lbtc_columns): the extra
+     * "ghost" work-items past `count` are guaranteed no-ops -- they never
+     * read or write any buffer, so correctness/output is unaffected. */
+    // Return codes of the three underlying queries are explicitly captured and
+    // checked (acceptance repair for opencl-signature-chunk-cliff-fix-claude-v1):
+    // a failed query is NOT treated as fatal here -- unlike clSetKernelArg /
+    // clEnqueueNDRangeKernel / clFinish / clEnqueueReadBuffer in the callers
+    // below, a wrong or default local-work-group size can only affect
+    // performance/occupancy, never correctness (every lbtc_columns kernel
+    // bounds-checks `gid >= count`, and clEnqueueNDRangeKernel's own return
+    // code -- checked and fail-closed in both callers -- already rejects any
+    // local size the driver considers invalid for the launch). So a query
+    // failure degrades to the same conservative default (64) as a query that
+    // legitimately reports "no limit found", which is the intended, safe,
+    // pre-existing fallback design of this helper; the checks below just make
+    // that "checked, not blindly trusted" contract explicit and auditable.
+    size_t lbtc_columns_local_size(cl_kernel kernel, cl_command_queue queue) const {
+        cl_device_id dev = nullptr;
+        const cl_int q_dev = clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(dev), &dev, nullptr);
+        size_t kernel_max = 0;
+        if (q_dev == CL_SUCCESS && dev) {
+            const cl_int q_max = clGetKernelWorkGroupInfo(kernel, dev, CL_KERNEL_WORK_GROUP_SIZE,
+                                     sizeof(kernel_max), &kernel_max, nullptr);
+            if (q_max != CL_SUCCESS) kernel_max = 0;
+        }
+        if (kernel_max == 0) kernel_max = 64;  // conservative fallback: query unavailable or failed
+        size_t pref_mult = 0;
+        if (q_dev == CL_SUCCESS && dev) {
+            const cl_int q_pref = clGetKernelWorkGroupInfo(kernel, dev, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+                                     sizeof(pref_mult), &pref_mult, nullptr);
+            if (q_pref != CL_SUCCESS) pref_mult = 0;
+        }
+        size_t local = (kernel_max < 256) ? kernel_max : 256;
+        if (pref_mult > 0 && pref_mult <= local)
+            local -= (local % pref_mult);
+        if (local == 0)
+            local = (pref_mult > 0 && pref_mult <= kernel_max) ? pref_mult : kernel_max;
+        if (local == 0) local = 1;
+        return local;
+    }
+
+    /* Round n up to the next multiple of local (>=1): the padded global range
+     * for an explicit-local-work-size launch. See lbtc_columns_local_size for
+     * why padding past `count` is safe for these kernels. */
+    static size_t lbtc_columns_padded_global(size_t n, size_t local) {
+        if (local <= 1) return n;
+        return ((n + local - 1) / local) * local;
+    }
+
     GpuError ecdsa_verify_lbtc_columns(
         const uint8_t* digests32, const uint8_t* pubkeys33,
         const uint8_t* sigs64, size_t count,
@@ -885,6 +967,21 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int clerr;
+        // Fail-closed helper for the per-chunk dispatch below (acceptance repair
+        // for opencl-signature-chunk-cliff-fix-claude-v1): on ANY OpenCL
+        // control-call failure inside the loop (upload, kernel-arg bind, launch,
+        // finish, or readback) the ENTIRE out_results buffer is re-zeroed before
+        // returning a non-OK GpuError -- not just the untouched tail. Without
+        // this, a failure on chunk k>0 would leave real GPU verdicts from
+        // chunks [0,k) sitting in out_results even though the call as a whole
+        // reports failure; the direct hook (gpu_engine_hook.cpp) and the C ABI
+        // wrapper (ufsecp_gpu_impl.cpp::to_abi_error_clear_on_fail) both already
+        // ignore/re-clear the buffer on a non-OK return, so this is defence in
+        // depth, not a behavior change for either existing caller.
+        auto fail_closed = [&](GpuError code, const char* msg) -> GpuError {
+            std::memset(out_results, 0, count);
+            return set_error(code, msg);
+        };
         const size_t chunk = lbtc_columns_chunk(queue, count);
         // Reusable, grow-only device + host staging (acceptance A6): the four
         // column buffers persist across engine calls and chunks — no per-call or
@@ -899,6 +996,9 @@ public:
         cl_mem d_res = g_ocl_columns_pool.d_res;
         g_opencl_batch_scratch.ensure_results(chunk);
         int* const h_res = g_opencl_batch_scratch.results.data();
+        // Fixed for the whole call (depends only on kernel/device, not on the
+        // per-chunk row count n) -- see lbtc_columns_local_size doc comment.
+        const size_t local = lbtc_columns_local_size(ext_ecdsa_lbtc_columns_, queue);
 
         for (size_t off = 0; off < count; off += chunk) {
             const size_t n = (count - off < chunk) ? (count - off) : chunk;
@@ -908,24 +1008,44 @@ public:
                     const_cast<uint8_t*>(pubkeys33 + off * 33), 0, nullptr, nullptr) != CL_SUCCESS ||
                 clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
                     const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS)
-                return set_error(GpuError::Memory, "ecdsa columns upload failed");
+                return fail_closed(GpuError::Memory, "ecdsa columns upload failed");
 
             cl_uint cl_count = static_cast<cl_uint>(n);
-            clSetKernelArg(ext_ecdsa_lbtc_columns_, 0, sizeof(cl_mem), &d_dig);
-            clSetKernelArg(ext_ecdsa_lbtc_columns_, 1, sizeof(cl_mem), &d_pub);
-            clSetKernelArg(ext_ecdsa_lbtc_columns_, 2, sizeof(cl_mem), &d_sig);
-            clSetKernelArg(ext_ecdsa_lbtc_columns_, 3, sizeof(cl_mem), &d_res);
-            clSetKernelArg(ext_ecdsa_lbtc_columns_, 4, sizeof(cl_uint), &cl_count);
+            // Every clSetKernelArg return code is checked (OR-accumulated -- CL
+            // error codes are non-zero and CL_SUCCESS==0, so an OR of several
+            // codes is zero iff every individual call was CL_SUCCESS): arg 4
+            // (the row count) is a FRESH per-chunk value, so a silently-failed
+            // bind here would leave the kernel using a STALE count from a
+            // previous chunk while still launching over the current chunk's
+            // (correctly re-uploaded) buffers -- a wrong-count kernel run that
+            // clEnqueueNDRangeKernel's own return code cannot detect, because
+            // the launch call itself still succeeds.
+            cl_int argerr = CL_SUCCESS;
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_columns_, 0, sizeof(cl_mem), &d_dig);
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_columns_, 1, sizeof(cl_mem), &d_pub);
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_columns_, 2, sizeof(cl_mem), &d_sig);
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_columns_, 3, sizeof(cl_mem), &d_res);
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_columns_, 4, sizeof(cl_uint), &cl_count);
+            if (argerr != CL_SUCCESS)
+                return fail_closed(GpuError::Launch, "ecdsa columns kernel arg bind failed");
 
-            size_t global = n;
+            // Explicit local size + padded global range (never nullptr local):
+            // avoids the driver's poor auto-selected local size for a global
+            // size with no small factors (e.g. a prime n) -- see
+            // lbtc_columns_local_size doc comment for the measured evidence.
+            // The kernel bounds-checks gid >= count, so the padding
+            // (global - n ghost work-items) is a correctness no-op.
+            size_t global = lbtc_columns_padded_global(n, local);
             clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_lbtc_columns_, 1, nullptr,
-                                           &global, nullptr, 0, nullptr, nullptr);
+                                           &global, &local, 0, nullptr, nullptr);
             if (clerr != CL_SUCCESS)
-                return set_error(GpuError::Launch, "ecdsa columns kernel launch failed");
-            clFinish(queue);
+                return fail_closed(GpuError::Launch, "ecdsa columns kernel launch failed");
+            clerr = clFinish(queue);
+            if (clerr != CL_SUCCESS)
+                return fail_closed(GpuError::Launch, "ecdsa columns queue finish failed");
             clerr = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, sizeof(int) * n, h_res, 0, nullptr, nullptr);
             if (clerr != CL_SUCCESS)
-                return set_error(GpuError::Memory, "ecdsa columns result read failed");
+                return fail_closed(GpuError::Memory, "ecdsa columns result read failed");
             for (size_t i = 0; i < n; ++i)
                 out_results[off + i] = h_res[i] ? 1 : 0;
         }
@@ -1869,6 +1989,14 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int clerr;
+        // Fail-closed helper for the per-chunk dispatch below -- see the
+        // identical comment on ecdsa_verify_lbtc_columns::fail_closed for the
+        // full rationale (acceptance repair for
+        // opencl-signature-chunk-cliff-fix-claude-v1).
+        auto fail_closed = [&](GpuError code, const char* msg) -> GpuError {
+            std::memset(out_results, 0, count);
+            return set_error(code, msg);
+        };
         const size_t chunk = lbtc_columns_chunk(queue, count);
         // Reusable, grow-only device + host staging (acceptance A6): persistent
         // across engine calls and chunks — no per-call/per-chunk clCreateBuffer.
@@ -1882,6 +2010,9 @@ public:
         cl_mem d_res = g_ocl_columns_pool.d_res;
         g_opencl_batch_scratch.ensure_results(chunk);
         int* const h_res = g_opencl_batch_scratch.results.data();
+        // Fixed for the whole call (depends only on kernel/device, not on the
+        // per-chunk row count n) -- see lbtc_columns_local_size doc comment.
+        const size_t local = lbtc_columns_local_size(ext_schnorr_lbtc_columns_, queue);
 
         for (size_t off = 0; off < count; off += chunk) {
             const size_t n = (count - off < chunk) ? (count - off) : chunk;
@@ -1891,24 +2022,38 @@ public:
                     const_cast<uint8_t*>(xonly32 + off * 32), 0, nullptr, nullptr) != CL_SUCCESS ||
                 clEnqueueWriteBuffer(queue, d_sig, CL_FALSE, 0, 64 * n,
                     const_cast<uint8_t*>(sigs64 + off * 64), 0, nullptr, nullptr) != CL_SUCCESS)
-                return set_error(GpuError::Memory, "schnorr columns upload failed");
+                return fail_closed(GpuError::Memory, "schnorr columns upload failed");
 
             cl_uint cl_count = static_cast<cl_uint>(n);
-            clSetKernelArg(ext_schnorr_lbtc_columns_, 0, sizeof(cl_mem), &d_dig);
-            clSetKernelArg(ext_schnorr_lbtc_columns_, 1, sizeof(cl_mem), &d_xon);
-            clSetKernelArg(ext_schnorr_lbtc_columns_, 2, sizeof(cl_mem), &d_sig);
-            clSetKernelArg(ext_schnorr_lbtc_columns_, 3, sizeof(cl_mem), &d_res);
-            clSetKernelArg(ext_schnorr_lbtc_columns_, 4, sizeof(cl_uint), &cl_count);
+            // Every clSetKernelArg return code is checked -- see the identical
+            // comment on ecdsa_verify_lbtc_columns for why arg 4 (the fresh
+            // per-chunk row count) is the one that matters most here.
+            cl_int argerr = CL_SUCCESS;
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_columns_, 0, sizeof(cl_mem), &d_dig);
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_columns_, 1, sizeof(cl_mem), &d_xon);
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_columns_, 2, sizeof(cl_mem), &d_sig);
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_columns_, 3, sizeof(cl_mem), &d_res);
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_columns_, 4, sizeof(cl_uint), &cl_count);
+            if (argerr != CL_SUCCESS)
+                return fail_closed(GpuError::Launch, "schnorr columns kernel arg bind failed");
 
-            size_t global = n;
+            // Explicit local size + padded global range (never nullptr local):
+            // avoids the driver's poor auto-selected local size for a global
+            // size with no small factors (e.g. a prime n) -- see
+            // lbtc_columns_local_size doc comment for the measured evidence.
+            // The kernel bounds-checks gid >= count, so the padding
+            // (global - n ghost work-items) is a correctness no-op.
+            size_t global = lbtc_columns_padded_global(n, local);
             clerr = clEnqueueNDRangeKernel(queue, ext_schnorr_lbtc_columns_, 1, nullptr,
-                                           &global, nullptr, 0, nullptr, nullptr);
+                                           &global, &local, 0, nullptr, nullptr);
             if (clerr != CL_SUCCESS)
-                return set_error(GpuError::Launch, "schnorr columns kernel launch failed");
-            clFinish(queue);
+                return fail_closed(GpuError::Launch, "schnorr columns kernel launch failed");
+            clerr = clFinish(queue);
+            if (clerr != CL_SUCCESS)
+                return fail_closed(GpuError::Launch, "schnorr columns queue finish failed");
             clerr = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, sizeof(int) * n, h_res, 0, nullptr, nullptr);
             if (clerr != CL_SUCCESS)
-                return set_error(GpuError::Memory, "schnorr columns result read failed");
+                return fail_closed(GpuError::Memory, "schnorr columns result read failed");
             for (size_t i = 0; i < n; ++i)
                 out_results[off + i] = h_res[i] ? 1 : 0;
         }
