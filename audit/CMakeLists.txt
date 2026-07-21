@@ -6239,3 +6239,15 @@ add_test(NAME regression_metal_snark_readiness
 set_tests_properties(regression_metal_snark_readiness PROPERTIES TIMEOUT 30
     LABELS "audit;regression;metal;gpu;memory-safety;readiness")
 target_sources(unified_audit_runner PRIVATE test_regression_metal_snark_readiness.cpp)
+
+# GitHub #345: every transient CUDA allocation in the affected batch methods
+# must be RAII-owned before the next CUDA_TRY can return early.
+add_executable(test_regression_cuda_buffer_raii_standalone
+    test_regression_cuda_buffer_raii.cpp)
+audit_target_defaults(test_regression_cuda_buffer_raii_standalone)
+target_compile_definitions(test_regression_cuda_buffer_raii_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_cuda_buffer_raii
+    COMMAND test_regression_cuda_buffer_raii_standalone)
+set_tests_properties(regression_cuda_buffer_raii PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;cuda;gpu;memory-safety;raii")
+target_sources(unified_audit_runner PRIVATE test_regression_cuda_buffer_raii.cpp)

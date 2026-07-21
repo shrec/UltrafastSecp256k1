@@ -73,6 +73,19 @@ struct CudaKeyGuard {
     void* release() { void* p = ptr; ptr = nullptr; return p; }
 };
 
+// Owns a non-secret device allocation for the remainder of the current scope.
+// Construct immediately after cudaMalloc succeeds so CUDA_TRY early returns
+// cannot leak allocations made earlier in the operation.
+struct CudaBufferGuard {
+    void* ptr = nullptr;
+    explicit CudaBufferGuard(void* p) : ptr(p) {}
+    CudaBufferGuard(const CudaBufferGuard&) = delete;
+    CudaBufferGuard& operator=(const CudaBufferGuard&) = delete;
+    ~CudaBufferGuard() {
+        if (ptr) cudaFree(ptr);
+    }
+};
+
 namespace secp256k1 {
 
 /* Kernels defined in cuda/src/secp256k1.cu (namespace secp256k1::cuda).
@@ -1228,11 +1241,17 @@ gmb_cleanup:
         bool*               d_res     = nullptr;
 
         CUDA_TRY(cudaMalloc(&d_msgs, count * 32));
+        CudaBufferGuard d_msgs_guard(d_msgs);
         CUDA_TRY(cudaMalloc(&d_pubs33, count * 33));
+        CudaBufferGuard d_pubs33_guard(d_pubs33);
         CUDA_TRY(cudaMalloc(&d_pubs, count * sizeof(JacobianPoint)));
+        CudaBufferGuard d_pubs_guard(d_pubs);
         CUDA_TRY(cudaMalloc(&d_pub_ok, count * sizeof(bool)));
+        CudaBufferGuard d_pub_ok_guard(d_pub_ok);
         CUDA_TRY(cudaMalloc(&d_sigs64, count * 64));
+        CudaBufferGuard d_sigs64_guard(d_sigs64);
         CUDA_TRY(cudaMalloc(&d_res, count * sizeof(bool)));
+        CudaBufferGuard d_res_guard(d_res);
 
         CUDA_TRY(cudaMemcpy(d_msgs, msg_hashes32, count * 32, cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pubs33, pubkeys33, count * 33, cudaMemcpyHostToDevice));
@@ -1257,12 +1276,6 @@ gmb_cleanup:
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
 
-        cudaFree(d_res);
-        cudaFree(d_sigs64);
-        cudaFree(d_pub_ok);
-        cudaFree(d_pubs);
-        cudaFree(d_pubs33);
-        cudaFree(d_msgs);
         clear_error();
         return GpuError::Ok;
     }
@@ -1345,9 +1358,13 @@ gmb_cleanup:
         bool*                d_res  = nullptr;
 
         CUDA_TRY(cudaMalloc(&d_pks, count * 32));
+        CudaBufferGuard d_pks_guard(d_pks);
         CUDA_TRY(cudaMalloc(&d_msgs, count * 32));
+        CudaBufferGuard d_msgs_guard(d_msgs);
         CUDA_TRY(cudaMalloc(&d_sigs, count * sizeof(SchnorrSignatureGPU)));
+        CudaBufferGuard d_sigs_guard(d_sigs);
         CUDA_TRY(cudaMalloc(&d_res, count * sizeof(bool)));
+        CudaBufferGuard d_res_guard(d_res);
 
         CUDA_TRY(cudaMemcpy(d_pks, pubkeys_x32, count * 32, cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_msgs, msg_hashes32, count * 32, cudaMemcpyHostToDevice));
@@ -1367,10 +1384,6 @@ gmb_cleanup:
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
 
-        cudaFree(d_res);
-        cudaFree(d_sigs);
-        cudaFree(d_msgs);
-        cudaFree(d_pks);
         clear_error();
         return GpuError::Ok;
     }
@@ -2406,14 +2419,23 @@ sh_decline:
         uint8_t *d_nR = nullptr, *d_nK = nullptr, *d_res = nullptr;
 
         CUDA_TRY(cudaMalloc(&d_z,   count * 32));
+        CudaBufferGuard d_z_guard(d_z);
         CUDA_TRY(cudaMalloc(&d_D,   count * 33));
+        CudaBufferGuard d_D_guard(d_D);
         CUDA_TRY(cudaMalloc(&d_E,   count * 33));
+        CudaBufferGuard d_E_guard(d_E);
         CUDA_TRY(cudaMalloc(&d_Y,   count * 33));
+        CudaBufferGuard d_Y_guard(d_Y);
         CUDA_TRY(cudaMalloc(&d_rho, count * 32));
+        CudaBufferGuard d_rho_guard(d_rho);
         CUDA_TRY(cudaMalloc(&d_lie, count * 32));
+        CudaBufferGuard d_lie_guard(d_lie);
         CUDA_TRY(cudaMalloc(&d_nR,  count));
+        CudaBufferGuard d_nR_guard(d_nR);
         CUDA_TRY(cudaMalloc(&d_nK,  count));
+        CudaBufferGuard d_nK_guard(d_nK);
         CUDA_TRY(cudaMalloc(&d_res, count));
+        CudaBufferGuard d_res_guard(d_res);
 
         CUDA_TRY(cudaMemcpy(d_z,   z_i32,       count * 32, cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_D,   D_i33,       count * 33, cudaMemcpyHostToDevice));
@@ -2434,10 +2456,6 @@ sh_decline:
 
         CUDA_TRY(cudaMemcpy(out_results, d_res, count, cudaMemcpyDeviceToHost));
 
-        cudaFree(d_res);
-        cudaFree(d_nK);  cudaFree(d_nR);
-        cudaFree(d_lie); cudaFree(d_rho);
-        cudaFree(d_Y);   cudaFree(d_E);   cudaFree(d_D);   cudaFree(d_z);
         clear_error();
         return GpuError::Ok;
 #else
@@ -2894,11 +2912,17 @@ dec_cleanup:
         EcdsaSnarkWitnessFlat* d_out     = nullptr;
 
         CUDA_TRY(cudaMalloc(&d_msgs,   count * 32));
+        CudaBufferGuard d_msgs_guard(d_msgs);
         CUDA_TRY(cudaMalloc(&d_pubs33, count * 33));
+        CudaBufferGuard d_pubs33_guard(d_pubs33);
         CUDA_TRY(cudaMalloc(&d_pubs,   count * sizeof(JacobianPoint)));
+        CudaBufferGuard d_pubs_guard(d_pubs);
         CUDA_TRY(cudaMalloc(&d_pub_ok, count * sizeof(bool)));
+        CudaBufferGuard d_pub_ok_guard(d_pub_ok);
         CUDA_TRY(cudaMalloc(&d_sigs,   count * sizeof(ECDSASignatureGPU)));
+        CudaBufferGuard d_sigs_guard(d_sigs);
         CUDA_TRY(cudaMalloc(&d_out,    count * sizeof(EcdsaSnarkWitnessFlat)));
+        CudaBufferGuard d_out_guard(d_out);
 
         CUDA_TRY(cudaMemcpy(d_msgs,   msg_hashes32,    count * 32,                         cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pubs33, pubkeys33,        count * 33,                         cudaMemcpyHostToDevice));
@@ -2922,12 +2946,6 @@ dec_cleanup:
                             count * sizeof(EcdsaSnarkWitnessFlat),
                             cudaMemcpyDeviceToHost));
 
-        cudaFree(d_out);
-        cudaFree(d_sigs);
-        cudaFree(d_pub_ok);
-        cudaFree(d_pubs);
-        cudaFree(d_pubs33);
-        cudaFree(d_msgs);
         clear_error();
         return GpuError::Ok;
 #else
@@ -2954,9 +2972,13 @@ dec_cleanup:
         cuda::SchnorrSnarkWitnessFlat* d_out   = nullptr;
 
         CUDA_TRY(cudaMalloc(&d_msgs, count * 32));
+        CudaBufferGuard d_msgs_guard(d_msgs);
         CUDA_TRY(cudaMalloc(&d_pubs, count * 32));
+        CudaBufferGuard d_pubs_guard(d_pubs);
         CUDA_TRY(cudaMalloc(&d_sigs, count * 64));
+        CudaBufferGuard d_sigs_guard(d_sigs);
         CUDA_TRY(cudaMalloc(&d_out,  count * sizeof(cuda::SchnorrSnarkWitnessFlat)));
+        CudaBufferGuard d_out_guard(d_out);
 
         CUDA_TRY(cudaMemcpy(d_msgs, msgs32,       count * 32, cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pubs, pubkeys_x32,  count * 32, cudaMemcpyHostToDevice));
@@ -2973,10 +2995,6 @@ dec_cleanup:
                             count * sizeof(cuda::SchnorrSnarkWitnessFlat),
                             cudaMemcpyDeviceToHost));
 
-        cudaFree(d_out);
-        cudaFree(d_sigs);
-        cudaFree(d_pubs);
-        cudaFree(d_msgs);
         clear_error();
         return GpuError::Ok;
 #else

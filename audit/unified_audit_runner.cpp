@@ -714,6 +714,7 @@ int test_regression_shim_xonly_parse_run();   // PASS4-003: xonly_parse via schn
 // ============================================================================
 int test_regression_gpu_ecdh_extended_ct_run(); // GEC-1..7: correctness guard after VT→CT fix in extended kernels
 int test_regression_metal_snark_readiness_run(); // #344: Metal SNARK methods guard runtime_ before dispatch
+int test_regression_cuda_buffer_raii_run(); // #345: CUDA_TRY early returns retain no device allocations
 
 // ============================================================================
 // Forward declarations -- 2026-05-22 SHIM-013: ecdsa_verify cache consistency
@@ -1618,6 +1619,8 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_opencl_generator_w4", "OpenCL generator_mul_windowed table[16] hoisted to single __constant GENERATOR_TABLE_W4[16], values match canonical {0*G..15*G}", "math_invariants", test_regression_opencl_generator_w4_run, false },
     // === 2026-07-21 Metal SNARK readiness crash regression (#344) ===
     { "regression_metal_snark_readiness", "Metal ECDSA/Schnorr SNARK witness methods reject an uninitialised runtime with GpuError::Device before count/null handling or buffer allocation (MSR-0..3)", "memory_safety", test_regression_metal_snark_readiness_run, false },
+    // === 2026-07-21 CUDA batch allocation lifetime regression (#345) ===
+    { "regression_cuda_buffer_raii", "CUDA ECDSA/Schnorr verify, FROST partial verify, and ECDSA/Schnorr SNARK witness allocations are RAII-owned across every CUDA_TRY early return (CBR-0..8)", "memory_safety", test_regression_cuda_buffer_raii_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

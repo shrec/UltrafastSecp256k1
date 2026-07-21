@@ -1,5 +1,15 @@
 # Audit Changelog
 
+## 2026-07-21 — CUDA batch allocation lifetime
+
+- Fixed device-memory leaks in CUDA ECDSA/Schnorr batch verification, FROST
+  partial verification, and ECDSA/Schnorr SNARK witness generation. Every
+  successful transient allocation is now RAII-owned before the next
+  `CUDA_TRY` can return early.
+- Added blocking `regression_cuda_buffer_raii` coverage to the unified audit
+  runner and standalone CTest. The source-coupled checks cover all five paths
+  and include both rejected pre-fix and accepted fixed synthetic fixtures.
+
 ## 2026-07-21 — Metal SNARK witness readiness guard
 
 - Fixed the Metal ECDSA and Schnorr SNARK witness batch paths to reject an
