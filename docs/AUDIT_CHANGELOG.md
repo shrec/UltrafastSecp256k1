@@ -1,5 +1,15 @@
 # Audit Changelog
 
+## 2026-07-21 — Metal SNARK witness readiness guard
+
+- Fixed the Metal ECDSA and Schnorr SNARK witness batch paths to reject an
+  uninitialised backend with `GpuError::Device` before touching `runtime_`.
+- Added the mandatory `regression_metal_snark_readiness` unified audit module
+  and standalone CTest. Its synthetic pre-fix fixture proves that the
+  source-coupled guard check rejects the original crash-prone method shape.
+- Removed the remaining stale internal BIP-352 claim that Metal was
+  unsupported; CUDA, OpenCL, and Metal expose the operation.
+
 ## 2026-07-21 — Windows static-library export precedence
 
 - Synchronized the generated version-header template with its source-tree copy:

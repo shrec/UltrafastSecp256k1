@@ -628,7 +628,7 @@ public:
      *  @param tweak_pubkeys33 n_tweaks × 33 bytes (sender input public keys).
      *  @param n_tweaks        Number of tweak keys.
      *  @param prefix64_out    Output: n_tweaks × uint64_t x-coordinate prefixes.
-     *  @return GpuError::Ok on success. GpuError::Unsupported on Metal. */
+     *  @return GpuError::Ok on success. */
     virtual GpuError bip352_scan_batch(
         const uint8_t  scan_privkey32[32],
         const uint8_t  spend_pubkey33[33],

@@ -6227,3 +6227,15 @@ unset(_v1_musig2_v1_callers_unfortunately)
 # (next to audit_target_defaults()) for the full rationale; apply the same
 # wiring here so the unified runner sees real backends too.
 audit_wire_real_gpu_backends(unified_audit_runner)
+
+# GitHub #344: Metal ECDSA/Schnorr SNARK witness methods must reject an
+# uninitialised runtime before any buffer allocation or dispatch.
+add_executable(test_regression_metal_snark_readiness_standalone
+    test_regression_metal_snark_readiness.cpp)
+audit_target_defaults(test_regression_metal_snark_readiness_standalone)
+target_compile_definitions(test_regression_metal_snark_readiness_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_metal_snark_readiness
+    COMMAND test_regression_metal_snark_readiness_standalone)
+set_tests_properties(regression_metal_snark_readiness PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;metal;gpu;memory-safety;readiness")
+target_sources(unified_audit_runner PRIVATE test_regression_metal_snark_readiness.cpp)

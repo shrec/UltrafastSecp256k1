@@ -44,7 +44,7 @@ def main() -> int:
     # Keep the visible summary line in sync too.
     updated = re.sub(
         r"^\*\*Current Release Version:\*\* .*?$",
-        f"**Current Release Version:** {version}  ",
+        f"**Current Release Version:** {version}",
         updated,
         count=1,
         flags=re.MULTILINE,

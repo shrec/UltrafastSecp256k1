@@ -2321,9 +2321,10 @@ public:
         const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
         const uint8_t* sigs64, size_t count, uint8_t* witness_flat_out) override
     {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (!count) { clear_error(); return GpuError::Ok; }
         if (!msg_hashes32 || !pubkeys33 || !sigs64 || !witness_flat_out)
             return set_error(GpuError::NullArg, "NULL pointer passed to snark_witness_batch");
-        if (!count) return GpuError::Ok;
 #if !SECP256K1_GPU_HAS_ZK
         return set_error(GpuError::Unsupported, "GPU ZK module disabled at build time");
 #endif
@@ -2359,9 +2360,10 @@ public:
         const uint8_t* msgs32, const uint8_t* pubkeys_x32,
         const uint8_t* sigs64, size_t count, uint8_t* out_flat) override
     {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (!count) { clear_error(); return GpuError::Ok; }
         if (!msgs32 || !pubkeys_x32 || !sigs64 || !out_flat)
             return set_error(GpuError::NullArg, "NULL pointer passed to schnorr_snark_witness_batch");
-        if (!count) return GpuError::Ok;
 #if !SECP256K1_GPU_HAS_ZK
         return set_error(GpuError::Unsupported, "GPU ZK module disabled at build time");
 #endif

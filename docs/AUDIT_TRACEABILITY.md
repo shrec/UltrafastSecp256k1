@@ -463,9 +463,9 @@ DIFFERENTIAL_MULTIPLIER=100 ./build/src/cpu/test_cross_libsecp256k1  # 1.3M chec
 | `gpu_backend_matrix` | Backend enumeration, device info, per-backend op probing | `audit/test_gpu_backend_matrix.cpp` |
 
 Backend-specific internal audit runners:
-- CUDA: `src/cuda/src/gpu_audit_runner.cu` ( 442 modules)
-- OpenCL: `opencl/src/opencl_audit_runner.cpp` ( 442 modules)
-- Metal: `metal/src/metal_audit_runner.mm` ( 442 modules)
+- CUDA: `src/cuda/src/gpu_audit_runner.cu` ( 443 modules)
+- OpenCL: `opencl/src/opencl_audit_runner.cpp` ( 443 modules)
+- Metal: `metal/src/metal_audit_runner.mm` ( 443 modules)
 
 ---
 
