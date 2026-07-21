@@ -75,6 +75,7 @@ AUDIT_SCRIPTS = [
     "validate_assurance.py",
     "verify_slsa_provenance.py",
     "check_abi_version_sync.py",
+    "check_node_package_contract.py",
     "check_randomize_claim_consistency.py",
     "check_required_checks_match_jobs.py",
     "check_advisory_json_rule16.py",
@@ -3022,6 +3023,71 @@ def check_gpu_backend_parity_fixtures() -> None:
                 "checks all correct; real repo has zero GPU backend parity violations")
 
 
+def check_node_package_contract_fixtures() -> None:
+    """NODE-PKG-001: reject ghost files and accidental node-gyp contracts."""
+    tag = "NODE-PKG:ffi_manifest_fixtures"
+    try:
+        mod = _load_ci_module("check_node_package_contract.py", "node_package_contract_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    clean = {
+        "main": "lib/index.js",
+        "types": "lib/index.d.ts",
+        "files": ["lib/", "README.md"],
+        "dependencies": {"ffi-napi": "^4", "ref-napi": "^3"},
+        "devDependencies": {"koffi": "^2"},
+    }
+    existing = {"lib", "lib/index.js", "lib/index.d.ts", "README.md"}
+    failures = []
+    if mod.evaluate_manifest(clean, existing):
+        failures.append("clean FFI manifest was rejected")
+
+    ghost = dict(clean, files=["lib/", "binding.gyp", "src/", "README.md"])
+    if not any(p["kind"] == "listed_path_missing"
+               for p in mod.evaluate_manifest(ghost, existing)):
+        failures.append("nonexistent binding.gyp/src entries did not fail")
+
+    scripted = dict(clean, scripts={"install": "node-gyp rebuild"})
+    if not any(p["kind"] == "node_gyp_script"
+               for p in mod.evaluate_manifest(scripted, existing)):
+        failures.append("node-gyp install script did not fail")
+
+    native_dep = dict(clean, dependencies={"ffi-napi": "^4", "node-gyp": "^12"})
+    if not any(p["kind"] == "native_build_dependency"
+               for p in mod.evaluate_manifest(native_dep, existing)):
+        failures.append("node-gyp dependency on the FFI-only package did not fail")
+
+    uncovered = dict(clean, files=["README.md"])
+    if not any(p["kind"] == "runtime_entry_not_packed"
+               for p in mod.evaluate_manifest(uncovered, existing)):
+        failures.append("unpacked main/types entry did not fail")
+
+    clean_lock = {"packages": {"": {
+        "dependencies": clean["dependencies"],
+        "devDependencies": clean["devDependencies"],
+    }}}
+    if mod.evaluate_lockfile(clean, clean_lock):
+        failures.append("matching package lock was rejected")
+    stale_lock = {"packages": {"": {
+        "dependencies": {"ffi-napi": "^3"},
+        "devDependencies": clean["devDependencies"],
+    }}}
+    if not any(p["kind"] == "lockfile_dependency_drift"
+               for p in mod.evaluate_lockfile(clean, stale_lock)):
+        failures.append("stale lockfile dependency set did not fail")
+
+    real_report = mod.evaluate()
+    if not real_report.get("overall_pass"):
+        failures.append(f"real Node package contract failed: {real_report.get('problems')}")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "ghost files, node-gyp contracts, unpacked runtime entries, and stale lockfiles fail; real manifest passes")
+
+
 def check_caas_dashboard_evidence_browser() -> None:
     """The CAAS dashboard must expose the committed evidence/status manifests in
     one central browser. This prevents the UI from regressing into scattered
@@ -3172,6 +3238,7 @@ def main() -> int:
     check_release_package_contents_fixtures()
     check_libbitcoin_perf_matrix_fixtures()
     check_gpu_backend_parity_fixtures()
+    check_node_package_contract_fixtures()
     check_caas_dashboard_evidence_browser()
     check_caas_gate_negative_fixture_coverage()
     check_secret_path_before_sha_fallback()

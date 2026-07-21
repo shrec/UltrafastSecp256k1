@@ -1,5 +1,15 @@
 # Audit Changelog
 
+## 2026-07-21 — Node.js FFI package install contract
+
+- Removed the source package's nonexistent `binding.gyp` / `src/` entries and
+  its invalid `node-gyp rebuild` install/build scripts. The package is an FFI
+  wrapper and now documents its real shared-library runtime requirement.
+- Added mandatory `NODE-PKG-001` validation and synthetic negative fixtures
+  for ghost package paths, accidental native-build scripts/dependencies, and
+  runtime entries omitted from the npm tarball. The generated npm lockfile is
+  now tracked and its root dependency sets are checked against `package.json`.
+
 ## 2026-07-21 — Public GPU/ABI documentation contract regressions
 
 - Corrected `ufsecp_gpu.h` to use the defined

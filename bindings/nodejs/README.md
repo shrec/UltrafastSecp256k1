@@ -1,6 +1,6 @@
 # ultrafast-secp256k1
 
-High-performance Node.js native addon for secp256k1 elliptic curve cryptography, powered by [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1).
+High-performance Node.js FFI bindings for secp256k1 elliptic curve cryptography, powered by [UltrafastSecp256k1](https://github.com/shrec/UltrafastSecp256k1).
 
 ## Features
 
@@ -33,7 +33,10 @@ High-performance Node.js native addon for secp256k1 elliptic curve cryptography,
 npm install ultrafast-secp256k1
 ```
 
-Requires a C++ compiler and `node-gyp` (the native addon is built on install).
+The package does not build a Node addon and has no `node-gyp` install step.
+Install the UltrafastSecp256k1 shared library separately and set
+`ULTRAFAST_SECP256K1_LIB` to its absolute path when it is not discoverable by
+the platform loader.
 
 ## Quick Start
 

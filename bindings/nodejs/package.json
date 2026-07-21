@@ -6,21 +6,14 @@
   "types": "lib/index.d.ts",
   "files": [
     "lib/",
-    "binding.gyp",
-    "src/",
     "README.md"
   ],
-  "scripts": {
-    "install": "node-gyp rebuild",
-    "build": "node-gyp rebuild",
-    "test": "node test/test.js"
-  },
   "dependencies": {
     "ffi-napi": "^4.0.3",
-    "koffi": "^2.15.2",
-    "node-addon-api": "^8.5.0",
-    "node-gyp": "^12.2.0",
     "ref-napi": "^3.0.3"
+  },
+  "devDependencies": {
+    "koffi": "^2.15.2"
   },
   "keywords": [
     "secp256k1",

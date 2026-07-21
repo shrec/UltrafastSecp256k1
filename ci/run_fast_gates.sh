@@ -51,6 +51,7 @@ MANDATORY_GATES=(
     "ci/test_sync_module_count.py"       # DOC-DRIFT-COUNT: paired README counts must sync together
     "ci/check_version_sync.py"
     "ci/check_abi_version_sync.py"       # REL-ABI: binding EXPECTED_ABI must equal library ABI (== MAJOR)
+    "ci/check_node_package_contract.py"  # NODE-PKG-001: FFI package must not declare ghost node-gyp inputs
     "ci/check_randomize_claim_consistency.py"  # REVIEWER-FRICTION-001: no doc may call context_randomize a no-op
     "ci/check_required_checks_match_jobs.py"   # CAAS-CI-001: branch-protection contexts must resolve to PR-triggered jobs
     "ci/check_sanitizer_result_assertions.py"  # CAAS6-01: required memcheck jobs must fail closed on "no logs produced"
@@ -145,6 +146,7 @@ run "Advisory blocking twin (CAAS-FG-01)" ci/check_advisory_has_blocking_test.py
 run "Security fix has test"   ci/check_security_fix_has_test.py --commits 10
 run "Security-fix gate self-test" ci/test_check_security_fix_has_test.py
 run "Version + count sync"   ci/check_version_sync.py
+run "Node FFI package contract" ci/check_node_package_contract.py
 run "Canonical data sync"    ci/build_canonical_data.py --dry-run
 run "Docs from canonical"    ci/sync_docs_from_canonical.py --dry-run
 run "Module count sync"      ci/sync_module_count.py --dry-run
