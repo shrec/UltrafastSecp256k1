@@ -20,6 +20,8 @@ Checks (run from the submodule root):
   4. Every binding's EXPECTED_ABI constant == MAJOR.
   5. docs/BINDINGS_ABI_COMPAT.md "Current ABI version: N" == MAJOR.
   6. include/ufsecp/SUPPORTED_GUARANTEES.md version banner ABI == MAJOR.
+  7. Source and template headers preserve the static-before-building Windows
+     export order and expose the same deprecation annotation contract.
 
 Exit 0 = in sync, 1 = mismatch.
 """
@@ -69,6 +71,33 @@ def check_guarantees_doc(text: str, major: int) -> list[str]:
     return []
 
 
+def check_version_header_contract(template_text: str, source_text: str) -> list[str]:
+    """Validate Windows static export precedence and public macro parity."""
+    problems = []
+    for label, text in (("template", template_text), ("source", source_text)):
+        api_start = text.find("#ifndef UFSECP_API")
+        api_end = text.find("#ifndef UFSECP_DEPRECATED", api_start)
+        if api_start < 0 or api_end < 0:
+            problems.append(f"{label}: UFSECP_API/deprecation blocks are incomplete")
+            continue
+        api_block = text[api_start:api_end]
+        static_match = re.search(
+            r"#(?:ifdef|elif\s+defined\()\s*UFSECP_STATIC_LIB", api_block
+        )
+        building_match = re.search(
+            r"#(?:ifdef|elif\s+defined\()\s*UFSECP_BUILDING", api_block
+        )
+        if not static_match or not building_match:
+            problems.append(f"{label}: Windows UFSECP_API branches are incomplete")
+        elif static_match.start() > building_match.start():
+            problems.append(
+                f"{label}: UFSECP_STATIC_LIB must precede UFSECP_BUILDING"
+            )
+        if not re.search(r"#define\s+UFSECP_DEPRECATED\(msg\)", text):
+            problems.append(f"{label}: UFSECP_DEPRECATED is missing")
+    return problems
+
+
 def main() -> int:
     if not VERSION_TXT.exists():
         print(f"check_abi_version_sync: {VERSION_TXT} not found — run from the "
@@ -86,6 +115,7 @@ def main() -> int:
     errors = 0
 
     # 2. template derives ABI from MAJOR, not a hardcode
+    intxt = None
     if ABI_IN.exists():
         intxt = ABI_IN.read_text()
         if not re.search(r"#define\s+UFSECP_ABI_VERSION\s+@PROJECT_VERSION_MAJOR@", intxt):
@@ -97,11 +127,20 @@ def main() -> int:
         errors += 1
 
     # 3. committed generated header (if present) matches MAJOR
+    htxt = None
     if ABI_HDR.exists():
         htxt = ABI_HDR.read_text()
         hm = re.search(r"#define\s+UFSECP_ABI_VERSION\s+(\d+)", htxt)
         if hm and int(hm.group(1)) != major:
             fail(f"{ABI_HDR}: hardcoded UFSECP_ABI_VERSION {hm.group(1)} != MAJOR {major}")
+            errors += 1
+
+    # 7. Both public-header forms must choose static linkage before the
+    # building/export marker. Static archives define both macros, and clang-cl
+    # rejects thread-local statics inside an accidentally dllexport'd function.
+    if intxt is not None and htxt is not None:
+        for problem in check_version_header_contract(intxt, htxt):
+            fail(f"version header contract: {problem}")
             errors += 1
 
     # 4. every binding EXPECTED_ABI == MAJOR

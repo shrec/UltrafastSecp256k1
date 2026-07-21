@@ -3167,6 +3167,56 @@ def check_windows_cuda_contract_fixtures() -> None:
         ok(tag, "missing development headers, CPU fallback, and omitted CUDA targets fail; real workflow passes")
 
 
+def check_version_header_contract_fixtures() -> None:
+    """WIN-ABI-001: static linkage must win over the build/export marker."""
+    tag = "WIN-ABI:version_header_contract_fixtures"
+    try:
+        mod = _load_ci_module("check_abi_version_sync.py", "abi_header_contract_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    clean = """
+#ifndef UFSECP_API
+#ifdef UFSECP_STATIC_LIB
+#define UFSECP_API
+#elif defined(UFSECP_BUILDING)
+#define UFSECP_API __declspec(dllexport)
+#endif
+#endif
+#ifndef UFSECP_DEPRECATED
+#define UFSECP_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#endif
+"""
+    reversed_order = clean.replace(
+        "#ifdef UFSECP_STATIC_LIB\n#define UFSECP_API\n"
+        "#elif defined(UFSECP_BUILDING)\n#define UFSECP_API __declspec(dllexport)",
+        "#ifdef UFSECP_BUILDING\n#define UFSECP_API __declspec(dllexport)\n"
+        "#elif defined(UFSECP_STATIC_LIB)\n#define UFSECP_API",
+    )
+    missing_deprecation = clean[:clean.index("#ifndef UFSECP_DEPRECATED")]
+    failures = []
+    if mod.check_version_header_contract(clean, clean):
+        failures.append("correct static-first header contract was rejected")
+    if not any("must precede" in p
+               for p in mod.check_version_header_contract(reversed_order, clean)):
+        failures.append("template with building-before-static order did not fail")
+    if not any("UFSECP_API/deprecation blocks are incomplete" in p
+               for p in mod.check_version_header_contract(missing_deprecation, clean)):
+        failures.append("template without deprecation contract did not fail")
+
+    template = (LIB_ROOT / "include/ufsecp/ufsecp_version.h.in").read_text()
+    source = (LIB_ROOT / "include/ufsecp/ufsecp_version.h").read_text()
+    real_problems = mod.check_version_header_contract(template, source)
+    if real_problems:
+        failures.append(f"real version headers failed: {real_problems}")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "building-before-static and missing macro parity fail; real headers pass")
+
+
 def check_caas_dashboard_evidence_browser() -> None:
     """The CAAS dashboard must expose the committed evidence/status manifests in
     one central browser. This prevents the UI from regressing into scattered
@@ -3319,6 +3369,7 @@ def main() -> int:
     check_gpu_backend_parity_fixtures()
     check_node_package_contract_fixtures()
     check_windows_cuda_contract_fixtures()
+    check_version_header_contract_fixtures()
     check_caas_dashboard_evidence_browser()
     check_caas_gate_negative_fixture_coverage()
     check_secret_path_before_sha_fallback()

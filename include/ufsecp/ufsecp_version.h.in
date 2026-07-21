@@ -44,10 +44,13 @@ extern "C" {
 
 #ifndef UFSECP_API
   #if defined(_WIN32) || defined(__CYGWIN__)
-    #ifdef UFSECP_BUILDING
-      #define UFSECP_API __declspec(dllexport)
-    #elif defined(UFSECP_STATIC_LIB)
+    /* Static builds define both UFSECP_STATIC_LIB and UFSECP_BUILDING. The
+     * static marker must win so clang-cl does not apply dllexport to static
+     * archive functions. Keep this branch order in sync with the source copy. */
+    #ifdef UFSECP_STATIC_LIB
       #define UFSECP_API
+    #elif defined(UFSECP_BUILDING)
+      #define UFSECP_API __declspec(dllexport)
     #else
       #define UFSECP_API __declspec(dllimport)
     #endif
@@ -55,6 +58,19 @@ extern "C" {
     #define UFSECP_API __attribute__((visibility("default")))
   #else
     #define UFSECP_API
+  #endif
+#endif
+
+/* ── Deprecation annotation ──────────────────────────────────────────────── */
+#ifndef UFSECP_DEPRECATED
+  #if defined(__cplusplus) && (__cplusplus >= 201402L)
+    #define UFSECP_DEPRECATED(msg) [[deprecated(msg)]]
+  #elif defined(__GNUC__) || defined(__clang__)
+    #define UFSECP_DEPRECATED(msg) __attribute__((deprecated(msg)))
+  #elif defined(_MSC_VER)
+    #define UFSECP_DEPRECATED(msg) __declspec(deprecated(msg))
+  #else
+    #define UFSECP_DEPRECATED(msg)
   #endif
 #endif
 

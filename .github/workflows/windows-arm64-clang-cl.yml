@@ -88,6 +88,22 @@ jobs:
         shell: bash
         run: cmake --build build-arm64 --target fastsecp256k1 -j
 
+      - name: Generated-header static export contract (clang-cl)
+        shell: bash
+        run: |
+          cat > static-api-contract.cpp <<'EOF'
+          #include <ufsecp/ufsecp_version.h>
+          UFSECP_API int static_export_contract() {
+              static thread_local int value = 0;
+              return ++value;
+          }
+          EOF
+          export MSYS2_ARG_CONV_EXCL='*'
+          clang-cl --target=aarch64-pc-windows-msvc /std:c++17 /c \
+            -I build-arm64/include \
+            -D UFSECP_STATIC_LIB -D UFSECP_BUILDING \
+            static-api-contract.cpp /Fo:static-api-contract-arm64.obj
+
       # Compile a real libsecp256k1-ABI consumer against the cross-built ARM64 headers
       # to prove the public ABI is usable on aarch64. Compile-only (-> .obj): the
       # engine + shim BUILD step above already proves every secp256k1_* symbol is

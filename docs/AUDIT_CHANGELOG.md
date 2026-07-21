@@ -1,5 +1,16 @@
 # Audit Changelog
 
+## 2026-07-21 — Windows static-library export precedence
+
+- Synchronized the generated version-header template with its source-tree copy:
+  `UFSECP_STATIC_LIB` now wins when a static engine build also defines
+  `UFSECP_BUILDING`, and generated headers expose `UFSECP_DEPRECATED` as well.
+- Extended the mandatory ABI/version gate with negative fixtures for reversed
+  Windows export precedence and incomplete template macro parity.
+- Added a real clang-cl ARM64 compile probe against the CMake-generated header;
+  its function contains a `static thread_local`, reproducing the construct that
+  fails when a static archive is accidentally marked `dllexport`.
+
 ## 2026-07-21 — Windows CUDA development-header contract
 
 - Added the CUDA runtime development package to the Windows compile workflow;
