@@ -6251,3 +6251,15 @@ add_test(NAME regression_cuda_buffer_raii
 set_tests_properties(regression_cuda_buffer_raii PROPERTIES TIMEOUT 30
     LABELS "audit;regression;cuda;gpu;memory-safety;raii")
 target_sources(unified_audit_runner PRIVATE test_regression_cuda_buffer_raii.cpp)
+
+# GitHub #347: generic Metal ECDSA/Schnorr batch verification must detect a
+# command-buffer failure as an operational error, never as a signature verdict.
+add_executable(test_regression_metal_batch_sentinel_standalone
+    test_regression_metal_batch_sentinel.cpp)
+audit_target_defaults(test_regression_metal_batch_sentinel_standalone)
+target_compile_definitions(test_regression_metal_batch_sentinel_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_metal_batch_sentinel
+    COMMAND test_regression_metal_batch_sentinel_standalone)
+set_tests_properties(regression_metal_batch_sentinel PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;metal;gpu;memory-safety;verdict")
+target_sources(unified_audit_runner PRIVATE test_regression_metal_batch_sentinel.cpp)

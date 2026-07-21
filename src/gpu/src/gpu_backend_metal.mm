@@ -521,30 +521,47 @@ public:
         if (!msg_hashes32 || !pubkeys33 || !sigs64 || !out_results)
             return set_error(GpuError::NullArg, "NULL buffer");
 
+        std::memset(out_results, 0, count);
+
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
 
         /* Pass 33-byte compressed pubkeys directly — GPU decompresses via lbtc_point_from_compressed */
         auto buf_msgs = runtime_->alloc_buffer_shared(count * 32);
-        std::memcpy(buf_msgs.contents(), msg_hashes32, count * 32);
-
         auto buf_pubs = runtime_->alloc_buffer_shared(count * 33);
-        std::memcpy(buf_pubs.contents(), pubkeys33, count * 33);
-
         auto buf_sigs = runtime_->alloc_buffer_shared(count * 64);
-        std::memcpy(buf_sigs.contents(), sigs64, count * 64);
-
         auto buf_res = runtime_->alloc_buffer_shared(count * sizeof(uint32_t));
-
-        uint32_t n32 = (uint32_t)count;
         auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+
+        if (!buf_msgs.valid() || !buf_pubs.valid() || !buf_sigs.valid() ||
+            !buf_res.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: ecdsa_verify_batch buffer allocation failed");
+
+        std::memcpy(buf_msgs.contents(), msg_hashes32, count * 32);
+        std::memcpy(buf_pubs.contents(), pubkeys33, count * 33);
+        std::memcpy(buf_sigs.contents(), sigs64, count * 64);
+        uint32_t n32 = (uint32_t)count;
         std::memcpy(buf_count.contents(), &n32, sizeof(n32));
 
         auto pipe = runtime_->make_pipeline("ecdsa_verify_batch_compressed");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: ecdsa_verify_batch kernel missing from loaded library");
+
+        constexpr uint32_t kUnwritten = 0xFFFFFFFFu;
+        auto* res_seed = static_cast<uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i) res_seed[i] = kUnwritten;
+
         runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
                                 {&buf_msgs, &buf_pubs, &buf_sigs, &buf_res, &buf_count});
 
         const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i)
+            if (res[i] == kUnwritten)
+                return set_error(GpuError::Launch,
+                                 "Metal: ecdsa_verify_batch dispatch left results "
+                                 "unwritten (command-buffer failure) — declining to CPU");
         for (size_t i = 0; i < count; ++i)
             out_results[i] = res[i] ? 1 : 0;
 
@@ -605,30 +622,47 @@ public:
         if (!msg_hashes32 || !pubkeys_x32 || !sigs64 || !out_results)
             return set_error(GpuError::NullArg, "NULL buffer");
 
+        std::memset(out_results, 0, count);
+
         auto err = ensure_library();
         if (err != GpuError::Ok) return err;
 
         /* schnorr_verify_batch: pubkeys_x (N×32), msgs (N×32), sigs (N×64) */
         auto buf_pks  = runtime_->alloc_buffer_shared(count * 32);
-        std::memcpy(buf_pks.contents(), pubkeys_x32, count * 32);
-
         auto buf_msgs = runtime_->alloc_buffer_shared(count * 32);
-        std::memcpy(buf_msgs.contents(), msg_hashes32, count * 32);
-
         auto buf_sigs = runtime_->alloc_buffer_shared(count * 64);
-        std::memcpy(buf_sigs.contents(), sigs64, count * 64);
-
         auto buf_res = runtime_->alloc_buffer_shared(count * sizeof(uint32_t));
-
-        uint32_t n32 = (uint32_t)count;
         auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+
+        if (!buf_pks.valid() || !buf_msgs.valid() || !buf_sigs.valid() ||
+            !buf_res.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: schnorr_verify_batch buffer allocation failed");
+
+        std::memcpy(buf_pks.contents(), pubkeys_x32, count * 32);
+        std::memcpy(buf_msgs.contents(), msg_hashes32, count * 32);
+        std::memcpy(buf_sigs.contents(), sigs64, count * 64);
+        uint32_t n32 = (uint32_t)count;
         std::memcpy(buf_count.contents(), &n32, sizeof(n32));
 
         auto pipe = runtime_->make_pipeline("schnorr_verify_batch");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: schnorr_verify_batch kernel missing from loaded library");
+
+        constexpr uint32_t kUnwritten = 0xFFFFFFFFu;
+        auto* res_seed = static_cast<uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i) res_seed[i] = kUnwritten;
+
         runtime_->dispatch_sync(pipe, (uint32_t)count, 64u,
                                 {&buf_pks, &buf_msgs, &buf_sigs, &buf_res, &buf_count});
 
         const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i)
+            if (res[i] == kUnwritten)
+                return set_error(GpuError::Launch,
+                                 "Metal: schnorr_verify_batch dispatch left results "
+                                 "unwritten (command-buffer failure) — declining to CPU");
         for (size_t i = 0; i < count; ++i)
             out_results[i] = res[i] ? 1 : 0;
 

@@ -1,5 +1,16 @@
 # Audit Changelog
 
+## 2026-07-21 — Metal generic batch fatal-not-invalid contract
+
+- Seeded generic Metal ECDSA/Schnorr batch result buffers with an impossible
+  verdict sentinel before dispatch. A surviving sentinel now returns
+  `GpuError::Launch`, allowing the engine to fall back to CPU instead of
+  misclassifying an operational GPU failure as consensus-invalid input.
+- Added output clearing plus explicit Metal buffer-allocation and pipeline
+  validation to both paths.
+- Added blocking `regression_metal_batch_sentinel` unified/standalone coverage
+  with a rejected pre-fix fixture and accepted fatal-not-invalid contract.
+
 ## 2026-07-21 — CUDA batch allocation lifetime
 
 - Fixed device-memory leaks in CUDA ECDSA/Schnorr batch verification, FROST

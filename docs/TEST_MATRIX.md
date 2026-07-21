@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 444 modules (172 non-exploit + 272 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 445 modules (173 non-exploit + 272 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -105,14 +105,14 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 444 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 445 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 444 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 445 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
 | `src/cuda/src/test_windows_macro_compat.cu` | CUDA/MSVC | `cuda_windows_macro_compat`: compile regression for Windows SDK `small` macro collisions in the public CUDA header |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 444 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 445 modules, 8 sections) |
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
@@ -963,6 +963,7 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `external_anchor_kat` | `audit/test_external_anchor_kat.cpp` | EXTERNAL-ANCHOR KAT (common-mode defence): ufsecp_sha512 vs NIST FIPS 180-4 (""/"abc"); ufsecp_taproot_output_key vs OFFICIAL BIP-341 wallet-test-vectors (scriptPubKey[0] keypath-only, pins H_TapTweak to the Bitcoin spec, not self-derivation) |
 | `regression_metal_snark_readiness` | `audit/test_regression_metal_snark_readiness.cpp` | GitHub #344: Metal ECDSA/Schnorr SNARK witness methods return `GpuError::Device` before dereferencing an uninitialised runtime (MSR-0..3) |
 | `regression_cuda_buffer_raii` | `audit/test_regression_cuda_buffer_raii.cpp` | GitHub #345: CUDA transient batch allocations are RAII-owned before every `CUDA_TRY` early-return point (CBR-0..8) |
+| `regression_metal_batch_sentinel` | `audit/test_regression_metal_batch_sentinel.cpp` | GitHub #347: generic Metal ECDSA/Schnorr batch dispatch failures return `GpuError::Launch` instead of signature verdicts (MBS-0..4) |
 | `regression_nonce_candidate_erase` | `audit/test_regression_nonce_candidate_erase.cpp` | P2-CT-001/002/003/007: cand1+cand2 secure_erase after ct::scalar_select in rfc6979_nonce, rfc6979_nonce_hedged, musig2_nonce_gen (k1+k2), derive_scalar_from_hash; NCER-1..5: 200 ECDSA roundtrips, determinism, uniqueness, 50 hedged roundtrips, source scan |
 | `regression_shim_null_callback` | `audit/test_regression_shim_null_callback.cpp` | SHIM-A01/A02/A03/A07/A08: secp256k1 shim fires illegal_callback on NULL args matching libsecp256k1 ARG_CHECK; SNC-1..5: normalize(NULL sigin), pubkey_sort(NULL ctx), tagged_sha256(NULL msg+len=0 OK), pubkey_negate(NULL pubkey), tagged_sha256(NULL msg+len>0) |
 | `exploit_frost_absent_signer_id` | `audit/test_exploit_frost_absent_signer_id.cpp` | P1-SEC-001: frost_sign returns zero partial sig when caller ID absent from nonce_commitments signing set (FSI-1..3) |
