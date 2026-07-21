@@ -45,8 +45,11 @@
  *   - the ufsecp C ABI (src/cpu/src/ufsecp_gpu_impl.cpp) references it, dragging
  *     this object into libufsecp so the ufsecp/audit path installs the hook;
  *   - the libbitcoin-direct path references no gpu_host symbol, so its executables
- *     force this object in with a linker `--undefined=secp256k1_gpu_columns_provider_anchor`
- *     at their own link (compat/libbitcoin_direct/CMakeLists.txt). Targeted -u
+ *     force this object in with a platform-specific targeted linker retention of
+ *     `secp256k1_gpu_columns_provider_anchor` at their own link — GNU/LLVM
+ *     `--undefined=`, MSVC `/INCLUDE:` (which link.exe requires; it silently
+ *     ignores `--undefined=`, dead-stripping the hook: CPU-only, no error) — see
+ *     compat/libbitcoin_direct/CMakeLists.txt. Targeted anchor
  *     retention is preferred over a blanket WHOLE_ARCHIVE: it pulls only this
  *     provider object, not every backend TU. (WHOLE_ARCHIVE historically also broke
  *     the ZK-less link by dragging in gpu_backend_fallback.o and its undefined

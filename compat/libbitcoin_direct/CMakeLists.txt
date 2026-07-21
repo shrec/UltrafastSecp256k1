@@ -57,11 +57,18 @@ if(SECP256K1_BUILD_LIBBITCOIN_GPU)
         # genuine transitive deps). A blanket $<LINK_LIBRARY:WHOLE_ARCHIVE,secp256k1_gpu_host>
         # is deliberately NOT used: it would also drag in gpu_backend_fallback.o, whose
         # snark-witness CPU fallback references secp256k1::zk::* symbols that are not part of
-        # the minimal libbitcoin engine, breaking the link. Targeted -u retention pulls only
+        # the minimal libbitcoin engine, breaking the link. Targeted anchor retention
+        # (GNU/LLVM --undefined=, MSVC /INCLUDE:) pulls only
         # the hook. (The ufsecp C ABI path retains the same object via a source-level anchor
         # reference in ufsecp_gpu_impl.cpp — see src/gpu/src/gpu_engine_hook.cpp and
         # src/gpu/CMakeLists.txt "LBTC-GPU-SELFINSTALL-DROP".)
-        set(_lbtc_gpu_retain "LINKER:--undefined=secp256k1_gpu_columns_provider_anchor")
+        # MSVC link.exe has no --undefined; /INCLUDE is its targeted-retention equivalent
+        # (silently-ignored --undefined leaves the hook dead-stripped: CPU-only, no error).
+        if(MSVC)
+            set(_lbtc_gpu_retain "LINKER:/INCLUDE:secp256k1_gpu_columns_provider_anchor")
+        else()
+            set(_lbtc_gpu_retain "LINKER:--undefined=secp256k1_gpu_columns_provider_anchor")
+        endif()
         # Enable the seven libbitcoin public-data batch-op GPU trampolines in
         # gpu_engine_hook.cpp (guarded by SECP256K1_LBTC_GPU_OPS) and give that TU
         # the include path for <ufsecp/lbtc_gpu_ops.hpp>. Both are target-level
@@ -73,7 +80,7 @@ if(SECP256K1_BUILD_LIBBITCOIN_GPU)
         # EngineLbtcOpsInstaller rides the same TU/anchor as the column provider.
         target_include_directories(secp256k1_gpu_host PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
         target_compile_definitions(secp256k1_gpu_host PRIVATE SECP256K1_LBTC_GPU_OPS)
-        message(STATUS "  libbitcoin direct GPU: ON (SECP256K1_BUILD_LIBBITCOIN_GPU=ON; secp256k1_gpu_host linked, hook retained via -u anchor — transparent GPU column verify + public-data batch ops)")
+        message(STATUS "  libbitcoin direct GPU: ON (SECP256K1_BUILD_LIBBITCOIN_GPU=ON; secp256k1_gpu_host linked, hook retained via targeted anchor (${_lbtc_gpu_retain}) — transparent GPU column verify + public-data batch ops)")
     else()
         set(_lbtc_gpu_host "")
         set(_lbtc_gpu_retain "")

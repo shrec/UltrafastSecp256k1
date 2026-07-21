@@ -1,0 +1,74 @@
+# Windows/MSVC CUDA compile + libbitcoin-direct hook retention check.
+#
+# Hosted runners have no GPU: nvcc compiles without one, and the
+# lbtc_direct_gpu_columns_hook test asserts hook INSTALLATION (a static
+# initializer retained at link), which is GPU-independent — the hook then
+# falls back to CPU at runtime. This proves /INCLUDE:... anchor retention on
+# MSVC rather than inferring it, and compiles the full Windows GPU host path
+# (historically never built on Windows: rpcndr.h 'small' collision, GNU-only
+# --undefined retention).
+name: Windows CUDA
+
+on:
+  pull_request:
+  push:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-cuda:
+    name: MSVC CUDA + libbitcoin-direct hook retention
+    runs-on: windows-2022
+    timeout-minutes: 60
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install CUDA Toolkit (compile components only)
+        uses: Jimver/cuda-toolkit@3d45d157f327c09c04b50ee6ccdea2d9d017ec76 # v0.2.35
+        with:
+          method: network
+          sub-packages: '["nvcc", "cudart", "thrust", "visual_studio_integration"]'
+
+      - name: Configure (MSVC + CUDA, libbitcoin minimal-node GPU profile)
+        shell: cmd
+        run: >
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+          -DSECP256K1_BUILD_LIBBITCOIN=ON
+          -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON
+          -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON
+          -DSECP256K1_BUILD_CUDA=ON
+          -DCMAKE_CUDA_ARCHITECTURES=89
+          -DSECP256K1_GPU_BUILD_ZK=OFF
+          -DSECP256K1_GPU_BUILD_BIP324=OFF
+          -DSECP256K1_GPU_BUILD_FROST=OFF
+          -DSECP256K1_GPU_BUILD_BIP352=OFF
+          -DSECP256K1_GPU_BUILD_ECDH=OFF
+          -DSECP256K1_GPU_BUILD_MSM=OFF
+          -DSECP256K1_GPU_BUILD_HASH160=OFF
+          -DSECP256K1_GPU_BUILD_ECRECOVER=OFF
+
+      - name: Build (engine, GPU host, kernels, macro fixture, hook test)
+        shell: cmd
+        run: >
+          cmake --build build --config Release --target
+          fastsecp256k1 secp256k1_gpu_host secp256k1_cuda_lib
+          test_windows_macro_compat test_lbtc_direct_gpu_columns_hook
+
+      - name: Test (macro fixture + hook self-install retention)
+        shell: cmd
+        run: >
+          ctest --test-dir build -C Release --output-on-failure
+          -R "cuda_windows_macro_compat|lbtc_direct_gpu_columns_hook"
