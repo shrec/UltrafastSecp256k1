@@ -44,31 +44,34 @@ jobs:
 
       - name: Configure (MSVC + CUDA, libbitcoin minimal-node GPU profile)
         shell: cmd
-        run: >
-          cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-          -DSECP256K1_BUILD_LIBBITCOIN=ON
-          -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON
-          -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON
-          -DSECP256K1_BUILD_CUDA=ON
-          -DCMAKE_CUDA_ARCHITECTURES=89
-          -DSECP256K1_GPU_BUILD_ZK=OFF
-          -DSECP256K1_GPU_BUILD_BIP324=OFF
-          -DSECP256K1_GPU_BUILD_FROST=OFF
-          -DSECP256K1_GPU_BUILD_BIP352=OFF
-          -DSECP256K1_GPU_BUILD_ECDH=OFF
-          -DSECP256K1_GPU_BUILD_MSM=OFF
-          -DSECP256K1_GPU_BUILD_HASH160=OFF
-          -DSECP256K1_GPU_BUILD_ECRECOVER=OFF
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          set "CUDACXX=%CUDA_PATH%\bin\nvcc.exe"
+          cmake -S . -B build -G Ninja ^
+            -DCMAKE_BUILD_TYPE=Release ^
+            -DCMAKE_CUDA_COMPILER="%CUDA_PATH%\bin\nvcc.exe" ^
+            -DSECP256K1_BUILD_LIBBITCOIN=ON ^
+            -DSECP256K1_BUILD_LIBBITCOIN_GPU=ON ^
+            -DSECP256K1_BUILD_LIBBITCOIN_TESTS=ON ^
+            -DSECP256K1_BUILD_CUDA=ON ^
+            -DCMAKE_CUDA_ARCHITECTURES=89 ^
+            -DSECP256K1_GPU_BUILD_ZK=OFF ^
+            -DSECP256K1_GPU_BUILD_BIP324=OFF ^
+            -DSECP256K1_GPU_BUILD_FROST=OFF ^
+            -DSECP256K1_GPU_BUILD_BIP352=OFF ^
+            -DSECP256K1_GPU_BUILD_ECDH=OFF ^
+            -DSECP256K1_GPU_BUILD_MSM=OFF ^
+            -DSECP256K1_GPU_BUILD_HASH160=OFF ^
+            -DSECP256K1_GPU_BUILD_ECRECOVER=OFF
 
       - name: Build (engine, GPU host, kernels, macro fixture, hook test)
         shell: cmd
-        run: >
-          cmake --build build --config Release --target
-          fastsecp256k1 secp256k1_gpu_host secp256k1_cuda_lib
-          test_windows_macro_compat test_lbtc_direct_gpu_columns_hook
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          cmake --build build --target fastsecp256k1 secp256k1_gpu_host secp256k1_cuda_lib test_windows_macro_compat test_lbtc_direct_gpu_columns_hook
 
       - name: Test (macro fixture + hook self-install retention)
         shell: cmd
         run: >
-          ctest --test-dir build -C Release --output-on-failure
+          ctest --test-dir build --output-on-failure
           -R "cuda_windows_macro_compat|lbtc_direct_gpu_columns_hook"
