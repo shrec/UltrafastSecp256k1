@@ -40,7 +40,7 @@ jobs:
         uses: Jimver/cuda-toolkit@3d45d157f327c09c04b50ee6ccdea2d9d017ec76 # v0.2.35
         with:
           method: network
-          sub-packages: '["nvcc", "cudart", "thrust", "visual_studio_integration"]'
+          sub-packages: '["nvcc", "cudart", "cudart_dev", "thrust", "visual_studio_integration"]'
 
       - name: Configure (MSVC + CUDA, libbitcoin minimal-node GPU profile)
         shell: cmd

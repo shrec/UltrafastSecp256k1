@@ -1,5 +1,16 @@
 # Audit Changelog
 
+## 2026-07-21 — Windows CUDA development-header contract
+
+- Added the CUDA runtime development package to the Windows compile workflow;
+  `nvcc` previously started correctly but failed on its first runtime include
+  because `crt/host_config.h` was not installed.
+- Added mandatory `WIN-CUDA-001` validation and synthetic negative fixtures for
+  incomplete CUDA subpackages, silent CPU-only configuration, and workflows
+  that configure CUDA but never build the GPU host/kernel targets.
+- Pinned PyYAML in the Fast Gate so structured workflow checks run in CI instead
+  of taking their no-parser compatibility path.
+
 ## 2026-07-21 — Node.js FFI package install contract
 
 - Removed the source package's nonexistent `binding.gyp` / `src/` entries and

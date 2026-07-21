@@ -76,6 +76,7 @@ AUDIT_SCRIPTS = [
     "verify_slsa_provenance.py",
     "check_abi_version_sync.py",
     "check_node_package_contract.py",
+    "check_windows_cuda_contract.py",
     "check_randomize_claim_consistency.py",
     "check_required_checks_match_jobs.py",
     "check_advisory_json_rule16.py",
@@ -3088,6 +3089,84 @@ def check_node_package_contract_fixtures() -> None:
         ok(tag, "ghost files, node-gyp contracts, unpacked runtime entries, and stale lockfiles fail; real manifest passes")
 
 
+def check_windows_cuda_contract_fixtures() -> None:
+    """WIN-CUDA-001: reject silent CPU fallback and incomplete CUDA installs."""
+    tag = "WIN-CUDA:workflow_contract_fixtures"
+    try:
+        mod = _load_ci_module("check_windows_cuda_contract.py", "windows_cuda_contract_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    clean = {
+        "jobs": {"windows-cuda": {"steps": [
+            {
+                "uses": "Jimver/cuda-toolkit@" + "a" * 40,
+                "with": {
+                    "method": "network",
+                    "sub-packages": '["nvcc", "cudart", "cudart_dev", "thrust", "visual_studio_integration"]',
+                },
+            },
+            {
+                "name": "Configure (MSVC + CUDA)",
+                "run": "cmake -G Ninja -DCMAKE_CUDA_COMPILER=nvcc -DSECP256K1_BUILD_CUDA=ON",
+            },
+            {
+                "name": "Build (CUDA targets)",
+                "run": "cmake --build build --target secp256k1_gpu_host secp256k1_cuda_lib",
+            },
+        ]}},
+    }
+    failures = []
+    if mod.evaluate_document(clean):
+        failures.append("complete Windows CUDA workflow was rejected")
+
+    missing_headers = {
+        "jobs": {"windows-cuda": {"steps": [dict(step) for step in clean["jobs"]["windows-cuda"]["steps"]]}},
+    }
+    missing_headers["jobs"]["windows-cuda"]["steps"][0] = {
+        "uses": "Jimver/cuda-toolkit@" + "a" * 40,
+        "with": {
+            "method": "network",
+            "sub-packages": '["nvcc", "cudart", "thrust", "visual_studio_integration"]',
+        },
+    }
+    if not any(p["kind"] == "cuda_subpackages_missing"
+               for p in mod.evaluate_document(missing_headers)):
+        failures.append("missing cudart_dev did not fail")
+
+    cpu_fallback = {
+        "jobs": {"windows-cuda": {"steps": [dict(step) for step in clean["jobs"]["windows-cuda"]["steps"]]}},
+    }
+    cpu_fallback["jobs"]["windows-cuda"]["steps"][1] = {
+        "name": "Configure",
+        "run": "cmake -S . -B build -G Ninja",
+    }
+    kinds = {p["kind"] for p in mod.evaluate_document(cpu_fallback)}
+    if "cuda_compiler_not_explicit" not in kinds or "cuda_build_not_enabled" not in kinds:
+        failures.append("CPU-fallback configure did not fail both CUDA requirements")
+
+    no_cuda_targets = {
+        "jobs": {"windows-cuda": {"steps": [dict(step) for step in clean["jobs"]["windows-cuda"]["steps"]]}},
+    }
+    no_cuda_targets["jobs"]["windows-cuda"]["steps"][2] = {
+        "name": "Build",
+        "run": "cmake --build build --target fastsecp256k1",
+    }
+    if not any(p["kind"] == "cuda_targets_not_built"
+               for p in mod.evaluate_document(no_cuda_targets)):
+        failures.append("workflow without CUDA targets did not fail")
+
+    real_report = mod.evaluate()
+    if not real_report.get("overall_pass"):
+        failures.append(f"real Windows CUDA workflow failed: {real_report.get('problems')}")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "missing development headers, CPU fallback, and omitted CUDA targets fail; real workflow passes")
+
+
 def check_caas_dashboard_evidence_browser() -> None:
     """The CAAS dashboard must expose the committed evidence/status manifests in
     one central browser. This prevents the UI from regressing into scattered
@@ -3239,6 +3318,7 @@ def main() -> int:
     check_libbitcoin_perf_matrix_fixtures()
     check_gpu_backend_parity_fixtures()
     check_node_package_contract_fixtures()
+    check_windows_cuda_contract_fixtures()
     check_caas_dashboard_evidence_browser()
     check_caas_gate_negative_fixture_coverage()
     check_secret_path_before_sha_fallback()

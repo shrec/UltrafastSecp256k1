@@ -109,6 +109,9 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install deterministic gate dependencies
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir PyYAML==6.0.2
+
       - name: Validate CI path references
         # Best-effort static CI path scan: catches most explicit path references in
         # workflow YAML. Does not cover inline-bash, variable-interpolated, or
