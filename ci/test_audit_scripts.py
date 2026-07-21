@@ -3104,7 +3104,7 @@ def check_windows_cuda_contract_fixtures() -> None:
                 "uses": "Jimver/cuda-toolkit@" + "a" * 40,
                 "with": {
                     "method": "network",
-                    "sub-packages": '["nvcc", "cudart", "cudart_dev", "thrust", "visual_studio_integration"]',
+                    "sub-packages": '["nvcc", "crt", "cudart", "thrust", "visual_studio_integration"]',
                 },
             },
             {
@@ -3121,19 +3121,21 @@ def check_windows_cuda_contract_fixtures() -> None:
     if mod.evaluate_document(clean):
         failures.append("complete Windows CUDA workflow was rejected")
 
-    missing_headers = {
+    linux_only_header_name = {
         "jobs": {"windows-cuda": {"steps": [dict(step) for step in clean["jobs"]["windows-cuda"]["steps"]]}},
     }
-    missing_headers["jobs"]["windows-cuda"]["steps"][0] = {
+    linux_only_header_name["jobs"]["windows-cuda"]["steps"][0] = {
         "uses": "Jimver/cuda-toolkit@" + "a" * 40,
         "with": {
             "method": "network",
-            "sub-packages": '["nvcc", "cudart", "thrust", "visual_studio_integration"]',
+            "sub-packages": '["nvcc", "cudart", "cudart_dev", "thrust", "visual_studio_integration"]',
         },
     }
-    if not any(p["kind"] == "cuda_subpackages_missing"
-               for p in mod.evaluate_document(missing_headers)):
-        failures.append("missing cudart_dev did not fail")
+    header_kinds = {p["kind"] for p in mod.evaluate_document(linux_only_header_name)}
+    if "cuda_subpackages_missing" not in header_kinds:
+        failures.append("missing Windows crt package did not fail")
+    if "cuda_subpackages_invalid_windows" not in header_kinds:
+        failures.append("Linux-only cudart_dev package was accepted on Windows")
 
     cpu_fallback = {
         "jobs": {"windows-cuda": {"steps": [dict(step) for step in clean["jobs"]["windows-cuda"]["steps"]]}},
@@ -3164,7 +3166,7 @@ def check_windows_cuda_contract_fixtures() -> None:
     if failures:
         fail(tag, "; ".join(failures))
     else:
-        ok(tag, "missing development headers, CPU fallback, and omitted CUDA targets fail; real workflow passes")
+        ok(tag, "wrong Windows header package, CPU fallback, and omitted CUDA targets fail; real workflow passes")
 
 
 def check_version_header_contract_fixtures() -> None:

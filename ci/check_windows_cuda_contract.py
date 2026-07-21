@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 """Validate that the Windows workflow compiles the real CUDA backend.
 
-WIN-CUDA-001 protects three independent requirements: the CUDA compiler and
-runtime development headers are installed, CMake cannot silently configure a
-CPU-only build, and the workflow actually builds both GPU host and kernel
-targets.
+WIN-CUDA-001 protects three independent requirements: the Windows CUDA compiler
+and CRT headers are installed, CMake cannot silently configure a CPU-only build,
+and the workflow actually builds both GPU host and kernel targets.
 """
 
 from __future__ import annotations
@@ -25,11 +24,12 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "windows-cuda.yml"
 REQUIRED_SUBPACKAGES = {
     "nvcc",
+    "crt",
     "cudart",
-    "cudart_dev",
     "thrust",
     "visual_studio_integration",
 }
+INVALID_WINDOWS_SUBPACKAGES = {"cudart_dev"}
 REQUIRED_TARGETS = {"secp256k1_gpu_host", "secp256k1_cuda_lib"}
 
 
@@ -79,6 +79,12 @@ def evaluate_document(document: dict) -> list[dict]:
             missing = sorted(REQUIRED_SUBPACKAGES - set(packages))
             if missing:
                 problems.append(_problem("cuda_subpackages_missing", ", ".join(missing)))
+            invalid = sorted(INVALID_WINDOWS_SUBPACKAGES & set(packages))
+            if invalid:
+                problems.append(_problem(
+                    "cuda_subpackages_invalid_windows",
+                    ", ".join(invalid),
+                ))
 
     configure_runs = [
         str(step.get("run", ""))

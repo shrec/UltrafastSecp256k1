@@ -23,9 +23,11 @@
 
 ## 2026-07-21 — Windows CUDA development-header contract
 
-- Added the CUDA runtime development package to the Windows compile workflow;
-  `nvcc` previously started correctly but failed on its first runtime include
-  because `crt/host_config.h` was not installed.
+- Added the Windows CUDA `crt` compiler/runtime-header package to the compile
+  workflow; `nvcc` previously started correctly but failed on its first runtime
+  include because `crt/host_config.h` was not installed. The first remediation
+  used Linux-style `cudart_dev`, which is not a valid Windows 13.2 installer
+  component; the contract now rejects that package name explicitly.
 - Added mandatory `WIN-CUDA-001` validation and synthetic negative fixtures for
   incomplete CUDA subpackages, silent CPU-only configuration, and workflows
   that configure CUDA but never build the GPU host/kernel targets.
