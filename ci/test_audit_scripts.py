@@ -2958,6 +2958,52 @@ def check_gpu_backend_parity_fixtures() -> None:
     if not any(v["kind"] == "doc_overclaim" and v["backend"] == "opencl" for v in overclaim):
         failures.append("doc claiming Y where code is non-native did not fail (doc-overclaim)")
 
+    # --- public-header docs: undefined errors and stale backend underclaims ---
+    clean_header_docs = """
+    /** FROST may return UFSECP_ERR_GPU_UNSUPPORTED. */
+    ufsecp_error_t ufsecp_gpu_frost_verify_partial_batch(void);
+    /** BIP-352 runs on CUDA, OpenCL, or Metal. */
+    ufsecp_error_t ufsecp_gpu_bip352_scan_batch(void);
+    /** ECDSA witness generation runs on CUDA, OpenCL, or Metal. */
+    ufsecp_error_t ufsecp_gpu_zk_ecdsa_snark_witness_batch(void);
+    """
+    if mod.check_abi_doc_contract(clean_header_docs):
+        failures.append("clean GPU ABI documentation contract was rejected")
+    undefined_error = clean_header_docs.replace(
+        "UFSECP_ERR_GPU_UNSUPPORTED", "UFSECP_ERR_UNSUPPORTED"
+    )
+    if not any(v["kind"] == "abi_doc_undefined_error"
+               for v in mod.check_abi_doc_contract(undefined_error)):
+        failures.append("undefined UFSECP_ERR_UNSUPPORTED documentation did not fail")
+    stale_bip352 = clean_header_docs.replace(
+        "BIP-352 runs on CUDA, OpenCL, or Metal.",
+        "BIP-352 is unsupported on Metal.",
+    )
+    if not any(v["kind"] == "abi_doc_backend_underclaim"
+               and v["op"] == "ufsecp_gpu_bip352_scan_batch"
+               for v in mod.check_abi_doc_contract(stale_bip352)):
+        failures.append("stale BIP-352 Metal-underclaim documentation did not fail")
+    stale_snark = clean_header_docs.replace(
+        "ECDSA witness generation runs on CUDA, OpenCL, or Metal.",
+        "ECDSA witness generation is unsupported on Metal.",
+    )
+    if not any(v["kind"] == "abi_doc_backend_underclaim"
+               and v["op"] == "ufsecp_gpu_zk_ecdsa_snark_witness_batch"
+               for v in mod.check_abi_doc_contract(stale_snark)):
+        failures.append("stale ECDSA-SNARK Metal-underclaim documentation did not fail")
+
+    # --- guarantees banner: current ABI, while preserving the ABI>=1 floor ---
+    try:
+        abi_mod = _load_ci_module("check_abi_version_sync.py", "abi_version_doc_selftest")
+        good_guarantees = "> **Version**: 4.5.0 (ABI 4)\n\n## Tier 1 -- Stable (ABI >= 1)\n"
+        stale_guarantees = good_guarantees.replace("(ABI 4)", "(ABI 1)")
+        if abi_mod.check_guarantees_doc(good_guarantees, 4):
+            failures.append("current ABI guarantees banner was rejected")
+        if not abi_mod.check_guarantees_doc(stale_guarantees, 4):
+            failures.append("stale ABI guarantees banner did not fail")
+    except Exception as exc:
+        failures.append(f"ABI guarantees fixture import/check failed: {exc}")
+
     # --- real repo: pin the currently-known violation set (regression guard) ---
     report = mod.evaluate()
     real_ops_with_violations = {v["op"] for v in report.get("violations", [])}
@@ -2972,8 +3018,8 @@ def check_gpu_backend_parity_fixtures() -> None:
         fail(tag, "; ".join(failures))
     else:
         ok(tag, "native/fallback/stub/missing/lifecycle classification, header parsing, "
-                "exception-ledger lookup, ABI fail-closed check, and doc-overclaim check "
-                "all correct; real repo has zero GPU backend parity violations")
+                "exception-ledger lookup, ABI fail-closed check, and public-doc contract "
+                "checks all correct; real repo has zero GPU backend parity violations")
 
 
 def check_caas_dashboard_evidence_browser() -> None:

@@ -19,6 +19,7 @@ Checks (run from the submodule root):
   3. The committed generated header (if present) hardcodes the same MAJOR.
   4. Every binding's EXPECTED_ABI constant == MAJOR.
   5. docs/BINDINGS_ABI_COMPAT.md "Current ABI version: N" == MAJOR.
+  6. include/ufsecp/SUPPORTED_GUARANTEES.md version banner ABI == MAJOR.
 
 Exit 0 = in sync, 1 = mismatch.
 """
@@ -30,6 +31,7 @@ VERSION_TXT = Path("VERSION.txt")
 ABI_IN = Path("include/ufsecp/ufsecp_version.h.in")
 ABI_HDR = Path("include/ufsecp/ufsecp_version.h")
 COMPAT_DOC = Path("docs/BINDINGS_ABI_COMPAT.md")
+GUARANTEES_DOC = Path("include/ufsecp/SUPPORTED_GUARANTEES.md")
 
 # (label, path, regex capturing the integer)
 BINDINGS = [
@@ -50,6 +52,21 @@ BINDINGS = [
 
 def fail(msg: str) -> None:
     print(f"::error::check_abi_version_sync: {msg}")
+
+
+def check_guarantees_doc(text: str, major: int) -> list[str]:
+    """Validate the current-version banner without changing the ABI>=1 floor."""
+    match = re.search(
+        r"^>\s*\*\*Version\*\*:\s*[^\n]*\(ABI\s+(\d+)\)\s*$",
+        text,
+        re.MULTILINE,
+    )
+    if not match:
+        return ["version banner does not contain '(ABI N)'"]
+    documented = int(match.group(1))
+    if documented != major:
+        return [f"version banner ABI {documented} != MAJOR {major}"]
+    return []
 
 
 def main() -> int:
@@ -114,6 +131,17 @@ def main() -> int:
         if dm and int(dm.group(1)) != major:
             fail(f"{COMPAT_DOC}: 'Current ABI version: {dm.group(1)}' != MAJOR {major}")
             errors += 1
+
+    # 6. public guarantees version banner matches the current ABI. The
+    # "Tier 1 -- Stable (ABI >= 1)" heading is a compatibility floor, not the
+    # current ABI number, and intentionally remains unchanged.
+    if GUARANTEES_DOC.exists():
+        for problem in check_guarantees_doc(GUARANTEES_DOC.read_text(), major):
+            fail(f"{GUARANTEES_DOC}: {problem}")
+            errors += 1
+    else:
+        fail(f"{GUARANTEES_DOC} not found")
+        errors += 1
 
     if errors:
         print(f"check_abi_version_sync: {errors} mismatch(es) — bindings/docs out of "

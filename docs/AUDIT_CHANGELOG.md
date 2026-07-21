@@ -1,5 +1,16 @@
 # Audit Changelog
 
+## 2026-07-21 — Public GPU/ABI documentation contract regressions
+
+- Corrected `ufsecp_gpu.h` to use the defined
+  `UFSECP_ERR_GPU_UNSUPPORTED` name and removed stale Metal-underclaim text
+  for BIP-352 scanning and ECDSA SNARK witness generation.
+- Corrected the supported-guarantees current-version banner to ABI 4 while
+  preserving `ABI >= 1` as the historical Tier-1 compatibility floor.
+- Extended the mandatory GPU parity and ABI version gates with synthetic
+  negative fixtures so undefined error names, stale backend underclaims, and
+  current-ABI banner drift fail closed.
+
 ## 2026-07-12 — OpenCL generator w4 constant-table storage optimization (production)
 
 Task `opencl-generator-w4-production-claude-v4`, with evidence-link and

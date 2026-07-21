@@ -622,7 +622,7 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_sighash_descriptor_hash(
  *
  *  Each entry verifies: R_i = D_i + rho_i*E_i, lhs = z_i*G, rhs = R_i + lambda_ie*Y_i
  *  result[i] = (lhs == rhs).
- *  Returns UFSECP_ERR_UNSUPPORTED when backend does not implement FROST.
+ *  Returns UFSECP_ERR_GPU_UNSUPPORTED when backend does not implement FROST.
  *
  *  @param ctx           GPU context.
  *  @param z_i32         Input: count * 32 bytes (partial sig scalars, big-endian).
@@ -636,7 +636,7 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_sighash_descriptor_hash(
  *  @param count         Number of partial signatures to verify.
  *  @param out_results   Output: count bytes (1 = valid, 0 = invalid per entry).
  *  @return UFSECP_OK if batch processed (check out_results for per-entry result).
- *          UFSECP_ERR_UNSUPPORTED if backend does not support FROST. */
+ *          UFSECP_ERR_GPU_UNSUPPORTED if backend does not support FROST. */
 UFSECP_API ufsecp_error_t ufsecp_gpu_frost_verify_partial_batch(
     ufsecp_gpu_ctx* ctx,
     const uint8_t* z_i32,
@@ -832,8 +832,8 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_bip324_aead_decrypt_batch(
  * @param out_witnesses Output: count × UFSECP_ECDSA_SNARK_WITNESS_BYTES bytes.
  *                      Each 760-byte record contains input values, intermediate
  *                      witness scalars, and 5×52-bit foreign-field limbs.
- * @return UFSECP_OK on success, or an error code on failure.
- *         Returns UFSECP_ERR_UNSUPPORTED on Metal (no MSL shader yet).
+ * @return UFSECP_OK on success, or UFSECP_ERR_GPU_UNSUPPORTED when the
+ *         selected backend does not implement this operation.
  */
 UFSECP_API ufsecp_error_t ufsecp_gpu_zk_ecdsa_snark_witness_batch(
     ufsecp_gpu_ctx* ctx,
@@ -918,8 +918,7 @@ UFSECP_API ufsecp_error_t ufsecp_bip352_prepare_scan_plan(
  *  SECRET-BEARING: scan_privkey32 is uploaded to device memory during this
  *  call.  Callers should zeroize it immediately after the call if required.
  *
- *  @param ctx              GPU context (OpenCL or CUDA; Metal returns
- *                          UFSECP_ERR_GPU_UNSUPPORTED).
+ *  @param ctx              GPU context (CUDA, OpenCL, or Metal).
  *  @param scan_privkey32   32-byte scan private key (big-endian). SECRET.
  *  @param spend_pubkey33   33-byte compressed secp256k1 spend public key.
  *  @param tweak_pubkeys33  Input: n_tweaks × 33 bytes, compressed pubkeys.
@@ -927,7 +926,6 @@ UFSECP_API ufsecp_error_t ufsecp_bip352_prepare_scan_plan(
  *  @param prefix64_out     Output: n_tweaks × uint64_t, one per tweak key.
  *  @return UFSECP_OK on success.
  *          UFSECP_ERR_BAD_KEY   if any pubkey is invalid.
- *          UFSECP_ERR_GPU_UNSUPPORTED on Metal backend.
  */
 UFSECP_API ufsecp_error_t ufsecp_gpu_bip352_scan_batch(
     ufsecp_gpu_ctx* ctx,

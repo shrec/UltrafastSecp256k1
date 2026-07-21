@@ -446,6 +446,54 @@ def check_abi_exposure(abi_header_text: str, ops: list[dict]) -> list[dict]:
     return violations
 
 
+def _doc_comment_before(abi_header_text: str, symbol: str) -> str:
+    """Return the Doxygen block immediately preceding a C ABI declaration."""
+    pos = abi_header_text.find(f"{symbol}(")
+    if pos < 0:
+        return ""
+    start = abi_header_text.rfind("/**", 0, pos)
+    if start < 0:
+        return ""
+    end = abi_header_text.find("*/", start, pos)
+    if end < 0:
+        return ""
+    return abi_header_text[start:end + 2]
+
+
+def check_abi_doc_contract(abi_header_text: str) -> list[dict]:
+    """Reject undefined error names and backend claims contradicted by parity."""
+    violations = []
+
+    if re.search(r"\bUFSECP_ERR_UNSUPPORTED\b", abi_header_text):
+        violations.append({
+            "kind": "abi_doc_undefined_error",
+            "op": "ufsecp_gpu.h",
+            "backend": None,
+            "message": (
+                "include/ufsecp/ufsecp_gpu.h documents undefined "
+                "UFSECP_ERR_UNSUPPORTED; use UFSECP_ERR_GPU_UNSUPPORTED."
+            ),
+        })
+
+    for symbol, backend in (
+        ("ufsecp_gpu_bip352_scan_batch", "Metal"),
+        ("ufsecp_gpu_zk_ecdsa_snark_witness_batch", "Metal"),
+    ):
+        comment = _doc_comment_before(abi_header_text, symbol)
+        if backend.lower() in comment.lower() and "unsupported" in comment.lower():
+            violations.append({
+                "kind": "abi_doc_backend_underclaim",
+                "op": symbol,
+                "backend": backend.lower(),
+                "message": (
+                    f"{symbol} documentation claims {backend} is unsupported, "
+                    "but the backend parity contract requires its native implementation."
+                ),
+            })
+
+    return violations
+
+
 # ---------------------------------------------------------------------------
 # 6. Docs Feature Matrix cross-check (docs cannot claim parity code lacks)
 # ---------------------------------------------------------------------------
@@ -585,6 +633,7 @@ def evaluate() -> dict:
     # ABI exposure check
     if abi_text:
         violations.extend(check_abi_exposure(abi_text, ops))
+        violations.extend(check_abi_doc_contract(abi_text))
 
     # Docs cross-check
     if doc_text:
