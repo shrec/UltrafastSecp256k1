@@ -1229,16 +1229,17 @@ __device__ inline void field_negate(const FieldElement* a, FieldElement* r) {
 }
 #endif
 
-// Field multiplication by small constant: r = a * small (mod P)
+// Field multiplication by small constant: r = a * factor (mod P)
 // Optimized for small constants (e.g., 7, 28 for secp256k1)
-__device__ inline void field_mul_small(const FieldElement* a, uint32_t small, FieldElement* r) {
+// NOTE: parameter deliberately not named "small" — Windows rpcndr.h #defines small as char.
+__device__ inline void field_mul_small(const FieldElement* a, uint32_t factor, FieldElement* r) {
     // Simple approach: multiply and reduce
     // For small constants, this is faster than full field_mul
     uint64_t carry = 0;
     uint64_t tmp[4];
     
     for (int i = 0; i < 4; i++) {
-        tmp[i] = muladd64(a->limbs[i], static_cast<uint64_t>(small), 0, carry);
+        tmp[i] = muladd64(a->limbs[i], static_cast<uint64_t>(factor), 0, carry);
     }
     
     // Now we have a 320-bit number: tmp[0..3] + carry * 2^256
