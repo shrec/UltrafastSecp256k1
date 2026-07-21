@@ -133,6 +133,20 @@ set_tests_properties(bip324_kat_cuda PROPERTIES
     TIMEOUT 60
     LABELS "gpu;cuda;kat;bip324;chacha20;rfc8439")
 
+# ===== Windows macro compatibility compile fixture =====
+# Deterministic regression for the rpcndr.h `small` macro collision: compiles
+# secp256k1.cuh with the macro pre-defined (see test_windows_macro_compat.cu).
+# The compile itself is the test; the executable is a trivial exit.
+add_executable(test_windows_macro_compat src/test_windows_macro_compat.cu)
+target_include_directories(test_windows_macro_compat PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
+)
+add_test(NAME cuda_windows_macro_compat COMMAND test_windows_macro_compat)
+set_tests_properties(cuda_windows_macro_compat PROPERTIES
+    TIMEOUT 60
+    LABELS "gpu;cuda;compat;windows")
+
 # ===== GPU Unified Audit Runner =====
 set(_AUDIT_SOURCES src/gpu_audit_runner.cu)
 if(_GPU_LANG STREQUAL "HIP")
