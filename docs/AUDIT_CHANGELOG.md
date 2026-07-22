@@ -1,5 +1,16 @@
 # Audit Changelog
 
+## 2026-07-21 — Context-aware P2SH ABI without a breaking signature change
+
+- Added `ufsecp_addr_p2sh_with_ctx` as an additive ABI v4 symbol with contextual
+  error codes/messages; retained `ufsecp_addr_p2sh` unchanged for existing
+  binaries and source consumers.
+- Routed both entry points through one implementation so valid mainnet/testnet
+  output and buffer-size semantics remain byte-identical.
+- Added blocking `regression_p2sh_context_abi` unified/standalone coverage for
+  legacy-symbol retention, output parity, NULL context/input, invalid network,
+  short buffer diagnostics, and error clearing after success.
+
 ## 2026-07-21 — OpenCL collect dispatch and queue synchronisation
 
 - Updated OpenCL ECDSA/Schnorr collect verification to use the same

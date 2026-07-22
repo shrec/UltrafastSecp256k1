@@ -6275,3 +6275,15 @@ add_test(NAME regression_opencl_collect_dispatch
 set_tests_properties(regression_opencl_collect_dispatch PROPERTIES TIMEOUT 30
     LABELS "audit;regression;opencl;gpu;queue;dispatch")
 target_sources(unified_audit_runner PRIVATE test_regression_opencl_collect_dispatch.cpp)
+
+# GitHub #348: add context-aware P2SH diagnostics without changing or removing
+# the stable legacy ufsecp_addr_p2sh symbol.
+add_executable(test_regression_p2sh_context_abi_standalone
+    test_regression_p2sh_context_abi.cpp)
+audit_target_defaults(test_regression_p2sh_context_abi_standalone)
+target_compile_definitions(test_regression_p2sh_context_abi_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_p2sh_context_abi
+    COMMAND test_regression_p2sh_context_abi_standalone)
+set_tests_properties(regression_p2sh_context_abi PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;c-abi;address;p2sh;diagnostics")
+target_sources(unified_audit_runner PRIVATE test_regression_p2sh_context_abi.cpp)

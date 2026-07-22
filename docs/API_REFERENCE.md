@@ -2334,6 +2334,9 @@ apply low-S normalization, and then verify, matching libsecp256k1's
 | `ufsecp_addr_p2pkh` | `(ctx, pubkey33, network, addr_out, addr_len*) -> error_t` | P2PKH (Base58) |
 | `ufsecp_addr_p2wpkh` | `(ctx, pubkey33, network, addr_out, addr_len*) -> error_t` | P2WPKH (Bech32, SegWit v0) |
 | `ufsecp_addr_p2tr` | `(ctx, internal_key_x[32], network, addr_out, addr_len*) -> error_t` | P2TR (Bech32m, Taproot) |
+| `ufsecp_addr_p2sh` | `(redeem_script, redeem_script_len, network, addr_out, addr_len*) -> error_t` | P2SH (Base58); legacy stateless ABI retained for binary compatibility |
+| `ufsecp_addr_p2sh_with_ctx` | `(ctx, redeem_script, redeem_script_len, network, addr_out, addr_len*) -> error_t` | Context-aware P2SH with `last_error` diagnostics; preferred for new code |
+| `ufsecp_addr_p2sh_p2wpkh` | `(ctx, pubkey33, network, addr_out, addr_len*) -> error_t` | Wrapped SegWit P2SH-P2WPKH |
 | `ufsecp_wif_encode` | `(ctx, privkey, compressed, network, wif_out, wif_len*) -> error_t` | Private key to WIF |
 | `ufsecp_wif_decode` | `(ctx, wif, privkey32_out, compressed_out*, network_out*) -> error_t` | WIF to private key |
 

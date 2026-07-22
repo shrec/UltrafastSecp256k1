@@ -468,10 +468,20 @@ UFSECP_API ufsecp_error_t ufsecp_addr_p2tr(ufsecp_ctx* ctx,
                                            int network,
                                            char* addr_out, size_t* addr_len);
 
-/** P2SH address from arbitrary redeem script.
+/** P2SH address from arbitrary redeem script (legacy stateless ABI).
  *  addr_len: in = buffer size (min 36, must be >= strlen(result)+1 to hold NUL), out = strlen (excl. NUL).
- *  redeem_script must be non-NULL. Returns UFSECP_ERR_BUF_TOO_SMALL if *addr_len <= strlen(result). */
+ *  redeem_script must be non-NULL. Returns UFSECP_ERR_BUF_TOO_SMALL if *addr_len <= strlen(result).
+ *  New code should prefer ufsecp_addr_p2sh_with_ctx() for diagnostic details. */
 UFSECP_API ufsecp_error_t ufsecp_addr_p2sh(
+    const uint8_t* redeem_script, size_t redeem_script_len,
+    int network,
+    char* addr_out, size_t* addr_len);
+
+/** Context-aware P2SH address generation.
+ *  Output and error-code behavior matches ufsecp_addr_p2sh(). On failure,
+ *  ufsecp_last_error(ctx) and ufsecp_last_error_msg(ctx) provide diagnostics. */
+UFSECP_API ufsecp_error_t ufsecp_addr_p2sh_with_ctx(
+    ufsecp_ctx* ctx,
     const uint8_t* redeem_script, size_t redeem_script_len,
     int network,
     char* addr_out, size_t* addr_len);

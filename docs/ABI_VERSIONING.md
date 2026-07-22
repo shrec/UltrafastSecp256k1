@@ -159,7 +159,7 @@ libfastsecp256k1.3.14.0.dylib       -> current version
 ### Stable ABI Surface
 
 All functions declared with `UFSECP_API` in `include/ufsecp/ufsecp.h` are part of
-the stable ABI. There are **163** such functions (the authoritative list is every
+the stable ABI. There are **164** such functions (the authoritative list is every
 `UFSECP_API`-marked declaration in the header; counts and example names below are
 verified against it by `ci/check_abi_count.py`). Functions carry the `ufsecp_`
 prefix in the header (e.g. `ufsecp_ctx_create`); the short names are used here.
@@ -179,7 +179,7 @@ prefix in the header (e.g. `ufsecp_ctx_create`); the short names are used here.
 | BIP143 / BIP144 sighash & txid | 5 | `bip143_sighash`, `bip143_p2wpkh_script_code`, `bip144_txid`, `bip144_wtxid`, `bip144_witness_commitment` |
 | BIP322 / BTC / Ethereum message | 10 | `bip322_sign`, `bip322_verify`, `btc_message_sign`, `btc_message_verify`, `eth_sign`, `eth_ecrecover`, `eth_address` |
 | BIP324 v2 transport | 5 | `bip324_create`, `bip324_handshake`, `bip324_encrypt`, `bip324_decrypt`, `bip324_destroy` |
-| Addresses / SegWit / descriptors / WIF | 18 | `addr_p2pkh`, `addr_p2wpkh`, `addr_p2tr`, `segwit_p2wpkh_spk`, `segwit_p2tr_spk`, `descriptor_parse`, `wif_encode`, `wif_decode`, `coin_address` |
+| Addresses / SegWit / descriptors / WIF | 19 | `addr_p2pkh`, `addr_p2wpkh`, `addr_p2tr`, `addr_p2sh`, `addr_p2sh_with_ctx`, `segwit_p2wpkh_spk`, `segwit_p2tr_spk`, `descriptor_parse`, `wif_encode`, `wif_decode`, `coin_address` |
 | Hashing | 5 | `sha256`, `sha512`, `hash160`, `keccak256`, `tagged_hash` |
 | AEAD & ECIES | 4 | `aead_chacha20_poly1305_encrypt`, `aead_chacha20_poly1305_decrypt`, `ecies_encrypt`, `ecies_decrypt` |
 | ellswift (BIP324 encoding) | 2 | `ellswift_create`, `ellswift_xdh` |
@@ -245,18 +245,18 @@ build installs (`secp256k1-fast` on the standard root build).
 
 | Binding | Minimum ABI | Notes |
 |---------|-------------|-------|
-| Python (ctypes) | 4 | Targets ABI v4 (163 stable C functions) |
-| Rust (FFI) | 4 | Targets ABI v4 (163 stable C functions) |
-| Go (CGo) | 4 | Targets ABI v4 (163 stable C functions) |
-| C# (P/Invoke) | 4 | Targets ABI v4 (163 stable C functions) |
-| Java (JNI) | 4 | Targets ABI v4 (163 stable C functions) |
-| Swift | 4 | Targets ABI v4 (163 stable C functions) |
-| Dart (FFI) | 4 | Targets ABI v4 (163 stable C functions) |
-| React Native | 4 | Targets ABI v4 (163 stable C functions) |
-| Node.js (NAPI) | 4 | Targets ABI v4 (163 stable C functions) |
-| Node.js (WASM) | 4 | Targets ABI v4 (163 stable C functions) |
-| Ruby (FFI) | 4 | Targets ABI v4 (163 stable C functions) |
-| Kotlin (JNI) | 4 | Targets ABI v4 (163 stable C functions) |
+| Python (ctypes) | 4 | Targets ABI v4 (164 stable C functions) |
+| Rust (FFI) | 4 | Targets ABI v4 (164 stable C functions) |
+| Go (CGo) | 4 | Targets ABI v4 (164 stable C functions) |
+| C# (P/Invoke) | 4 | Targets ABI v4 (164 stable C functions) |
+| Java (JNI) | 4 | Targets ABI v4 (164 stable C functions) |
+| Swift | 4 | Targets ABI v4 (164 stable C functions) |
+| Dart (FFI) | 4 | Targets ABI v4 (164 stable C functions) |
+| React Native | 4 | Targets ABI v4 (164 stable C functions) |
+| Node.js (NAPI) | 4 | Targets ABI v4 (164 stable C functions) |
+| Node.js (WASM) | 4 | Targets ABI v4 (164 stable C functions) |
+| Ruby (FFI) | 4 | Targets ABI v4 (164 stable C functions) |
+| Kotlin (JNI) | 4 | Targets ABI v4 (164 stable C functions) |
 
 All bindings target `UFSECP_ABI_VERSION == 4` (the current MAJOR); every binding's
 `EXPECTED_ABI` constant is gated to 4 by `ci/check_abi_version_sync.py` (the fix for

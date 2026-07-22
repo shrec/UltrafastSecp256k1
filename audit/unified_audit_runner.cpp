@@ -717,6 +717,7 @@ int test_regression_metal_snark_readiness_run(); // #344: Metal SNARK methods gu
 int test_regression_cuda_buffer_raii_run(); // #345: CUDA_TRY early returns retain no device allocations
 int test_regression_metal_batch_sentinel_run(); // #347: dispatch failure is not a signature verdict
 int test_regression_opencl_collect_dispatch_run(); // #346: padded collect dispatch + checked queue sync
+int test_regression_p2sh_context_abi_run(); // #348: additive P2SH context diagnostics ABI
 
 // ============================================================================
 // Forward declarations -- 2026-05-22 SHIM-013: ecdsa_verify cache consistency
@@ -1627,6 +1628,8 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_metal_batch_sentinel", "Metal ECDSA/Schnorr generic batch verification detects unwritten result buffers and returns GpuError::Launch for CPU fallback instead of emitting signature verdicts (MBS-0..4)", "memory_safety", test_regression_metal_batch_sentinel_run, false },
     // === 2026-07-21 OpenCL collect dispatch/synchronisation regression (#346) ===
     { "regression_opencl_collect_dispatch", "OpenCL ECDSA/Schnorr collect paths check kernel arguments and queue completion, use padded explicit-local dispatch, and retain bounds guards for ghost work-items (OCD-0..7)", "memory_safety", test_regression_opencl_collect_dispatch_run, false },
+    // === 2026-07-21 P2SH context diagnostics ABI regression (#348) ===
+    { "regression_p2sh_context_abi", "ufsecp_addr_p2sh_with_ctx provides context diagnostics while preserving the legacy ufsecp_addr_p2sh symbol and byte-identical output (PCA-0..9)", "memory_safety", test_regression_p2sh_context_abi_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

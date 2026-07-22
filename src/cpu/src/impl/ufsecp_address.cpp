@@ -116,24 +116,54 @@ ufsecp_error_t ufsecp_addr_p2tr(ufsecp_ctx* ctx,
     } UFSECP_CATCH_RETURN(ctx)
 }
 
-ufsecp_error_t ufsecp_addr_p2sh(
+static ufsecp_error_t addr_p2sh_impl(
+    ufsecp_ctx* ctx,
     const uint8_t* redeem_script, size_t redeem_script_len,
     int network,
     char* addr_out, size_t* addr_len) {
-    if (SECP256K1_UNLIKELY(!redeem_script)) return UFSECP_ERR_NULL_ARG;
-    if (SECP256K1_UNLIKELY(!addr_out || !addr_len)) return UFSECP_ERR_NULL_ARG;
-    if (!valid_network(network)) return UFSECP_ERR_BAD_INPUT;
+    const auto fail = [ctx](ufsecp_error_t err, const char* message) {
+        return ctx ? ctx_set_err(ctx, err, message) : err;
+    };
+
+    if (SECP256K1_UNLIKELY(!redeem_script))
+        return fail(UFSECP_ERR_NULL_ARG, "redeem script is NULL");
+    if (SECP256K1_UNLIKELY(!addr_out))
+        return fail(UFSECP_ERR_NULL_ARG, "address output is NULL");
+    if (SECP256K1_UNLIKELY(!addr_len))
+        return fail(UFSECP_ERR_NULL_ARG, "address length is NULL");
+    if (!valid_network(network))
+        return fail(UFSECP_ERR_BAD_INPUT, "invalid network");
+    if (ctx) ctx_clear_err(ctx);
 
     try {
     // hash160 of redeem_script
     auto script_hash = secp256k1::hash160(redeem_script, redeem_script_len);
     auto addr = secp256k1::address_p2sh(script_hash, to_network(network));
-    if (addr.empty()) return UFSECP_ERR_INTERNAL;
-    if (*addr_len <= addr.size()) return UFSECP_ERR_BUF_TOO_SMALL;
+    if (addr.empty()) return fail(UFSECP_ERR_INTERNAL, "P2SH generation failed");
+    if (*addr_len <= addr.size())
+        return fail(UFSECP_ERR_BUF_TOO_SMALL, "P2SH buffer too small");
     std::memcpy(addr_out, addr.c_str(), addr.size() + 1);
     *addr_len = addr.size();
     return UFSECP_OK;
-    } catch (...) { return UFSECP_ERR_INTERNAL; }
+    } UFSECP_CATCH_RETURN(ctx)
+}
+
+ufsecp_error_t ufsecp_addr_p2sh(
+    const uint8_t* redeem_script, size_t redeem_script_len,
+    int network,
+    char* addr_out, size_t* addr_len) {
+    return addr_p2sh_impl(nullptr, redeem_script, redeem_script_len,
+                          network, addr_out, addr_len);
+}
+
+ufsecp_error_t ufsecp_addr_p2sh_with_ctx(
+    ufsecp_ctx* ctx,
+    const uint8_t* redeem_script, size_t redeem_script_len,
+    int network,
+    char* addr_out, size_t* addr_len) {
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    return addr_p2sh_impl(ctx, redeem_script, redeem_script_len,
+                          network, addr_out, addr_len);
 }
 
 ufsecp_error_t ufsecp_addr_p2sh_p2wpkh(
@@ -416,4 +446,3 @@ ufsecp_error_t ufsecp_bip32_pubkey(ufsecp_ctx* ctx,
 /* ===========================================================================
  * Taproot (BIP-341)
  * =========================================================================== */
-

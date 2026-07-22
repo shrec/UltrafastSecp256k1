@@ -177,7 +177,7 @@ cmake -S . -B build_audit -G Ninja -DCMAKE_BUILD_TYPE=Release \
 # Build
 cmake --build build_audit -j
 
-# === FULL AUDIT ( 446 modules, 9 failure classes, ~10 min) ===
+# === FULL AUDIT ( 447 modules, 9 failure classes, ~10 min) ===
 ./build_audit/audit/unified_audit_runner
 
 # Run all CTest targets

@@ -2,7 +2,7 @@
 
 **Generated:** 2026-04-06
 **Scope:** All `UFSECP_API` exported functions + internal library capabilities
-**Total API functions:** 200
+**Total API functions:** 210
 
 ## Legend
 
@@ -159,15 +159,18 @@
 
 ---
 
-## 8. Bitcoin Addresses (3 functions)
+## 8. Bitcoin Addresses (6 functions)
 
 | Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
 |----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
 | `ufsecp_addr_p2pkh` | Y | Y | Y | - | N/A (public) | - | - | N/A |
 | `ufsecp_addr_p2wpkh` | Y | Y | Y | - | N/A | - | - | N/A |
 | `ufsecp_addr_p2tr` | Y | Y | Y | - | N/A | - | Y (BIP-341) | N/A |
+| `ufsecp_addr_p2sh` | Y | Y | Y | Y (context-entry parity) | N/A (public) | - | - | N/A |
+| `ufsecp_addr_p2sh_with_ctx` | Y (`regression_p2sh_context_abi`) | - | Y (null/network/buffer) | Y (legacy output parity) | N/A (public) | - | - | N/A |
+| `ufsecp_addr_p2sh_p2wpkh` | Y | Y | Y | - | N/A (public) | - | - | N/A |
 
-**Test files:** `audit/test_ffi_round_trip.cpp`, `audit/test_fuzz_address_bip32_ffi.cpp`, `audit/test_adversarial_protocol.cpp`
+**Test files:** `audit/test_ffi_round_trip.cpp`, `audit/test_fuzz_address_bip32_ffi.cpp`, `audit/test_adversarial_protocol.cpp`, `audit/test_regression_p2sh_context_abi.cpp`
 
 ---
 

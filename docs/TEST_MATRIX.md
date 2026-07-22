@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 446 modules (174 non-exploit + 272 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 447 modules (175 non-exploit + 272 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -105,14 +105,14 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 446 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 447 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 446 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 447 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
 | `src/cuda/src/test_windows_macro_compat.cu` | CUDA/MSVC | `cuda_windows_macro_compat`: compile regression for Windows SDK `small` macro collisions in the public CUDA header |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 446 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 447 modules, 8 sections) |
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
@@ -166,6 +166,7 @@ These standalone CTest entries are part of the active validation surface and are
 | `exploit_taproot_merkle_path_alias` | Exploit PoC | Detects aliasing and malformed-merkle-path edge cases in Taproot proof handling |
 | `exploit_merkle_pair_bounds` | Exploit PoC | Hostile-caller bounds/nulls on ufsecp_gpu_merkle_pair_hash — NULL ctx/left32/right32/out32 rejection; n==0 no-op; n>cap BAD_INPUT; fail-closed out32 zeroing |
 | `regression_merkle_pair_hash` | Regression | Differential KAT + cross-backend parity for ufsecp_gpu_merkle_pair_hash — n=1/moderate batch vs SHA256d oracle; left==right (Bitcoin odd-leaf) case; cross-backend byte-identical output |
+| `regression_p2sh_context_abi` | C ABI regression | Preserves the legacy `ufsecp_addr_p2sh` symbol while validating byte-identical output and contextual diagnostics from additive `ufsecp_addr_p2sh_with_ctx` |
 | `ffi_coverage` | FFI surface | Coverage-oriented validation for public foreign-function interface paths |
 | `kat_all_operations` | Known-answer tests | Broad deterministic vectors across exposed operations |
 | `nonce_uniqueness` | Security audit | Nonce uniqueness and replay-resistance regression coverage |

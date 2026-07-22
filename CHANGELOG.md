@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added the ABI-compatible `ufsecp_addr_p2sh_with_ctx` entry point for P2SH
+  generation with `ufsecp_last_error()` / `ufsecp_last_error_msg()` diagnostics.
+  The existing stateless `ufsecp_addr_p2sh` symbol remains available and
+  produces byte-identical addresses.
+
 ## [4.5.0] - 2026-07-07
 
 > **Bridge-free libbitcoin integration, public-data GPU parity, and release
