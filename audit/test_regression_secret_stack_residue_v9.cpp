@@ -51,21 +51,15 @@ using secp256k1::fast::Point;
 
 static int g_pass = 0, g_fail = 0;
 
+// Repair (issue #335 acceptance repair, round 5): the previous fixed-prefix
+// list was CWD-relative only and never resolved when the binary was invoked
+// from a CWD unrelated to the repo (e.g. /tmp) -- every caller below then
+// silently skipped its source-scan with ZERO CHECK() calls and printed a
+// [SKIP] line, letting the whole module report an overall PASS with the
+// actual regression coverage vacuously absent. Route through the shared,
+// UFSECP_SOURCE_ROOT-aware resolver (audit_check.hpp) instead.
 static std::string read_source_file(const char* rel_path) {
-    const char* prefixes[] = {
-        "", "../", "../../",
-        "src/cpu/src/", "../src/cpu/src/",
-        nullptr
-    };
-    for (int i = 0; prefixes[i]; ++i) {
-        std::string path = std::string(prefixes[i]) + rel_path;
-        std::ifstream f(path);
-        if (f.is_open()) {
-            return {std::istreambuf_iterator<char>(f),
-                    std::istreambuf_iterator<char>()};
-        }
-    }
-    return {};
+    return audit_read_source_file(rel_path);
 }
 
 // Helper: extract the body of a named C++ function from a source string.
@@ -102,10 +96,11 @@ static void test_schnorr_raw_overload_erases_kp() {
     if (src.empty()) {
         src = read_source_file("schnorr.cpp");
     }
-    if (src.empty()) {
-        printf("  [SKIP] schnorr.cpp not found — source scan skipped\n");
-        return;
-    }
+    // Fail-closed (issue #335 acceptance repair, round 5): schnorr.cpp always
+    // exists in-tree. A failed read means the source could not be resolved,
+    // NOT that the property holds -- never a silent 0-checks skip.
+    CHECK(!src.empty(), "schnorr.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
 
     // Both overloads must contain secure_erase(&kp.d, ...) after the sub-call.
     // The full call chain: schnorr_sign(Scalar) -> schnorr_keypair_create ->
@@ -161,10 +156,8 @@ static void test_bip32_derive_child_uses_is_zero_ct() {
     if (src.empty()) {
         src = read_source_file("bip32.cpp");
     }
-    if (src.empty()) {
-        printf("  [SKIP] bip32.cpp not found — source scan skipped\n");
-        return;
-    }
+    CHECK(!src.empty(), "bip32.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
 
     // The patched line: `if (child_scalar.is_zero_ct()) {`
     bool has_ct = (src.find("child_scalar.is_zero_ct()") != std::string::npos);
@@ -187,10 +180,8 @@ static void test_frost_derive_scalar_erases_sha_state() {
     if (src.empty()) {
         src = read_source_file("frost.cpp");
     }
-    if (src.empty()) {
-        printf("  [SKIP] frost.cpp not found — source scan skipped\n");
-        return;
-    }
+    CHECK(!src.empty(), "frost.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
 
     // Look for the erasure trio at the end of derive_scalar bodies.
     bool has_hash_erase     = (src.find("secure_erase(hash.data(), hash.size())") != std::string::npos);
@@ -227,17 +218,13 @@ static void test_ecdsa_adaptor_degenerate_r_erases() {
     if (src.empty()) {
         src = read_source_file("adaptor.cpp");
     }
-    if (src.empty()) {
-        printf("  [SKIP] adaptor.cpp not found — source scan skipped\n");
-        return;
-    }
+    CHECK(!src.empty(), "adaptor.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
 
     // Restrict the scan to ecdsa_adaptor_sign's body.
     std::string body = extract_function_body(src, "ecdsa_adaptor_sign");
-    if (body.empty()) {
-        printf("  [SKIP] ecdsa_adaptor_sign body not located — source scan skipped\n");
-        return;
-    }
+    CHECK(!body.empty(), "adaptor.cpp: ecdsa_adaptor_sign body must be locatable");
+    if (body.empty()) return;
 
     // Find the degenerate-r block: `if (r.is_zero()) {` … `return ECDSAAdaptorSig{...}`.
     size_t guard = body.find("if (r.is_zero())");

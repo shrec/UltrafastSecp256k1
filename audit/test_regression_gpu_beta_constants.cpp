@@ -127,25 +127,27 @@ static void u64_to_bytes(const uint64_t limbs[4], uint8_t out[32]) {
 }
 
 // ============================================================================
-// Helpers — file reading (same pattern as test_regression_shim_seckey_erase.cpp)
+// Helpers — file reading
 // ============================================================================
 
-// Read a source file using prefix probing. Tries each candidate path
-// (standalone then monorepo) with the prefix set. Not-found is a HARD FAIL —
-// a silent skip would make this regression guard a false-green.
+// Read a source file, trying each candidate path (standalone then monorepo
+// layout). Not-found is a HARD FAIL — a silent skip would make this
+// regression guard a false-green.
+//
+// Repair (issue #335 acceptance repair, round 5): the previous bounded
+// CWD-relative-only prefix list ("", "../", "../../", ...) never resolved
+// when unified_audit_runner was invoked from a CWD unrelated to the repo
+// (e.g. /tmp) — this module already hard-failed rather than silently
+// passing (every FAIL branch below increments g_fail), but its real check
+// count still diverged between "run from the repo root" and "run from an
+// unrelated CWD", which the same CWD-independence finding covers. Route
+// through the shared, UFSECP_SOURCE_ROOT-aware audit_read_source_file()
+// (audit_check.hpp), keeping the bounded CWD-relative walk-up only as its
+// own internal fallback.
 static std::string read_repo_file(const char* const* candidates, int n_candidates) {
-    const char* prefixes[] = {
-        "", "../", "../../", "../../../", "../../../../", nullptr
-    };
     for (int c = 0; c < n_candidates; ++c) {
-        for (int i = 0; prefixes[i]; ++i) {
-            std::string path = std::string(prefixes[i]) + candidates[c];
-            std::ifstream f(path);
-            if (f.is_open()) {
-                return {std::istreambuf_iterator<char>(f),
-                        std::istreambuf_iterator<char>()};
-            }
-        }
+        std::string src = audit_read_source_file(candidates[c]);
+        if (!src.empty()) return src;
     }
     return {};
 }

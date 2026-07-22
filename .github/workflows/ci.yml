@@ -418,6 +418,52 @@ jobs:
           PYTHONUTF8: '1'
         run: ctest --test-dir build -C ${{ matrix.build_type }} --output-on-failure -j -E "^ct_sidechannel"
 
+      - name: PR #353 MSVC link-retention fixture (configure + build)
+        # Standalone CMake project (ci/fixtures/pr353_msvc_link_retention/):
+        # proves the same if(MSVC) LINKER:/INCLUDE:<anchor> else()
+        # LINKER:--undefined=<anchor> endif() pattern used by
+        # compat/libbitcoin_direct/CMakeLists.txt's _lbtc_gpu_retain actually
+        # retains an otherwise dead-stripped static-archive member on MSVC.
+        # CUDA-free, GPU-free -- pure C++.
+        run: |
+          cmake -S ci/fixtures/pr353_msvc_link_retention -B build/pr353-msvc-link-retention -G "Visual Studio 17 2022" -A x64
+          cmake --build build/pr353-msvc-link-retention --config ${{ matrix.build_type }}
+
+      - name: PR #353 MSVC link-retention fixture (ctest: runtime + best-effort symbol proof)
+        run: ctest --test-dir build/pr353-msvc-link-retention -C ${{ matrix.build_type }} --output-on-failure -R pr353_msvc_link_retention
+
+      - name: PR #353 MSVC link-retention fixture (dumpbin symbol assertion)
+        # Authoritative, machine-verifiable symbol-table proof for
+        # acceptance item 6: locates dumpbin.exe via vswhere (independent of
+        # whether the plain PATH used by `cmake --build` above exposes it),
+        # then asserts the anchor symbol is present in the RETAINED
+        # executable and absent from the BASELINE (negative control)
+        # executable.
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vsPath = & $vswhere -latest -products * -property installationPath
+          $dumpbin = Get-ChildItem -Path "$vsPath\VC\Tools\MSVC" -Recurse -Filter dumpbin.exe |
+              Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1
+          if (-not $dumpbin) { throw "dumpbin.exe not found under $vsPath" }
+
+          $retained = "build/pr353-msvc-link-retention/${{ matrix.build_type }}/pr353_link_retention_retained.exe"
+          $baseline = "build/pr353-msvc-link-retention/${{ matrix.build_type }}/pr353_link_retention_baseline.exe"
+
+          $retainedSyms = & $dumpbin.FullName /symbols $retained | Select-String "pr353_link_retention_anchor"
+          $baselineSyms = & $dumpbin.FullName /symbols $baseline | Select-String "pr353_link_retention_anchor"
+
+          if (-not $retainedSyms) {
+            throw "PR353 CONTRACT VIOLATION: pr353_link_retention_anchor missing from $retained -- LINKER:/INCLUDE: retention is broken on MSVC"
+          }
+          Write-Host "OK: anchor symbol retained via LINKER:/INCLUDE: in $retained"
+
+          if ($baselineSyms) {
+            throw "PR353 FIXTURE INVALID: pr353_link_retention_anchor unexpectedly present in $baseline without any retention option -- negative control no longer proves anything"
+          }
+          Write-Host "OK: anchor symbol correctly absent from $baseline (negative control validates the fixture)"
+
   # -- macOS (AppleClang + Metal GPU) -----------------------------------------
   macos:
     runs-on: macos-14
@@ -613,6 +659,47 @@ jobs:
 
       - name: Test (CPU-only, compile check)
         run: ctest --test-dir build/rocm --output-on-failure -j$(nproc) -E "^ct_sidechannel"
+
+  # -- CUDA (nvcc, host-only compile check) -----------------------------------
+  # NOTE: GitHub-hosted runners have no NVIDIA GPU. This job proves nvcc
+  # accepts the PR #353 (Eric Voskuil) adversarial regression fixture
+  # (ci/fixtures/pr353_windows_small_macro_smoke.cu, which defines `small` as
+  # `char` -- reproducing Windows <rpcndr.h>'s macro -- before including
+  # secp256k1.cuh). See docs/WINDOWS_CUDA_BUILD_CONTRACT.md. Compile-only, no
+  # device required: device codegen via ptxas/cicc does not need a physical
+  # GPU. Runtime GPU tests run on the self-hosted runner (gpu-selfhosted.yml);
+  # this job needs no hardware, so it can run as a mandatory push/PR gate.
+  cuda-compile-check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install CUDA toolkit (nvcc, host-only)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nvidia-cuda-toolkit
+          nvcc --version
+
+      - name: Compile PR #353 adversarial macro-collision fixture
+        # fail-before (pre-PR#353 header, `small` param name): nvcc rejects
+        # this with "invalid combination of type specifiers" / "type name is
+        # not allowed" (measured locally -- see
+        # docs/WINDOWS_CUDA_BUILD_CONTRACT.md). After the fix (param renamed
+        # to `factor`) this MUST compile clean -- a future regression back to
+        # the reserved name fails this step immediately, no Windows host or
+        # GPU needed.
+        run: |
+          nvcc -c --std=c++17 \
+            -I src/cuda/include -I include \
+            ci/fixtures/pr353_windows_small_macro_smoke.cu \
+            -o /tmp/pr353_windows_small_macro_smoke.o \
+            -arch=sm_75
 
   # -- WebAssembly (Emscripten) -----------------------------------------------
   wasm:

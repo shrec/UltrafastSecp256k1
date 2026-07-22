@@ -124,8 +124,33 @@ static std::string strip_comments(const std::string& src) {
 // Locate the source tree root relative to the running binary.
 // Tries several candidate paths so it works in build/ subdirectories.
 // ---------------------------------------------------------------------------
-
+//
+// Repair (issue #335 acceptance repair, round 5): the CWD-relative candidate
+// list below only resolves when the process's CWD sits somewhere under (or a
+// bounded number of levels above/beside) the repo root. When
+// unified_audit_runner is invoked directly from a CWD unrelated to the repo
+// (e.g. /tmp), every candidate fails and this returned "" — which the caller
+// then treated as ADVISORY_SKIP_CODE (77), a silent "advisory skip" with
+// ZERO CT-discipline checks executed. That is a false green for a
+// security-critical CT/fast:: boundary audit, not a legitimate skip.
+// UFSECP_SOURCE_ROOT is a compile-time ABSOLUTE path to the repo root baked
+// in by audit/CMakeLists.txt for the unified_audit_runner target; trying it
+// first makes resolution independent of both CWD and executable location.
 static std::string find_source_root() {
+    // Sentinel file used to confirm a candidate root actually reaches the
+    // real source tree.
+    auto has_sentinel = [](const std::string& root) -> bool {
+        std::string test = root + "/src/cpu/src/ct_sign.cpp";
+        FILE* f = std::fopen(test.c_str(), "rb");
+        if (!f) return false;
+        (void)std::fclose(f);
+        return true;
+    };
+
+#ifdef UFSECP_SOURCE_ROOT
+    if (has_sentinel(UFSECP_SOURCE_ROOT)) return UFSECP_SOURCE_ROOT;
+#endif
+
     // ctest sets the test binary's CWD to its CMakeLists's build directory
     // (e.g. <repo>/build/audit when add_test runs in audit/CMakeLists.txt).
     // Standalone runs may have CWD = <repo>/build or <repo> itself.
@@ -142,13 +167,7 @@ static std::string find_source_root() {
         "libs/UltrafastSecp256k1",
     };
     for (const char* c : candidates) {
-        // Try to open a sentinel file
-        std::string test = std::string(c) + "/src/cpu/src/ct_sign.cpp";
-        FILE* f = std::fopen(test.c_str(), "rb");
-        if (f) {
-            (void)std::fclose(f);
-            return c;
-        }
+        if (has_sentinel(c)) return c;
     }
     return "";  // not found
 }
@@ -176,15 +195,21 @@ static int run_file_audit(const std::string& root, const FileAudit& audit,
     char msg[256];
 
     if (!r.opened) {
-        // File not found — return ADVISORY_SKIP_CODE (77) so the unified runner
-        // records this as advisory_skipped, not passed.  Returning 0 was a
-        // false-green: a relocated ct_sign.cpp would silently pass all CT checks.
+        // Repair (issue #335 acceptance repair, round 5): find_source_root()
+        // already confirmed the source tree is reachable (via UFSECP_SOURCE_ROOT
+        // or a resolved CWD-relative candidate) before this function is ever
+        // called — a per-file miss here means a specific audited file is
+        // missing from an otherwise-present tree, which is itself a finding,
+        // not an infra-availability skip. Hard-fail (matches the TEST-004
+        // fail-closed pattern used by run_structural_checks() below in this
+        // same file) rather than returning ADVISORY_SKIP_CODE, which would
+        // let the module silently pass 0 checks for this file.
         (void)std::snprintf(msg, sizeof(msg),
-            "CNS-%d: [ADVISORY] %s — source file not found at %s",
+            "CNS-%d: %s — source file must be readable at %s (root resolved but file missing)",
             check_num, audit.label, full_path.c_str());
-        AUDIT_LOG("  [SKIP] %s\n", msg);
+        CHECK(false, msg);
         ++check_num;
-        return ADVISORY_SKIP_CODE;
+        return 1;
     }
 
     // Strip comments before checking prohibited patterns
@@ -387,24 +412,32 @@ int audit_ct_namespace_run() {
 
     std::string root = find_source_root();
     if (root.empty()) {
-        AUDIT_LOG("  [SKIP] Source tree not found — skipping static checks.\n");
-        AUDIT_LOG("  (Run ctest from the build directory with source tree present.)\n");
-        printf("[audit_ct_namespace] skipped (source tree absent)\n");
-        return 77;  // ADVISORY_SKIP_CODE — not PASS, not FAIL
+        // Repair (issue #335 acceptance repair, round 5): find_source_root()
+        // now tries UFSECP_SOURCE_ROOT (a compile-time absolute path to the
+        // repo root) FIRST, so this branch only fires when the source tree
+        // is genuinely unreachable — a real defect, not a legitimate
+        // infra-absence skip. This is a CT/fast:: namespace discipline audit
+        // over security-critical secret-key code paths; "could not verify"
+        // must never be reported as a silent advisory skip with 0 checks
+        // executed. Hard-fail instead of returning ADVISORY_SKIP_CODE.
+        AUDIT_LOG("  [FAIL] Source tree not found — cannot verify CT namespace discipline.\n");
+        CHECK(false, "audit_ct_namespace: source tree must be resolvable (CWD- and exe-location-independent)");
+        printf("[audit_ct_namespace] %d/%d checks passed\n", g_pass, g_pass + g_fail);
+        return 1;
     }
 
     AUDIT_LOG("  Source root: %s\n", root.c_str());
 
     int check_num = 1;
 
-    // Per-file audits — aggregate ADVISORY_SKIP_CODE (77) from run_file_audit().
-    // CI-001 fix: previously the return value was silently discarded, causing a
-    // false-green when all audited files were absent (0 checks = 0 failures = PASS).
-    int any_skip = 0;
+    // Per-file audits. CI-001 fix: previously a file-not-found's return value
+    // was silently discarded, causing a false-green when all audited files
+    // were absent (0 checks = 0 failures = PASS). run_file_audit() now
+    // CHECK(false, ...)s directly on a per-file miss, so g_fail already
+    // reflects it — no separate aggregation needed here.
     for (const auto& audit : AUDITS) {
         AUDIT_LOG("\n  Auditing: %s\n", audit.label);
-        int rc = run_file_audit(root, audit, check_num);
-        if (rc == ADVISORY_SKIP_CODE) any_skip = 1;
+        (void)run_file_audit(root, audit, check_num);
     }
 
     // Structural checks
@@ -412,7 +445,6 @@ int audit_ct_namespace_run() {
 
     printf("[audit_ct_namespace] %d/%d checks passed\n",
            g_pass, g_pass + g_fail);
-    if (g_fail == 0 && any_skip) return ADVISORY_SKIP_CODE;
     return (g_fail > 0) ? 1 : 0;
 }
 

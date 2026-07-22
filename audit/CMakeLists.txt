@@ -145,6 +145,62 @@ function(audit_wire_real_gpu_backends target_name)
     if(NOT TARGET ${target_name})
         return()
     endif()
+
+    # issue #335 acceptance repair (2026-07-15): nvlink "Multiple definition
+    # of ..." device-link failure for test_c_abi_negative_standalone (and 6
+    # sibling targets: test_regression_hash256_var_batch/parity_standalone,
+    # test_exploit_hash256_var_bounds_standalone,
+    # test_regression_merkle_pair_hash_standalone,
+    # test_exploit_merkle_pair_bounds_standalone,
+    # test_regression_sighash_descriptor_gpu_standalone,
+    # test_exploit_sighash_descriptor_malformed_standalone -- all of them
+    # raw-compile src/cpu/src/ufsecp_gpu_impl.cpp as their own source, same
+    # detection audit_target_defaults() uses for
+    # UFSECP_NO_GPU_COLUMNS_PROVIDER_ANCHOR above).
+    #
+    # Root cause: such a target ALREADY transitively links secp256k1_gpu_host
+    # (which embeds a fully-configured gpu_backend_cuda.cu.o) via
+    # ufsecp_static/ufsecp_shared, linked unconditionally by
+    # audit_target_defaults(). Additionally raw-compiling gpu_backend_cuda.cu
+    # a SECOND time via audit_gpu_backends_provider (the default path below)
+    # gives nvcc's device-link (nvlink -dlink) step TWO definitions of every
+    # __global__/__device__ symbol in that file (every BIP-352/MSM/
+    # bulletproof/ECDH CUDA kernel and device-global, not just the BIP-352
+    # ones touched by this task) -- nvlink hard-errors "Multiple definition
+    # of ...", unlike the regular host linker (which lazily skips an archive
+    # member whose symbols are already resolved by a directly-given object
+    # file; nvlink's device-link step has no equivalent lazy-skip and
+    # unconditionally merges device code from every input passed to it).
+    #
+    # Fix: such a target gets CUDA/OpenCL/Metal backend AVAILABILITY from the
+    # library it already links (secp256k1_gpu_host / secp256k1_opencl /
+    # secp256k1_metal_lib, transitively via ufsecp_static/ufsecp_shared) --
+    # CMake already correctly propagates the relocatable-device-code
+    # device-link requirement through a linked static library to the final
+    # consuming executable (this already happens for every OTHER audit
+    # target that links ufsecp_static/ufsecp_shared without ever calling
+    # this function). Only the SECP256K1_HAVE_{CUDA,OPENCL,METAL} compile
+    # definitions are applied directly here -- needed so this target's own
+    # raw gpu_registry.cpp.o correctly gates its create_backend() dispatch
+    # to actually attempt the CUDA/OpenCL/Metal branch -- with NO duplicate
+    # device-code source. Falls back to the full raw-compile path below if
+    # neither ufsecp_static nor ufsecp_shared exists (e.g. SECP256K1_BUILD_CABI=OFF),
+    # since in that case there is no transitively-linked provider to rely on.
+    get_target_property(_awrgb_sources ${target_name} SOURCES)
+    if(_awrgb_sources MATCHES "ufsecp_gpu_impl" AND NOT _awrgb_sources MATCHES "gpu_engine_hook"
+       AND (TARGET ufsecp_static OR TARGET ufsecp_shared))
+        if(SECP256K1_BUILD_OPENCL AND TARGET secp256k1_opencl)
+            target_compile_definitions(${target_name} PRIVATE SECP256K1_HAVE_OPENCL=1)
+        endif()
+        if(SECP256K1_BUILD_CUDA AND TARGET secp256k1_cuda_lib)
+            target_compile_definitions(${target_name} PRIVATE SECP256K1_HAVE_CUDA=1)
+        endif()
+        if(SECP256K1_BUILD_METAL AND TARGET secp256k1_metal_lib)
+            target_compile_definitions(${target_name} PRIVATE SECP256K1_HAVE_METAL=1)
+        endif()
+        return()
+    endif()
+
     target_link_libraries(${target_name} PRIVATE audit_gpu_backends_provider)
     if(SECP256K1_BUILD_CUDA AND TARGET secp256k1_cuda_lib)
         # nvcc LTO version differs from the host compiler -- disable IPO for
@@ -3035,7 +3091,7 @@ target_include_directories(test_exploit_encoding_memory_corruption_standalone PR
     ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
 target_compile_definitions(test_exploit_encoding_memory_corruption_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_encoding_memory_corruption COMMAND test_exploit_encoding_memory_corruption_standalone)
-set_tests_properties(exploit_encoding_memory_corruption PROPERTIES TIMEOUT 60 LABELS "audit;exploit;encoding;der;memory")
+set_tests_properties(exploit_encoding_memory_corruption PROPERTIES TIMEOUT 60 LABELS "audit;exploit;encoding;der;memory;shim")
 
 # -- N8: Batch Verify Weight Malleability (BVM-1..6) — Original 2026-04-28 ---
 # Audits Schnorr + ECDSA batch verify correctness: order, duplicates, poison.
@@ -4175,6 +4231,23 @@ add_executable(unified_audit_runner
     test_regression_schnorr_ct_arithmetic.cpp
     test_regression_musig2_zero_psig.cpp
     $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_regression_bip352_ct_varbase.cpp>
+    # issue #335 acceptance repair (2026-07): GPU BIP-352 multi-spend-key scan
+    # wiring (previously compiled/CTest-only, never in the unified runner) +
+    # bug-to-CAAS PoCs for the P0 limb-reversal fix and the multi-spend
+    # ABI-overlap/fail-open hazards fixed in the same repair.
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_gpu_bip352_scan.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_gpu_bip352_scalar_limb_order.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_gpu_bip352_multispend_failclosed.cpp>
+    # issue #335 round 3 (OpenCL track, 2026-07-16): control-call site
+    # fail-closed proof, complements exploit_gpu_bip352_multispend_failclosed
+    # (see benchmarks/github_issue_335/opencl_round3_evidence/README.md).
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_exploit_opencl_bip352_control_call_failclosed.cpp>
+    # issue #335 round 3: release-artifact symbol hygiene (no BIP-352
+    # feature dependency -- pure nm/self-exe inspection) + systemic OpenCL
+    # kernel-resolver fix (no BIP-352 feature dependency -- exercises
+    # hash160 + FROST loaders).
+    test_regression_opencl_bip352_faultinject_symbols_absent.cpp
+    test_regression_opencl_kernel_resolver_unrelated_cwd.cpp
     # CT signing scalar correctness regression guards (PRF-1..8)
     test_regression_signing_ct_scalar_correctness.cpp
     # ABI recid+recov+schnorr_verified CT regression guards
@@ -4249,6 +4322,18 @@ target_sources(unified_audit_runner PRIVATE
     test_regression_s_scalar_erasure.cpp
     # 2026-05-28 SEC-002/003/004/005: FROST infinity group key + MuSig2 e=0 guard + nonce seed + blinded gen_mul
     test_regression_frost_musig2_degenerate.cpp
+    # 2026-07-15 acceptance-repair round 2: SEC-002/004/006/007/010 orphan
+    # registration -- these 4 files were forward-declared + registered in
+    # ALL_MODULES[] but never added to unified_audit_runner's own source
+    # list (only their own _standalone executable targets existed), causing
+    # an undefined-reference link failure. SEC-004/SEC-006/SEC-007 have no
+    # feature dependency (unconditional, no stub in feature_run_stubs_unified.cpp).
+    # SEC-002 and SEC-010 mirror their sibling BIP-352/FROST modules' guard +
+    # the ADVISORY_SKIP_CODE stub already present in feature_run_stubs_unified.cpp.
+    test_regression_hash_three_block_bounds.cpp
+    test_regression_schnorr_r_zero_ct.cpp
+    $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_regression_opencl_bip352_scan_key_boundary.cpp>
+    $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_regression_frost_threshold_zero.cpp>
     # Feature module stubs: when a module is OFF, these provide advisory-skip
     # _run() implementations so unified_audit_runner links without the real files.
     # 2026-07-08 Metal + OpenCL CT GLV beta constant mismatch fix (math_invariants, advisory=false, shim-independent)
@@ -5234,7 +5319,7 @@ if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
         ${CMAKE_CURRENT_SOURCE_DIR}/../include/ufsecp)
     target_compile_definitions(test_regression_musig2_session_token_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME regression_musig2_session_token COMMAND test_regression_musig2_session_token_standalone)
-    set_tests_properties(regression_musig2_session_token PROPERTIES TIMEOUT 60 LABELS "audit;regression;musig2")
+    set_tests_properties(regression_musig2_session_token PROPERTIES TIMEOUT 60 LABELS "audit;regression;musig2;shim")
 endif()
 
 # SHIM-NEW-004: NULL ctx rejected by 4 MuSig shim functions
@@ -5262,7 +5347,7 @@ if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
         ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
     target_compile_definitions(test_regression_ellswift_ct_path_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME regression_ellswift_ct_path COMMAND test_regression_ellswift_ct_path_standalone)
-    set_tests_properties(regression_ellswift_ct_path PROPERTIES TIMEOUT 30 LABELS "audit;regression;ct;ellswift")
+    set_tests_properties(regression_ellswift_ct_path PROPERTIES TIMEOUT 30 LABELS "audit;regression;ct;ellswift;shim")
 endif()
 
 # CT-006: MuSig2 nonce strict — uses secp256k1.h/secp256k1_musig.h, requires shim include
@@ -5275,7 +5360,7 @@ if(TARGET secp256k1_shim OR SECP256K1_BUILD_SHIM)
     target_compile_definitions(test_regression_musig2_nonce_strict_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME regression_musig2_nonce_strict COMMAND test_regression_musig2_nonce_strict_standalone)
     set_tests_properties(regression_musig2_nonce_strict PROPERTIES TIMEOUT 30 SKIP_RETURN_CODE 77
-        LABELS "audit;regression;musig2;ct")
+        LABELS "audit;regression;musig2;ct;shim")
 endif()
 # RT-011: BIP-32 private key strict (also covers public_key() strict parse — BKS-4, BKS-5)
 add_executable(test_regression_bip32_private_key_strict_standalone
@@ -5578,6 +5663,30 @@ add_test(NAME regression_bip39_csprng_failclosed
 set_tests_properties(regression_bip39_csprng_failclosed PROPERTIES TIMEOUT 30
     LABELS "audit;regression;entropy;csprng;bip39;fail-closed")
 target_sources(unified_audit_runner PRIVATE test_regression_bip39_csprng_failclosed.cpp)
+
+# CWD-INDEPENDENCE (issue #335 acceptance repair round 5, extended round 6): meta-regression
+# proving source-reading audit modules resolve in-tree source identically from the repo
+# root and from a CWD unrelated to the repo, and hard-fail (never silently 0-check PASS
+# or advisory-skip) when resolution genuinely fails. The standalone target runs its
+# self-contained [1]/[2] checks AND the round-6 [4] concurrent-process capture-collision
+# proof (see UNIFIED_AUDIT_RUNNER / STANDALONE_TEST guards in the .cpp); it does NOT run
+# [3] since that probe calls into other audit/test_*.cpp translation units that are not
+# linked here. Needs UFSECP_SOURCE_ROOT for check [2] to exercise the real fix regardless
+# of ctest's CWD (mirrors test_mutation_artifact_scan_standalone below). The exhaustive
+# sweep over every OTHER mandatory ALL_MODULES[] entry (not just the ~5 probed here) is
+# ci/check_audit_cwd_independence.py, run separately (needs a real unified_audit_runner
+# binary; see ci_local.sh --full), not this CTest target.
+add_executable(test_regression_audit_source_root_cwd_independence_standalone
+    test_regression_audit_source_root_cwd_independence.cpp)
+audit_target_defaults(test_regression_audit_source_root_cwd_independence_standalone)
+target_compile_definitions(test_regression_audit_source_root_cwd_independence_standalone PRIVATE
+    STANDALONE_TEST
+    UFSECP_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+add_test(NAME regression_audit_source_root_cwd_independence
+    COMMAND test_regression_audit_source_root_cwd_independence_standalone)
+set_tests_properties(regression_audit_source_root_cwd_independence PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;caas;cwd-independence;issue-335")
+target_sources(unified_audit_runner PRIVATE test_regression_audit_source_root_cwd_independence.cpp)
 
 # RESOURCE-EXHAUSTION — batch-sign DoS count ceiling (blind-zone #15, 2026-06-11)
 add_executable(test_regression_batch_dos_cap_standalone
@@ -6137,10 +6246,22 @@ set_tests_properties(exploit_sighash_descriptor_malformed PROPERTIES TIMEOUT 30
 target_sources(unified_audit_runner PRIVATE test_exploit_sighash_descriptor_malformed.cpp)
 
 # Aggregate target used by .github/workflows/gate.yml's shim security job. The
-# ctest -R expression there matches test names, not build target names, so the
-# binaries must be built explicitly before ctest runs. Keep this list aligned
-# with that workflow regex: regression_shim|regression_ecdsa_batch_curve|
-# exploit_shim|test_shim.
+# ctest selection there matches CTest test names/labels, not build target
+# names, so the binaries must be built explicitly before ctest runs.
+#
+# NOTE (reachability): this hand-maintained list is INCOMPLETE relative to the
+# full set of shim-dependent standalone targets in this file (verified via
+# ci/check_shim_test_reachability.py) — several real shim-dependent tests
+# (e.g. test_regression_musig_xonly_zero_tweak_standalone,
+# test_regression_musig_noncegen_extra_input_standalone,
+# test_regression_ecdh_xy64_erase_standalone) were never added here. Rather
+# than risk another silent drift by hand-editing this list, gate.yml's shim
+# security job builds this target PLUS the exact, structurally-derived list
+# from `python3 ci/check_shim_test_reachability.py --list-targets` (source of
+# truth: target_link_libraries(... secp256k1_shim ...) / direct
+# compat/libsecp256k1_shim/src/*.cpp compilation in this file). Do not treat
+# this set() as authoritative for "is target X built by the shim-gate job" —
+# check_shim_test_reachability.py is authoritative.
 set(_shim_security_gate_standalone_targets
     test_exploit_shim_noncefp_bypass_standalone
     test_exploit_shim_der_bip66_standalone
@@ -6238,7 +6359,9 @@ add_test(NAME regression_metal_snark_readiness
     COMMAND test_regression_metal_snark_readiness_standalone)
 set_tests_properties(regression_metal_snark_readiness PROPERTIES TIMEOUT 30
     LABELS "audit;regression;metal;gpu;memory-safety;readiness")
-target_sources(unified_audit_runner PRIVATE test_regression_metal_snark_readiness.cpp)
+target_sources(unified_audit_runner PRIVATE
+    test_regression_metal_snark_readiness.cpp
+)
 
 # GitHub #345: every transient CUDA allocation in the affected batch methods
 # must be RAII-owned before the next CUDA_TRY can return early.
@@ -6250,7 +6373,9 @@ add_test(NAME regression_cuda_buffer_raii
     COMMAND test_regression_cuda_buffer_raii_standalone)
 set_tests_properties(regression_cuda_buffer_raii PROPERTIES TIMEOUT 30
     LABELS "audit;regression;cuda;gpu;memory-safety;raii")
-target_sources(unified_audit_runner PRIVATE test_regression_cuda_buffer_raii.cpp)
+target_sources(unified_audit_runner PRIVATE
+    test_regression_cuda_buffer_raii.cpp
+)
 
 # GitHub #347: generic Metal ECDSA/Schnorr batch verification must detect a
 # command-buffer failure as an operational error, never as a signature verdict.
@@ -6262,7 +6387,9 @@ add_test(NAME regression_metal_batch_sentinel
     COMMAND test_regression_metal_batch_sentinel_standalone)
 set_tests_properties(regression_metal_batch_sentinel PROPERTIES TIMEOUT 30
     LABELS "audit;regression;metal;gpu;memory-safety;verdict")
-target_sources(unified_audit_runner PRIVATE test_regression_metal_batch_sentinel.cpp)
+target_sources(unified_audit_runner PRIVATE
+    test_regression_metal_batch_sentinel.cpp
+)
 
 # GitHub #346: OpenCL ECDSA/Schnorr collect launches must use a padded explicit
 # local range and propagate queue completion failures before reading verdicts.
@@ -6274,7 +6401,9 @@ add_test(NAME regression_opencl_collect_dispatch
     COMMAND test_regression_opencl_collect_dispatch_standalone)
 set_tests_properties(regression_opencl_collect_dispatch PROPERTIES TIMEOUT 30
     LABELS "audit;regression;opencl;gpu;queue;dispatch")
-target_sources(unified_audit_runner PRIVATE test_regression_opencl_collect_dispatch.cpp)
+target_sources(unified_audit_runner PRIVATE
+    test_regression_opencl_collect_dispatch.cpp
+)
 
 # GitHub #348: add context-aware P2SH diagnostics without changing or removing
 # the stable legacy ufsecp_addr_p2sh symbol.
@@ -6286,4 +6415,53 @@ add_test(NAME regression_p2sh_context_abi
     COMMAND test_regression_p2sh_context_abi_standalone)
 set_tests_properties(regression_p2sh_context_abi PROPERTIES TIMEOUT 30
     LABELS "audit;regression;c-abi;address;p2sh;diagnostics")
-target_sources(unified_audit_runner PRIVATE test_regression_p2sh_context_abi.cpp)
+target_sources(unified_audit_runner PRIVATE
+    test_regression_p2sh_context_abi.cpp
+)
+# issue #335 round 3 (OpenCL track, 2026-07-16): SECP256K1_BUILD_FAULT_INJECTION_TESTS
+# scoped to unified_audit_runner ONLY, entirely within this file's allowed_writes.
+#
+# WHY THIS IS SAFE (verified structurally, not assumed):
+#   unified_audit_runner's own SOURCES list includes both ufsecp_gpu_impl.cpp
+#   AND gpu_engine_hook.cpp (see audit_wire_real_gpu_backends() above: its
+#   ODR-avoidance branch only triggers for targets whose sources match
+#   ufsecp_gpu_impl AND do NOT match gpu_engine_hook -- unified_audit_runner
+#   matches the first but fails the second, so it falls through to the
+#   NORMAL path: target_link_libraries(unified_audit_runner PRIVATE
+#   audit_gpu_backends_provider), which RAW-COMPILES gpu_backend_opencl.cpp
+#   directly as one of unified_audit_runner's own sources -- unified_audit_runner
+#   does NOT link the secp256k1_gpu_host archive (which would carry a SECOND,
+#   non-flagged compiled copy of the same OpenCLBackend symbols and cause a
+#   real ODR/duplicate-symbol linker error). There is exactly ONE compiled
+#   instance of gpu_backend_opencl.cpp in this binary, so defining the macro
+#   on this target's PRIVATE compile options affects exactly that one
+#   translation unit's build, nothing else.
+#
+# WHY THIS DOES NOT LEAK INTO THE NORMAL RELEASE BUILD:
+#   - The production secp256k1_gpu_host static/shared library (built from
+#     src/gpu/CMakeLists.txt, outside this file's allowed_writes) is
+#     completely untouched -- it is not what unified_audit_runner links for
+#     its GPU backend code, so its compiled objects never see this macro.
+#   - audit_gpu_backends_provider (the INTERFACE library) does NOT get this
+#     definition -- only unified_audit_runner's own PRIVATE compile options
+#     do. Every OTHER target that also links audit_gpu_backends_provider
+#     (test_gpu_backend_matrix, etc.) gets its OWN independent, unflagged
+#     compilation of gpu_backend_opencl.cpp (CMake compiles INTERFACE-library
+#     sources once per CONSUMING target, not once globally-shared) -- the
+#     fault-injection hooks exist ONLY inside unified_audit_runner's binary,
+#     not in any other audit/test binary and not in any shipped artifact.
+#   - test_regression_opencl_bip352_faultinject_symbols_absent_run() (wired
+#     above) inspects unified_audit_runner's OWN on-disk image for exactly
+#     these 4 symbols -- it is EXPECTED to find them present now (proving the
+#     macro genuinely took effect) when built as part of THIS target, while
+#     still correctly proving their absence from the real, separately-shipped
+#     secp256k1_gpu_host library/production release artifacts (a claim this
+#     test does not and was never designed to make -- see its own docstring).
+#
+# This is coarser than per-translation-unit scoping (e.g. a hypothetical
+# per-source-file set_source_files_properties(... TARGET_DIRECTORY
+# unified_audit_runner ...), CMake >=3.18) but is standard, version-portable,
+# and satisfies the actual requirement: the flag never reaches the production
+# library or any other target, and is verified structurally above rather than
+# assumed.
+target_compile_definitions(unified_audit_runner PRIVATE SECP256K1_BUILD_FAULT_INJECTION_TESTS=1)

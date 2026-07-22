@@ -878,12 +878,17 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_zk_schnorr_snark_witness_batch(
  *  Matches sizeof(BIP352ScanKeyGlv) used by the OpenCL kernel. */
 #define UFSECP_BIP352_SCAN_PLAN_BYTES 264
 
-/** Precompute a BIP-352 scan key wNAF plan for repeated GPU batch calls.
+/** Precompute a BIP-352 scan key wNAF plan.
  *
- *  This is a CPU-only convenience function.  Call it once per scan key and
- *  pass the resulting 264-byte plan to @ref ufsecp_gpu_bip352_scan_batch for
- *  subsequent scanning.  The plan encodes the GLV-decomposed wNAF digits so
- *  the GPU does not need to recompute them for each batch.
+ *  This is a CPU-only convenience function producing the same 264-byte
+ *  GLV/wNAF layout the OpenCL backend derives internally on every
+ *  @ref ufsecp_gpu_bip352_scan_batch / @ref ufsecp_gpu_bip352_scan_batch_multispend
+ *  call. As of this writing NEITHER scan_batch function accepts a plan
+ *  parameter -- there is no plan-taking GPU entry point in this release, and
+ *  repeated-batch benchmark evidence has not yet justified adding one (see
+ *  docs/BACKEND_ASSURANCE_MATRIX.md, issue #335). Use this function only if
+ *  you need the raw wNAF plan bytes for your own purposes (e.g. diagnostics);
+ *  it has no effect on the cost of scan_batch calls.
  *
  *  No GPU context is required; call this before creating the GPU context if
  *  needed.
@@ -897,7 +902,7 @@ UFSECP_API ufsecp_error_t ufsecp_bip352_prepare_scan_plan(
     const uint8_t scan_privkey32[32],
     uint8_t       plan264_out[264]);
 
-/** GPU batch BIP-352 Silent Payment scanning.
+/** GPU batch BIP-352 Silent Payment scanning (single spend key).
  *
  *  For each sender tweak public key in the block, computes the full BIP-352
  *  scanning pipeline and outputs the upper 64 bits of the secp256k1 x-coordinate
@@ -918,14 +923,23 @@ UFSECP_API ufsecp_error_t ufsecp_bip352_prepare_scan_plan(
  *  SECRET-BEARING: scan_privkey32 is uploaded to device memory during this
  *  call.  Callers should zeroize it immediately after the call if required.
  *
- *  @param ctx              GPU context (CUDA, OpenCL, or Metal).
+ *  This is a thin single-spend-key wrapper (source/ABI-compatible with all
+ *  prior releases) around @ref ufsecp_gpu_bip352_scan_batch_multispend with
+ *  n_spend == 1 -- see that function if your wallet needs to check more than
+ *  one spend-key candidate per tweak (e.g. BIP-352 change labels), since a
+ *  second call to this function re-runs the expensive per-tweak ECDH work.
+ *
+ *  @param ctx              GPU context. Implemented natively on CUDA, OpenCL,
+ *                          and Metal.
  *  @param scan_privkey32   32-byte scan private key (big-endian). SECRET.
  *  @param spend_pubkey33   33-byte compressed secp256k1 spend public key.
  *  @param tweak_pubkeys33  Input: n_tweaks × 33 bytes, compressed pubkeys.
  *  @param n_tweaks         Number of tweak keys to process.
  *  @param prefix64_out     Output: n_tweaks × uint64_t, one per tweak key.
  *  @return UFSECP_OK on success.
- *          UFSECP_ERR_BAD_KEY   if any pubkey is invalid.
+ *          UFSECP_ERR_BAD_KEY   if the scan key is invalid.
+ *          UFSECP_ERR_BAD_INPUT if any pubkey is malformed or n_tweaks is
+ *          too large.
  */
 UFSECP_API ufsecp_error_t ufsecp_gpu_bip352_scan_batch(
     ufsecp_gpu_ctx* ctx,
@@ -934,6 +948,95 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_bip352_scan_batch(
     const uint8_t*  tweak_pubkeys33,
     size_t          n_tweaks,
     uint64_t*       prefix64_out);
+
+/** GPU batch BIP-352 Silent Payment scanning across multiple candidate spend
+ *  keys (GitHub issue #335).
+ *
+ *  Generalizes @ref ufsecp_gpu_bip352_scan_batch to n_spend candidate spend
+ *  public keys -- e.g. a wallet's base spend key plus its change-label-
+ *  derived spend keys (B_spend + label_m·G), which the caller precomputes on
+ *  the CPU. This library has no BIP-352 label semantics of its own.
+ *
+ *  For each tweak key the spend-key-independent prefix work (ECDH scalar
+ *  mul, BIP-352 tagged hash, hash×G) runs EXACTLY ONCE, regardless of
+ *  n_spend; only a final mixed point addition + prefix extraction repeats,
+ *  once per spend-key candidate. The marginal GPU cost of each additional
+ *  spend key is therefore that one mixed addition, not a second full scan.
+ *
+ *  Output layout: prefix64_out is a row-major n_tweaks × n_spend matrix,
+ *  prefix64_out[tweak_idx * n_spend + spend_idx]. With n_spend == 1 this is
+ *  byte-identical to @ref ufsecp_gpu_bip352_scan_batch's output (which
+ *  delegates to this function internally).
+ *
+ *  n_tweaks == 0 or n_spend == 0 is a valid no-op (UFSECP_OK, no output
+ *  written). An invalid (off-curve / bad-prefix) tweak or spend pubkey
+ *  yields prefix64 == 0 for the affected row/column rather than failing the
+ *  whole batch.
+ *
+ *  SECRET-BEARING: scan_privkey32 is uploaded to device memory during this
+ *  call.  Callers should zeroize it immediately after the call if required.
+ *
+ *  @param ctx              GPU context. Implemented natively on CUDA, OpenCL,
+ *                          and Metal.
+ *  @param scan_privkey32   32-byte scan private key (big-endian). SECRET.
+ *  @param spend_pubkeys33  n_spend × 33 bytes, compressed spend public keys.
+ *  @param n_spend          Number of spend-key candidates (0 is a valid no-op).
+ *  @param tweak_pubkeys33  n_tweaks × 33 bytes, compressed tweak pubkeys.
+ *  @param n_tweaks         Number of tweak keys (0 is a valid no-op).
+ *  @param prefix64_out     Output: n_tweaks × n_spend × uint64_t, row-major
+ *                          (tweak-major; see layout note above).
+ *  @return UFSECP_OK on success.
+ *          UFSECP_ERR_BAD_KEY   if the scan key is invalid.
+ *          UFSECP_ERR_BAD_INPUT if any pubkey is malformed, or n_tweaks /
+ *          n_spend / their product is too large.
+ */
+UFSECP_API ufsecp_error_t ufsecp_gpu_bip352_scan_batch_multispend(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t   scan_privkey32[32],
+    const uint8_t*  spend_pubkeys33,
+    size_t          n_spend,
+    const uint8_t*  tweak_pubkeys33,
+    size_t          n_tweaks,
+    uint64_t*       prefix64_out);
+
+/* ============================================================================
+ * Metal loadable-library shader discovery override (GitHub issue #335)
+ * ============================================================================ */
+
+/** Install an explicit, absolute directory to search for the Metal shader
+ *  library (secp256k1_kernels.metallib and/or its shaders/ source tree),
+ *  for loadable-library consumers (e.g. a DuckDB extension) whose process
+ *  working directory cannot be relied on. Precedence (highest to lowest),
+ *  resolved on first Metal GPU dispatch:
+ *    1. This function.
+ *    2. UFSECP_METAL_SHADER_PATH environment variable.
+ *    3. Legacy CWD-relative search (unchanged, for existing dev/test builds).
+ *  An override from (1) or (2) that fails validation (not absolute, contains
+ *  "..", or resolves to no metallib/shader sources) is a hard failure at the
+ *  point the Metal backend resolves the library -- it does NOT fall through
+ *  to (3). Call this before the first Metal GPU context/dispatch on this
+ *  process; it has no effect once a Metal backend has already resolved its
+ *  library.
+ *
+ *  Behavior is IDENTICAL on every platform/build (no `#ifdef` around the
+ *  declaration or the implementation): validation and storage of the
+ *  override run unconditionally, so a syntactically valid absolute path
+ *  with no ".." path component returns UFSECP_OK and is stored even on a
+ *  Linux/CUDA/OpenCL-only build with no Metal backend compiled in. The
+ *  symbol is always available so cross-platform callers do not need to
+ *  `#ifdef` around it -- the stored value is simply never consulted on a
+ *  build where no Metal GPU context is ever created.
+ *
+ *  Thread-safe: may be called before or concurrently with GPU context
+ *  creation on any backend.
+ *
+ *  @param absolute_dir  Absolute directory path, no "..".
+ *  @return UFSECP_OK if the override was accepted (path syntactically
+ *          valid). UFSECP_ERR_NULL_ARG if absolute_dir is NULL or empty.
+ *          UFSECP_ERR_BAD_INPUT if absolute_dir is non-empty but invalid
+ *          (relative, or contains ".."). Existence of the directory/shader
+ *          files is checked lazily on first use, not here. */
+UFSECP_API ufsecp_error_t ufsecp_gpu_set_metal_shader_path(const char* absolute_dir);
 
 #ifdef __cplusplus
 }

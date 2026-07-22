@@ -38,6 +38,23 @@
 #include <mach-o/dyld.h>
 #endif
 
+// Round 10 (issue #335 acceptance repair): relocatable installed-package
+// kernel-directory discovery asks the OS where the loaded module containing
+// THIS code actually lives on disk right now -- dladdr() (POSIX: Linux,
+// macOS, *BSD) or GetModuleHandleExA + GetModuleFileNameA (Windows). See
+// resolve_opencl_kernel() Strategy 2 below.
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <dlfcn.h>
+#endif
+
 /* -- OpenCL Context (Layer 1) ---------------------------------------------- */
 #include "secp256k1_opencl.hpp"
 
@@ -79,14 +96,35 @@ std::string load_file_to_string(const std::string& path) {
  *  The kernel_dir is the parent directory of the found file, suitable for -I.
  *
  *  Search order (first match wins):
- *  1. UFSECP_OPENCL_KERNEL_DIR env var + kernel_filename
- *  2. Executable-relative: <exe_dir>/../../../src/opencl/kernels/<file>
- *  3. Executable-relative: <exe_dir>/../../src/opencl/kernels/<file>
- *  4. Executable-relative: <exe_dir>/../src/opencl/kernels/<file>
- *  5. Executable-relative: <exe_dir>/src/opencl/kernels/<file>
- *  6. Source-tree guess: walk up from exe dir looking for
+ *  1. UFSECP_OPENCL_KERNEL_DIR env var + kernel_filename -- EXPLICIT
+ *     override. If set but the kernel is not found there, this is now a
+ *     HARD FAILURE with no fallthrough to any weaker strategy below (fail
+ *     closed, preserve explicit-override precedence -- round 9).
+ *  2. RELOCATABLE installed-package discovery (round 10): dladdr() /
+ *     GetModuleHandleExA on an address inside this TU -> the loaded
+ *     module's own on-disk path, right now -> <libdir>/../share/
+ *     secp256k1/opencl/<file>. This is the real production/installed-
+ *     package contract: it survives moving the installed package to a
+ *     different prefix after `cmake --install` because it reads the
+ *     module's CURRENT location instead of a value fixed at compile time.
+ *     Not an explicit user override: falls through on failure.
+ *  3. Compile-time baked install-prefix path
+ *     (SECP256K1_GPU_OPENCL_INSTALL_DIR + <file>), when this TU was built
+ *     with that macro defined -- round-9 mechanism, demoted (round 10) to
+ *     a defense-in-depth fallback for an un-relocated install; NOT
+ *     relocatable (see strategy 2 above -- a moved/renamed install prefix
+ *     silently breaks this one). Falls through on failure.
+ *  4. Compile-time baked UFSECP_SOURCE_ROOT + src/opencl/kernels/<file>,
+ *     when this translation unit was built with that macro defined --
+ *     developer/CAAS-build-only fallback (round 8); NOT the installed
+ *     contract (strategy 2 above is).
+ *  5. Executable-relative: <exe_dir>/../../../src/opencl/kernels/<file>
+ *  6. Executable-relative: <exe_dir>/../../src/opencl/kernels/<file>
+ *  7. Executable-relative: <exe_dir>/../src/opencl/kernels/<file>
+ *  8. Executable-relative: <exe_dir>/src/opencl/kernels/<file>
+ *  9. Source-tree guess: walk up from exe dir AND from CWD looking for
  *     src/opencl/kernels/<file>
- *  7. CWD-relative legacy paths (../../opencl/kernels/<file>, etc.)
+ *  10. CWD-relative legacy paths (../../opencl/kernels/<file>, etc.)
  *
  *  On failure, `candidates_searched` is populated with every path tried
  *  so the caller can produce a useful diagnostic. */
@@ -112,18 +150,158 @@ KernelResolveResult resolve_opencl_kernel(const std::string& kernel_filename) {
         return false;
     };
 
-    // Strategy 1: Environment variable override
-    const char* env_dir = std::getenv("UFSECP_OPENCL_KERNEL_DIR");
-    if (env_dir && env_dir[0]) {
-        std::filesystem::path env_path(env_dir);
-        env_path /= kernel_filename;
-        if (try_path(env_path.string())) {
+    // Strategy 1 (round 9, issue #335 acceptance repair): EXPLICIT
+    // environment-variable override, checked FIRST. Round 8 had inserted a
+    // compile-time UFSECP_SOURCE_ROOT fallback ahead of this env-var check,
+    // which silently inverted precedence: a caller's explicit
+    // UFSECP_OPENCL_KERNEL_DIR could be shadowed by a baked dev source root
+    // the caller has no way to know is even active -- fixed by moving the
+    // env var back to first position. Separately: the OLD code fell through
+    // to weaker (exe/CWD-relative) strategies whenever the env var was set
+    // but the kernel wasn't found there -- an "override" that silently
+    // falls open to guessing is not a real override, and could mask exactly
+    // the kind of misconfiguration a caller most needs surfaced (this is
+    // the bug-to-CAAS "invalid-override" negative case, RCU-7). Fixed: an
+    // explicit override that fails to resolve is now an immediate, hard
+    // failure -- no fallthrough -- with the same useful
+    // candidates_searched diagnostic every other failure path produces.
+    {
+        const char* env_dir = std::getenv("UFSECP_OPENCL_KERNEL_DIR");
+        if (env_dir && env_dir[0]) {
+            std::filesystem::path env_path(env_dir);
+            env_path /= kernel_filename;
+            try_path(env_path.string());   // populates `candidates` either way
+            result.candidates_searched = candidates;
+            return result;                  // explicit override: no fallthrough, ever
+        }
+    }
+
+    // Strategy 2 (round 10, issue #335 acceptance repair): RELOCATABLE
+    // installed-package discovery via the loaded module's OWN, CURRENT
+    // on-disk path. The old strategy 2 (now demoted to strategy 3 below,
+    // SECP256K1_GPU_OPENCL_INSTALL_DIR) bakes CMAKE_INSTALL_PREFIX into the
+    // binary at COMPILE time -- provably correct only as long as the
+    // installed package never physically moves after `cmake --install`. A
+    // real installed/packaged consumer (a distro package relocating a
+    // build root, a vendored copy re-rooted into a container image, a CI
+    // artifact unpacked to a path different from its original build
+    // prefix) breaks that assumption outright: the baked path still names
+    // a prefix that may no longer exist, with no way to recover once the
+    // env-var override (strategy 1) is absent.
+    //
+    // This strategy instead asks the OS, AT RUNTIME, which loaded module
+    // contains an address inside THIS translation unit -- dladdr() on
+    // POSIX (Linux/macOS/*BSD all implement it identically via
+    // <dlfcn.h>), GetModuleHandleExA + GetModuleFileNameA on Windows -- and
+    // derives the kernel directory relative to THAT module's actual
+    // location: <module_dir>/../share/secp256k1/opencl/<file>. That is
+    // byte-for-byte the same relative layout src/opencl/CMakeLists.txt's
+    // own `install(DIRECTORY kernels/ DESTINATION share/secp256k1/opencl
+    // ...)` rule produces relative to GNUInstallDirs' CMAKE_INSTALL_LIBDIR
+    // (where the ufsecp C ABI shared library this code ships in is
+    // installed) -- but computed from where the module ACTUALLY is on
+    // disk right now, not a value frozen at build time. This also works
+    // for a static-linked build (this code compiled into the consumer
+    // binary itself rather than a separate .so): dladdr on a local address
+    // still resolves to the ENCLOSING loaded module, i.e. the host
+    // binary, which for an installed package lives under <prefix>/bin at
+    // the same fixed relative depth from <prefix>/share.
+    //
+    // Deliberately NOT /proc/self/exe (used by strategy 5-8 below): that
+    // resolves the CALLING PROCESS's own executable, which is simply wrong
+    // once this code ships inside a .so dlopen()'d or linked by some other
+    // host program -- the loadable-library consumer scenario the original
+    // round-9 comment on the old strategy 2 already flagged as out of
+    // reach for exe-relative guessing. dladdr()/GetModuleHandleExA resolve
+    // THIS module specifically, regardless of which process loaded it.
+    //
+    // Not an explicit user directive like strategy 1: failure here falls
+    // through to strategy 3, it does not hard-fail.
+    {
+        std::string self_module_dir;
+#if defined(_WIN32)
+        {
+            HMODULE hmod = nullptr;
+            if (GetModuleHandleExA(
+                    GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+                    GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                    reinterpret_cast<LPCSTR>(&resolve_opencl_kernel),
+                    &hmod) && hmod) {
+                char buf[MAX_PATH];
+                DWORD len = GetModuleFileNameA(hmod, buf, sizeof(buf));
+                if (len > 0 && len < sizeof(buf)) {
+                    std::filesystem::path mod_path(std::string(buf, len));
+                    self_module_dir = mod_path.parent_path().string();
+                }
+            }
+        }
+#else
+        {
+            Dl_info info;
+            if (dladdr(reinterpret_cast<void*>(&resolve_opencl_kernel), &info) &&
+                info.dli_fname && info.dli_fname[0]) {
+                std::filesystem::path lib_path(info.dli_fname);
+                self_module_dir = lib_path.parent_path().string();
+            }
+        }
+#endif
+        if (!self_module_dir.empty()) {
+            auto candidate = std::filesystem::path(self_module_dir) / ".." /
+                              "share" / "secp256k1" / "opencl" / kernel_filename;
+            if (try_path(candidate.lexically_normal().string())) {
+                result.candidates_searched = candidates;
+                return result;
+            }
+        }
+    }
+
+    // Strategy 3 (round 9, demoted round 10): compile-time baked
+    // install-prefix path -- kept as a defense-in-depth fallback for an
+    // installed package that has NOT been relocated since `cmake
+    // --install` (strategy 2 above is the relocation-safe mechanism and is
+    // tried first). Strategy 4 below (UFSECP_SOURCE_ROOT) is explicitly a
+    // DEVELOPER fallback (an absolute path into this repo's own source
+    // checkout) and must not be the SOLE "installed" story for a shipped
+    // secp256k1_gpu_host consumer. Baked by src/gpu/CMakeLists.txt from
+    // CMAKE_INSTALL_PREFIX, matching exactly where
+    // src/opencl/CMakeLists.txt's own
+    // `install(DIRECTORY kernels/ DESTINATION share/secp256k1/opencl ...)`
+    // rule places the .cl files when the project is installed AND the
+    // resulting package prefix is never moved. Unlike the env-var override
+    // above, this is a convenience discovery path, not an explicit user
+    // directive: failure here falls through, it does not hard-fail.
+#ifdef SECP256K1_GPU_OPENCL_INSTALL_DIR
+    {
+        std::filesystem::path install_path(SECP256K1_GPU_OPENCL_INSTALL_DIR);
+        auto candidate = install_path / kernel_filename;
+        if (try_path(candidate.string())) {
             result.candidates_searched = candidates;
             return result;
         }
     }
+#endif
 
-    // Strategy 2-5: Executable-relative paths
+    // Strategy 4 (round 8): compile-time baked absolute DEVELOPER source
+    // root, when available (unified_audit_runner/CAAS build only -- see
+    // audit/CMakeLists.txt's UFSECP_SOURCE_ROOT compile definition).
+    // Mirrors audit/audit_check.hpp's audit_read_source_file(). Production
+    // builds of secp256k1_gpu_host (src/gpu/CMakeLists.txt) do not define
+    // this macro, so it is a no-op there -- strategy 2 above (round 10,
+    // relocatable dladdr-based discovery) is the real production-safe
+    // path; this one is a dev-only convenience, live wherever the resolver
+    // is exercised by CAAS.
+#ifdef UFSECP_SOURCE_ROOT
+    {
+        std::filesystem::path root_path(UFSECP_SOURCE_ROOT);
+        auto candidate = root_path / "src" / "opencl" / "kernels" / kernel_filename;
+        if (try_path(candidate.string())) {
+            result.candidates_searched = candidates;
+            return result;
+        }
+    }
+#endif
+
+    // Strategy 5-8: Executable-relative paths
     std::string exe_dir;
 #ifdef __linux__
     {
@@ -163,29 +341,64 @@ KernelResolveResult resolve_opencl_kernel(const std::string& kernel_filename) {
         }
     }
 
-    // Strategy 6: Walk up from exe dir (or CWD) looking for src/opencl/kernels/
+    // Strategy 9: Walk up from exe dir looking for src/opencl/kernels/
+    //
+    // Repair (issue #335 acceptance repair, round 3): this used to walk up
+    // from CWD ONLY when exe_dir resolution failed entirely (readlink
+    // failure) -- if exe_dir resolved to ANYTHING, even a path totally
+    // unrelated to the source tree (e.g. an out-of-tree build directory in
+    // /tmp, exactly what this repo's own ci/ci_local.sh produces via
+    // `BUILD_DIR="${TMPDIR:-/tmp}/ci_local_build_$$"`, or any ad-hoc/relink
+    // scratch binary), the CWD-based walk-up was skipped entirely. But this
+    // repo's own CTest WORKING_DIRECTORY convention
+    // (`set_tests_properties(... WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")`,
+    // audit/CMakeLists.txt) guarantees CWD == the source repo root at test
+    // time regardless of where the build directory physically lives --
+    // walking up from CWD is therefore an independent, equally-valid
+    // resolution path that must not be skipped just because exe_dir also
+    // resolved to *something*. Try both roots (deduplicated when equal).
     {
-        std::filesystem::path search_root;
+        auto walk_up_from = [&](const std::filesystem::path& start) -> bool {
+            auto root = start;
+            for (int i = 0; i < 12; ++i) {
+                auto candidate = root / "src" / "opencl" / "kernels" / kernel_filename;
+                if (try_path(candidate.string())) return true;
+                auto parent = root.parent_path();
+                if (parent == root) break;
+                root = parent;
+            }
+            return false;
+        };
+
+        std::error_code ec;
+        std::filesystem::path cwd_root = std::filesystem::current_path(ec);
+        if (ec) cwd_root = std::filesystem::path(".");
+
         if (!exe_dir.empty()) {
-            search_root = std::filesystem::path(exe_dir);
-        } else {
-            std::error_code ec;
-            search_root = std::filesystem::current_path(ec);
-            if (ec) search_root = std::filesystem::path(".");
+            if (walk_up_from(std::filesystem::path(exe_dir))) {
+                result.candidates_searched = candidates; return result;
+            }
         }
-        auto root = search_root;
-        for (int i = 0; i < 12; ++i) {
-            auto candidate = root / "src" / "opencl" / "kernels" / kernel_filename;
-            if (try_path(candidate.string()))
-                { result.candidates_searched = candidates; return result; }
-            auto parent = root.parent_path();
-            if (parent == root) break;
-            root = parent;
+        // Always also try CWD-based walk-up (even when exe_dir resolved),
+        // skipping a redundant identical search when the two roots coincide.
+        if (exe_dir.empty() || std::filesystem::path(exe_dir) != cwd_root) {
+            if (walk_up_from(cwd_root)) {
+                result.candidates_searched = candidates; return result;
+            }
         }
     }
 
-    // Strategy 7: Legacy CWD-relative paths (backward compatibility)
+    // Strategy 10: Legacy CWD-relative paths (backward compatibility).
+    //
+    // Repair (issue #335 acceptance repair, round 3): the ORIGINAL list here
+    // never included a "src/opencl/kernels/" candidate, so it could not
+    // resolve when CWD is exactly the source repo root -- this repo's own
+    // CTest WORKING_DIRECTORY convention (see comment on Strategy 9 above).
+    // That candidate is listed FIRST (most specific / most likely correct
+    // for this repo's actual layout); the rest are kept for any other
+    // invocation convention that happened to rely on them.
     const char* legacy_paths[] = {
+        "src/opencl/kernels/",
         "opencl/kernels/",
         "../opencl/kernels/",
         "../../opencl/kernels/",
@@ -427,6 +640,171 @@ static thread_local OclSighashPool g_ocl_sighash_pool;
 
 } // anonymous namespace
 
+// ============================================================================
+// OpenCL control-call indirection for the BIP-352 multi-spend path
+// (GitHub issue #335 acceptance repair, round 3)
+// ============================================================================
+// bip352_fault_injection::fi_call() wraps every OpenCL control call reachable
+// from OpenCLBackend::bip352_scan_batch_multispend (clGetCommandQueueInfo,
+// both clGetKernelWorkGroupInfo queries, every clSetKernelArg, both
+// clEnqueueNDRangeKernel launches, clFinish, clEnqueueReadBuffer) behind one
+// indirection point per call, so a dedicated test build can force any ONE
+// named call site to fail with a chosen cl_int error code, deterministically,
+// without needing a genuine GPU/driver fault -- and assert real fail-closed
+// behavior end-to-end (see
+// audit/test_exploit_opencl_bip352_control_call_failclosed.cpp).
+//
+// P0 FIX (round 3, replacing round 2's rejected design): round 2 compiled the
+// extern "C" ufsecp_test_opencl_bip352_* hook functions UNCONDITIONALLY into
+// this translation unit, which is linked into the production
+// secp256k1_gpu_host static/shared library with no test-only guard --
+// reachable fault-injection hooks in a release build's exported symbol table
+// are a real attack surface (anything that can call an exported symbol can
+// force GPU control calls to report success/failure at will). Hiding the
+// symbols with __attribute__((visibility("hidden"))) is NOT sufficient --
+// the hooks must not be compiled in at all for a normal build.
+//
+// Fix: the injector state, the 4 extern "C" hook functions, AND fi_call()'s
+// ability to actually short-circuit a call are now gated behind
+// SECP256K1_BUILD_FAULT_INJECTION_TESTS, an opt-in macro that is OFF unless
+// explicitly defined by an internal/test-only build variant. No target in
+// this repo's CMakeLists.txt defines it today -- wiring a
+// `option(SECP256K1_BUILD_FAULT_INJECTION_TESTS ... OFF)` in the root
+// CMakeLists.txt plus a matching entry in src/gpu/CMakeLists.txt's
+// GPU_BACKEND_DEFS (OFF/undefined by default, never set for release
+// packaging) is outside this file's allowed_writes for this task -- see the
+// scope-blocker note returned with this change. With the macro undefined
+// (every build today), fi_call() collapses to a direct, unconditional call
+// to `real()`: no thread_local injector state and no extern "C" hook symbols
+// exist anywhere in this translation unit -- nothing for `nm` to find. See
+// audit/test_regression_opencl_bip352_faultinject_symbols_absent.cpp for the
+// runtime nm proof against the actual compiled object.
+#if defined(SECP256K1_BUILD_FAULT_INJECTION_TESTS)
+
+namespace bip352_fault_injection {
+
+enum Site : int {
+    SITE_NONE               = -1,
+    SITE_QUEUE_INFO         = 0,  // clGetCommandQueueInfo (device query)
+    SITE_WG_INFO_DECOMPRESS = 1,  // clGetKernelWorkGroupInfo (decompress kernel)
+    SITE_WG_INFO_MAIN       = 2,  // clGetKernelWorkGroupInfo (main scan kernel)
+    SITE_DECOMPRESS_ARG0    = 3,  // clSetKernelArg(decompress, 0, ...)
+    SITE_DECOMPRESS_ARG1    = 4,
+    SITE_DECOMPRESS_ARG2    = 5,
+    SITE_DECOMPRESS_ARG3    = 6,
+    SITE_DECOMPRESS_LAUNCH  = 7,  // clEnqueueNDRangeKernel (decompress)
+    SITE_MAIN_ARG0          = 8,  // clSetKernelArg(main scan, 0, ...)
+    SITE_MAIN_ARG1          = 9,
+    SITE_MAIN_ARG2          = 10,
+    SITE_MAIN_ARG3          = 11,
+    SITE_MAIN_ARG4          = 12,
+    SITE_MAIN_ARG5          = 13,
+    SITE_MAIN_ARG6          = 14,
+    SITE_MAIN_LAUNCH        = 15, // clEnqueueNDRangeKernel (main scan)
+    SITE_FINISH             = 16, // clFinish
+    SITE_READBACK           = 17, // clEnqueueReadBuffer
+    SITE_COUNT              = 18,
+};
+
+static thread_local int    g_fi_site_id   = SITE_NONE;
+static thread_local cl_int g_fi_error     = CL_SUCCESS;
+static thread_local int    g_fi_hit_count = 0;
+
+// Call-site wrapper: `site` identifies the call; `real` performs the actual
+// clXxx(...) invocation. Returns the injected error (without calling `real`
+// at all) iff `site == g_fi_site_id`; otherwise calls `real` and returns its
+// genuine result -- a real end-to-end call with exactly one call substituted.
+template <typename Fn>
+static cl_int fi_call(Site site, Fn&& real) {
+    if (site == g_fi_site_id) {
+        ++g_fi_hit_count;
+        return g_fi_error;
+    }
+    return real();
+}
+
+} // namespace bip352_fault_injection
+
+extern "C" {
+// Arm fault injection (current thread only): the next call reaching
+// call-site `site_id` (bip352_fault_injection::Site) inside
+// bip352_scan_batch_multispend returns `cl_error_code` instead of invoking
+// the real OpenCL function. Persists until
+// ufsecp_test_opencl_bip352_clear_fault() is called. Only exists when
+// SECP256K1_BUILD_FAULT_INJECTION_TESTS is defined -- see the block comment
+// above.
+void ufsecp_test_opencl_bip352_inject_fault(int site_id, int32_t cl_error_code) {
+    bip352_fault_injection::g_fi_site_id   = site_id;
+    bip352_fault_injection::g_fi_error     = static_cast<cl_int>(cl_error_code);
+    bip352_fault_injection::g_fi_hit_count = 0;
+}
+// Disarm fault injection (current thread only).
+void ufsecp_test_opencl_bip352_clear_fault() {
+    bip352_fault_injection::g_fi_site_id   = bip352_fault_injection::SITE_NONE;
+    bip352_fault_injection::g_fi_hit_count = 0;
+}
+// How many times the currently-armed site has fired since the last
+// inject_fault()/clear_fault() call (current thread only). Lets a caller
+// distinguish "the call site was never reached" from "the injected fault
+// fired as expected".
+int32_t ufsecp_test_opencl_bip352_fault_hit_count() {
+    return bip352_fault_injection::g_fi_hit_count;
+}
+// Deterministic, GPU/driver-independent probe: invokes fi_call(site, []{
+// return CL_SUCCESS; }) directly and returns the result. Proves the injector
+// mechanism itself works correctly WITHOUT any real OpenCL device, context,
+// or kernel build -- see
+// audit/test_exploit_opencl_bip352_control_call_failclosed.cpp.
+int32_t ufsecp_test_opencl_bip352_probe_fault(int site_id) {
+    using namespace bip352_fault_injection;
+    return static_cast<int32_t>(
+        fi_call(static_cast<Site>(site_id), []() -> cl_int { return CL_SUCCESS; }));
+}
+} // extern "C"
+
+#else // !SECP256K1_BUILD_FAULT_INJECTION_TESTS -- every normal build today
+
+// Same Site enum (named call sites make the dispatch code below readable)
+// but NO thread_local injector state and NO extern "C" hook functions exist
+// anywhere in this translation unit -- fi_call() is a transparent, always-
+// inlined passthrough to `real()`. This is what production/release/default
+// builds compile; audit/test_regression_opencl_bip352_faultinject_symbols_absent.cpp
+// asserts none of the four hook symbol names appear in this file's compiled
+// object (nm), proving they are not merely hidden but genuinely absent.
+namespace bip352_fault_injection {
+
+enum Site : int {
+    SITE_NONE               = -1,
+    SITE_QUEUE_INFO         = 0,
+    SITE_WG_INFO_DECOMPRESS = 1,
+    SITE_WG_INFO_MAIN       = 2,
+    SITE_DECOMPRESS_ARG0    = 3,
+    SITE_DECOMPRESS_ARG1    = 4,
+    SITE_DECOMPRESS_ARG2    = 5,
+    SITE_DECOMPRESS_ARG3    = 6,
+    SITE_DECOMPRESS_LAUNCH  = 7,
+    SITE_MAIN_ARG0          = 8,
+    SITE_MAIN_ARG1          = 9,
+    SITE_MAIN_ARG2          = 10,
+    SITE_MAIN_ARG3          = 11,
+    SITE_MAIN_ARG4          = 12,
+    SITE_MAIN_ARG5          = 13,
+    SITE_MAIN_ARG6          = 14,
+    SITE_MAIN_LAUNCH        = 15,
+    SITE_FINISH             = 16,
+    SITE_READBACK           = 17,
+    SITE_COUNT              = 18,
+};
+
+template <typename Fn>
+static inline cl_int fi_call(Site /*site*/, Fn&& real) {
+    return real();
+}
+
+} // namespace bip352_fault_injection
+
+#endif // SECP256K1_BUILD_FAULT_INJECTION_TESTS
+
 namespace secp256k1 {
 namespace gpu {
 
@@ -544,7 +922,10 @@ public:
 
         if (bip352_scan_compressed_kernel_) { clReleaseKernel(bip352_scan_compressed_kernel_); bip352_scan_compressed_kernel_ = nullptr; }
         if (bip352_scan_kernel_)  { clReleaseKernel(bip352_scan_kernel_);  bip352_scan_kernel_  = nullptr; }
+        if (bip352_decompress_kernel_) { clReleaseKernel(bip352_decompress_kernel_); bip352_decompress_kernel_ = nullptr; }
+        if (bip352_scan_compressed_multispend_kernel_) { clReleaseKernel(bip352_scan_compressed_multispend_kernel_); bip352_scan_compressed_multispend_kernel_ = nullptr; }
         if (bip352_program_)      { clReleaseProgram(bip352_program_);     bip352_program_      = nullptr; }
+        bip352_init_attempted_ = false;
         bip324_init_attempted_ = false;
         auto* shutdown_queue = ctx_ ? static_cast<cl_command_queue>(ctx_->native_queue()) : nullptr;
         msm_pool_.free_all(shutdown_queue);
@@ -3435,23 +3816,60 @@ static void bip352_glv_wnaf5(const uint8_t* scalar_be32, int8_t wnaf[130]) {
     }
 }
 
-    GpuError bip352_scan_batch(
+    GpuError bip352_scan_batch_multispend(
         const uint8_t  scan_privkey32[32],
-        const uint8_t  spend_pubkey33[33],
+        const uint8_t* spend_pubkeys33,
+        size_t n_spend,
         const uint8_t* tweak_pubkeys33,
         size_t n_tweaks,
         uint64_t* prefix64_out) override
     {
         if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
-        if (n_tweaks == 0) { clear_error(); return GpuError::Ok; }
-        if (!scan_privkey32 || !spend_pubkey33 || !tweak_pubkeys33 || !prefix64_out)
+        if (n_tweaks == 0 || n_spend == 0) { clear_error(); return GpuError::Ok; }
+        if (!scan_privkey32 || !spend_pubkeys33 || !tweak_pubkeys33 || !prefix64_out)
             return set_error(GpuError::NullArg, "NULL buffer");
 #if !SECP256K1_GPU_HAS_BIP352
         return set_error(GpuError::Unsupported, "GPU BIP-352 module disabled at build time");
 #endif
+        // Repair (issue #335 acceptance repair): n_tweaks/n_spend/their
+        // product ARE bounds-checked at the ABI layer
+        // (ufsecp_gpu_bip352_scan_batch_multispend, kMaxGpuBatchN /
+        // kMaxBip352Spend, src/cpu/src/ufsecp_gpu_impl.cpp) -- but this is
+        // the only OpenCL op in this file whose buffer sizes and cl_uint
+        // kernel-arg casts are a PRODUCT of two independently-bounded
+        // counts, and GpuBackend virtuals are also called directly by
+        // non-ABI consumers in this codebase (they are not private to the C
+        // ABI wrapper). Re-validate locally as defense-in-depth so this
+        // method is safe even when called directly, bypassing the ABI. The
+        // caps mirror ufsecp_gpu_impl.cpp's kMaxGpuBatchN (2^26) and
+        // kMaxBip352Spend (2^16) -- duplicated rather than shared because
+        // that constant lives in a different translation unit with no
+        // common header for GPU batch-size limits.
+        static constexpr size_t kLocalMaxGpuBatchN   = size_t{1} << 26; // 64M
+        static constexpr size_t kLocalMaxBip352Spend = size_t{1} << 16; // 65536
+        if (n_spend > kLocalMaxBip352Spend)
+            return set_error(GpuError::BadInput, "n_spend too large");
+        if (n_tweaks > kLocalMaxGpuBatchN)
+            return set_error(GpuError::BadInput, "n_tweaks too large");
+        if (n_spend != 0 && n_tweaks > std::numeric_limits<size_t>::max() / n_spend)
+            return set_error(GpuError::BadInput, "n_tweaks * n_spend overflow");
+        const size_t n_rows = n_tweaks * n_spend;
+        if (n_rows > kLocalMaxGpuBatchN)
+            return set_error(GpuError::BadInput, "n_tweaks * n_spend too large");
+
+        // Fail-closed helper: from this point on, n_rows (and therefore
+        // prefix64_out's caller-visible byte size) is known and validated,
+        // so every subsequent failure return zeroes the FULL output buffer
+        // before returning non-Ok -- a direct GpuBackend caller (bypassing
+        // the ABI wrapper's own pre-zero + to_abi_error_clear_on_fail) must
+        // never observe partial or stale prefix64_out contents on error.
+        auto fail = [&](GpuError e, const char* msg) -> GpuError {
+            std::memset(prefix64_out, 0, sizeof(uint64_t) * n_rows);
+            return set_error(e, msg);
+        };
 
         auto err = ensure_bip352_kernel();
-        if (err != GpuError::Ok) return err;
+        if (err != GpuError::Ok) return fail(err, "bip352 kernel init failed");
 
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue   = static_cast<cl_command_queue>(ctx_->native_queue());
@@ -3482,7 +3900,7 @@ static void bip352_glv_wnaf5(const uint8_t* scalar_be32, int8_t wnaf[130]) {
             // from_bytes() silently reduces mod n (n+1 -> 1, n -> 0) — a Rule 11 violation.
             Scalar k;
             if (!Scalar::parse_bytes_strict_nonzero(scan_privkey32, k))
-                return set_error(GpuError::BadKey, "invalid scan key (zero or >= group order)");
+                return fail(GpuError::BadKey, "invalid scan key (zero or >= group order)");
 
             auto decomp       = glv_decompose(k);
             auto k1_bytes     = decomp.k1.to_bytes();
@@ -3506,7 +3924,7 @@ static void bip352_glv_wnaf5(const uint8_t* scalar_be32, int8_t wnaf[130]) {
         /* -- 3. Upload buffers to device -- */
         cl_mem d_plan = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                        sizeof(Bip352ScanPlan), &plan, &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "scan plan alloc");
+        if (clerr != CL_SUCCESS) return fail(GpuError::Memory, "scan plan alloc");
         struct DevicePlanGuard {
             cl_command_queue queue;
             cl_mem mem;
@@ -3522,70 +3940,174 @@ static void bip352_glv_wnaf5(const uint8_t* scalar_be32, int8_t wnaf[130]) {
             }
         } d_plan_guard{queue, d_plan, sizeof(Bip352ScanPlan)};
 
-        cl_mem d_spend = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                        33, const_cast<uint8_t*>(spend_pubkey33), &clerr);
-        if (clerr != CL_SUCCESS) {
-            return set_error(GpuError::Memory, "spend point alloc");
-        }
+        // Simple scope-exit releaser for the public-data buffers below (no
+        // secret material -- unlike d_plan these don't need zero-fill).
+        struct MemGuard {
+            cl_mem mem = nullptr;
+            ~MemGuard() { if (mem) clReleaseMemObject(mem); }
+        };
+
+        cl_mem d_spend33 = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                          33 * n_spend, const_cast<uint8_t*>(spend_pubkeys33), &clerr);
+        if (clerr != CL_SUCCESS) return fail(GpuError::Memory, "spend pubkeys alloc");
+        MemGuard d_spend33_guard{d_spend33};
+
+        // AffinePoint = 2 x FieldElement = 2 x 4 x 8 bytes = 64 bytes (secp256k1_field.cl).
+        constexpr size_t kAffinePointBytes = 64;
+        cl_mem d_spend_points = clCreateBuffer(cl_ctx, CL_MEM_READ_WRITE,
+                                               kAffinePointBytes * n_spend, nullptr, &clerr);
+        if (clerr != CL_SUCCESS) return fail(GpuError::Memory, "spend points alloc");
+        MemGuard d_spend_points_guard{d_spend_points};
+
+        cl_mem d_spend_valid = clCreateBuffer(cl_ctx, CL_MEM_READ_WRITE, n_spend, nullptr, &clerr);
+        if (clerr != CL_SUCCESS) return fail(GpuError::Memory, "spend valid flags alloc");
+        MemGuard d_spend_valid_guard{d_spend_valid};
 
         cl_mem d_tweaks = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
                                          33 * n_tweaks, const_cast<uint8_t*>(tweak_pubkeys33), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_spend);
-            return set_error(GpuError::Memory, "tweak buffer alloc");
-        }
+        if (clerr != CL_SUCCESS) return fail(GpuError::Memory, "tweak buffer alloc");
+        MemGuard d_tweaks_guard{d_tweaks};
 
         cl_mem d_prefixes = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                           sizeof(uint64_t) * n_tweaks, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_tweaks);
-            clReleaseMemObject(d_spend);
-            return set_error(GpuError::Memory, "prefix output alloc");
-        }
-
-        /* -- 5. Set kernel args and launch -- */
-        cl_uint cl_count = static_cast<cl_uint>(n_tweaks);
-        clSetKernelArg(bip352_scan_compressed_kernel_, 0, sizeof(cl_mem),  &d_tweaks);
-        clSetKernelArg(bip352_scan_compressed_kernel_, 1, sizeof(cl_mem),  &d_plan);
-        clSetKernelArg(bip352_scan_compressed_kernel_, 2, sizeof(cl_mem),  &d_spend);
-        clSetKernelArg(bip352_scan_compressed_kernel_, 3, sizeof(cl_mem),  &d_prefixes);
-        clSetKernelArg(bip352_scan_compressed_kernel_, 4, sizeof(cl_uint), &cl_count);
+                                           sizeof(uint64_t) * n_rows, nullptr, &clerr);
+        if (clerr != CL_SUCCESS) return fail(GpuError::Memory, "prefix output alloc");
+        MemGuard d_prefixes_guard{d_prefixes};
 
         // Query device for preferred work-group size multiple to maximize occupancy.
         // Different GPUs have different optimal local sizes (AMD: 64, NVIDIA: 32/64,
-        // Intel: 16/32). Fallback to 128 if query fails.
-        size_t local = 128;
+        // Intel: 16/32).
+        //
+        // Repair (issue #335 acceptance repair, round 3): clGetCommandQueueInfo
+        // and clGetKernelWorkGroupInfo were previously allowed to fail silently
+        // here, falling back to a default local size of 128 and still returning
+        // Ok on the overall call -- review flagged this as a fail-closed
+        // contract violation: this function's contract is that ANY OpenCL
+        // control-call failure on the dispatch path rejects the call (via
+        // fail(), zeroing the full output buffer), not that some calls degrade
+        // to a "best effort" default while others fail closed. Both queries are
+        // now fail-closed: any non-CL_SUCCESS result (real or injected) aborts
+        // the call, exactly like every other OpenCL call in this function.
+        cl_device_id dev = nullptr;
         {
-            cl_device_id dev = nullptr;
-            if (clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE,
-                                      sizeof(dev), &dev, nullptr) == CL_SUCCESS && dev) {
-                size_t pref = 0;
-                if (clGetKernelWorkGroupInfo(bip352_scan_compressed_kernel_, dev,
-                        CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
-                        sizeof(pref), &pref, nullptr) == CL_SUCCESS && pref > 0) {
-                    local = std::max(pref, (size_t)32);
-                    local = std::min(local, (size_t)256);
-                }
+            using namespace bip352_fault_injection;
+            cl_int qi_err = fi_call(SITE_QUEUE_INFO, [&] {
+                return clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(dev), &dev, nullptr);
+            });
+            if (qi_err != CL_SUCCESS || !dev)
+                return fail(GpuError::Launch,
+                            "bip352 multispend: clGetCommandQueueInfo failed (fail-closed)");
+        }
+        // Returns false (leaving *out_local untouched) on any control-call
+        // failure -- callers MUST fail-closed rather than substitute a default
+        // local size, matching the SITE_QUEUE_INFO fix above.
+        auto preferred_local = [&](cl_kernel k, bip352_fault_injection::Site site, size_t* out_local) -> bool {
+            using namespace bip352_fault_injection;
+            size_t pref = 0;
+            cl_int wg_err = fi_call(site, [&] {
+                return clGetKernelWorkGroupInfo(k, dev, CL_KERNEL_PREFERRED_WORK_GROUP_SIZE_MULTIPLE,
+                    sizeof(pref), &pref, nullptr);
+            });
+            if (wg_err != CL_SUCCESS) return false;
+            size_t local = 128;
+            if (pref > 0) {
+                local = std::max(pref, (size_t)32);
+                local = std::min(local, (size_t)256);
             }
+            *out_local = local;
+            return true;
+        };
+
+        /* -- 4. Decompress the n_spend spend-key candidates ONCE, independent
+         *      of n_tweaks (issue #335 Blocker 1). --
+         * Repair (issue #335 acceptance repair): every clSetKernelArg call
+         * below is now checked. bip352_decompress_kernel_ and
+         * bip352_scan_compressed_multispend_kernel_ are PERSISTENT class
+         * members reused across calls (see ensure_bip352_kernel()) rather
+         * than recreated per-call -- an unchecked clSetKernelArg failure
+         * here would not just be silently ignored on this call, it could
+         * leave a STALE argument bound from a previous invocation, so this
+         * kernel-object-reuse pattern makes checking these calls more
+         * important than for a typical one-shot kernel. */
+        {
+            using namespace bip352_fault_injection;
+            cl_int a0 = fi_call(SITE_DECOMPRESS_ARG0, [&] {
+                return clSetKernelArg(bip352_decompress_kernel_, 0, sizeof(cl_mem), &d_spend33); });
+            cl_int a1 = fi_call(SITE_DECOMPRESS_ARG1, [&] {
+                return clSetKernelArg(bip352_decompress_kernel_, 1, sizeof(cl_mem), &d_spend_points); });
+            cl_int a2 = fi_call(SITE_DECOMPRESS_ARG2, [&] {
+                return clSetKernelArg(bip352_decompress_kernel_, 2, sizeof(cl_mem), &d_spend_valid); });
+            cl_uint cl_n_spend = static_cast<cl_uint>(n_spend);
+            cl_int a3 = fi_call(SITE_DECOMPRESS_ARG3, [&] {
+                return clSetKernelArg(bip352_decompress_kernel_, 3, sizeof(cl_uint), &cl_n_spend); });
+            if (a0 != CL_SUCCESS || a1 != CL_SUCCESS || a2 != CL_SUCCESS || a3 != CL_SUCCESS)
+                return fail(GpuError::Launch, "bip352_decompress_points_kernel: clSetKernelArg failed");
+            size_t local = 0;
+            if (!preferred_local(bip352_decompress_kernel_, SITE_WG_INFO_DECOMPRESS, &local))
+                return fail(GpuError::Launch,
+                            "bip352_decompress_points_kernel: clGetKernelWorkGroupInfo failed (fail-closed)");
+            size_t global = ((n_spend + local - 1) / local) * local;
+            clerr = fi_call(SITE_DECOMPRESS_LAUNCH, [&] {
+                return clEnqueueNDRangeKernel(queue, bip352_decompress_kernel_, 1, nullptr,
+                                              &global, &local, 0, nullptr, nullptr); });
+            if (clerr != CL_SUCCESS)
+                return fail(GpuError::Launch, "bip352_decompress_points_kernel launch failed");
         }
+
+        /* -- 5. Main scan kernel: 1 work-item per tweak; ECDH/tagged-hash/
+         *      hash×G computed once per work-item, then n_spend mixed adds. -- */
+        cl_uint cl_n_spend = static_cast<cl_uint>(n_spend);
+        cl_uint cl_count   = static_cast<cl_uint>(n_tweaks);
+        cl_int s0, s1, s2, s3, s4, s5, s6;
+        {
+            using namespace bip352_fault_injection;
+            s0 = fi_call(SITE_MAIN_ARG0, [&] { return clSetKernelArg(bip352_scan_compressed_multispend_kernel_, 0, sizeof(cl_mem),  &d_tweaks); });
+            s1 = fi_call(SITE_MAIN_ARG1, [&] { return clSetKernelArg(bip352_scan_compressed_multispend_kernel_, 1, sizeof(cl_mem),  &d_plan); });
+            s2 = fi_call(SITE_MAIN_ARG2, [&] { return clSetKernelArg(bip352_scan_compressed_multispend_kernel_, 2, sizeof(cl_mem),  &d_spend_points); });
+            s3 = fi_call(SITE_MAIN_ARG3, [&] { return clSetKernelArg(bip352_scan_compressed_multispend_kernel_, 3, sizeof(cl_mem),  &d_spend_valid); });
+            s4 = fi_call(SITE_MAIN_ARG4, [&] { return clSetKernelArg(bip352_scan_compressed_multispend_kernel_, 4, sizeof(cl_uint), &cl_n_spend); });
+            s5 = fi_call(SITE_MAIN_ARG5, [&] { return clSetKernelArg(bip352_scan_compressed_multispend_kernel_, 5, sizeof(cl_mem),  &d_prefixes); });
+            s6 = fi_call(SITE_MAIN_ARG6, [&] { return clSetKernelArg(bip352_scan_compressed_multispend_kernel_, 6, sizeof(cl_uint), &cl_count); });
+        }
+        if (s0 != CL_SUCCESS || s1 != CL_SUCCESS || s2 != CL_SUCCESS || s3 != CL_SUCCESS ||
+            s4 != CL_SUCCESS || s5 != CL_SUCCESS || s6 != CL_SUCCESS)
+            return fail(GpuError::Launch, "bip352_pipeline_kernel_compressed_multispend: clSetKernelArg failed");
+
+        size_t local = 0;
+        if (!preferred_local(bip352_scan_compressed_multispend_kernel_,
+                             bip352_fault_injection::SITE_WG_INFO_MAIN, &local))
+            return fail(GpuError::Launch,
+                        "bip352_pipeline_kernel_compressed_multispend: clGetKernelWorkGroupInfo failed (fail-closed)");
         size_t global = ((n_tweaks + local - 1) / local) * local;
-        clerr = clEnqueueNDRangeKernel(queue, bip352_scan_compressed_kernel_, 1, nullptr,
-                                       &global, &local, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_prefixes);
-            clReleaseMemObject(d_tweaks);
-            clReleaseMemObject(d_spend);
-            return set_error(GpuError::Launch, "bip352_pipeline_kernel_compressed launch failed");
-        }
-        clFinish(queue);
+        clerr = bip352_fault_injection::fi_call(bip352_fault_injection::SITE_MAIN_LAUNCH, [&] {
+            return clEnqueueNDRangeKernel(queue, bip352_scan_compressed_multispend_kernel_, 1, nullptr,
+                                          &global, &local, 0, nullptr, nullptr); });
+        if (clerr != CL_SUCCESS)
+            return fail(GpuError::Launch, "bip352_pipeline_kernel_compressed_multispend launch failed");
+
+        // Repair (issue #335 acceptance repair): clFinish and
+        // clEnqueueReadBuffer were both previously UNCHECKED here, with the
+        // function unconditionally returning GpuError::Ok immediately
+        // afterward -- i.e. a GPU fault surfacing at clFinish (this exact
+        // failure mode is documented for this kernel family in
+        // audit_bip352_no_crash(), src/opencl_audit_runner.cpp) or a
+        // failed/partial readback would previously be reported as SUCCESS
+        // with corrupted/stale prefix64_out contents. Never return Ok after
+        // either of these fails. Both calls are now also fault-injectable
+        // (SITE_FINISH / SITE_READBACK) -- see
+        // audit/test_exploit_opencl_bip352_control_call_failclosed.cpp for the
+        // runtime fault-injection tests exercising these exact call sites.
+        clerr = bip352_fault_injection::fi_call(bip352_fault_injection::SITE_FINISH, [&] {
+            return clFinish(queue); });
+        if (clerr != CL_SUCCESS)
+            return fail(GpuError::Launch, "bip352 multispend clFinish failed (possible GPU fault)");
 
         /* -- 6. Read back prefixes -- */
-        clEnqueueReadBuffer(queue, d_prefixes, CL_TRUE, 0,
-                            sizeof(uint64_t) * n_tweaks, prefix64_out, 0, nullptr, nullptr);
+        clerr = bip352_fault_injection::fi_call(bip352_fault_injection::SITE_READBACK, [&] {
+            return clEnqueueReadBuffer(queue, d_prefixes, CL_TRUE, 0,
+                                sizeof(uint64_t) * n_rows, prefix64_out, 0, nullptr, nullptr); });
+        if (clerr != CL_SUCCESS)
+            return fail(GpuError::Memory, "bip352 multispend prefix readback failed");
 
-        clReleaseMemObject(d_prefixes);
-        clReleaseMemObject(d_tweaks);
-        clReleaseMemObject(d_spend);
         clear_error();
         return GpuError::Ok;
     }
@@ -3658,6 +4180,11 @@ private:
     cl_program bip352_program_              = nullptr;
     cl_kernel  bip352_scan_kernel_          = nullptr;
     cl_kernel  bip352_scan_compressed_kernel_ = nullptr;
+    /* Multi-spend-key variants (issue #335): decompress n_spend candidate
+     * spend pubkeys once, then the main kernel does one mixed-add per
+     * (tweak, spend) pair reusing the once-per-tweak ECDH/hash/hash×G. */
+    cl_kernel  bip352_decompress_kernel_    = nullptr;
+    cl_kernel  bip352_scan_compressed_multispend_kernel_ = nullptr;
     bool       bip352_init_attempted_ = false;
 
     /* MSM persistent buffer pool (shared across msm() calls) */
@@ -3937,27 +4464,24 @@ private:
         if (!device)
             return set_error(GpuError::Launch, "no OpenCL device found in context");
 
-        const char* search_paths[] = {
-            "../../opencl/kernels/secp256k1_frost.cl",
-            "../opencl/kernels/secp256k1_frost.cl",
-            "../../../opencl/kernels/secp256k1_frost.cl",
-            "opencl/kernels/secp256k1_frost.cl",
-            "kernels/secp256k1_frost.cl",
-            "../kernels/secp256k1_frost.cl",
-        };
-
-        std::string src;
-        std::string kernel_dir;
-        for (auto* p : search_paths) {
-            src = load_file_to_string(p);
-            if (!src.empty()) {
-                std::filesystem::path fp(p);
-                kernel_dir = fp.parent_path().string();
-                break;
-            }
+        // Repair (issue #335 acceptance repair, round 3): this loader used to
+        // carry its own CWD-relative-only search_paths[] list (never resolved
+        // when invoked from an unrelated CWD or an installed layout -- the
+        // same systemic defect independently found and fixed for BIP-352
+        // below). ensure_extended_kernels() already uses the shared, robust
+        // resolve_opencl_kernel() (env var override, executable-relative
+        // paths, walk-up-from-exe-dir source-tree search, then legacy
+        // CWD-relative fallback) -- reuse it here instead of duplicating a
+        // weaker resolver.
+        auto resolved = resolve_opencl_kernel("secp256k1_frost.cl");
+        std::string src       = std::move(resolved.source);
+        std::string kernel_dir = std::move(resolved.kernel_dir);
+        if (src.empty()) {
+            std::string msg = "secp256k1_frost.cl not found. Searched:\n    ";
+            msg += resolved.candidates_searched;
+            msg += "\n  Set UFSECP_OPENCL_KERNEL_DIR to the directory containing secp256k1_frost.cl.";
+            return set_error(GpuError::Launch, msg.c_str());
         }
-        if (src.empty())
-            return set_error(GpuError::Launch, "secp256k1_frost.cl not found");
 
         const char* src_ptr = src.c_str();
         size_t src_len = src.size();
@@ -4003,27 +4527,17 @@ private:
         if (!device)
             return set_error(GpuError::Launch, "no OpenCL device found in context");
 
-        const char* search_paths[] = {
-            "../../opencl/kernels/secp256k1_hash160.cl",
-            "../opencl/kernels/secp256k1_hash160.cl",
-            "../../../opencl/kernels/secp256k1_hash160.cl",
-            "opencl/kernels/secp256k1_hash160.cl",
-            "kernels/secp256k1_hash160.cl",
-            "../kernels/secp256k1_hash160.cl",
-        };
-
-        std::string src;
-        std::string kernel_dir;
-        for (auto* p : search_paths) {
-            src = load_file_to_string(p);
-            if (!src.empty()) {
-                std::filesystem::path fp(p);
-                kernel_dir = fp.parent_path().string();
-                break;
-            }
+        // Repair (issue #335 acceptance repair, round 3): see ensure_frost_kernel()
+        // above -- same systemic CWD-relative-only resolver defect, same fix.
+        auto resolved = resolve_opencl_kernel("secp256k1_hash160.cl");
+        std::string src       = std::move(resolved.source);
+        std::string kernel_dir = std::move(resolved.kernel_dir);
+        if (src.empty()) {
+            std::string msg = "secp256k1_hash160.cl not found. Searched:\n    ";
+            msg += resolved.candidates_searched;
+            msg += "\n  Set UFSECP_OPENCL_KERNEL_DIR to the directory containing secp256k1_hash160.cl.";
+            return set_error(GpuError::Launch, msg.c_str());
         }
-        if (src.empty())
-            return set_error(GpuError::Launch, "secp256k1_hash160.cl not found");
 
         const char* src_ptr = src.c_str();
         size_t src_len = src.size();
@@ -4180,26 +4694,17 @@ private:
         if (!device)
             return set_error(GpuError::Launch, "no OpenCL device found in context");
 
-        const char* search_paths[] = {
-            "../../opencl/kernels/secp256k1_zk.cl",
-            "../opencl/kernels/secp256k1_zk.cl",
-            "../../../opencl/kernels/secp256k1_zk.cl",
-            "opencl/kernels/secp256k1_zk.cl",
-            "kernels/secp256k1_zk.cl",
-            "../kernels/secp256k1_zk.cl",
-        };
-
-        std::string src, kernel_dir;
-        for (auto* p : search_paths) {
-            src = load_file_to_string(p);
-            if (!src.empty()) {
-                std::filesystem::path fp(p);
-                kernel_dir = fp.parent_path().string();
-                break;
-            }
+        // Repair (issue #335 acceptance repair, round 3): see ensure_frost_kernel()
+        // above -- same systemic CWD-relative-only resolver defect, same fix.
+        auto resolved = resolve_opencl_kernel("secp256k1_zk.cl");
+        std::string src       = std::move(resolved.source);
+        std::string kernel_dir = std::move(resolved.kernel_dir);
+        if (src.empty()) {
+            std::string msg = "secp256k1_zk.cl not found. Searched:\n    ";
+            msg += resolved.candidates_searched;
+            msg += "\n  Set UFSECP_OPENCL_KERNEL_DIR to the directory containing secp256k1_zk.cl.";
+            return set_error(GpuError::Launch, msg.c_str());
         }
-        if (src.empty())
-            return set_error(GpuError::Launch, "secp256k1_zk.cl not found");
 
         const char* src_ptr = src.c_str();
         size_t src_len = src.size();
@@ -4259,26 +4764,17 @@ private:
         if (!device)
             return set_error(GpuError::Launch, "no OpenCL device found in context");
 
-        const char* search_paths[] = {
-            "../../opencl/kernels/secp256k1_bip324.cl",
-            "../opencl/kernels/secp256k1_bip324.cl",
-            "../../../opencl/kernels/secp256k1_bip324.cl",
-            "opencl/kernels/secp256k1_bip324.cl",
-            "kernels/secp256k1_bip324.cl",
-            "../kernels/secp256k1_bip324.cl",
-        };
-
-        std::string src, kernel_dir;
-        for (auto* p : search_paths) {
-            src = load_file_to_string(p);
-            if (!src.empty()) {
-                std::filesystem::path fp(p);
-                kernel_dir = fp.parent_path().string();
-                break;
-            }
+        // Repair (issue #335 acceptance repair, round 3): see ensure_frost_kernel()
+        // above -- same systemic CWD-relative-only resolver defect, same fix.
+        auto resolved = resolve_opencl_kernel("secp256k1_bip324.cl");
+        std::string src       = std::move(resolved.source);
+        std::string kernel_dir = std::move(resolved.kernel_dir);
+        if (src.empty()) {
+            std::string msg = "secp256k1_bip324.cl not found. Searched:\n    ";
+            msg += resolved.candidates_searched;
+            msg += "\n  Set UFSECP_OPENCL_KERNEL_DIR to the directory containing secp256k1_bip324.cl.";
+            return set_error(GpuError::Launch, msg.c_str());
         }
-        if (src.empty())
-            return set_error(GpuError::Launch, "secp256k1_bip324.cl not found");
 
         const char* src_ptr = src.c_str();
         size_t src_len = src.size();
@@ -4330,28 +4826,32 @@ private:
         if (!device)
             return set_error(GpuError::Launch, "no OpenCL device found in context");
 
-        const char* search_paths[] = {
-            "../../opencl/kernels/secp256k1_bip352.cl",
-            "../opencl/kernels/secp256k1_bip352.cl",
-            "../../../opencl/kernels/secp256k1_bip352.cl",
-            "opencl/kernels/secp256k1_bip352.cl",
-            "kernels/secp256k1_bip352.cl",
-            "../kernels/secp256k1_bip352.cl",
-        };
-
+        // Repair (issue #335 acceptance repair, round 3): this loader's round-2
+        // fix only patched the symptom (prepended one more hand-written
+        // "src/opencl/kernels/..." candidate) without fixing the underlying
+        // systemic defect: this whole search_paths[] pattern is CWD-relative
+        // ONLY, with no executable-relative or installed-layout fallback --
+        // the exact same defect independently present (and now fixed the same
+        // way) in ensure_frost_kernel(), ensure_hash160_kernel(),
+        // ensure_zk_kernels(), and ensure_bip324_kernels() above.
+        // ensure_extended_kernels() already uses the shared resolve_opencl_kernel()
+        // helper (env var override -> executable-relative candidates ->
+        // walk-up-from-exe-dir source-tree search -> legacy CWD-relative
+        // fallback, in that order) which is unrelated-CWD- and
+        // installed-layout-safe; this loader now reuses it instead of a
+        // second, weaker, hand-maintained resolver.
+        //
         /* The BIP-352 kernel includes other .cl files via #include.
          * We must expand those includes before creating the program. */
-        std::string src, kernel_dir;
-        for (auto* p : search_paths) {
-            src = load_file_to_string(p);
-            if (!src.empty()) {
-                std::filesystem::path fp(p);
-                kernel_dir = fp.parent_path().string();
-                break;
-            }
+        auto resolved = resolve_opencl_kernel("secp256k1_bip352.cl");
+        std::string src       = std::move(resolved.source);
+        std::string kernel_dir = std::move(resolved.kernel_dir);
+        if (src.empty()) {
+            std::string msg = "secp256k1_bip352.cl not found. Searched:\n    ";
+            msg += resolved.candidates_searched;
+            msg += "\n  Set UFSECP_OPENCL_KERNEL_DIR to the directory containing secp256k1_bip352.cl.";
+            return set_error(GpuError::Launch, msg.c_str());
         }
-        if (src.empty())
-            return set_error(GpuError::Launch, "secp256k1_bip352.cl not found");
 
         const char* src_ptr = src.c_str();
         size_t src_len = src.size();
@@ -4385,6 +4885,25 @@ private:
             clReleaseKernel(bip352_scan_kernel_); bip352_scan_kernel_ = nullptr;
             clReleaseProgram(bip352_program_); bip352_program_ = nullptr;
             return set_error(GpuError::Launch, "bip352_pipeline_kernel_compressed not found");
+        }
+
+        // Multi-spend-key kernels (issue #335).
+        bip352_decompress_kernel_ = clCreateKernel(bip352_program_, "bip352_decompress_points_kernel", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(bip352_scan_compressed_kernel_); bip352_scan_compressed_kernel_ = nullptr;
+            clReleaseKernel(bip352_scan_kernel_); bip352_scan_kernel_ = nullptr;
+            clReleaseProgram(bip352_program_); bip352_program_ = nullptr;
+            return set_error(GpuError::Launch, "bip352_decompress_points_kernel not found");
+        }
+
+        bip352_scan_compressed_multispend_kernel_ = clCreateKernel(
+            bip352_program_, "bip352_pipeline_kernel_compressed_multispend", &err);
+        if (err != CL_SUCCESS) {
+            clReleaseKernel(bip352_decompress_kernel_); bip352_decompress_kernel_ = nullptr;
+            clReleaseKernel(bip352_scan_compressed_kernel_); bip352_scan_compressed_kernel_ = nullptr;
+            clReleaseKernel(bip352_scan_kernel_); bip352_scan_kernel_ = nullptr;
+            clReleaseProgram(bip352_program_); bip352_program_ = nullptr;
+            return set_error(GpuError::Launch, "bip352_pipeline_kernel_compressed_multispend not found");
         }
 
         return GpuError::Ok;

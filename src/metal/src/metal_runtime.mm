@@ -335,6 +335,55 @@ void MetalRuntime::dispatch_sync(const ComputePipeline& pipeline,
     }
 }
 
+bool MetalRuntime::dispatch_sync_checked(const ComputePipeline& pipeline,
+                                          uint32_t grid_size,
+                                          uint32_t threadgroup_size,
+                                          const std::vector<MetalBuffer*>& buffers) {
+    @autoreleasepool {
+        id<MTLCommandBuffer> cmd_buf = [impl_->command_queue commandBuffer];
+        id<MTLComputeCommandEncoder> encoder = [cmd_buf computeCommandEncoder];
+
+        [encoder setComputePipelineState:pipeline.native()];
+
+        for (size_t i = 0; i < buffers.size(); i++) {
+            [encoder setBuffer:buffers[i]->native() offset:0 atIndex:i];
+        }
+
+        MTLSize grid = MTLSizeMake(grid_size, 1, 1);
+        MTLSize tg = MTLSizeMake(threadgroup_size, 1, 1);
+
+        auto t0 = std::chrono::high_resolution_clock::now();
+
+        [encoder dispatchThreads:grid threadsPerThreadgroup:tg];
+        [encoder endEncoding];
+        [cmd_buf commit];
+        [cmd_buf waitUntilCompleted];
+
+        auto t1 = std::chrono::high_resolution_clock::now();
+        impl_->last_kernel_time_ms_ =
+            std::chrono::duration<double, std::milli>(t1 - t0).count();
+
+        if (cmd_buf.error) {
+            std::cerr << "[Metal] Kernel error (checked dispatch): "
+                      << [[cmd_buf.error localizedDescription] UTF8String] << "\n";
+            return false;
+        }
+        // MTLCommandBufferStatus: a command buffer can in principle finish
+        // waitUntilCompleted with status != Completed and error == nil in
+        // rare driver-specific cases (e.g. Error status without a populated
+        // NSError). Treat any non-Completed terminal status as failure too,
+        // not just a non-nil error object, so a caller cannot be fooled by
+        // an empty-error/wrong-status combination into believing dispatch
+        // succeeded.
+        if (cmd_buf.status != MTLCommandBufferStatusCompleted) {
+            std::cerr << "[Metal] Kernel dispatch did not reach Completed status (status="
+                      << (long)cmd_buf.status << ")\n";
+            return false;
+        }
+        return true;
+    }
+}
+
 void MetalRuntime::synchronize() {
     @autoreleasepool {
         id<MTLCommandBuffer> cmd_buf = [impl_->command_queue commandBuffer];

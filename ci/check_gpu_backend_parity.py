@@ -83,7 +83,12 @@ BACKENDS = {
     "metal": {
         "file": LIB_ROOT / "src/gpu/src/gpu_backend_metal.mm",
         "class_name": "MetalBackend",
-        "native_markers": [re.compile(r"\bdispatch_sync\s*\(")],
+        # dispatch_sync_checked() (added 2026-07-15 round 2, issue #335
+        # acceptance repair) is a real Metal dispatch call -- same genuine
+        # command-buffer submit/wait as dispatch_sync(), just with the
+        # command-buffer error propagated to the caller instead of only
+        # logged. Recognize both spellings as native dispatch evidence.
+        "native_markers": [re.compile(r"\bdispatch_sync(?:_checked)?\s*\(")],
     },
 }
 
@@ -110,6 +115,28 @@ LIFECYCLE_OPS = {
     "last_error", "last_error_msg",
 }
 
+# issue #335 acceptance repair (2026-07-16): operations that MUST be
+# `= 0` (pure virtual) in GpuBackend, not merely non-native on some backend.
+# `bip352_scan_batch_multispend` was made pure virtual specifically so "a
+# backend forgets to override this" is a COMPILE error instead of a silent
+# runtime `GpuError::Unsupported` default (see gpu_backend.hpp). If a future
+# edit reverts that to a virtual-with-default-body (even one that itself
+# returns Unsupported), the whole point of the fix is undone -- checked here
+# directly against the header's own is_pure flag, not inferred from override
+# bodies, so this specific regression is caught even before per-backend
+# dispatch classification runs.
+MUST_BE_PURE_VIRTUAL = {"bip352_scan_batch_multispend"}
+
+# Operations for which NO entry in docs/BACKEND_ASSURANCE_MATRIX.md's
+# "Permanent Architecture Exceptions" table is honored, regardless of what
+# the doc says -- i.e. this op can never be waived into non-native status on
+# any backend via a doc-table edit alone. This is stricter than the general
+# exception mechanism on purpose: `bip352_scan_batch_multispend` handles
+# BIP-352 scan private key material (SECRET-BEARING) and was the subject of
+# GitHub issue #335's silent-Unsupported-fallback defect; the fix is only
+# real if this gate cannot be quietly reopened by a single doc-table row.
+NO_EXCEPTION_ALLOWED = {"bip352_scan_batch_multispend"}
+
 # Operations that legitimately have no direct public C ABI wrapper. This is a
 # distinct concern from backend-native parity: it documents *interface
 # design intent* (verified manually against src/cpu/src/ufsecp_gpu_impl.cpp),
@@ -125,6 +152,12 @@ ABI_NOT_REQUIRED = {
                      "of this virtual — no ABI wrapper calls this method directly",
     "shutdown": "invoked implicitly via the backend unique_ptr's destructor "
                 "chain on ufsecp_gpu_ctx_destroy(); no direct ABI wrapper by design",
+    "bip352_scan_batch_multispend_timed": "issue #335 acceptance repair "
+                "(2026-07-15): diagnostic-only CUDA-event timing-breakdown "
+                "method, not part of the ABI-stable C surface (no new "
+                "ufsecp_gpu_* symbol was introduced for it) and not subject "
+                "to compute-parity -- see docs/BACKEND_ASSURANCE_MATRIX.md "
+                "'Permanent Architecture Exceptions'.",
 }
 
 # Explicit operation -> C ABI symbol mapping (derived from
@@ -170,6 +203,7 @@ ABI_SYMBOL_FOR_OP = {
     "bip324_aead_encrypt_batch": "ufsecp_gpu_bip324_aead_encrypt_batch",
     "bip324_aead_decrypt_batch": "ufsecp_gpu_bip324_aead_decrypt_batch",
     "bip352_scan_batch": "ufsecp_gpu_bip352_scan_batch",
+    "bip352_scan_batch_multispend": "ufsecp_gpu_bip352_scan_batch_multispend",
     "merkle_pair_hash": "ufsecp_gpu_merkle_pair_hash",
     "sighash_descriptor_hash": "ufsecp_gpu_sighash_descriptor_hash",
 }
@@ -608,15 +642,55 @@ def evaluate() -> dict:
 
     violations = []
 
+    # issue #335: operations that must be pure virtual (compile-error, not a
+    # runtime Unsupported default, if a backend omits an override) — checked
+    # directly against the header's parsed is_pure flag, independent of and
+    # in addition to the per-backend dispatch-evidence check below.
+    ops_by_name = {op["name"]: op for op in ops}
+    for must_pure_name in sorted(MUST_BE_PURE_VIRTUAL):
+        op = ops_by_name.get(must_pure_name)
+        if op is None:
+            violations.append({
+                "kind": "must_be_pure_virtual_missing",
+                "op": must_pure_name,
+                "backend": None,
+                "message": (
+                    f"'{must_pure_name}' is required to exist as a pure-virtual "
+                    f"GpuBackend operation (MUST_BE_PURE_VIRTUAL) but was not found at "
+                    f"all in {GPU_BACKEND_HPP.relative_to(LIB_ROOT)} — header parser "
+                    f"regression or the method was renamed/removed."
+                ),
+            })
+        elif not op["pure_virtual"]:
+            violations.append({
+                "kind": "must_be_pure_virtual",
+                "op": must_pure_name,
+                "backend": None,
+                "message": (
+                    f"'{must_pure_name}' must be declared pure virtual (`= 0`) in "
+                    f"GpuBackend so a backend that forgets to override it fails to "
+                    f"COMPILE rather than silently falling back to "
+                    f"GpuError::Unsupported at runtime (GitHub issue #335). It is "
+                    f"currently declared as a regular virtual"
+                    + (" with a default body" if op["has_default_body"] else "")
+                    + " — this reopens the exact silent-Unsupported-fallback defect "
+                    "the pure-virtual fix closed."
+                ),
+            })
+
     # Backend native-coverage check
     for op in ops:
         for backend_key in BACKENDS:
             status = backend_status.get((op["name"], backend_key), "missing_no_override")
             if status in ("native", "lifecycle_present"):
                 continue
-            reason = exceptions.get((op["name"], backend_key))
-            if reason:
-                continue
+            # issue #335: bip352_scan_batch_multispend may never be waived
+            # into non-native status via a doc-table exception — see
+            # NO_EXCEPTION_ALLOWED docstring above.
+            if op["name"] not in NO_EXCEPTION_ALLOWED:
+                reason = exceptions.get((op["name"], backend_key))
+                if reason:
+                    continue
             violations.append({
                 "kind": "backend_native_coverage",
                 "op": op["name"],
@@ -627,6 +701,9 @@ def evaluate() -> dict:
                     f"GPU dispatch evidence found in its override body), and no "
                     f"owner-approved exception is recorded in docs/BACKEND_ASSURANCE_MATRIX.md "
                     f"'Permanent Architecture Exceptions'."
+                    + (" This operation is in NO_EXCEPTION_ALLOWED -- a doc-table "
+                       "exception would not have suppressed this violation even if one "
+                       "existed." if op["name"] in NO_EXCEPTION_ALLOWED else "")
                 ),
             })
 

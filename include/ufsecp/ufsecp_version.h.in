@@ -44,9 +44,11 @@ extern "C" {
 
 #ifndef UFSECP_API
   #if defined(_WIN32) || defined(__CYGWIN__)
-    /* Static builds define both UFSECP_STATIC_LIB and UFSECP_BUILDING. The
-     * static marker must win so clang-cl does not apply dllexport to static
-     * archive functions. Keep this branch order in sync with the source copy. */
+    /* A static-lib / single-TU build defines BOTH UFSECP_STATIC_LIB and
+     * UFSECP_BUILDING (the latter to compile the engine sources). STATIC_LIB must
+     * win so the static build emits NO dllexport: a static archive needs none, and
+     * clang-cl rejects a `static thread_local` inside a dllexport'd function
+     * (MSVC cl tolerates it), which broke the libbitcoin/static + bench builds. */
     #ifdef UFSECP_STATIC_LIB
       #define UFSECP_API
     #elif defined(UFSECP_BUILDING)
@@ -61,13 +63,23 @@ extern "C" {
   #endif
 #endif
 
-/* ── Deprecation annotation ──────────────────────────────────────────────── */
+/* ── Deprecation annotation ────────────────────────────────────────────────── */
+/* UFSECP_DEPRECATED("msg") marks a function as deprecated with a diagnostic
+ * message.  Use it on the declaration in ufsecp.h to guide callers to the
+ * replacement API without breaking the ABI.
+ *
+ * Example (pseudo-code, not a real declaration):
+ *   UFSECP_DEPRECATED("Use <new_fn>()") UFSECP_API ufsecp_error_t <old_fn>(...);
+ */
 #ifndef UFSECP_DEPRECATED
   #if defined(__cplusplus) && (__cplusplus >= 201402L)
+    /* C++14 and later: standard [[deprecated("msg")]] attribute */
     #define UFSECP_DEPRECATED(msg) [[deprecated(msg)]]
   #elif defined(__GNUC__) || defined(__clang__)
+    /* GCC / Clang C: __attribute__((deprecated("msg"))) */
     #define UFSECP_DEPRECATED(msg) __attribute__((deprecated(msg)))
   #elif defined(_MSC_VER)
+    /* MSVC: __declspec(deprecated("msg")) */
     #define UFSECP_DEPRECATED(msg) __declspec(deprecated(msg))
   #else
     #define UFSECP_DEPRECATED(msg)

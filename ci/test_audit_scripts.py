@@ -21,6 +21,7 @@ import contextlib
 import io
 import json
 import os
+import platform
 import py_compile
 import re
 import subprocess
@@ -2775,6 +2776,1323 @@ def check_release_package_contents_fixtures() -> None:
         ok(tag, "product-only package passes; test/exploit/internal/empty library packages fail closed")
 
 
+def check_release_package_contents_gpu_export_closure_fixtures() -> None:
+    """The GPU CMake export-set closure probe (--gpu-export-closure mode,
+    issue #335 acceptance repair) must correctly distinguish a genuine PASS,
+    an honest toolchain-unavailable advisory skip, and a genuinely
+    UNEXPECTED failure (which must block the gate) -- never fabricate any of
+    the three. Round 12 hardening: this gate used to also carry a fourth,
+    non-blocking "known/disclosed gap" classification for the exact round-
+    9/10 export-closure error signature, deliberately, while that CMake bug
+    was still open (round 9/10). Round 11 fixed the underlying bug; round 12
+    removed the waiver entirely, because leaving it in place would let a
+    REGRESSION back to that exact signature silently pass the gate again.
+    This self-test now proves the OPPOSITE of what it used to: reintroducing
+    the old signature is classified UNEXPECTED_FAIL (blocking), for both the
+    positive control and a GPU combo, with no special-cased exemption left
+    anywhere in classify_configure_failure()/evaluate_combo(). This is the
+    proof-it-blocks fixture for a checker whose real subprocess invocations
+    (ci/check_release_package_contents.py's own --gpu-export-closure run)
+    are exercised for real, once, outside this fast no-build self-test --
+    see the module docstring's "GPU CMake export-set closure probe" section
+    for why this functionality lives in a file already named for an
+    unrelated, pre-existing package-content scanner."""
+    tag = "GPU-EXPORT-CLOSURE:fixtures"
+    try:
+        mod = _load_ci_module("check_release_package_contents.py", "release_contents_gpu_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    failures = []
+
+    # --- classify_configure_failure(): no more "known gap" bucket at all --
+    #     the OLD export-closure signature and an unrelated error must both
+    #     classify identically as unexpected/blocking now.
+    old_export_closure_text = (
+        'CMake Error in CMakeLists.txt:\n'
+        '  install(EXPORT "ufsecpTargets" ...) includes target "ufsecp_static" which\n'
+        '  requires target "secp256k1_gpu_host" that is not in any export set.\n'
+    )
+    kind, evidence = mod.classify_configure_failure(old_export_closure_text)
+    if kind != "unexpected_configure_failure":
+        failures.append(
+            f"reintroducing the OLD export-closure error signature was classified "
+            f"{kind!r}, not 'unexpected_configure_failure' -- a stale non-blocking "
+            f"waiver for this exact signature must not exist any more")
+    if "secp256k1_gpu_host" not in evidence or "ufsecp_static" not in evidence:
+        failures.append("classify_configure_failure() evidence is not a literal substring of the input")
+    if hasattr(mod, "KNOWN_EXPORT_CLOSURE_ERROR_RE"):
+        failures.append(
+            "KNOWN_EXPORT_CLOSURE_ERROR_RE still exists on the module -- the round-12 "
+            "waiver removal must delete this constant entirely, not just stop using it")
+
+    unrelated_text = "CMake Error: Could NOT find OpenSSL (missing: OPENSSL_LIBRARIES)\n"
+    kind2, _ = mod.classify_configure_failure(unrelated_text)
+    if kind2 != "unexpected_configure_failure":
+        failures.append(f"unrelated configure error misclassified as {kind2!r}")
+
+    # --- GPU_COMBOS drift guard: exactly the 5 combos the round-10 task specified ---
+    combo_keys = {c["key"] for c in mod.GPU_COMBOS}
+    if combo_keys != {"cpu_only", "opencl", "cuda", "metal", "opencl_cuda"}:
+        failures.append(f"GPU_COMBOS key set drifted: {sorted(combo_keys)}")
+
+    # --- detect_metal_toolchain(): real, unmocked signal on this Linux self-test host ---
+    metal_detect = mod.detect_metal_toolchain()
+    if platform.system() != "Darwin" and metal_detect["available"]:
+        failures.append("detect_metal_toolchain() reported available on a non-Darwin host")
+
+    # --- check_install_tree_contents(): missing files fail closed; GPU header
+    #     required only when expect_gpu_header=True (the fabricated-pass guard) ---
+    with tempfile.TemporaryDirectory() as d:
+        prefix = Path(d)
+        empty_check = mod.check_install_tree_contents(prefix, expect_gpu_header=False)
+        if empty_check["ok"]:
+            failures.append("empty install prefix incorrectly reported as content-check OK")
+
+        (prefix / "lib" / "cmake" / "ufsecp").mkdir(parents=True)
+        (prefix / "include" / "ufsecp").mkdir(parents=True)
+        (prefix / "lib" / "libufsecp.a").write_bytes(b"x")
+        (prefix / "include" / "ufsecp" / "ufsecp.h").write_bytes(b"x")
+        (prefix / "lib" / "cmake" / "ufsecp" / "ufsecpTargets.cmake").write_bytes(b"x")
+
+        cpu_only_check = mod.check_install_tree_contents(prefix, expect_gpu_header=False)
+        if not cpu_only_check["ok"]:
+            failures.append(f"complete CPU-only install tree incorrectly failed content-check: {cpu_only_check['missing']}")
+
+        # Fabricated-pass guard: GPU flag expected but the GPU header never
+        # got installed (e.g. the live Metal-on-Linux case this gate found).
+        gpu_expected_but_missing = mod.check_install_tree_contents(prefix, expect_gpu_header=True)
+        if gpu_expected_but_missing["ok"]:
+            failures.append("content-check passed with expect_gpu_header=True despite ufsecp_gpu.h being absent (fabricated-pass class not caught)")
+
+        (prefix / "include" / "ufsecp" / "ufsecp_gpu.h").write_bytes(b"x")
+        gpu_present_check = mod.check_install_tree_contents(prefix, expect_gpu_header=True)
+        if not gpu_present_check["ok"]:
+            failures.append(f"content-check failed once ufsecp_gpu.h was actually present: {gpu_present_check['missing']}")
+
+    # --- evaluate_combo(): end-to-end status classification, subprocess calls
+    #     mocked out (no real cmake invocation in this fast self-test) ---
+    def combo_by_key(key: str) -> dict:
+        return next(c for c in mod.GPU_COMBOS if c["key"] == key)
+
+    with tempfile.TemporaryDirectory() as d:
+        scratch = Path(d)
+
+        # PASS: cpu_only, configure+build succeed, real files present.
+        cpu_combo = combo_by_key("cpu_only")
+        install_dir = scratch / "cpu_only" / "install"
+        (install_dir / "lib" / "cmake" / "ufsecp").mkdir(parents=True)
+        (install_dir / "include" / "ufsecp").mkdir(parents=True)
+        (install_dir / "lib" / "libufsecp.a").write_bytes(b"x")
+        (install_dir / "include" / "ufsecp" / "ufsecp.h").write_bytes(b"x")
+        (install_dir / "lib" / "cmake" / "ufsecp" / "ufsecpTargets.cmake").write_bytes(b"x")
+
+        orig_configure, orig_build = mod.run_cmake_configure, mod.run_build_install
+        try:
+            mod.run_cmake_configure = lambda build_dir, install_prefix, extra_flags, timeout_s=180: {
+                "returncode": 0, "combined": "", "elapsed_s": 0.1, "cmd": []}
+            mod.run_build_install = lambda build_dir, timeout_s=600: {
+                "returncode": 0, "combined": "", "elapsed_s": 0.1}
+            r_pass = mod.evaluate_combo(cpu_combo, scratch)
+            if r_pass["status"] != "PASS":
+                failures.append(f"cpu_only with successful configure+build+real files did not classify PASS: {r_pass}")
+
+            # UNEXPECTED_FAIL: cpu_only configure fails with the OLD
+            # export-closure signature -- must be blocking, not absorbed
+            # into any non-blocking bucket (there is none any more).
+            mod.run_cmake_configure = lambda build_dir, install_prefix, extra_flags, timeout_s=180: {
+                "returncode": 1, "combined": old_export_closure_text, "elapsed_s": 0.1, "cmd": []}
+            r_cpu_fail = mod.evaluate_combo(cpu_combo, scratch)
+            if r_cpu_fail["status"] != "UNEXPECTED_FAIL":
+                failures.append(f"cpu_only configure failure was not classified UNEXPECTED_FAIL: {r_cpu_fail['status']!r}")
+
+            # UNEXPECTED_FAIL: opencl combo reintroducing the OLD
+            # export-closure signature -- round 12's core regression guard.
+            # Toolchain detection is mocked available so this is
+            # deterministic regardless of the CI host.
+            opencl_combo = combo_by_key("opencl")
+            orig_detect = mod.detect_toolchain
+            mod.detect_toolchain = lambda name: {"available": True, "reason": "mocked available"}
+            try:
+                r_regression = mod.evaluate_combo(opencl_combo, scratch)
+                if r_regression["status"] != "UNEXPECTED_FAIL":
+                    failures.append(
+                        f"opencl configure failure reintroducing the OLD export-closure "
+                        f"signature was not classified UNEXPECTED_FAIL (this is the exact "
+                        f"regression round 12 must catch): {r_regression['status']!r}")
+
+                # UNEXPECTED_FAIL: opencl combo, configure fails with an
+                # unrelated error -- classified identically (blocking).
+                mod.run_cmake_configure = lambda build_dir, install_prefix, extra_flags, timeout_s=180: {
+                    "returncode": 1, "combined": unrelated_text, "elapsed_s": 0.1, "cmd": []}
+                r_unexpected = mod.evaluate_combo(opencl_combo, scratch)
+                if r_unexpected["status"] != "UNEXPECTED_FAIL":
+                    failures.append(f"opencl configure failure with an unrelated error was not classified UNEXPECTED_FAIL: {r_unexpected['status']!r}")
+
+                # Fabricated-pass guard at the evaluate_combo level: configure
+                # and build both report success, but the GPU header was never
+                # installed (Metal-on-Linux class). Must be UNEXPECTED_FAIL,
+                # never PASS.
+                mod.run_cmake_configure = lambda build_dir, install_prefix, extra_flags, timeout_s=180: {
+                    "returncode": 0, "combined": "", "elapsed_s": 0.1, "cmd": []}
+                mod.run_build_install = lambda build_dir, timeout_s=600: {
+                    "returncode": 0, "combined": "", "elapsed_s": 0.1}
+                (scratch / "opencl" / "install" / "lib" / "cmake" / "ufsecp").mkdir(parents=True, exist_ok=True)
+                (scratch / "opencl" / "install" / "include" / "ufsecp").mkdir(parents=True, exist_ok=True)
+                (scratch / "opencl" / "install" / "lib" / "libufsecp.a").write_bytes(b"x")
+                (scratch / "opencl" / "install" / "include" / "ufsecp" / "ufsecp.h").write_bytes(b"x")
+                (scratch / "opencl" / "install" / "lib" / "cmake" / "ufsecp" / "ufsecpTargets.cmake").write_bytes(b"x")
+                # Deliberately do NOT create ufsecp_gpu.h.
+                r_fabricated = mod.evaluate_combo(opencl_combo, scratch)
+                if r_fabricated["status"] != "UNEXPECTED_FAIL":
+                    failures.append(f"opencl configure+build success without ufsecp_gpu.h was not classified UNEXPECTED_FAIL (fabricated-pass class): {r_fabricated['status']!r}")
+            finally:
+                mod.detect_toolchain = orig_detect
+
+            # ADVISORY_SKIP: metal combo, real (unmocked) toolchain detection
+            # on this non-Darwin self-test host -- proves the skip path is
+            # reached before any configure is even attempted.
+            metal_combo = combo_by_key("metal")
+            configure_call_count = [0]
+            def counting_configure(build_dir, install_prefix, extra_flags, timeout_s=180):
+                configure_call_count[0] += 1
+                return {"returncode": 0, "combined": "", "elapsed_s": 0.0, "cmd": []}
+            mod.run_cmake_configure = counting_configure
+            if platform.system() != "Darwin":
+                r_metal = mod.evaluate_combo(metal_combo, scratch)
+                if r_metal["status"] != "ADVISORY_SKIP":
+                    failures.append(f"metal combo on non-Darwin host was not classified ADVISORY_SKIP: {r_metal['status']!r}")
+                if configure_call_count[0] != 0:
+                    failures.append("metal combo on non-Darwin host invoked run_cmake_configure -- toolchain gate did not short-circuit")
+        finally:
+            mod.run_cmake_configure, mod.run_build_install = orig_configure, orig_build
+
+    # --- evaluate_gpu_export_closure(): aggregation must block on ANY
+    #     UNEXPECTED_FAIL and must NOT block on a PASS/ADVISORY_SKIP mix ---
+    orig_evaluate_combo = mod.evaluate_combo
+    try:
+        mod.evaluate_combo = lambda combo, scratch_base: {
+            "cpu_only": {"key": "cpu_only", "status": "PASS"},
+            "opencl": {"key": "opencl", "status": "PASS"},
+            "cuda": {"key": "cuda", "status": "ADVISORY_SKIP"},
+        }[combo["key"]] if combo["key"] in ("cpu_only", "opencl", "cuda") else {"key": combo["key"], "status": "ADVISORY_SKIP"}
+        healthy = mod.evaluate_gpu_export_closure(only=None)
+        if not healthy["overall_pass"]:
+            failures.append(f"PASS+ADVISORY_SKIP mix incorrectly blocked the gate: {healthy['blocking_combos']}")
+
+        mod.evaluate_combo = lambda combo, scratch_base: {"key": combo["key"], "status": "UNEXPECTED_FAIL"} \
+            if combo["key"] == "cuda" else {"key": combo["key"], "status": "PASS"}
+        unhealthy = mod.evaluate_gpu_export_closure(only=None)
+        if unhealthy["overall_pass"] or unhealthy["blocking_combos"] != ["cuda"]:
+            failures.append(f"a single UNEXPECTED_FAIL did not correctly block the gate: overall_pass={unhealthy['overall_pass']!r} blocking={unhealthy['blocking_combos']!r}")
+    finally:
+        mod.evaluate_combo = orig_evaluate_combo
+
+    unknown = mod.evaluate_gpu_export_closure(only="not_a_real_combo")
+    if unknown["overall_pass"] or "error" not in unknown:
+        failures.append("an unknown --combo key did not fail closed with an 'error' field")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "classify_configure_failure() has no non-blocking known-gap bucket left "
+                "(reintroducing the old export-closure signature is UNEXPECTED_FAIL), "
+                "check_install_tree_contents(), evaluate_combo() (PASS / unexpected / "
+                "advisory-skip / fabricated-pass-guard), and evaluate_gpu_export_closure() "
+                "aggregation all correctly distinguish real vs. unexpected vs. skipped outcomes")
+
+
+def check_final_verdict_gpu_export_closure_skip_policy_fixtures() -> None:
+    """Issue #335 round 13: `final-verdict`'s "Evaluate block results" step in
+    .github/workflows/gate.yml aggregates every gate block's result via a
+    generic loop keyed on a per-block skip policy ("never" / "may_skip").
+    Round 12 wired the real gpu-export-closure CI job in, but left it
+    classified unconditionally "may_skip" in that generic loop -- so a skip
+    for ANY reason (not just the legitimate all-docs-only case) on a
+    non-docs change would still reach a silent PASS, exactly the false-green
+    class the loop already prevents for caas-security via an explicit
+    docs_only-gated pre-check. Round 13 adds the mirror pre-check for
+    gpu-export-closure.
+
+    This is a REAL subprocess-execution proof-it-blocks fixture, not a static
+    read of the YAML: both the OLD (round-12, buggy) and NEW (round-13,
+    fixed) versions of the step's bash `run:` block are extracted verbatim
+    from the live gate.yml (the OLD version is derived by programmatically
+    removing the round-13 pre-check from a copy of the real, current script
+    -- it is not hand-retyped), every `${{ ... }}` GitHub Actions expression
+    token is substituted with a synthetic scenario value, and the resulting
+    plain bash script is actually run via `bash -c` with GITHUB_STEP_SUMMARY
+    redirected to a throwaway file, and the real process exit code is
+    checked. Do not touch .github/workflows/gate.yml from this test -- it is
+    read-only evidence here, the fix already lives there."""
+    tag = "GATE-VERDICT:gpu_export_closure_skip_policy"
+    gate_yml = LIB_ROOT / ".github" / "workflows" / "gate.yml"
+    failures: list[str] = []
+
+    try:
+        workflow_text = gate_yml.read_text(encoding="utf-8")
+    except OSError as exc:
+        fail(tag, f"could not read {gate_yml}: {exc}")
+        return
+
+    job_marker = "  final-verdict:\n"
+    run_marker = "run: |\n"
+    if job_marker not in workflow_text:
+        fail(tag, "final-verdict job not found in gate.yml -- workflow structure changed")
+        return
+    job_text = workflow_text[workflow_text.index(job_marker):]
+    if run_marker not in job_text:
+        fail(tag, "final-verdict job has no 'run: |' step -- workflow structure changed")
+        return
+    new_script = job_text[job_text.index(run_marker) + len(run_marker):]
+
+    # Derive the OLD (round-12) script from the live NEW (round-13) script by
+    # programmatically removing exactly the round-13 pre-check block, so this
+    # fixture is provably faithful to the real file instead of hand-retyped.
+    start_anchor = "          # gpu-export-closure (issue #335 round 13): same false-green class as"
+    end_anchor = "          # Verdict: failures and cancellations always fail the gate."
+    if start_anchor not in new_script or end_anchor not in new_script:
+        fail(tag, "round-13 pre-check block anchors not found in the live gate.yml -- "
+                  "either the fix was reverted or the comment text changed")
+        return
+    old_script = new_script[:new_script.index(start_anchor)] + new_script[new_script.index(end_anchor):]
+
+    if "gpu-export-closure was skipped" in old_script:
+        failures.append("derived OLD script still contains the round-13 guard -- extraction anchors are wrong")
+    if "gpu-export-closure was skipped" not in new_script:
+        failures.append("live NEW script does not contain the round-13 guard -- fix appears absent from gate.yml")
+    if '"gpu-export-closure:${{ needs.gpu-export-closure.result }}:may_skip"' not in old_script:
+        failures.append("derived OLD script lost the generic-loop 'may_skip' entry for gpu-export-closure -- "
+                         "the prompt states this must remain unchanged in the OLD version")
+
+    # Every `${{ <key> }}` token actually referenced by the (superset) NEW
+    # script -- must be substituted exhaustively or the rendered text is not
+    # valid bash.
+    all_keys = [
+        "needs.detect-impact.outputs.gate",
+        "needs.detect-impact.outputs.profiles",
+        "needs.detect-impact.outputs.reason",
+        "needs.detect-impact.outputs.docs_only",
+        "needs.detect-impact.result",
+        "needs.fast-gates.result",
+        "needs.build-test.result",
+        "needs.caas-security.result",
+        "needs.bindings-smoke.result",
+        "needs.gpu-wasm-smoke.result",
+        "needs.gpu-export-closure.result",
+        "needs.shim-gate.result",
+    ]
+    referenced = set(re.findall(r"\$\{\{\s*([^}]+?)\s*\}\}", new_script))
+    if referenced - set(all_keys):
+        failures.append(f"NEW script references token(s) not covered by the substitution table: "
+                         f"{sorted(referenced - set(all_keys))}")
+
+    def render(script_text: str, values: dict) -> str:
+        rendered = script_text
+        for key in all_keys:
+            rendered = rendered.replace("${{ " + key + " }}", values.get(key, "success"))
+        leftover = re.findall(r"\$\{\{.*?\}\}", rendered)
+        if leftover:
+            raise AssertionError(f"unsubstituted GitHub Actions token(s) remain: {leftover}")
+        return rendered
+
+    def run_scenario(script_text: str, overrides: dict, summary_path: Path) -> int:
+        values = {
+            "needs.detect-impact.outputs.gate": "PASS",
+            "needs.detect-impact.outputs.profiles": "core",
+            "needs.detect-impact.outputs.reason": "test-fixture",
+            "needs.detect-impact.outputs.docs_only": "false",
+            "needs.detect-impact.result": "success",
+            "needs.fast-gates.result": "success",
+            "needs.build-test.result": "success",
+            "needs.caas-security.result": "success",
+            "needs.bindings-smoke.result": "success",
+            "needs.gpu-wasm-smoke.result": "success",
+            "needs.gpu-export-closure.result": "success",
+            "needs.shim-gate.result": "success",
+        }
+        values.update(overrides)
+        rendered = render(script_text, values)
+        env = dict(os.environ)
+        env["GITHUB_STEP_SUMMARY"] = str(summary_path)
+        proc = subprocess.run(
+            ["bash", "-c", rendered],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            env=env,
+        )
+        return proc.returncode
+
+    with tempfile.TemporaryDirectory() as d:
+        summary = Path(d) / "step_summary.md"
+
+        # (1) Fail-before: OLD script, gpu-export-closure skipped on a
+        #     non-docs change -- this IS the round-12 bug, reproduced for
+        #     real. Must exit 0 (the false green).
+        rc_old_skip_nondocs = run_scenario(
+            old_script,
+            {"needs.gpu-export-closure.result": "skipped", "needs.detect-impact.outputs.docs_only": "false"},
+            summary,
+        )
+        if rc_old_skip_nondocs != 0:
+            failures.append(
+                f"OLD script with gpu-export-closure skipped on a non-docs change did not "
+                f"reproduce the historical false-green bug: exit {rc_old_skip_nondocs} (expected 0)")
+
+        # (2) Pass-after: NEW script, identical inputs -- the fix must now block.
+        rc_new_skip_nondocs = run_scenario(
+            new_script,
+            {"needs.gpu-export-closure.result": "skipped", "needs.detect-impact.outputs.docs_only": "false"},
+            summary,
+        )
+        if rc_new_skip_nondocs == 0:
+            failures.append(
+                "NEW script with gpu-export-closure skipped on a non-docs change incorrectly "
+                "exited 0 -- the round-13 fix did not block the false green")
+
+        # (3) Pass-after: NEW script, legitimate docs-only skip -- must still pass.
+        rc_new_skip_docs_only = run_scenario(
+            new_script,
+            {"needs.gpu-export-closure.result": "skipped", "needs.detect-impact.outputs.docs_only": "true"},
+            summary,
+        )
+        if rc_new_skip_docs_only != 0:
+            failures.append(
+                f"NEW script with a legitimate docs-only gpu-export-closure skip incorrectly "
+                f"failed: exit {rc_new_skip_docs_only} (expected 0)")
+
+        # (4) Pass-after: NEW script, clean all-success run -- must pass.
+        rc_new_clean = run_scenario(new_script, {}, summary)
+        if rc_new_clean != 0:
+            failures.append(
+                f"NEW script with a clean all-success run incorrectly failed: "
+                f"exit {rc_new_clean} (expected 0)")
+
+        # (5) Regression guard: a real failure/cancellation must still block
+        #     regardless of skip policy -- this invariant predates round 13
+        #     and must not have been broken by this round's edit.
+        rc_new_failure = run_scenario(new_script, {"needs.gpu-export-closure.result": "failure"}, summary)
+        if rc_new_failure == 0:
+            failures.append(
+                "NEW script with gpu-export-closure = failure incorrectly exited 0 -- "
+                "a real failure must always block regardless of skip policy")
+        rc_new_cancelled = run_scenario(new_script, {"needs.gpu-export-closure.result": "cancelled"}, summary)
+        if rc_new_cancelled == 0:
+            failures.append(
+                "NEW script with gpu-export-closure = cancelled incorrectly exited 0 -- "
+                "a real cancellation must always block regardless of skip policy")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "OLD (round-12) final-verdict script reproduces the historical false-green "
+                "(gpu-export-closure skipped + docs_only=false -> exit 0); NEW (round-13) "
+                "script blocks that same case (exit != 0), still passes a legitimate "
+                "docs-only skip and a clean all-success run (exit 0), and still blocks a "
+                "real failure/cancellation regardless of skip policy -- verified via real "
+                "`bash -c` subprocess execution of the verbatim script text extracted from "
+                "the live gate.yml")
+
+
+def check_required_checks_gpu_export_closure_skip_guard_synthetic_fixtures() -> None:
+    """Issue #335 round 13: ci/check_required_checks_match_jobs.py added
+    check_gpu_export_closure_skip_guard(), a parser-backed structural
+    validator for the gpu-export-closure skip-guard contract (job exists,
+    final-verdict depends on it via needs:, the job's own if: guard is
+    docs_only-scoped, final-verdict's script has an explicit docs_only-gated
+    pre-check for a skip nested in the SAME if-block as the check of
+    needs.gpu-export-closure.result, and the pre-existing failure/cancelled
+    blocking loop is intact). check_final_verdict_gpu_export_closure_skip_policy_fixtures()
+    (above) already proves the real gate.yml script blocks/passes correctly
+    via real subprocess execution; this fixture instead calls
+    check_gpu_export_closure_skip_guard() DIRECTLY against synthetic,
+    hand-built gate.yml-shaped dicts (no real workflow file read) to prove
+    the STRUCTURAL VALIDATOR ITSELF fails closed on every malformed shape
+    named by the issue #335 round-13 acceptance criteria: a missing needs:
+    dependency edge, a removed or renamed gpu-export-closure job, a guard
+    that is not docs_only-scoped, a final-verdict script with the pre-check
+    stripped out, a final-verdict script with the failure/cancelled blocking
+    loop stripped out, a missing final-verdict job entirely, a real
+    docs_only-gated guard that belongs to a DIFFERENT job (caas-security)
+    while gpu-export-closure's own result is only ever mentioned in an
+    unguarded step-summary echo line / generic-loop entry (round-13
+    fix-iteration-1: this false-PASSED under the original fixed-width
+    anchor-window implementation), and a guard whose text exists only as
+    commented-out dead code (round-13 fix-iteration-1: this also
+    false-PASSED originally, because comments were never stripped before
+    scanning). Round-13 fix-iteration 2 added four more cases proving the
+    validator checks the comparison OPERATOR/DIRECTION and the EXACT
+    docs_only context path, not just token presence: an inverted inner
+    docs_only comparison (`= "true"` instead of `!= "true"`), an inverted
+    outer `needs.gpu-export-closure.result` comparison (`!= "skipped"`
+    instead of `= "skipped"`), an unrelated/typo'd variable substituted for
+    the real `needs.detect-impact.outputs.docs_only` path, and an inverted
+    job-level `if:` guard (`== 'true'` instead of `!= 'true'`) — all four
+    false-PASSED (zero violations) under the fix-iteration-1 implementation.
+    Round 14 (part 1) added three more cases proving the validator rejects
+    an otherwise correctly-worded, correctly-directed comparison that is
+    combined with an always-false extra `&&`/`-a` boolean conjunct at any
+    of the three guard locations (outer bash `skipped` test, nested bash
+    `docs_only` test, job-level `if:` test) — real bash's `&&` makes such a
+    condition permanently false at runtime (the guard's own `exit 1` can
+    never execute) even though every token `_equality_test()` looks for is
+    still present and adjacent to its anchor; round-13 fix-iteration 2's
+    window-based `_equality_test()` false-PASSED (zero violations) for all
+    three, confirmed independently via both the structural checker and a
+    real `bash -c` subprocess execution of the mutated scripts.
+
+    Round 14 (part 2) added three FURTHER cases, found by this same round's
+    own adversarial self-verification of part 1's fix (run before declaring
+    PATCH_READY, per the task's mandate to keep probing rather than trust
+    the first hardening): a structurally different way to reach the same
+    "guard looks present, dead at runtime" outcome by wrapping the entire
+    guard, or just its inner `docs_only` test, or just its `exit 1`, inside
+    an unrelated always-false ANCESTOR if-block, rather than ANDing an
+    always-false term into the SAME condition line. The then-current
+    `_has_gpu_export_closure_skip_guard()` searched for its anchors at ANY
+    nesting depth (a recursive `_walk_all_if_blocks()` helper), so it still
+    found the correctly-worded, correctly-directed comparison sitting
+    inside the dead ancestor and reported the guard present, even though
+    real bash never enters that ancestor's body at all. Each of these three
+    cases is also backed by a real `bash -c` subprocess assertion.
+
+    Round 14 (part 3) added two FINAL cases, found by this round's own
+    further adversarial self-verification of part 2's fix: restricting the
+    outer/inner search to top-level `if`/`fi` blocks closes an `if`-shaped
+    always-false ancestor, but a scanner that only understands `if`/`fi` is
+    still blind to the identical trick spelled with a DIFFERENT bash
+    compound statement — a `case … in` selector that can never match, or a
+    `for`/`while`/`until … ; do … done` loop that never iterates. Both make
+    an otherwise correctly-worded, correctly-nested guard permanently dead
+    code in real bash while remaining invisible to an if/fi-only tracker.
+    Also backed by real `bash -c` subprocess assertions. A single
+    well-formed baseline doc must produce zero violations (no false
+    positive)."""
+    tag = "REQUIRED-CHECKS:gpu_export_closure_skip_guard_synthetic"
+    try:
+        mod = _load_ci_module("check_required_checks_match_jobs.py",
+                               "required_checks_gpu_guard_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    failures = []
+
+    compliant_script = (
+        'if [ "${{ needs.gpu-export-closure.result }}" = "skipped" ]; then\n'
+        '  if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then\n'
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    exit 1\n'
+        '  fi\n'
+        'fi\n'
+        'for entry in "block:${{ needs.build.result }}:policy"; do\n'
+        '  if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then\n'
+        '    exit 1\n'
+        '  fi\n'
+        'done\n'
+    )
+
+    def make_doc(*, drop_job=False, rename_job=False, drop_needs_edge=False,
+                 guard_not_docs_only=False, drop_precheck=False,
+                 drop_blocking_loop=False, drop_final_verdict=False):
+        jobs = {}
+        if not drop_job:
+            key = "gpu-export-closure-renamed" if rename_job else "gpu-export-closure"
+            jobs[key] = {
+                "if": ("needs.foo == 'bar'" if guard_not_docs_only
+                       else "needs.detect-impact.outputs.docs_only != 'true'"),
+            }
+        if drop_final_verdict:
+            return {"jobs": jobs}
+        needs_list = ["detect-impact", "fast-gates"]
+        if not (drop_needs_edge or drop_job or rename_job):
+            needs_list.append("gpu-export-closure")
+        script = compliant_script
+        if drop_precheck:
+            script = script[script.index("for entry"):]
+        if drop_blocking_loop:
+            script = script[:script.index("for entry")]
+        jobs["final-verdict"] = {"needs": needs_list, "steps": [{"run": script}]}
+        return {"jobs": jobs}
+
+    def expect_violation(doc, substring, label):
+        v = mod.check_gpu_export_closure_skip_guard(doc)
+        if not v or not any(substring in msg for msg in v):
+            failures.append(f"{label} did not fail closed (violations={v!r})")
+
+    baseline_v = mod.check_gpu_export_closure_skip_guard(make_doc())
+    if baseline_v:
+        failures.append(f"compliant synthetic doc incorrectly flagged: {baseline_v!r}")
+
+    expect_violation(make_doc(drop_needs_edge=True), "needs:",
+                      "missing needs: dependency edge")
+    expect_violation(make_doc(drop_job=True), "missing",
+                      "removed gpu-export-closure job")
+    expect_violation(make_doc(rename_job=True), "missing",
+                      "renamed gpu-export-closure job")
+    expect_violation(make_doc(guard_not_docs_only=True), "docs_only",
+                      "non-docs_only-scoped if: guard")
+    expect_violation(make_doc(drop_precheck=True), "pre-check",
+                      "final-verdict script missing the skip pre-check")
+    expect_violation(make_doc(drop_blocking_loop=True), "failure/cancelled",
+                      "final-verdict script missing the failure/cancelled blocking loop")
+    expect_violation(make_doc(drop_final_verdict=True), "final-verdict",
+                      "missing final-verdict job")
+
+    # Round-13 fix-iteration-1: two additional adversarial shapes an
+    # independent verifier demonstrated as false-PASS (zero violations)
+    # under the original fixed-character-distance anchor-window scanner.
+    # Both must now fail closed under the block-nesting-aware rewrite.
+
+    # (A) "Guard for the wrong job": a real, correctly docs_only-gated
+    # pre-check exists for caas-security -- structurally identical to the
+    # genuine gate.yml pre-check, including its own nested if/docs_only/
+    # exit 1 -- but gpu-export-closure's OWN result is only ever
+    # referenced in an unguarded step-summary echo line and the generic
+    # loop's "may_skip" entry string. This is EXACTLY the round-12
+    # false-green shape for gpu-export-closure (no scoped guard at all),
+    # merely adjacent to an unrelated job's real guard.
+    wrong_job_guard_script = (
+        'echo "| gpu-export-closure | ${{ needs.gpu-export-closure.result }} |" '
+        '>> "$GITHUB_STEP_SUMMARY"\n'
+        'if [ "${{ needs.caas-security.result }}" = "skipped" ]; then\n'
+        '  if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then\n'
+        '    echo "::error::caas-security was skipped"\n'
+        '    exit 1\n'
+        '  fi\n'
+        'fi\n'
+        'for entry in "gpu-export-closure:${{ needs.gpu-export-closure.result }}:may_skip"; do\n'
+        '  if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then\n'
+        '    exit 1\n'
+        '  fi\n'
+        '  if [ "$result" = "skipped" ] && [ "$skip_policy" = "never" ]; then\n'
+        '    exit 1\n'
+        '  fi\n'
+        'done\n'
+    )
+    wrong_job_guard_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": wrong_job_guard_script}],
+            },
+        }
+    }
+    wrong_job_v = mod.check_gpu_export_closure_skip_guard(wrong_job_guard_doc)
+    if not wrong_job_v or not any("SAME if-block" in msg for msg in wrong_job_v):
+        failures.append(
+            f"guard-for-a-different-job (caas-security correctly guarded, "
+            f"gpu-export-closure only in an unguarded echo/loop mention) did "
+            f"not fail closed (violations={wrong_job_v!r})"
+        )
+
+    # (B) "Guard present only as comments": the real docs_only-gated
+    # pre-check text exists verbatim but every line is commented out (dead
+    # code); the preceding explanatory prose comment is left intact -- the
+    # exact bypass an independent verifier reproduced against the live
+    # gate.yml by commenting out only the executable guard lines.
+    comment_only_guard_script = (
+        '# gpu-export-closure (issue #335 round 13): same false-green class as\n'
+        '# caas-security above -- must be docs_only-gated.\n'
+        '# if [ "${{ needs.gpu-export-closure.result }}" = "skipped" ]; then\n'
+        '#   if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then\n'
+        '#     echo "::error::gpu-export-closure was skipped"\n'
+        '#     exit 1\n'
+        '#   fi\n'
+        '# fi\n'
+        'if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then\n'
+        '  exit 1\n'
+        'fi\n'
+    )
+    comment_only_guard_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": comment_only_guard_script}],
+            },
+        }
+    }
+    comment_only_v = mod.check_gpu_export_closure_skip_guard(comment_only_guard_doc)
+    if not comment_only_v or not any("SAME if-block" in msg for msg in comment_only_v):
+        failures.append(
+            f"guard present only as commented-out dead code did not fail "
+            f"closed (violations={comment_only_v!r})"
+        )
+
+    # Round-13 fix-iteration 2: an independent verifier proved four more
+    # false-PASS shapes that survive fix-iteration 1's block-nesting-aware
+    # rewrite -- every anchor token is still present in the right nested
+    # if-block, but the comparison OPERATOR/DIRECTION is inverted, or the
+    # variable referenced is not the real needs.detect-impact.outputs.docs_only
+    # path. Each of these would NOT actually fail closed for a non-docs skip
+    # at runtime, despite looking structurally compliant to a presence-only
+    # check. All four must now report a non-empty violation list.
+
+    # (C) Inner docs_only comparison inverted: "= "true"" instead of the
+    # correct "!= "true"" -- this guard would fire (and exit 1) exactly when
+    # docs_only IS "true" (the legitimate skip case) and silently do nothing
+    # when docs_only is NOT "true" (a real non-docs skip) -- the exact
+    # opposite of the required policy.
+    inner_inverted_script = compliant_script.replace(
+        '"${{ needs.detect-impact.outputs.docs_only }}" != "true"',
+        '"${{ needs.detect-impact.outputs.docs_only }}" = "true"',
+    )
+    assert inner_inverted_script != compliant_script, "replacement anchor not found"
+    inner_inverted_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": inner_inverted_script}],
+            },
+        }
+    }
+    inner_inverted_v = mod.check_gpu_export_closure_skip_guard(inner_inverted_doc)
+    if not inner_inverted_v:
+        failures.append(
+            "inner docs_only comparison inverted (= \"true\" instead of "
+            "!= \"true\") did not fail closed (violations=[])"
+        )
+
+    # (D) Outer skipped comparison inverted: "!= "skipped"" instead of the
+    # correct "= "skipped"" -- this guard's pre-check body (the exit 1) would
+    # run when the job did NOT skip, and never run when it DID skip -- so a
+    # genuine non-docs skip of gpu-export-closure would sail through silently.
+    outer_inverted_script = compliant_script.replace(
+        '"${{ needs.gpu-export-closure.result }}" = "skipped"',
+        '"${{ needs.gpu-export-closure.result }}" != "skipped"',
+    )
+    assert outer_inverted_script != compliant_script, "replacement anchor not found"
+    outer_inverted_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": outer_inverted_script}],
+            },
+        }
+    }
+    outer_inverted_v = mod.check_gpu_export_closure_skip_guard(outer_inverted_doc)
+    if not outer_inverted_v:
+        failures.append(
+            "outer needs.gpu-export-closure.result comparison inverted "
+            "(!= \"skipped\" instead of = \"skipped\") did not fail closed "
+            "(violations=[])"
+        )
+
+    # (E) Unrelated/typo'd variable substituted for the real docs_only
+    # context path -- the guard structurally still has an if-block nested
+    # inside an if-block with "docs_only" as a substring and an exit 1, but
+    # it is never actually wired to needs.detect-impact.outputs.docs_only.
+    wrong_var_script = compliant_script.replace(
+        "needs.detect-impact.outputs.docs_only",
+        "env.SOME_UNRELATED_docs_only_LOOKALIKE",
+    )
+    assert wrong_var_script != compliant_script, "replacement anchor not found"
+    wrong_var_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": wrong_var_script}],
+            },
+        }
+    }
+    wrong_var_v = mod.check_gpu_export_closure_skip_guard(wrong_var_doc)
+    if not wrong_var_v:
+        failures.append(
+            "unrelated/typo'd variable substituted for the real "
+            "needs.detect-impact.outputs.docs_only path did not fail closed "
+            "(violations=[])"
+        )
+
+    # (F) Job-level if: guard inverted: "== 'true'" instead of the correct
+    # "!= 'true'" -- this would make gpu-export-closure run ONLY on
+    # docs-only changes and skip unconditionally for every real code
+    # change, the exact opposite of acceptance criterion #4's "skip legal
+    # only when docs_only == true" / "must run for every non-docs change".
+    job_guard_inverted_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only == 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": compliant_script}],
+            },
+        }
+    }
+    job_guard_inverted_v = mod.check_gpu_export_closure_skip_guard(job_guard_inverted_doc)
+    if not job_guard_inverted_v or not any(
+        "EQUALITY" in msg for msg in job_guard_inverted_v
+    ):
+        failures.append(
+            "job-level if: guard inverted (== 'true' instead of != 'true') "
+            f"did not fail closed with an EQUALITY-direction violation "
+            f"(violations={job_guard_inverted_v!r})"
+        )
+
+    # Round-14: an independent verifier proved that fix-iteration 2's
+    # _equality_test() -- which pins the operator/direction and the exact
+    # variable path -- still reports zero violations when an otherwise
+    # correctly-worded, correctly-directed comparison is combined with an
+    # always-false extra `&&`/`-a`/`==` conjunct elsewhere in the SAME
+    # condition. Real bash's `&&` makes the WHOLE condition false whenever
+    # either operand is false, so the guard's own `exit 1` becomes
+    # permanently dead code at runtime, even though every substring/window
+    # check the old `_equality_test()` performed is still satisfied. This
+    # closes that exact class at all three guard locations, with a real
+    # `bash -c` subprocess assertion (not just a structural one) proving
+    # the mutated guard never reaches `exit 1` for the round-12 danger
+    # scenario, per acceptance criterion 5 -- a string-only assertion alone
+    # would still pass a checker regression that never actually executes
+    # anything.
+
+    # (G) Outer skipped comparison correct in wording/direction, but
+    # combined with an always-false extra `&&` conjunct: `[ "1" = "0" ]`.
+    # The comparison _equality_test() looks for is still present, directly
+    # adjacent to the anchor, and correctly directed -- but real bash never
+    # enters the if-body at all, so the inner docs_only pre-check and its
+    # `exit 1` are permanently dead code. Pre-round-14's _equality_test()
+    # had no model of the condition's overall boolean structure and
+    # reported zero violations for this.
+    outer_extra_conjunct_script = compliant_script.replace(
+        'if [ "${{ needs.gpu-export-closure.result }}" = "skipped" ]; then',
+        'if [ "${{ needs.gpu-export-closure.result }}" = "skipped" ] '
+        '&& [ "1" = "0" ]; then',
+    )
+    assert outer_extra_conjunct_script != compliant_script, "replacement anchor not found"
+    outer_extra_conjunct_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": outer_extra_conjunct_script}],
+            },
+        }
+    }
+    outer_extra_conjunct_v = mod.check_gpu_export_closure_skip_guard(outer_extra_conjunct_doc)
+    if not outer_extra_conjunct_v:
+        failures.append(
+            "outer needs.gpu-export-closure.result guard with an always-false "
+            "extra `&& [ \"1\" = \"0\" ]` conjunct did not fail closed "
+            "(violations=[]) -- this makes the docs_only pre-check permanently "
+            "dead code at runtime"
+        )
+
+    # Behavioral proof (acceptance criterion 5): render the mutated (dead)
+    # guard AND the real (compliant) guard for the exact round-12
+    # false-green scenario (gpu-export-closure skipped on a NON-docs
+    # change) and execute each via `bash -c`. The mutated guard's `exit 1`
+    # must be provably unreachable (rc==0); the real guard must provably
+    # reach it (rc!=0). Mirrors check_final_verdict_gpu_export_closure_skip_policy_fixtures'
+    # real-subprocess technique above.
+    def _render_gpu_export_closure_scenario(script_text: str) -> int:
+        rendered = (
+            script_text
+            .replace('${{ needs.gpu-export-closure.result }}', 'skipped')
+            .replace('${{ needs.detect-impact.outputs.docs_only }}', 'false')
+            .replace('${{ needs.build.result }}', 'success')
+        )
+        proc = subprocess.run(["bash", "-c", rendered], capture_output=True,
+                               text=True, timeout=15)
+        return proc.returncode
+
+    rc_mutated = _render_gpu_export_closure_scenario(outer_extra_conjunct_script)
+    if rc_mutated != 0:
+        failures.append(
+            f"mutated outer-conjunct script unexpectedly exited {rc_mutated} for "
+            f"the non-docs skipped scenario (expected 0 -- guard should be "
+            f"provably dead code at runtime, confirming this fixture actually "
+            f"tests the reported bypass class)"
+        )
+    rc_real = _render_gpu_export_closure_scenario(compliant_script)
+    if rc_real == 0:
+        failures.append(
+            "real (unmutated) compliant guard unexpectedly exited 0 for the "
+            "non-docs skipped scenario (expected nonzero -- the real guard "
+            "must actually block)"
+        )
+
+    # (H) Inner (nested docs_only) comparison correct in wording/direction,
+    # but combined with the same always-false extra `&&` conjunct class.
+    # The outer `skipped` guard and the failure/cancelled blocking loop are
+    # unchanged -- only the docs_only pre-check's own exit 1 becomes dead
+    # code.
+    inner_extra_conjunct_script = compliant_script.replace(
+        'if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then',
+        'if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ] '
+        '&& [ "1" = "0" ]; then',
+    )
+    assert inner_extra_conjunct_script != compliant_script, "replacement anchor not found"
+    inner_extra_conjunct_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": inner_extra_conjunct_script}],
+            },
+        }
+    }
+    inner_extra_conjunct_v = mod.check_gpu_export_closure_skip_guard(inner_extra_conjunct_doc)
+    if not inner_extra_conjunct_v:
+        failures.append(
+            "inner docs_only guard with an always-false extra "
+            "`&& [ \"1\" = \"0\" ]` conjunct did not fail closed (violations=[]) "
+            "-- this makes the pre-check's own exit 1 permanently dead code at "
+            "runtime even though the outer skipped guard fires correctly"
+        )
+
+    rc_inner_mutated = _render_gpu_export_closure_scenario(inner_extra_conjunct_script)
+    if rc_inner_mutated != 0:
+        failures.append(
+            f"mutated inner-conjunct script unexpectedly exited "
+            f"{rc_inner_mutated} for the non-docs skipped scenario (expected 0 "
+            f"-- guard should be provably dead code at runtime)"
+        )
+
+    # (I) Job-level GitHub Actions `if:` guard: wording/direction of the
+    # required comparison is correct, but an always-false extra term
+    # `&& 1 == 0` (native GitHub-expression syntax, no bash `[ ]` brackets)
+    # is appended. gpu-export-closure's job-level `if:` is evaluated by the
+    # Actions runner itself (not bash) -- this makes the job
+    # unconditionally skip on EVERY run (docs-only or not), the same
+    # "permanently dead" failure class as G/H expressed as a GitHub
+    # Actions expression rather than a bash test.
+    job_guard_extra_conjunct_doc = {
+        "jobs": {
+            "gpu-export-closure": {
+                "if": "needs.detect-impact.outputs.docs_only != 'true' && 1 == 0"
+            },
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": compliant_script}],
+            },
+        }
+    }
+    job_guard_extra_conjunct_v = mod.check_gpu_export_closure_skip_guard(job_guard_extra_conjunct_doc)
+    if not job_guard_extra_conjunct_v:
+        failures.append(
+            "job-level if: guard with an always-false extra `&& 1 == 0` term "
+            "did not fail closed (violations=[]) -- this makes "
+            "gpu-export-closure unconditionally skip on every run regardless "
+            "of docs_only"
+        )
+
+    # Round 14, part 2: this round's OWN adversarial self-verification (run
+    # against its own `&&`-conjunct fix above, before declaring PATCH_READY)
+    # found a structurally different way to reach the identical "guard looks
+    # present, dead at runtime" outcome: instead of ANDing an always-false
+    # term into the SAME condition line, wrap the whole guard -- or just a
+    # piece of it -- inside an unrelated, always-false ANCESTOR if-block.
+    # `_has_gpu_export_closure_skip_guard()` used to search for its outer and
+    # inner anchors at ANY nesting depth (`_walk_all_if_blocks()`), so it
+    # still found the correctly-worded comparison sitting inside the dead
+    # ancestor and reported the guard present, even though real bash never
+    # enters that ancestor's body. Each of the three cases below is backed by
+    # a real `bash -c` subprocess assertion, not merely a structural one, per
+    # acceptance criterion 5.
+
+    # (J) The ENTIRE guard (outer `skipped` test, nested `docs_only` test,
+    # and `exit 1`) wrapped inside a single always-false ancestor if-block.
+    outer_wrapped_script = (
+        'if [ "1" = "0" ]; then\n'
+        '  if [ "${{ needs.gpu-export-closure.result }}" = "skipped" ]; then\n'
+        '    if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then\n'
+        '      echo "::error::gpu-export-closure was skipped"\n'
+        '      exit 1\n'
+        '    fi\n'
+        '  fi\n'
+        'fi\n'
+        'for entry in "block:${{ needs.build.result }}:policy"; do\n'
+        '  if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then\n'
+        '    exit 1\n'
+        '  fi\n'
+        'done\n'
+    )
+    assert outer_wrapped_script != compliant_script, "wrapper construction produced no change"
+    outer_wrapped_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": outer_wrapped_script}],
+            },
+        }
+    }
+    outer_wrapped_v = mod.check_gpu_export_closure_skip_guard(outer_wrapped_doc)
+    if not outer_wrapped_v:
+        failures.append(
+            "entire guard (outer skipped test + nested docs_only test + "
+            "exit 1) wrapped inside an unrelated always-false ancestor "
+            "if-block ([ \"1\" = \"0\" ]) did not fail closed (violations=[]) "
+            "-- real bash never enters the ancestor's body at all"
+        )
+    rc_outer_wrapped = _render_gpu_export_closure_scenario(outer_wrapped_script)
+    if rc_outer_wrapped != 0:
+        failures.append(
+            f"outer-wrapped-in-always-false-ancestor script unexpectedly "
+            f"exited {rc_outer_wrapped} for the non-docs skipped scenario "
+            f"(expected 0 -- the whole guard should be provably dead code)"
+        )
+
+    # (K) Only the INNER docs_only test + exit 1 wrapped inside an
+    # always-false ancestor if-block nested inside the (real, unwrapped)
+    # outer skipped test.
+    inner_wrapped_script = compliant_script.replace(
+        'if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then\n'
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    exit 1\n'
+        '  fi\n',
+        '  if [ "1" = "0" ]; then\n'
+        '    if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then\n'
+        '      echo "::error::gpu-export-closure was skipped"\n'
+        '      exit 1\n'
+        '    fi\n'
+        '  fi\n',
+    )
+    assert inner_wrapped_script != compliant_script, "replacement anchor not found"
+    inner_wrapped_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": inner_wrapped_script}],
+            },
+        }
+    }
+    inner_wrapped_v = mod.check_gpu_export_closure_skip_guard(inner_wrapped_doc)
+    if not inner_wrapped_v:
+        failures.append(
+            "inner docs_only test + exit 1 wrapped inside an unrelated "
+            "always-false ancestor if-block, nested inside the real outer "
+            "skipped test, did not fail closed (violations=[])"
+        )
+    rc_inner_wrapped = _render_gpu_export_closure_scenario(inner_wrapped_script)
+    if rc_inner_wrapped != 0:
+        failures.append(
+            f"inner-wrapped-in-always-false-ancestor script unexpectedly "
+            f"exited {rc_inner_wrapped} for the non-docs skipped scenario "
+            f"(expected 0 -- the inner pre-check should be provably dead "
+            f"code)"
+        )
+
+    # (L) Outer and inner tests both real/unwrapped, but `exit 1` itself is
+    # wrapped inside a further always-false if-block one level deeper still
+    # -- the same trick applied at the innermost layer instead of around the
+    # inner or outer test.
+    exit1_wrapped_script = compliant_script.replace(
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    exit 1\n',
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    if [ "1" = "0" ]; then\n'
+        '      exit 1\n'
+        '    fi\n',
+    )
+    assert exit1_wrapped_script != compliant_script, "replacement anchor not found"
+    exit1_wrapped_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": exit1_wrapped_script}],
+            },
+        }
+    }
+    exit1_wrapped_v = mod.check_gpu_export_closure_skip_guard(exit1_wrapped_doc)
+    if not exit1_wrapped_v:
+        failures.append(
+            "exit 1 itself wrapped inside a further always-false if-block, "
+            "nested inside an otherwise real/unwrapped outer+inner guard, "
+            "did not fail closed (violations=[])"
+        )
+    rc_exit1_wrapped = _render_gpu_export_closure_scenario(exit1_wrapped_script)
+    if rc_exit1_wrapped != 0:
+        failures.append(
+            f"exit1-wrapped-in-always-false-if script unexpectedly exited "
+            f"{rc_exit1_wrapped} for the non-docs skipped scenario (expected "
+            f"0 -- the exit 1 itself should be provably dead code)"
+        )
+
+    # Round 14, part 3: this round's OWN further adversarial
+    # self-verification (run against part 2's if/fi-ancestor fix above,
+    # again before declaring PATCH_READY) found that restricting the
+    # outer/inner search to TOP-LEVEL `if`/`fi` blocks only closes an
+    # always-false `if`-ancestor wrapper, but a scanner that only recognizes
+    # `if`/`fi` is still blind to the IDENTICAL trick spelled with a
+    # DIFFERENT bash compound statement: a `case … in` selector that never
+    # matches, or a `for`/`while`/`until … ; do` loop whose body never runs.
+    # Both are real, valid bash; both make an otherwise correctly-worded,
+    # correctly-nested guard permanently dead code; neither is an `if`, so
+    # the pre-part-3 tracker didn't know they bounded anything and still
+    # found the nested `if [ ... skipped ... ]` as if it sat at the ACTUAL
+    # top level of the script.
+
+    # (M) The entire guard hidden inside a `case` arm whose selector value
+    # can never match the pattern -- real bash never enters the arm at all.
+    case_wrapped_script = (
+        'case "impossible_value_that_never_matches" in\n'
+        '  gpu-export-closure)\n'
+        '    if [ "${{ needs.gpu-export-closure.result }}" = "skipped" ]; then\n'
+        '      if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then\n'
+        '        echo "::error::gpu-export-closure was skipped"\n'
+        '        exit 1\n'
+        '      fi\n'
+        '    fi\n'
+        '    ;;\n'
+        'esac\n'
+        'for entry in "block:${{ needs.build.result }}:policy"; do\n'
+        '  if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then\n'
+        '    exit 1\n'
+        '  fi\n'
+        'done\n'
+    )
+    assert case_wrapped_script != compliant_script, "wrapper construction produced no change"
+    case_wrapped_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": case_wrapped_script}],
+            },
+        }
+    }
+    case_wrapped_v = mod.check_gpu_export_closure_skip_guard(case_wrapped_doc)
+    if not case_wrapped_v:
+        failures.append(
+            "entire guard hidden inside a `case … in` arm whose selector "
+            "can never match did not fail closed (violations=[]) -- real "
+            "bash never enters that case arm at all"
+        )
+    rc_case_wrapped = _render_gpu_export_closure_scenario(case_wrapped_script)
+    if rc_case_wrapped != 0:
+        failures.append(
+            f"case-wrapped script unexpectedly exited {rc_case_wrapped} for "
+            f"the non-docs skipped scenario (expected 0 -- the whole guard "
+            f"should be provably dead code, the case arm never selected)"
+        )
+
+    # (N) `exit 1` hidden inside a zero-iteration `for … in; do … done` loop
+    # -- the outer and inner tests are both real/unwrapped, but the loop's
+    # empty word list means bash never executes an iteration, so `exit 1`
+    # never runs.
+    for_wrapped_script = compliant_script.replace(
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    exit 1\n',
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    for _never in; do\n'
+        '      exit 1\n'
+        '    done\n',
+    )
+    assert for_wrapped_script != compliant_script, "replacement anchor not found"
+    for_wrapped_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": for_wrapped_script}],
+            },
+        }
+    }
+    for_wrapped_v = mod.check_gpu_export_closure_skip_guard(for_wrapped_doc)
+    if not for_wrapped_v:
+        failures.append(
+            "exit 1 hidden inside a zero-iteration `for _never in; do … "
+            "done` loop did not fail closed (violations=[]) -- bash never "
+            "executes an iteration, so exit 1 never runs"
+        )
+    rc_for_wrapped = _render_gpu_export_closure_scenario(for_wrapped_script)
+    if rc_for_wrapped != 0:
+        failures.append(
+            f"for-loop-wrapped-exit1 script unexpectedly exited "
+            f"{rc_for_wrapped} for the non-docs skipped scenario (expected "
+            f"0 -- exit 1 should be provably dead code, the loop body never "
+            f"iterates)"
+        )
+
+    # Round 14, part 4: this round's OWN further adversarial
+    # self-verification (run against part 3's case/for/while/until-block fix
+    # above, again before declaring PATCH_READY) found a THIRD shape,
+    # orthogonal to both the `&&`-conjunct-on-a-comparison class (parts 1)
+    # and every block-shaped dead-wrapper class (parts 2-3): a
+    # short-circuited `<test> && exit 1` / `<test> || exit 1` STATEMENT.
+    # Neither uses an `if`/`case`/`for`/`while`/`until` keyword at all, so
+    # there is no block for `_is_block_open()` to recognize or for
+    # `_strip_nested_if_blocks()` to strip -- `_EXIT_1_RE` still finds the
+    # literal text `exit 1` sitting directly in the (correctly-scoped,
+    # correctly-nested) inner body and reports the guard present, even
+    # though real bash never reaches it. `check_gpu_export_closure_skip_guard()`
+    # now closes this generically rather than with a fourth special case:
+    # `_gpu_export_closure_guard_blocks_at_runtime()` renders the
+    # comment-stripped script for the exact round-12 danger scenario and
+    # executes it via a real `bash -c` subprocess, requiring a non-zero exit
+    # -- a structurally-recognized guard that fails this behavioral proof is
+    # now ALSO flagged, closing this shape and any future one the static
+    # scan does not yet enumerate.
+
+    # (O) `exit 1` reached only via `[ "1" = "0" ] && exit 1` -- the `&&`
+    # short-circuits away from `exit 1` whenever the left test is false,
+    # which it always is here; no if/then/fi wraps it at all.
+    and_shortcircuit_script = compliant_script.replace(
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    exit 1\n',
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    [ "1" = "0" ] && exit 1\n',
+    )
+    assert and_shortcircuit_script != compliant_script, "replacement anchor not found"
+    and_shortcircuit_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": and_shortcircuit_script}],
+            },
+        }
+    }
+    and_shortcircuit_v = mod.check_gpu_export_closure_skip_guard(and_shortcircuit_doc)
+    if not and_shortcircuit_v:
+        failures.append(
+            "exit 1 hidden behind `[ \"1\" = \"0\" ] && exit 1` (no if/then/fi "
+            "at all) did not fail closed (violations=[]) -- the `&&` "
+            "short-circuits away from exit 1 whenever the left test is "
+            "false, which it always is here"
+        )
+    rc_and_shortcircuit = _render_gpu_export_closure_scenario(and_shortcircuit_script)
+    if rc_and_shortcircuit != 0:
+        failures.append(
+            f"&&-short-circuited-exit1 script unexpectedly exited "
+            f"{rc_and_shortcircuit} for the non-docs skipped scenario "
+            f"(expected 0 -- exit 1 should be provably unreachable)"
+        )
+
+    # (P) `exit 1` reached only via `[ "1" = "1" ] || exit 1` -- the `||`
+    # short-circuits away from `exit 1` whenever the left test is true,
+    # which it always is here.
+    or_shortcircuit_script = compliant_script.replace(
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    exit 1\n',
+        '    echo "::error::gpu-export-closure was skipped"\n'
+        '    [ "1" = "1" ] || exit 1\n',
+    )
+    assert or_shortcircuit_script != compliant_script, "replacement anchor not found"
+    or_shortcircuit_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": or_shortcircuit_script}],
+            },
+        }
+    }
+    or_shortcircuit_v = mod.check_gpu_export_closure_skip_guard(or_shortcircuit_doc)
+    if not or_shortcircuit_v:
+        failures.append(
+            "exit 1 hidden behind `[ \"1\" = \"1\" ] || exit 1` (no if/then/fi "
+            "at all) did not fail closed (violations=[]) -- the `||` "
+            "short-circuits away from exit 1 whenever the left test is "
+            "true, which it always is here"
+        )
+    rc_or_shortcircuit = _render_gpu_export_closure_scenario(or_shortcircuit_script)
+    if rc_or_shortcircuit != 0:
+        failures.append(
+            f"||-short-circuited-exit1 script unexpectedly exited "
+            f"{rc_or_shortcircuit} for the non-docs skipped scenario "
+            f"(expected 0 -- exit 1 should be provably unreachable)"
+        )
+
+    # (Q) One further, deliberately DIFFERENT construct from any covered
+    # above -- a `{ …; }` brace GROUP gated by `false &&` -- to empirically
+    # back the behavioral check's own claim that it closes "any future
+    # [shape] the static scan does not yet enumerate", not just the four
+    # specific shapes this file happens to special-case or short-circuit
+    # around. `false && { <the whole real guard> }`: bash only runs a `&&`
+    # RHS when the LHS succeeds, which `false` never does, so the group
+    # (and everything nested inside it, including a fully correct,
+    # correctly-nested outer/inner/exit-1 guard) never executes. No
+    # `if`/`case`/`for`/`while`/`until`/`&&`-on-a-comparison shape is
+    # involved at all -- only the behavioral runtime proof, not any
+    # structural special case, can catch this one.
+    brace_group_wrapped_script = (
+        'false && {\n'
+        + compliant_script[:compliant_script.index("\nfor entry")]
+        + '\n}\n'
+        + compliant_script[compliant_script.index("for entry"):]
+    )
+    assert brace_group_wrapped_script != compliant_script, "wrapper construction produced no change"
+    brace_group_wrapped_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": brace_group_wrapped_script}],
+            },
+        }
+    }
+    brace_group_wrapped_v = mod.check_gpu_export_closure_skip_guard(brace_group_wrapped_doc)
+    if not brace_group_wrapped_v:
+        failures.append(
+            "entire guard hidden inside a `false && { … }` brace group did "
+            "not fail closed (violations=[]) -- real bash never executes "
+            "the group at all, and this shape uses no if/case/for/while/"
+            "until/&&-on-a-comparison keyword the static checks recognize"
+        )
+    rc_brace_group_wrapped = _render_gpu_export_closure_scenario(brace_group_wrapped_script)
+    if rc_brace_group_wrapped != 0:
+        failures.append(
+            f"brace-group-wrapped script unexpectedly exited "
+            f"{rc_brace_group_wrapped} for the non-docs skipped scenario "
+            f"(expected 0 -- the whole guard should be provably dead code, "
+            f"the group never entered)"
+        )
+
+    # Sanity: the behavioral check must not itself produce a false positive
+    # on the real, unmutated compliant script (already proven blocking via
+    # rc_real above at fixture (G)) -- re-confirmed here directly through
+    # the actual gate function, not just the raw subprocess helper, so a
+    # regression in _gpu_export_closure_guard_blocks_at_runtime() wiring
+    # itself (not just its logic) would also be caught.
+    compliant_recheck_doc = {
+        "jobs": {
+            "gpu-export-closure": {"if": "needs.detect-impact.outputs.docs_only != 'true'"},
+            "final-verdict": {
+                "needs": ["detect-impact", "fast-gates", "gpu-export-closure"],
+                "steps": [{"run": compliant_script}],
+            },
+        }
+    }
+    compliant_v = mod.check_gpu_export_closure_skip_guard(compliant_recheck_doc)
+    if compliant_v:
+        failures.append(
+            f"the real, unmutated compliant guard was incorrectly flagged by "
+            f"the round-14-part-4 behavioral runtime check (violations="
+            f"{compliant_v!r}) -- false positive on legitimate code"
+        )
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "check_gpu_export_closure_skip_guard() fails closed on a missing needs: "
+                "edge, a removed/renamed gpu-export-closure job, a non-docs_only-scoped "
+                "if: guard, a missing final-verdict pre-check, a missing failure/cancelled "
+                "blocking loop, a missing final-verdict job, a real guard scoped to a "
+                "DIFFERENT job while gpu-export-closure's own mention is unguarded, a "
+                "guard whose text exists only as commented-out dead code, an inverted "
+                "outer or inner comparison operator, an unrelated/typo'd docs_only "
+                "variable, an inverted job-level if: guard, an always-false extra &&/-a "
+                "conjunct at any of the three guard locations, the entire guard (or just "
+                "its inner docs_only test, or just its exit 1) wrapped inside an unrelated "
+                "always-false ANCESTOR if-block, the same dead-wrapper trick spelled "
+                "with a never-matching `case` arm or a zero-iteration `for` loop instead "
+                "of an `if`, and exit 1 hidden behind a short-circuited `&&`/`||` "
+                "statement with no if/case/for/while/until block at all -- caught by a "
+                "real `bash -c` behavioral execution proof rather than one more static "
+                "special case (round 14, parts 1-4, each with a real bash subprocess "
+                "proof the guard is dead code at runtime) -- zero false positives on a "
+                "compliant synthetic doc")
+
+
 def check_libbitcoin_perf_matrix_fixtures() -> None:
     """B21: the libbitcoin performance matrix gate must fail missing surfaces,
     wrong target_context, missing evidence, native-hardware overclaim, and missing
@@ -3378,6 +4696,9 @@ def main() -> int:
     check_evidence_refresh_coverage_fixtures()
     check_package_provenance_binding_fixtures()
     check_release_package_contents_fixtures()
+    check_release_package_contents_gpu_export_closure_fixtures()
+    check_final_verdict_gpu_export_closure_skip_policy_fixtures()
+    check_required_checks_gpu_export_closure_skip_guard_synthetic_fixtures()
     check_libbitcoin_perf_matrix_fixtures()
     check_gpu_backend_parity_fixtures()
     check_node_package_contract_fixtures()

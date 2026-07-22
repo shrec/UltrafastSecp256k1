@@ -1,6 +1,84 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-06-13 | **Version**: 4.5.0
+**Last updated**: 2026-07-15 | **Version**: 4.5.0
+
+### 2026-07-15 - `ufsecp_gpu_bip352_scan_batch_multispend` hostile-caller contract (GitHub issue #335, paired with `include/ufsecp/ufsecp_gpu.h`)
+
+New GPU C ABI entry point `ufsecp_gpu_bip352_scan_batch_multispend`
+(`scan_privkey32` SECRET, all other params public). Hostile-caller contract,
+per parameter:
+
+- **`ctx == NULL`**: `UFSECP_ERR_NULL_ARG` (no dispatch).
+- **`scan_privkey32 == NULL`** (with `n_tweaks>0 && n_spend>0`): `UFSECP_ERR_NULL_ARG`.
+- **`scan_privkey32` invalid** (all-zero, or `>= group order`, or
+  `0xFF..FF`): `UFSECP_ERR_BAD_KEY`, `prefix64_out` fully zeroed. Covered by
+  `audit/test_regression_opencl_bip352_scan_key_boundary.cpp` (SKB-1..5) and
+  `audit/test_exploit_gpu_bip352_multispend_failclosed.cpp` (FC-6).
+- **`spend_pubkeys33 == NULL`** (`n_spend>0`) / **`tweak_pubkeys33 == NULL`**
+  (`n_tweaks>0`) / **`prefix64_out == NULL`**: `UFSECP_ERR_NULL_ARG`.
+- **`n_tweaks == 0` or `n_spend == 0`**: valid no-op, `UFSECP_OK`, no output
+  written — even with otherwise-degenerate/aliased pointers (FC-5).
+- **`n_spend`, `n_tweaks`, or `n_tweaks * n_spend` too large** (overflow or
+  `> kMaxGpuBatchN`/`kMaxBip352Spend`): `UFSECP_ERR_BAD_INPUT`. Checked
+  redundantly at the C ABI layer AND independently inside each concrete
+  `GpuBackend` (CUDA/OpenCL/Metal), since the backend virtual is a
+  documented direct-call surface bypassing the ABI wrapper.
+- **Malformed spend/tweak pubkey** (bad compressed-point prefix byte, or
+  off-curve x-coordinate): does not fail the whole batch — the affected
+  row/column's `prefix64` entry is `0`, all other rows/columns are computed
+  normally (matches the pre-existing single-spend `ufsecp_gpu_bip352_scan_batch`
+  contract).
+- **Pointer-range overlap** between `prefix64_out` and any of
+  `scan_privkey32`/`spend_pubkeys33`/`tweak_pubkeys33`: `UFSECP_ERR_BAD_INPUT`,
+  rejected BEFORE the pre-dispatch output-zeroing step (an aliased output
+  buffer's zeroing would otherwise corrupt input data the backend reads
+  immediately afterward). Overflow-safe range-overlap check
+  (`ranges_overlap()`, `src/cpu/src/ufsecp_gpu_impl.cpp`). Exact alias and
+  partial (start/end) overlap are both rejected; disjoint buffers are never
+  false-positive-rejected. Covered by FC-1..4 in
+  `audit/test_exploit_gpu_bip352_multispend_failclosed.cpp`.
+- **Backend/driver failure at any stage** (kernel init, kernel-argument
+  binding, launch, finish/synchronize, readback): non-OK return,
+  `prefix64_out` fully zeroed for its entire validated size — never a
+  partial/torn output row. On OpenCL this is proven by DETERMINISTIC RUNTIME
+  fault injection (not a source-text check): `SW-FI-PROBE-1..8`
+  (mechanism-level, GPU-independent proof the injector itself works, all 18
+  sites individually injectable) and `SW-FI-E2E-1..2` (real end-to-end,
+  bounded-timeout, `clFinish` site) in
+  `audit/test_exploit_gpu_bip352_multispend_failclosed.cpp`; **round 3
+  (2026-07-16) extended the real end-to-end proof to all 18 documented
+  control-call stages individually** (command-queue/work-group queries, all
+  11 `clSetKernelArg` calls across both kernel launches, both
+  `clEnqueueNDRangeKernel` launches, `clFinish`, `clEnqueueReadBuffer`) — a
+  round-2 gap review flagged (only `clFinish` had real end-to-end coverage;
+  every other site was only proven at the injector-mechanism level). Each
+  site is armed, dispatched through the real public ABI, confirmed hit,
+  confirmed non-OK, confirmed `prefix64_out` fully zeroed — verified on this
+  machine's RTX 5060 Ti, `Result: 37 passed, 0 failed, 0 inconclusive`, see
+  `audit/test_exploit_opencl_bip352_control_call_failclosed.cpp`. The
+  `SITE_QUEUE_INFO`/`SITE_WG_INFO_*` queries also no longer fall back to a
+  default work-group size on failure (round 2 left this fail-open; round 3
+  fixed it). On Metal, a
+  command-buffer dispatch failure is now propagated via
+  `MetalRuntime::dispatch_sync_checked()` (round 2 — round 1 could only log
+  it to stderr and silently proceed) and fails closed identically; runtime
+  confirmation on real Apple hardware remains
+  `METAL_RUNTIME_CONFIRMATION_PENDING` (no macOS machine in this
+  development environment — see `benchmarks/github_issue_335/macos_replay.sh`).
+- **Same-context concurrent callers** (Metal): serialized by
+  `bip352_pool_mtx_` covering the whole per-call span; no torn/corrupted
+  output row observable across concurrent threads on one `MetalBackend`
+  instance. Covered by `SW-BIP352-METAL-1/3`
+  (`audit/test_gpu_bip352_scan.cpp`, advisory-skips without Metal hardware).
+- **Context destroy+recreate** (Metal): no stale device-buffer reuse across
+  a `shutdown()`+`init()` cycle (`shutdown()` now frees all three buffer
+  pools, not just the MSM pool). Covered by `SW-BIP352-METAL-2`.
+
+Coverage: `audit/test_gpu_bip352_scan.cpp` (SW-BIP352-4..14, SW-BIP352-M*,
+SW-BIP352-METAL-1..3), `audit/test_exploit_gpu_bip352_multispend_failclosed.cpp`
+(FC-1..7/10/11, SW-FI-PROBE-1..8, SW-FI-E2E-1..2),
+`audit/test_exploit_gpu_bip352_scalar_limb_order.cpp`,
+`audit/test_regression_opencl_bip352_scan_key_boundary.cpp` (SEC-002).
 
 ### 2026-06-22 - CPU batch-verify pool + decompress: no new secret-bearing ABI boundary
 

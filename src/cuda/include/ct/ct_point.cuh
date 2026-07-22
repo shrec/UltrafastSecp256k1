@@ -693,9 +693,27 @@ void ct_generator_mul(const Scalar* k, JacobianPoint* r_out) {
 // --- CT Variable-Base Scalar Multiplication -----------------------------------
 // Left-to-right binary double-and-add-with-select (256 iterations, no secret
 // branches). Requires: base has Z=1 (i.e., was decompressed from affine).
-// Scalar limb layout: limbs[0]=MSW, limbs[3]=LSW (big-endian limb order).
+// Scalar limb layout: limbs[0]=LSW, limbs[3]=MSW (little-endian limb order --
+// matches secp256k1::ScalarData / secp256k1::FieldElementData and every other
+// consumer of Scalar in this codebase, e.g. the host-side BE32->limbs[4]
+// conversion in gpu_backend_cuda.cu's bip352_scan_batch_multispend()).
 // CT properties: fixed iteration count, branchless bit test (bool_to_mask),
 // ct_point_dbl + ct_point_add_mixed handle identity via cmov.
+//
+// FIX (issue #335 investigation, discovered via independent cross-check
+// against secp256k1::silent_payment_create_output / a from-scratch Python
+// re-implementation using an external EC library): this function previously
+// read `limb_idx = 3 - (bit / 64)`, i.e. it assumed limbs[0] is the MOST
+// significant word. That assumption is wrong for this codebase's Scalar
+// layout (limbs[0] is the LEAST significant word everywhere else), so the
+// scalar `k` was effectively consumed with its 4 64-bit limbs in reversed
+// order -- every BIP-352 GPU scan on CUDA (the only consumer of this
+// function) computed a shared secret keyed off a scrambled scan-key value,
+// silently returning wrong (non-matching) prefixes for 100% of real BIP-352
+// inputs. Corrected to `limb_idx = bit / 64`, verified against an
+// independent CPU implementation for scan/tweak/spend triples spanning
+// n_spend in {1,2,3,8} and n_tweaks in {1,19,128,129}
+// (audit/test_gpu_bip352_scan.cpp, SW-BIP352-M1).
 __device__ inline
 void ct_scalar_mul_varbase(const JacobianPoint* base, const Scalar* k,
                            JacobianPoint* r_out) {
@@ -712,8 +730,8 @@ void ct_scalar_mul_varbase(const JacobianPoint* base, const Scalar* k,
 
     // Process 256 bits MSB → LSB.  All branching is on public loop index.
     for (int bit = 255; bit >= 0; --bit) {
-        // bit index → limb (limbs[0]=MSW) and position within limb
-        int      limb_idx = 3 - (bit / 64);
+        // bit index -> limb (limbs[0]=LSW) and position within limb
+        int      limb_idx = bit / 64;
         int      pos      = bit % 64;
         uint64_t bit_mask = bool_to_mask((k->limbs[limb_idx] >> pos) & 1ULL);
 

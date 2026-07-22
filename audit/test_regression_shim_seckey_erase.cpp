@@ -68,23 +68,21 @@ using secp256k1::fast::Point;
 
 static int g_pass = 0, g_fail = 0;
 
-// Read a repo-relative source file. The audit binaries run from a build dir that
-// is nested inside the repo (build-audit/, out/<build>/...), so try a range of
-// "../" depths. Not-found is a HARD FAIL (the source always exists in-tree) —
-// a silent skip would make this regression guard a false-green.
+// Read a repo-relative source file. Not-found is a HARD FAIL (the source
+// always exists in-tree) — a silent skip would make this regression guard a
+// false-green.
+//
+// Repair (issue #335 acceptance repair, round 5): the previous bounded
+// CWD-relative-only prefix list never resolved when unified_audit_runner was
+// invoked from a CWD unrelated to the repo (e.g. /tmp) — this module already
+// hard-failed rather than silently passing, but its real check count still
+// diverged between "run from the repo root" (49/49) and "run from an
+// unrelated CWD" (13/20), which the same CWD-independence finding covers.
+// Route through the shared, UFSECP_SOURCE_ROOT-aware audit_read_source_file()
+// (audit_check.hpp), keeping the bounded CWD-relative walk-up only as its
+// own internal fallback.
 static std::string read_repo_file(const char* rel_path) {
-    const char* prefixes[] = {
-        "", "../", "../../", "../../../", "../../../../", nullptr
-    };
-    for (int i = 0; prefixes[i]; ++i) {
-        std::string path = std::string(prefixes[i]) + rel_path;
-        std::ifstream f(path);
-        if (f.is_open()) {
-            return {std::istreambuf_iterator<char>(f),
-                    std::istreambuf_iterator<char>()};
-        }
-    }
-    return {};
+    return audit_read_source_file(rel_path);
 }
 
 // Extract the brace-matched body of the first function whose name (including the

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Grep",
+      "Glob",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(find *)",
+      "Bash(tree *)"
+    ]
+  }
+}

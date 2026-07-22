@@ -2,13 +2,45 @@
 // Regression: BIP-352 scan kernel uses CT variable-base scalar mul (CRIT-02)
 //
 // BCV-1..4  — CPU-path BIP-352 scan produces correct output (always runs)
-// BCV-5..8  — GPU BIP-352 batch scan matches CPU reference output (GPU-only)
-// BCV-9     — ct_scalar_mul_varbase correctness: k=1 → result == base point
-// BCV-10    — ct_scalar_mul_varbase: k=2 → result == 2*base (point doubling)
+// BCV-5..8  — GPU BIP-352 batch scan matches an INDEPENDENT CPU oracle,
+//             byte-for-byte, for scan keys chosen to probe every 64-bit limb
+//             boundary of ct_scalar_mul_varbase (GPU-only, advisory)
 //
-// The GPU tests are advisory (skipped if no CUDA GPU available).
-// The CPU tests verify the BIP-352 pipeline still produces correct output
-// after the kernel was updated to use ct::ct_scalar_mul_varbase.
+// issue #335 acceptance repair (2026-07): this module previously only
+// asserted the GPU prefix was non-zero and that two identical calls returned
+// the same value ("nonzero-and-determinism-only"). That is NOT a correctness
+// check: a scan key with 100% of its limb ordering silently reversed is
+// still non-zero and still deterministic -- it just computes a different,
+// wrong point every time, consistently. This is exactly the shape of the
+// pre-existing P0 bug this module is named for (CRIT-02 / ct_scalar_mul_varbase,
+// src/cuda/include/ct/ct_point.cuh): `limb_idx = 3 - (bit/64)` (wrong,
+// assumes limbs[0]=MSW) vs the fixed `limb_idx = bit/64` (correct,
+// limbs[0]=LSW, matching every other Scalar consumer in this codebase). The
+// old nonzero+determinism check passed identically before AND after that fix
+// -- it could never have caught the bug it claims to guard against.
+//
+// This rewrite replaces that check with an INDEPENDENT CPU oracle
+// (ufsecp_silent_payment_create_output, sender-side BIP-352 construction --
+// a code path entirely separate from the GPU scan kernels and from
+// ct_scalar_mul_varbase itself) compared byte-for-byte against the GPU
+// receiver-side scan result, for scan private keys chosen specifically to
+// probe ct_scalar_mul_varbase's bit/limb indexing:
+//   - k=1                (BCV-9  intent: k=1 -> shared = base point unchanged)
+//   - k=2                (BCV-10 intent: k=2 -> shared = base point doubled)
+//   - single bit set at each of positions 63/64/127/128/191/192/255 -- the
+//     eight 64-bit-limb boundary bits (top/bottom bit of each of the 4
+//     limbs), where a limb-index transposition bug changes WHICH limb a
+//     given bit lands in and therefore produces a completely different,
+//     wrong scalar
+//   - two bits straddling a limb boundary simultaneously (63+64, 127+128,
+//     191+192) -- catches a bug that only manifests when two adjacent limbs
+//     are both non-zero
+//   - deterministic "representative random" vectors (fixed PRNG seeds, not
+//     true randomness, so failures are always reproducible)
+// crossed with n_spend in {1, 2, 3, 8} candidate spend keys per GPU backend
+// available on this machine. A limb-reversed scalar mul fails EVERY one of
+// these cells (the reversed scalar is a different value for all of them);
+// the correct implementation passes all of them.
 // ============================================================================
 
 #ifndef UNIFIED_AUDIT_RUNNER
@@ -22,7 +54,10 @@
 #include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <cstdint>
 #include <array>
+#include <vector>
+#include <string>
 
 static int g_fail = 0;
 #define ASSERT_TRUE(cond, msg)  do { if (!(cond)) { std::printf("FAIL [%s]: %s\n", __func__, msg); ++g_fail; } } while(0)
@@ -67,25 +102,65 @@ static void test_bcv_cpu_correctness() {
     ufsecp_ctx_destroy(ctx);
 }
 
-// BCV-5..8: GPU BIP-352 batch scan (requires CUDA) — advisory.
-// Verifies that the ct::ct_scalar_mul_varbase kernel produces the same
-// prefix as the CPU reference for a known scan key + input pubkey pair.
-static void test_bcv_gpu_batch_matches_cpu() {
-    // Runtime GPU availability check (advisory module — CUDA may not be present).
-    if (!ufsecp_gpu_is_available(UFSECP_GPU_BACKEND_CUDA)) {
-        std::printf("SKIP BCV-5..8: CUDA GPU not available (advisory)\n");
+/* ----------------------------------------------------------------------- */
+/* BCV-5..8: independent CPU-oracle byte-exact equality, limb-boundary keys */
+/* ----------------------------------------------------------------------- */
+
+// Deterministic (not cryptographically random) byte fill -- reproducible
+// across runs/machines, matching the pattern used elsewhere in this audit
+// suite (e.g. audit/test_gpu_bip352_scan.cpp's fill_det).
+static void bcv_fill_det(uint8_t* buf, size_t len, uint32_t seed) {
+    uint32_t st = seed;
+    for (size_t i = 0; i < len; ++i) {
+        st = st * 1103515245u + 12345u;
+        buf[i] = static_cast<uint8_t>((st >> 16) & 0xFF);
+    }
+}
+
+// Set bit `bit_index` (0 = LSB of the 256-bit big-endian scalar, 255 = MSB)
+// in a 32-byte big-endian buffer. byte 31 holds bits 0..7, byte 0 holds
+// bits 248..255.
+static void bcv_set_bit_be32(uint8_t out32[32], int bit_index) {
+    std::memset(out32, 0, 32);
+    int byte_from_end = bit_index / 8;
+    int bit_in_byte    = bit_index % 8;
+    out32[31 - byte_from_end] = static_cast<uint8_t>(1u << bit_in_byte);
+}
+
+// Independent CPU oracle: ufsecp_silent_payment_create_output (sender side,
+// secp256k1::silent_payment_create_output) -- a code path entirely separate
+// from both the GPU scan kernels AND ct_scalar_mul_varbase under test.
+static bool bcv_oracle_expected_prefix(
+    ufsecp_ctx* cpu_ctx,
+    const uint8_t tweak_input_sk[32],
+    const uint8_t scan_pubkey33[33],
+    const uint8_t spend_pubkey33[33],
+    uint64_t* prefix_out)
+{
+    uint8_t out33[33] = {};
+    auto rc = ufsecp_silent_payment_create_output(
+        cpu_ctx, tweak_input_sk, 1, scan_pubkey33, spend_pubkey33, 0, out33, nullptr);
+    if (rc != UFSECP_OK) return false;
+    uint64_t pref = 0;
+    for (int i = 0; i < 8; ++i) pref = (pref << 8) | out33[1 + i];
+    *prefix_out = pref;
+    return true;
+}
+
+static void test_bcv_gpu_batch_matches_cpu_oracle() {
+    // Runtime GPU availability check (advisory module — no GPU may be present).
+    uint32_t ids[8] = {};
+    uint32_t cnt = ufsecp_gpu_backend_count(ids, 8);
+    if (cnt == 0) {
+        std::printf("SKIP BCV-5..8: no GPU backend available (advisory)\n");
         return;
     }
-
     ufsecp_gpu_ctx* gctx = nullptr;
-    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, UFSECP_GPU_BACKEND_CUDA, 0);
+    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, ids[0], 0);
     if (grc != UFSECP_OK || !gctx) {
-        std::printf("SKIP BCV-5: CUDA ctx creation failed (advisory)\n"); return;
+        std::printf("SKIP BCV-5: GPU ctx creation failed (advisory)\n");
+        return;
     }
-
-    uint8_t scan_sk[32] = {};
-    scan_sk[31] = 0x07;
-    uint8_t spend_pk33[33] = {};
 
     ufsecp_ctx* ctx = nullptr;
     if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) {
@@ -93,26 +168,138 @@ static void test_bcv_gpu_batch_matches_cpu() {
         ufsecp_gpu_ctx_destroy(gctx);
         return;
     }
-    uint8_t spend_sk[32] = {}; spend_sk[31] = 0x0B;
-    ASSERT_TRUE(ufsecp_pubkey_create(ctx, spend_sk, spend_pk33) == UFSECP_OK, "BCV: spend pubkey_create");
 
-    // Tweak pubkey = G (base point)
-    static const uint8_t g33[33] = {
-        0x02,
-        0x79,0xBE,0x66,0x7E,0xF9,0xDC,0xBB,0xAC,0x55,0xA0,0x62,0x95,0xCE,0x87,0x0B,0x07,
-        0x02,0x9B,0xFC,0xDB,0x2D,0xCE,0x28,0xD9,0x59,0xF2,0x81,0x5B,0x16,0xF8,0x17,0x98
+    // -- 1. Build the scan-key candidate set: boundary-bit + doubling +
+    //       cross-boundary + deterministic "random" vectors. Every key is
+    //       nonzero and < group order n (n > 2^255, so any single/double
+    //       power-of-two below bit 256 is a valid scalar). --
+    struct ScanKeyCase { const char* label; uint8_t sk[32]; };
+    std::vector<ScanKeyCase> scan_keys;
+
+    auto add_bits = [&](const char* label, std::initializer_list<int> bits) {
+        ScanKeyCase c{};
+        c.label = label;
+        std::memset(c.sk, 0, 32);
+        for (int b : bits) {
+            int byte_from_end = b / 8;
+            int bit_in_byte    = b % 8;
+            c.sk[31 - byte_from_end] |= static_cast<uint8_t>(1u << bit_in_byte);
+        }
+        scan_keys.push_back(c);
     };
 
-    uint64_t prefix = 0;
-    grc = ufsecp_gpu_bip352_scan_batch(gctx, scan_sk, spend_pk33, g33, 1, &prefix);
-    ASSERT_TRUE(grc == UFSECP_OK, "BCV-5: GPU bip352_scan_batch must succeed");
-    ASSERT_FALSE(prefix == 0, "BCV-6: GPU bip352 prefix must not be zero for valid inputs");
+    add_bits("k=1 (BCV-9: shared=base unchanged)",   {0});
+    add_bits("k=2 (BCV-10: shared=base doubled)",    {1});
+    add_bits("bit63 (limb0 top bit)",                {63});
+    add_bits("bit64 (limb1 bottom bit)",              {64});
+    add_bits("bit127 (limb1 top bit)",                {127});
+    add_bits("bit128 (limb2 bottom bit)",             {128});
+    add_bits("bit191 (limb2 top bit)",                {191});
+    add_bits("bit192 (limb3 bottom bit)",             {192});
+    add_bits("bit255 (limb3 top bit)",                {255});
+    add_bits("bit63+bit64 (limb0/limb1 boundary)",    {63, 64});
+    add_bits("bit127+bit128 (limb1/limb2 boundary)",  {127, 128});
+    add_bits("bit191+bit192 (limb2/limb3 boundary)",  {191, 192});
 
-    // BCV-7: run twice with same inputs → same prefix (deterministic CT path)
-    uint64_t prefix2 = 0;
-    grc = ufsecp_gpu_bip352_scan_batch(gctx, scan_sk, spend_pk33, g33, 1, &prefix2);
-    ASSERT_TRUE(grc == UFSECP_OK, "BCV-7: second GPU bip352 run must succeed");
-    ASSERT_TRUE(prefix == prefix2, "BCV-8: GPU bip352 must be deterministic");
+    for (uint32_t seed = 1; seed <= 3; ++seed) {
+        ScanKeyCase c{};
+        char buf[48];
+        std::snprintf(buf, sizeof(buf), "deterministic random seed=%u", seed);
+        c.label = "deterministic random vector"; // static storage for snprintf'd label not needed; kept generic
+        bcv_fill_det(c.sk, 32, seed * 0x9E3779B9u);
+        c.sk[0] &= 0x7F; // keep well below group order
+        scan_keys.push_back(c);
+    }
+
+    // -- 2. Fixed spend-key candidates (up to MAX_SPEND) and tweak inputs. --
+    constexpr int MAX_SPEND  = 8;
+    constexpr int MAX_TWEAKS = 4;
+    uint8_t spend_sk[MAX_SPEND][32] = {};
+    uint8_t spend_pk[MAX_SPEND][33] = {};
+    bool spend_ok = true;
+    for (int j = 0; j < MAX_SPEND; ++j) {
+        bcv_fill_det(spend_sk[j], 32, 1000u + static_cast<uint32_t>(j));
+        spend_sk[j][0] &= 0x7F;
+        if (ufsecp_pubkey_create(ctx, spend_sk[j], spend_pk[j]) != UFSECP_OK) { spend_ok = false; break; }
+    }
+    ASSERT_TRUE(spend_ok, "BCV-5: deterministic spend pubkey derivation must succeed");
+
+    uint8_t tweak_sk[MAX_TWEAKS][32] = {};
+    uint8_t tweak_pk[MAX_TWEAKS * 33] = {};
+    bool tweak_ok = true;
+    for (int i = 0; i < MAX_TWEAKS; ++i) {
+        bcv_fill_det(tweak_sk[i], 32, 2000u + static_cast<uint32_t>(i));
+        tweak_sk[i][0] &= 0x7F;
+        if (ufsecp_pubkey_create(ctx, tweak_sk[i], tweak_pk + i * 33) != UFSECP_OK) { tweak_ok = false; break; }
+    }
+    ASSERT_TRUE(tweak_ok, "BCV-5: deterministic tweak pubkey derivation must succeed");
+
+    if (!spend_ok || !tweak_ok) {
+        ufsecp_ctx_destroy(ctx);
+        ufsecp_gpu_ctx_destroy(gctx);
+        return;
+    }
+
+    // -- 3. For every scan-key case x n_spend in {1,2,3,8}: GPU multispend
+    //       scan vs. independent CPU oracle, byte-exact, per cell. --
+    const int spend_counts[] = {1, 2, 3, MAX_SPEND};
+    int cells_checked = 0;
+    bool any_supported = false;
+    for (const auto& sk_case : scan_keys) {
+        uint8_t scan_pubkey33[33] = {};
+        if (ufsecp_pubkey_create(ctx, sk_case.sk, scan_pubkey33) != UFSECP_OK) {
+            ASSERT_TRUE(false, "BCV-5: scan pubkey derivation must succeed for every candidate key");
+            continue;
+        }
+        for (int n_spend : spend_counts) {
+            std::vector<uint64_t> matrix(static_cast<size_t>(MAX_TWEAKS) * n_spend, UINT64_MAX);
+            auto rc = ufsecp_gpu_bip352_scan_batch_multispend(
+                gctx, sk_case.sk, &spend_pk[0][0], static_cast<size_t>(n_spend),
+                tweak_pk, MAX_TWEAKS, matrix.data());
+            if (rc == UFSECP_ERR_GPU_UNSUPPORTED) continue; // backend doesn't implement this op
+            ASSERT_TRUE(rc == UFSECP_OK, "BCV-6: GPU multispend scan must return UFSECP_OK");
+            if (rc != UFSECP_OK) continue;
+            any_supported = true;
+
+            for (int i = 0; i < MAX_TWEAKS; ++i) {
+                for (int j = 0; j < n_spend; ++j) {
+                    uint64_t expected = 0;
+                    if (!bcv_oracle_expected_prefix(ctx, tweak_sk[i], scan_pubkey33,
+                                                     spend_pk[j], &expected)) {
+                        continue; // extremely unlikely (infinity point); not a failure
+                    }
+                    ++cells_checked;
+                    ASSERT_TRUE(matrix[static_cast<size_t>(i) * n_spend + j] == expected,
+                                "BCV-7: GPU multispend cell must byte-exact-match independent "
+                                "CPU oracle (ufsecp_silent_payment_create_output) -- a limb-order "
+                                "bug in ct_scalar_mul_varbase fails this for every boundary-bit "
+                                "scan key case");
+                }
+            }
+        }
+    }
+
+    if (any_supported) {
+        // BCV-8: determinism, kept from the original module (now on top of,
+        // not instead of, the byte-exact oracle check above).
+        std::vector<uint64_t> run1(static_cast<size_t>(MAX_TWEAKS) * 3, 0);
+        std::vector<uint64_t> run2(static_cast<size_t>(MAX_TWEAKS) * 3, 0);
+        auto rc1 = ufsecp_gpu_bip352_scan_batch_multispend(
+            gctx, scan_keys.front().sk, &spend_pk[0][0], 3, tweak_pk, MAX_TWEAKS, run1.data());
+        auto rc2 = ufsecp_gpu_bip352_scan_batch_multispend(
+            gctx, scan_keys.front().sk, &spend_pk[0][0], 3, tweak_pk, MAX_TWEAKS, run2.data());
+        if (rc1 == UFSECP_OK && rc2 == UFSECP_OK) {
+            ASSERT_TRUE(std::memcmp(run1.data(), run2.data(), run1.size() * sizeof(uint64_t)) == 0,
+                        "BCV-8: identical GPU multispend calls must be deterministic");
+        }
+        std::printf("  BCV-5..8: %d scan-key cases x n_spend{1,2,3,8} = %d byte-exact "
+                    "oracle cells checked\n",
+                    static_cast<int>(scan_keys.size()), cells_checked);
+        ASSERT_TRUE(cells_checked > 0, "BCV-6b: at least one oracle cell must have been checked");
+    } else {
+        std::printf("SKIP BCV-5..8: bip352_scan_batch_multispend unsupported on every "
+                    "available GPU backend (advisory)\n");
+    }
 
     ufsecp_ctx_destroy(ctx);
     ufsecp_gpu_ctx_destroy(gctx);
@@ -121,7 +308,7 @@ static void test_bcv_gpu_batch_matches_cpu() {
 int test_regression_bip352_ct_varbase_run() {
     g_fail = 0;
     test_bcv_cpu_correctness();
-    test_bcv_gpu_batch_matches_cpu();
+    test_bcv_gpu_batch_matches_cpu_oracle();
 
     if (g_fail == 0)
         std::printf("PASS: BIP-352 CT variable-base scalar mul regression (CRIT-02)\n");

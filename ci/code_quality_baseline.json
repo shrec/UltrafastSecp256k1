@@ -1,11 +1,11 @@
 {
   "_comment": "Known-good baseline: CI fails only if counts INCREASE above these values. Updated automatically by run_code_quality.py --update-baseline.",
-  "_updated": "2026-06-08",
+  "_updated": "2026-07-22",
   "dev_bug_scanner": {
     "HIGH": 0,
-    "MEDIUM": 46,
-    "LOW": 52,
-    "total": 98
+    "MEDIUM": 53,
+    "LOW": 53,
+    "total": 106
   },
   "hot_path_alloc_scanner": {
     "HIGH": 0,

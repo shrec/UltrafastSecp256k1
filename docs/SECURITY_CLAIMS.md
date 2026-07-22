@@ -2,6 +2,129 @@
 
 **UltrafastSecp256k1 v4.5.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-07-15 - `ufsecp_gpu_bip352_scan_batch_multispend` added: GPU BIP-352 multi-spend-key scan (GitHub issue #335, paired with `include/ufsecp/ufsecp_gpu.h`)
+
+Added `GpuBackend::bip352_scan_batch_multispend` / C ABI
+`ufsecp_gpu_bip352_scan_batch_multispend` (native CUDA, OpenCL, and Metal
+kernels; `GpuBackend::bip352_scan_batch_multispend` is now a **pure virtual**
+method — every concrete backend must implement it, a stub returning
+`GpuError::Unsupported` is a compile error, not a runtime fallback). This is
+the reason `include/ufsecp/ufsecp_gpu.h` (a secret-path file per this repo's
+secret-path change gate) was touched in the GitHub issue #335 acceptance
+repair (round 1 and round 2).
+
+**Security claim: SECRET-BEARING (`scan_privkey32`) — CT/erasure contract
+identical to the pre-existing single-spend `ufsecp_gpu_bip352_scan_batch`,
+which this function now backs internally** (`ufsecp_gpu_bip352_scan_batch`
+is a thin `n_spend == 1` wrapper around this function; the two are
+byte-identical at `n_spend == 1`, covered by `SW-BIP352-M*` in
+`audit/test_gpu_bip352_scan.cpp`). `spend_pubkeys33` / `tweak_pubkeys33` /
+`prefix64_out` are all public data (BIP-352 sender-visible tweak/spend
+public keys and their scan output) — only `scan_privkey32` is secret.
+
+- **Key parsing:** `scan_privkey32` is parsed via
+  `Scalar::parse_bytes_strict_nonzero` on every backend (CUDA, OpenCL,
+  Metal) — zero and `>= group order` are rejected with
+  `UFSECP_ERR_BAD_KEY` / `GpuError::BadKey`. This is the SEC-002 regression
+  (`audit/test_regression_opencl_bip352_scan_key_boundary.cpp`, SKB-1..5):
+  the earlier reversed-limb-order scan implementation risked a `from_bytes`-
+  style silent mod-n reduction path; the fixed implementation never accepts
+  a scan key that is not in `[1, n)`.
+- **Erasure:** the scan scalar / GLV sub-scalars / device-side scan-key and
+  scan-plan buffers are `secure_erase`d on every return path (success and
+  failure) on all three backends — CUDA `FailClosedOutputGuard` /
+  `CudaKeyGuard` pattern, OpenCL `HostPlanGuard` +
+  `DevicePlanGuard`/`clEnqueueFillBuffer` zero-fill-before-release, Metal
+  `MetalScalarEraseGuard` + explicit `secure_erase` on the pooled scan-key
+  buffer.
+- **Fail-closed output:** on ANY non-OK return from any of the three
+  backends, `prefix64_out` is fully zeroed for its validated
+  `n_tweaks * n_spend` size before return — no partial/stale prefix data is
+  ever observable after a failed call. This is enforced at three layers:
+  (1) `ufsecp_gpu_bip352_scan_batch_multispend` (C ABI,
+  `src/cpu/src/ufsecp_gpu_impl.cpp`) pre-zeroes the caller's output buffer
+  before dispatch and re-zeroes on any non-OK backend return; (2) each
+  backend independently fails closed on its own internal error paths
+  (`fail()` lambda / `FailClosedOutputGuard` / `fail_dispatch()` lambda —
+  the last added 2026-07-15 round 2 for Metal, see below); (3) OpenCL's
+  `bip352_fault_injection` mockable control-call layer (round 2,
+  `src/gpu/src/gpu_backend_opencl.cpp`) proves this holds even under an
+  injected driver-call failure (`SW-FI-E2E-1/2`,
+  `audit/test_exploit_gpu_bip352_multispend_failclosed.cpp`), not just the
+  hand-picked null/bad-key negative cases.
+- **ABI-level overlap rejection (round 1, 2026-07-15):** the C ABI wrapper
+  rejects any pointer-range overlap between `prefix64_out` and
+  `scan_privkey32` / `spend_pubkeys33` / `tweak_pubkeys33` with
+  `UFSECP_ERR_BAD_INPUT` before the pre-zero step runs (overflow-safe
+  `ranges_overlap()`/`checked_add_size`, `src/cpu/src/ufsecp_gpu_impl.cpp`)
+  — an aliased output buffer could otherwise have its zeroing corrupt input
+  data the backend reads immediately afterward. Zero-length ranges
+  (`n_tweaks==0`/`n_spend==0`) never overlap, preserving no-op semantics.
+  Covered by `FC-1..5` in `audit/test_exploit_gpu_bip352_multispend_failclosed.cpp`.
+- **Local (defense-in-depth) bounds validation:** every concrete backend
+  (not just the C ABI wrapper) independently validates `n_spend`,
+  `n_tweaks`, and `n_tweaks * n_spend` against overflow and against the same
+  caps the ABI enforces (`kMaxGpuBatchN = 2^26`, `kMaxBip352Spend = 2^16`)
+  before any allocation or kernel launch — because `GpuBackend` virtuals are
+  an established direct-call surface in this codebase, not private to the C
+  ABI wrapper.
+- **Round 2 (2026-07-15) Metal dispatch-failure propagation:** added
+  `MetalRuntime::dispatch_sync_checked()` (`src/metal/include/metal_runtime.h`,
+  `src/metal/src/metal_runtime.mm`) returning `false` on a Metal
+  command-buffer error (device lost, shader fault, driver timeout) or a
+  non-`Completed` terminal status; `bip352_scan_batch_multispend`
+  (`src/gpu/src/gpu_backend_metal.mm`) now checks both dispatch calls and
+  fails closed (zero output, erase scan-key buffer, `GpuError::Launch`)
+  instead of silently proceeding to read back stale buffer contents as
+  success — closing a gap explicitly documented as a known limitation in
+  round 1 (that round could not touch `metal_runtime.h`; round 2 can).
+  `dispatch_sync()` (void, ~29 other call sites across unrelated GPU
+  operations) is intentionally left unchanged in this repair — migrating it
+  is a separate follow-up requiring macOS build/test coverage this
+  development environment does not have.
+- **Same-context concurrency (Metal, round 1+2):** `bip352_pool_mtx_`
+  serializes the whole per-call span (pool grow, host→device copies, both
+  dispatches, readback, secret erase) for concurrent callers on the same
+  `MetalBackend` instance; `MetalBackend::shutdown()` now frees all three
+  buffer pools (previously only `msm_pool_`), preventing stale-device-buffer
+  reuse across a destroy+recreate cycle. Covered by `SW-BIP352-METAL-1..3`
+  (`audit/test_gpu_bip352_scan.cpp`) — advisory-skips on this
+  no-Apple-hardware development machine; see
+  `benchmarks/github_issue_335/macos_replay.sh` for the one-command macOS
+  replay bundle a real-hardware run needs. Verdict for any Metal *runtime*
+  claim remains `METAL_RUNTIME_CONFIRMATION_PENDING` until that replay
+  produces real output.
+- **Round 3 (2026-07-16) OpenCL every-control-call-site fail-closed +
+  no production test-hooks:** the round-2 `bip352_fault_injection` mockable
+  control-call layer's 4 `extern "C"` hook functions are now gated behind
+  `#if defined(SECP256K1_BUILD_FAULT_INJECTION_TESTS)` (undefined for every
+  normal build — no test-only attack surface reachable in a shipped
+  library/binary; `audit/test_regression_opencl_bip352_faultinject_symbols_absent.cpp`
+  proves their absence from a normal build's static AND dynamic symbol
+  tables via `nm`/`nm -D`). `SITE_QUEUE_INFO`/both `SITE_WG_INFO_*` queries
+  no longer fall back to a default local work-group size on failure — every
+  one of the 18 documented OpenCL control-call sites in
+  `bip352_scan_batch_multispend` is now fail-closed, not just `clFinish`/
+  readback (round 2). Verified with a REAL end-to-end run on this machine's
+  RTX 5060 Ti (not a synthetic probe): each site individually armed via a
+  genuine `ufsecp_gpu_bip352_scan_batch_multispend` dispatch through the
+  public C ABI, confirmed hit, confirmed non-OK return, confirmed
+  `prefix64_out` fully zeroed — `Result: 37 passed, 0 failed,
+  0 inconclusive/advisory-skip` (`audit/test_exploit_opencl_bip352_control_call_failclosed.cpp`).
+
+Covered by: `audit/test_gpu_bip352_scan.cpp` (SW-BIP352-M*, byte-exact vs
+independent CPU oracle `ufsecp_silent_payment_create_output`, SW-BIP352-METAL-1..3),
+`audit/test_exploit_gpu_bip352_scalar_limb_order.cpp` (P0 limb-order
+regression + wallet-scan-miss impact PoC), `audit/test_exploit_gpu_bip352_multispend_failclosed.cpp`
+(FC-1..7/10/11, SW-FI-PROBE-1..8, SW-FI-E2E-1..2),
+`audit/test_exploit_opencl_bip352_control_call_failclosed.cpp` (all 18
+OpenCL control-call sites, real end-to-end),
+`audit/test_regression_opencl_bip352_faultinject_symbols_absent.cpp`
+(SAS-1..3, production symbol-table hygiene),
+`audit/test_regression_bip352_ct_varbase.cpp` (CRIT-02 byte-exact oracle at
+every 64-bit limb boundary), `audit/test_regression_opencl_bip352_scan_key_boundary.cpp`
+(SEC-002, SKB-1..5).
+
 ### 2026-07-06 - `ufsecp_gpu_hash256_var` added: batch variable-length HASH256, no new secret-bearing surface
 
 Added `GpuBackend::hash256_var` / C ABI `ufsecp_gpu_hash256_var` (native CUDA, OpenCL,

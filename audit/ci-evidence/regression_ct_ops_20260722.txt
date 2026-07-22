@@ -1,0 +1,18 @@
+[regression_ct_ops] CT operation regressions (SEC-002/007/008/010, CT-004/005)
+
+Command:
+  out/codex-bip352/audit/test_regression_ct_ops_standalone
+
+Commit under test:
+  721ba956a2966c50a10bee3492c11c10af7a82ca
+
+Validated surfaces:
+  - ecdsa_sign_verified round-trip through ct::ecdsa_sign
+  - ct::generator_mul parity with fast scalar multiplication
+  - ECDSA high-S verification contract
+  - Schnorr sign/verify round-trip
+  - CT scalar inverse, negate, add, multiply and conditional negate paths
+  - MuSig2 blinded nonce generation and BIP32 strict scalar parsing
+
+Result:
+  pass=42  fail=0

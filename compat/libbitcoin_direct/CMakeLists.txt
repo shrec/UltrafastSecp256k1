@@ -52,22 +52,27 @@ if(SECP256K1_BUILD_LIBBITCOIN_GPU)
         # never installs — "transparent GPU column verify" then silently stays CPU-only
         # (verified: nm shows the installer absent from the executable without this).
         #
-        # Retention is done by declaring the provider's exported anchor symbol as UNDEFINED
-        # at the executable link, so the linker pulls exactly that one archive member (and its
-        # genuine transitive deps). A blanket $<LINK_LIBRARY:WHOLE_ARCHIVE,secp256k1_gpu_host>
-        # is deliberately NOT used: it would also drag in gpu_backend_fallback.o, whose
-        # snark-witness CPU fallback references secp256k1::zk::* symbols that are not part of
-        # the minimal libbitcoin engine, breaking the link. Targeted anchor retention
-        # (GNU/LLVM --undefined=, MSVC /INCLUDE:) pulls only
-        # the hook. (The ufsecp C ABI path retains the same object via a source-level anchor
+        # Retention is done by a platform-specific targeted linker option that forces the
+        # provider's exported anchor symbol to stay resolved at the executable link, so the
+        # linker pulls exactly that one archive member (and its genuine transitive deps):
+        # --undefined=<anchor> on GNU-like linkers (gcc/clang driving ld/lld/gold),
+        # /INCLUDE:<anchor> on MSVC link.exe (link.exe has no --undefined flag; a
+        # silently-ignored --undefined there leaves the hook dead-stripped — CPU-only, no
+        # build error, no diagnostic — see docs/WINDOWS_CUDA_BUILD_CONTRACT.md, PR #353 /
+        # Eric Voskuil). A blanket $<LINK_LIBRARY:WHOLE_ARCHIVE,secp256k1_gpu_host>
+        # is deliberately NOT used on either platform: it would also drag in
+        # gpu_backend_fallback.o, whose snark-witness CPU fallback references
+        # secp256k1::zk::* symbols that are not part of the minimal libbitcoin engine,
+        # breaking the link. Targeted retention (--undefined / /INCLUDE) pulls only the
+        # hook. (The ufsecp C ABI path retains the same object via a source-level anchor
         # reference in ufsecp_gpu_impl.cpp — see src/gpu/src/gpu_engine_hook.cpp and
         # src/gpu/CMakeLists.txt "LBTC-GPU-SELFINSTALL-DROP".)
-        # MSVC link.exe has no --undefined; /INCLUDE is its targeted-retention equivalent
-        # (silently-ignored --undefined leaves the hook dead-stripped: CPU-only, no error).
         if(MSVC)
             set(_lbtc_gpu_retain "LINKER:/INCLUDE:secp256k1_gpu_columns_provider_anchor")
+            set(_lbtc_gpu_retain_desc "/INCLUDE (MSVC)")
         else()
             set(_lbtc_gpu_retain "LINKER:--undefined=secp256k1_gpu_columns_provider_anchor")
+            set(_lbtc_gpu_retain_desc "--undefined (GNU-like)")
         endif()
         # Enable the seven libbitcoin public-data batch-op GPU trampolines in
         # gpu_engine_hook.cpp (guarded by SECP256K1_LBTC_GPU_OPS) and give that TU
@@ -80,7 +85,7 @@ if(SECP256K1_BUILD_LIBBITCOIN_GPU)
         # EngineLbtcOpsInstaller rides the same TU/anchor as the column provider.
         target_include_directories(secp256k1_gpu_host PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
         target_compile_definitions(secp256k1_gpu_host PRIVATE SECP256K1_LBTC_GPU_OPS)
-        message(STATUS "  libbitcoin direct GPU: ON (SECP256K1_BUILD_LIBBITCOIN_GPU=ON; secp256k1_gpu_host linked, hook retained via targeted anchor (${_lbtc_gpu_retain}) — transparent GPU column verify + public-data batch ops)")
+        message(STATUS "  libbitcoin direct GPU: ON (SECP256K1_BUILD_LIBBITCOIN_GPU=ON; secp256k1_gpu_host linked, hook retained via targeted linker anchor retention [${_lbtc_gpu_retain_desc}] — transparent GPU column verify + public-data batch ops)")
     else()
         set(_lbtc_gpu_host "")
         set(_lbtc_gpu_retain "")

@@ -903,3 +903,16 @@ fn main() {
     }
 }
 ```
+
+### Multiple spend-key candidates (issue #335)
+
+Both examples above use a single spend key. To check a wallet's base spend
+key plus its change-label-derived spend keys in one call (marginal cost of
+one mixed point add per extra candidate, not a second full scan), call
+`ufsecp_gpu_bip352_scan_batch_multispend(gpu, scan_privkey, spend_pubkeys,
+n_spend, tweaks, n_tweaks, prefix64_out)` instead, with `spend_pubkeys` a
+flat `n_spend * 33`-byte array and `prefix64_out` a row-major
+`n_tweaks * n_spend` matrix (`prefix64_out[tweak_idx*n_spend+spend_idx]`).
+See `docs/USER_GUIDE.md` for a full C example, and
+`ufsecp_gpu_set_metal_shader_path` (same doc) for Metal loadable-library
+shader discovery.

@@ -4738,34 +4738,62 @@ def _get_call_skip_names():
 
 
 def _resolve_call_target(caller_row, scope_name, callee_name, by_name):
+    """Resolve a callee name to its definition(s). Returns (list_of_rows, confidence).
+
+    Normally resolves to exactly one row (list of length 1) once a match is
+    found. issue #335 acceptance repair: added a virtual-dispatch fan-out
+    fallback (see below) that can return MULTIPLE rows -- callers must
+    iterate the returned list, not assume a single row.
+    """
     candidates = by_name.get(callee_name, [])
     if not candidates:
-        return None, 0
+        return [], 0
 
     if scope_name:
         scoped = [row for row in candidates if (row["class_name"] or "") == scope_name]
         if len(scoped) == 1:
-            return scoped[0], 95
+            return [scoped[0]], 95
 
     same_class = [
         row for row in candidates
         if (row["class_name"] or "") == (caller_row["class_name"] or "") and caller_row["class_name"]
     ]
     if len(same_class) == 1:
-        return same_class[0], 90
+        return [same_class[0]], 90
 
     same_file = [row for row in candidates if row["file"] == caller_row["file"]]
     if len(same_file) == 1:
-        return same_file[0], 85
+        return [same_file[0]], 85
 
     same_project = [row for row in candidates if row["project"] == caller_row["project"]]
     if len(same_project) == 1:
-        return same_project[0], 72
+        return [same_project[0]], 72
 
     if len(candidates) == 1:
-        return candidates[0], 80
+        return [candidates[0]], 80
 
-    return None, 0
+    # Virtual-dispatch fan-out heuristic (issue #335 acceptance repair,
+    # source-graph coverage fix): a plain member call (`ptr->method(...)`,
+    # no scope) whose name resolves to MULTIPLE candidates that are ALL
+    # class methods (non-empty class_name) is very likely a virtual method
+    # call through a base-class pointer/reference -- each candidate is a
+    # concrete override of the same virtual method in a different subclass
+    # (e.g. GpuBackend::bip352_scan_batch_multispend overridden by the CUDA/
+    # OpenCL/Metal backend classes). The previous behavior silently dropped
+    # the edge entirely here (correct for a genuine ambiguous free-function
+    # name collision, but a false negative for virtual dispatch -- this is
+    # exactly why `coverage bip352_scan_batch_multispend` and `coverage
+    # ct_scalar_mul_varbase` returned no evidence despite being exercised by
+    # audit/test_gpu_bip352_scan.cpp). Record an edge to EVERY such
+    # candidate: exactly one runs at a time depending on the active backend,
+    # so a test exercising this call path exercises whichever concrete
+    # override is active, and the union of test runs across backends
+    # legitimately covers all of them. Lower confidence (60) reflects the
+    # heuristic, one-of-N nature versus a resolved single-target call.
+    if not scope_name and candidates and all(row["class_name"] for row in candidates):
+        return list(candidates), 60
+
+    return [], 0
 
 
 def scan_semantic_tags(conn):
@@ -5366,6 +5394,23 @@ def scan_call_edges(conn):
         plain_call_re = call_pats.get('plain', re.compile(r'\b([A-Za-z_~]\w*)\s*\('))
         scoped_call_re = call_pats.get('scoped', re.compile(r'\b([A-Za-z_]\w*)::([A-Za-z_~]\w*)\s*\('))
         member_call_re = call_pats.get('member', re.compile(r'(?:->|\.)\s*([A-Za-z_~]\w*)\s*\('))
+        # CUDA kernel launch syntax `kernel_name<<<blocks, threads[, shmem[, stream]]>>>(args)`
+        # is not matched by any of the three patterns above (the `<<<...>>>`
+        # execution-configuration sits between the identifier and the `(`,
+        # so `plain_call_re`'s `\s*\(` right after the name never matches).
+        # Without this, no call_edges row is ever created from a host
+        # function to the __global__ kernel it launches -- silently breaking
+        # call-graph reachability (and therefore symbol_audit_coverage /
+        # `coverage <symbol>` evidence) for every device-side function only
+        # reachable through a kernel launch, e.g. ct_scalar_mul_varbase
+        # (called from bip352_scan_batch_multispend_kernel_compressed,
+        # itself only ever invoked via `<<<...>>>`). Harmless on non-CUDA
+        # files: `<<<` never appears there, so this pattern simply never
+        # matches (source_graph fixture:
+        # tests/source_graph/test_call_edges_kernel_launch.py).
+        kernel_launch_re = call_pats.get(
+            'kernel_launch', re.compile(r'\b([A-Za-z_]\w*)\s*<<<[^;{}]*?>>>\s*\(')
+        )
 
         sanitized = adapter.strip_comments_and_strings(body)
         counts = defaultdict(int)
@@ -5392,55 +5437,59 @@ def scan_call_edges(conn):
                 continue
             counts[callee_name] += 1
 
+        for callee_name in kernel_launch_re.findall(sanitized):
+            if callee_name in skip_names:
+                continue
+            counts[callee_name] += 1
+
         caller_symbol = _function_label(row["class_name"], row["function_name"])
         inserted = set()
 
         for (scope_name, callee_name), call_count in scoped_counts.items():
-            target_row, confidence = _resolve_call_target(row, scope_name, callee_name, by_name)
-            if not target_row:
-                continue
-            callee_symbol = _function_label(target_row["class_name"], target_row["function_name"])
-            dedup = (callee_symbol, target_row["file"])
-            inserted.add(dedup)
-            conn.execute(
-                "INSERT OR REPLACE INTO call_edges (caller_symbol, caller_file, caller_project, callee_symbol, callee_file, callee_project, confidence, call_count, evidence) "
-                "VALUES (?,?,?,?,?,?,?,?,?)",
-                (
-                    caller_symbol,
-                    row["file"],
-                    row["project"],
-                    callee_symbol,
-                    target_row["file"],
-                    target_row["project"],
-                    confidence,
-                    call_count,
-                    f"scoped-call:{scope_name}::{callee_name}"
+            target_rows, confidence = _resolve_call_target(row, scope_name, callee_name, by_name)
+            for target_row in target_rows:
+                callee_symbol = _function_label(target_row["class_name"], target_row["function_name"])
+                dedup = (callee_symbol, target_row["file"])
+                inserted.add(dedup)
+                conn.execute(
+                    "INSERT OR REPLACE INTO call_edges (caller_symbol, caller_file, caller_project, callee_symbol, callee_file, callee_project, confidence, call_count, evidence) "
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
+                    (
+                        caller_symbol,
+                        row["file"],
+                        row["project"],
+                        callee_symbol,
+                        target_row["file"],
+                        target_row["project"],
+                        confidence,
+                        call_count,
+                        f"scoped-call:{scope_name}::{callee_name}"
+                    )
                 )
-            )
 
         for callee_name, call_count in counts.items():
-            target_row, confidence = _resolve_call_target(row, None, callee_name, by_name)
-            if not target_row:
-                continue
-            callee_symbol = _function_label(target_row["class_name"], target_row["function_name"])
-            dedup = (callee_symbol, target_row["file"])
-            if dedup in inserted:
-                continue
-            conn.execute(
-                "INSERT OR REPLACE INTO call_edges (caller_symbol, caller_file, caller_project, callee_symbol, callee_file, callee_project, confidence, call_count, evidence) "
-                "VALUES (?,?,?,?,?,?,?,?,?)",
-                (
-                    caller_symbol,
-                    row["file"],
-                    row["project"],
-                    callee_symbol,
-                    target_row["file"],
-                    target_row["project"],
-                    confidence,
-                    call_count,
-                    f"heuristic-call:{callee_name}"
+            target_rows, confidence = _resolve_call_target(row, None, callee_name, by_name)
+            for target_row in target_rows:
+                callee_symbol = _function_label(target_row["class_name"], target_row["function_name"])
+                dedup = (callee_symbol, target_row["file"])
+                if dedup in inserted:
+                    continue
+                inserted.add(dedup)
+                conn.execute(
+                    "INSERT OR REPLACE INTO call_edges (caller_symbol, caller_file, caller_project, callee_symbol, callee_file, callee_project, confidence, call_count, evidence) "
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
+                    (
+                        caller_symbol,
+                        row["file"],
+                        row["project"],
+                        callee_symbol,
+                        target_row["file"],
+                        target_row["project"],
+                        confidence,
+                        call_count,
+                        f"heuristic-call:{callee_name}"
+                    )
                 )
-            )
 
 
 def scan_symbol_metadata(conn):
@@ -5704,6 +5753,70 @@ def scan_symbol_audit_coverage(conn):
         tests_by_symbol[key]["count"] += 1
         tests_by_symbol[key]["types"].add(row["mapping_type"])
         tests_by_symbol[key]["tests"].add(row["test_file"])
+
+    # issue #335 acceptance repair: transitive call-graph reachability.
+    # `test_function_map` (above) only captures a DIRECT lexical mention of a
+    # symbol name inside a test file's own source text. A symbol reached only
+    # through several hops of indirection (test file -> C ABI wrapper ->
+    # GpuBackend virtual method -> CUDA kernel -> a __device__ function it
+    # calls) was previously invisible to `symbol_audit_coverage` even though
+    # it IS genuinely exercised whenever the test runs -- exactly the gap
+    # that made `coverage ct_scalar_mul_varbase` and
+    # `coverage bip352_scan_batch_multispend` report false "no direct audit
+    # evidence" despite audit/test_gpu_bip352_scan.cpp exercising both
+    # (ct_scalar_mul_varbase via: test -> ufsecp_gpu_bip352_scan_batch_multispend
+    # -> GpuBackend::bip352_scan_batch_multispend -> a CUDA kernel launch ->
+    # ct_scalar_mul_varbase). Bounded BFS over call_edges, seeded from every
+    # symbol already known to be directly test-mentioned, propagates that
+    # test's reachability to every symbol transitively callable from it.
+    # Depth is bounded (not unbounded transitive closure) to keep this a
+    # cheap, deterministic pass and to avoid over-attributing coverage to
+    # distantly-related utility code several dozen hops away.
+    # Bounded on three axes simultaneously so this pass has a predictable
+    # worst-case cost regardless of how large test_function_map/call_edges
+    # grow: per-seed BFS depth, per-seed visited-node cap (a seed whose
+    # transitive closure is unusually large -- e.g. a top-level test _run()
+    # that calls dozens of helpers -- stops expanding rather than walking its
+    # entire reachable set), and a global cross-seed edge-traversal budget
+    # (guarantees termination on `build -i` even if the graph grows by an
+    # order of magnitude later).
+    _TRANSITIVE_COVERAGE_MAX_DEPTH = 6
+    _TRANSITIVE_COVERAGE_MAX_VISITED_PER_SEED = 300
+    _TRANSITIVE_COVERAGE_GLOBAL_EDGE_BUDGET = 2_000_000
+    adjacency = defaultdict(list)
+    for row in conn.execute(
+        "SELECT caller_symbol, callee_symbol, callee_file FROM call_edges"
+    ).fetchall():
+        adjacency[row["caller_symbol"]].append((row["callee_symbol"], row["callee_file"]))
+
+    if adjacency:
+        _global_budget = _TRANSITIVE_COVERAGE_GLOBAL_EDGE_BUDGET
+        for (symbol_name, _target_file), info in list(tests_by_symbol.items()):
+            if not info["tests"] or _global_budget <= 0:
+                continue
+            visited = {symbol_name}
+            frontier = [symbol_name]
+            depth = 0
+            while frontier and depth < _TRANSITIVE_COVERAGE_MAX_DEPTH and _global_budget > 0:
+                next_frontier = []
+                for caller in frontier:
+                    for callee_symbol, callee_file in adjacency.get(caller, ()):
+                        _global_budget -= 1
+                        if _global_budget <= 0:
+                            break
+                        if callee_symbol in visited:
+                            continue
+                        if len(visited) >= _TRANSITIVE_COVERAGE_MAX_VISITED_PER_SEED:
+                            break
+                        visited.add(callee_symbol)
+                        next_frontier.append(callee_symbol)
+                        callee_key = (callee_symbol, callee_file)
+                        entry = tests_by_symbol[callee_key]
+                        entry["count"] += 1
+                        entry["types"].add("transitive_call_graph")
+                        entry["tests"] |= info["tests"]
+                frontier = next_frontier
+                depth += 1
 
     tag_rows = conn.execute("SELECT entity_name, file, tag FROM semantic_tags").fetchall()
     tags_by_symbol = defaultdict(set)
@@ -9345,6 +9458,36 @@ def coverage_cmd(term=None):
             "semantic_gain_max", "notes"
         ]
     )
+
+    # issue #335 acceptance repair: `audit_coverage` is a FILE-level table
+    # (matches file/project/notes substrings) -- a query like
+    # `coverage ct_scalar_mul_varbase` or `coverage bip352_scan_batch_multispend`
+    # (a SYMBOL name, not a file name) legitimately returns zero rows above,
+    # which used to look identical to "no test evidence exists" even when the
+    # symbol genuinely IS exercised by tests (just not lexically named the
+    # same as any file). Fall back to a SYMBOL-level query against
+    # `symbol_audit_coverage` (populated by scan_symbol_audit_coverage(),
+    # which as of this repair also walks call_edges transitively -- see that
+    # function's docstring) whenever a term is given, so a symbol-name query
+    # returns concrete test/coverage evidence instead of silently falling
+    # through to an empty file-level result.
+    if term:
+        sym_rows = conn.execute(
+            "SELECT symbol_name, file_path, covered_by_tests, test_count, mapping_types, "
+            "coverage_score, last_status, evidence FROM symbol_audit_coverage "
+            "WHERE symbol_name LIKE ? ORDER BY coverage_score DESC, symbol_name LIMIT 40",
+            (f"%{term}%",)
+        ).fetchall()
+        print(f"\n  Symbol-level coverage for {title} (symbol_audit_coverage):")
+        print_table(
+            sym_rows,
+            ["symbol_name", "file_path", "covered_by_tests", "test_count", "mapping_types",
+             "coverage_score", "last_status", "evidence"]
+        )
+        if not rows and not sym_rows:
+            print(f"\n  No file-level or symbol-level coverage evidence found for {title}.")
+            print("  If this symbol is new or the graph is stale, run "
+                  "`source_graph.py build -i` and re-query.")
 
 
 def churn_cmd(term=None):

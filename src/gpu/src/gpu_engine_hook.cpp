@@ -45,12 +45,15 @@
  *   - the ufsecp C ABI (src/cpu/src/ufsecp_gpu_impl.cpp) references it, dragging
  *     this object into libufsecp so the ufsecp/audit path installs the hook;
  *   - the libbitcoin-direct path references no gpu_host symbol, so its executables
- *     force this object in with a platform-specific targeted linker retention of
- *     `secp256k1_gpu_columns_provider_anchor` at their own link — GNU/LLVM
- *     `--undefined=`, MSVC `/INCLUDE:` (which link.exe requires; it silently
- *     ignores `--undefined=`, dead-stripping the hook: CPU-only, no error) — see
- *     compat/libbitcoin_direct/CMakeLists.txt. Targeted anchor
- *     retention is preferred over a blanket WHOLE_ARCHIVE: it pulls only this
+ *     force this object in with a platform-specific targeted linker retention
+ *     option naming this same anchor symbol at their own link
+ *     (compat/libbitcoin_direct/CMakeLists.txt): `LINKER:--undefined=secp256k1_gpu_columns_provider_anchor`
+ *     on GNU-like linkers (gcc/clang driving ld/lld/gold),
+ *     `LINKER:/INCLUDE:secp256k1_gpu_columns_provider_anchor` on MSVC link.exe (link.exe has
+ *     no --undefined; a silently-ignored --undefined there would leave the hook
+ *     dead-stripped — CPU-only, no build error). See
+ *     docs/WINDOWS_CUDA_BUILD_CONTRACT.md (PR #353, Eric Voskuil). Targeted retention
+ *     is preferred over a blanket WHOLE_ARCHIVE on either toolchain: it pulls only this
  *     provider object, not every backend TU. (WHOLE_ARCHIVE historically also broke
  *     the ZK-less link by dragging in gpu_backend_fallback.o and its undefined
  *     secp256k1::zk:: reference; that TU is now #if SECP256K1_HAS_ZK-gated and
@@ -128,7 +131,8 @@ EngineGpuColumnsInstaller g_engine_gpu_columns_installer;
  * secp256k1_gpu_host by compat/libbitcoin_direct/CMakeLists.txt); other GPU
  * builds leave the guard off, so this block imposes no include-path dependency.
  * Reuses engine_gpu_backend() and g_engine_gpu_backend_mtx from the unnamed
- * namespace above (same TU). Retained by the SAME existing -u
+ * namespace above (same TU). Retained by the SAME existing platform-specific
+ * anchor retention (--undefined on GNU-like linkers, /INCLUDE on MSVC) on
  * secp256k1_gpu_columns_provider_anchor — no new anchor. The four HASH
  * trampolines pre-check a length cap before dispatch: tagged_hash,
  * tagged_hash_var, and hash256 enforce the hard on-chip buffer caps of the

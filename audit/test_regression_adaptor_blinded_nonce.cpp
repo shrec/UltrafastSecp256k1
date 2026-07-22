@@ -56,24 +56,19 @@ static int g_pass = 0, g_fail = 0;
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+// rel_path is repo-root-relative (e.g. "src/cpu/src/adaptor.cpp").
+//
+// Repair (issue #335 acceptance repair, round 5): the previous bounded
+// CWD-relative walk-up (depth<=6, TEST-08-NESTED-PATH fix) made this
+// resolver independent of BUILD-DIR NESTING depth (build/asan, build/cov,
+// ...) but not of process CWD itself -- it still could not resolve when
+// unified_audit_runner was invoked from a CWD unrelated to the repo (e.g.
+// /tmp). Route through the shared, UFSECP_SOURCE_ROOT-aware
+// audit_read_source_file() (audit_check.hpp), which tries the compile-time
+// absolute repo root first and keeps the bounded CWD-relative walk-up as
+// its own fallback.
 static std::string read_source_file(const char* rel_path) {
-    // rel_path is repo-root-relative (e.g. "src/cpu/src/adaptor.cpp"). The test
-    // binary's working directory sits an unknown number of levels below the repo
-    // root: build/audit/ for a flat build tree, but build/<cfg>/audit/ for nested
-    // trees (build/cov, build/asan, build/tsan, build/rocm, ...). The previous
-    // fixed prefix list only reached "../../" (2 levels), so nested build dirs
-    // failed to locate in-tree sources. Walk up from the CWD until the path
-    // resolves, making source scans independent of build-dir nesting depth.
-    std::string up;
-    for (int depth = 0; depth <= 6; ++depth) {
-        std::ifstream f(up + rel_path);
-        if (f.is_open()) {
-            return {std::istreambuf_iterator<char>(f),
-                    std::istreambuf_iterator<char>()};
-        }
-        up += "../";
-    }
-    return {};
+    return audit_read_source_file(rel_path);
 }
 
 // ── SEC-NEW-001: adaptor.cpp uses generator_mul_blinded for nonce ─────────────
@@ -265,10 +260,12 @@ static void test_bchn_shim_is_zero_ct_source_scan() {
 
     std::string src = read_source_file(
         "compat/libsecp256k1_bchn_shim/src/shim_schnorr_bch.cpp");
-    if (src.empty()) {
-        printf("  [SKIP] shim_schnorr_bch.cpp not found — source scan skipped\n");
-        return;
-    }
+    // Fail-closed (issue #335 acceptance repair, round 5): shim_schnorr_bch.cpp
+    // always exists in-tree (a source-scan needs the file text, not a built
+    // shim target). A failed read means the source could not be resolved,
+    // NOT that the property holds — never a silent 0-checks skip.
+    CHECK(!src.empty(), "shim_schnorr_bch.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
 
     // Fixed code: must use is_zero_ct() on k.
     bool has_is_zero_ct = (src.find("k.is_zero_ct()") != std::string::npos);
@@ -292,10 +289,8 @@ static void test_shim_schnorr_stack_msg_max_source_scan() {
 
     std::string src = read_source_file(
         "compat/libsecp256k1_shim/src/shim_schnorr.cpp");
-    if (src.empty()) {
-        printf("  [SKIP] shim_schnorr.cpp not found — source scan skipped\n");
-        return;
-    }
+    CHECK(!src.empty(), "shim_schnorr.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
 
     bool has_1024 =
         (src.find("kStackMsgMax = 1024") != std::string::npos);
@@ -329,10 +324,8 @@ static void test_batch_verify_shrink_to_fit_source_scan() {
 
     std::string src = read_source_file(
         "compat/libsecp256k1_shim/src/shim_batch_verify.cpp");
-    if (src.empty()) {
-        printf("  [SKIP] shim_batch_verify.cpp not found — source scan skipped\n");
-        return;
-    }
+    CHECK(!src.empty(), "shim_batch_verify.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
 
     // P3-BATCH-MEM originally added shrink_to_fit() after each batch.
     // PERF-004 subsequently removed it: thread_local vectors retain capacity for

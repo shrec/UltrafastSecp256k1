@@ -63,7 +63,21 @@ add_library(secp256k1_metal_lib STATIC
     src/metal_runtime.mm
 )
 
-target_include_directories(secp256k1_metal_lib PUBLIC
+# Issue #335 acceptance repair (round 11): structural parity with the
+# OpenCL/CUDA export-set closure fix (src/opencl/CMakeLists.txt,
+# src/cuda/CMakeLists.txt, src/gpu/CMakeLists.txt) -- NOT runtime-verified,
+# METAL_RUNTIME_CONFIRMATION_PENDING (this file only reaches this point
+# under APPLE; see the `if(NOT APPLE) ... return()` guard above, so a Linux
+# configure/build never exercises any line below this comment). These paths
+# were PUBLIC and unwrapped, the same defect class that blocked
+# SECP256K1_INSTALL_CABI=ON + SECP256K1_BUILD_OPENCL/CUDA=ON on this host.
+# Demoted to PRIVATE: the local consumers in this same file
+# (metal_audit_runner) already explicitly add
+# "${CMAKE_CURRENT_SOURCE_DIR}/include" themselves, PRIVATE, so nothing here
+# depends on the PUBLIC propagation; there is no known out-of-file consumer
+# (src/gpu/CMakeLists.txt adds "${CMAKE_CURRENT_SOURCE_DIR}/../metal/include"
+# itself, PRIVATE, when SECP256K1_BUILD_METAL links secp256k1_metal_lib).
+target_include_directories(secp256k1_metal_lib PRIVATE
     include
     ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
@@ -71,6 +85,17 @@ target_include_directories(secp256k1_metal_lib PUBLIC
 target_link_libraries(secp256k1_metal_lib PRIVATE
     ${METAL_FRAMEWORK}
     ${FOUNDATION_FRAMEWORK}
+)
+
+# Join the ufsecp C ABI package's export set (see src/gpu/CMakeLists.txt for
+# the full issue #335 round-11 rationale). Configure-level parity only --
+# this code path is unreachable on non-Apple hosts (see the `if(NOT APPLE)`
+# guard above), so it cannot be exercised by this round's real
+# cmake --install verification (Linux-only machine).
+include(GNUInstallDirs)
+install(TARGETS secp256k1_metal_lib
+    EXPORT ufsecpTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
 # Enable ARC for Objective-C++

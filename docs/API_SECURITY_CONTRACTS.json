@@ -1,7 +1,7 @@
 {
-  "version": "1.4.0",
-  "last_updated": "2026-06-29",
-  "update_note": "2026-06-29: re-attested API security contracts after libbitcoin direct integration and CAAS fast-gate remediation; ci/check_api_contracts.py validates the authored entries and changed-file policy, with no schema or contract drift. 2026-06-12: dev_bug_scanner added SECRET_TABLE_INDEX, UNALIGNED_WORD_LOAD, and OUTPUT_FAIL_OPEN gates. The pass closed fail-open output behavior in secp256k1_ec_pubkey_parse and BCHN secp256k1_schnorr_sign, replaced Schnorr zero-output word-casts with byte checks, and removed CUDA ZK byte-buffer word casts. Evidence: QUALITY:dev_bug_scanner_deep, secp256k1_shim_test pubkey parse failure clearing, bchn_schnorr_fail_clear, run_code_quality no-regression. 2026-06-04: PASS3-SHIM-001 — the ECDSA signature parse functions (shim secp256k1_ecdsa_signature_parse_compact / _parse_der and recoverable_signature_parse_compact) now zero the opaque output sig struct on ANY parse failure (fail-closed, matching upstream libsecp256k1 memset-on-failure; sig bytes are public data → VT path). Evidence: regression_shim_seckey_erase (RT-02), shim_der_zero_r. P2-CT-001 — bip32_derive_path now secure_erases the intermediate child private key + chain-code between derivation iterations (evidence: test_bip32 P2-CT-001). 2026-05-21: P2-SEC-002 batch_verify CSPRNG-seeded weights (schnorr_batch_verify_impl now XORs 32 CSPRNG bytes into batch_seed before weight derivation — prevents Wagner-style adversary from pre-computing weights); P2-CT-RT-004 adaptor_nonce fixed 2-iter CT select (data-dependent retry loop removed, ct::scalar_select applied). Prior: frost_keygen_finalize receives_shares erased via RAII (TASK-004); frost_aggregate R.x zeros check (TASK-003); frost_lagrange_coefficient CT arithmetic (P1-002); schnorr_adaptor_extract rejects sig.s==0 (SEC-007); pn_unpack_points parse return checked (SEC-003); musig2 zero-tweak rejection (SEC-005); ellswift_create_fast CT path (CT-003); shim_schnorr msglen forwarded (SHIM-004). See SECURITY_CLAIMS.md.",
+  "version": "1.5.0",
+  "last_updated": "2026-07-20",
+  "update_note": "2026-07-20: GitHub issue #335 round 12 review of both include/ufsecp/ header diffs that tripped the SENSITIVE_PREFIXES changed-file policy. include/ufsecp/ufsecp_version.h.in's UFSECP_DEPRECATED macro + Windows dllexport/static-lib branch-order fix (round 11) is a pure macro/build-config change with zero API behavioral surface -- no existing entry required updating for it. include/ufsecp/ufsecp_gpu.h (an unrelated, already-dirty concurrent task, not part of issue #335) added a new SECRET-BEARING function, ufsecp_gpu_bip352_scan_batch_multispend (scan_privkey32 uploaded to device memory across CUDA/OpenCL/Metal per its own header comment; already exercised by test_gpu_bip352_scan.cpp::test_bip352_multispend_gpu and test_exploit_gpu_bip352_multispend_failclosed.cpp) with no prior entry in this file -- added one below (critical, ct-required). The same diff's ufsecp_gpu_set_metal_shader_path (shader-library path override; validates absolute path + rejects a literal '..' path component; touches no secret material) was reviewed and does not warrant its own entry -- it is a loader-path configuration function, not a crypto operation. Verified: ci/check_api_contracts.py --json reports 0 issues after this update. 2026-06-29: re-attested API security contracts after libbitcoin direct integration and CAAS fast-gate remediation; ci/check_api_contracts.py validates the authored entries and changed-file policy, with no schema or contract drift. 2026-06-12: dev_bug_scanner added SECRET_TABLE_INDEX, UNALIGNED_WORD_LOAD, and OUTPUT_FAIL_OPEN gates. The pass closed fail-open output behavior in secp256k1_ec_pubkey_parse and BCHN secp256k1_schnorr_sign, replaced Schnorr zero-output word-casts with byte checks, and removed CUDA ZK byte-buffer word casts. Evidence: QUALITY:dev_bug_scanner_deep, secp256k1_shim_test pubkey parse failure clearing, bchn_schnorr_fail_clear, run_code_quality no-regression. 2026-06-04: PASS3-SHIM-001 — the ECDSA signature parse functions (shim secp256k1_ecdsa_signature_parse_compact / _parse_der and recoverable_signature_parse_compact) now zero the opaque output sig struct on ANY parse failure (fail-closed, matching upstream libsecp256k1 memset-on-failure; sig bytes are public data → VT path). Evidence: regression_shim_seckey_erase (RT-02), shim_der_zero_r. P2-CT-001 — bip32_derive_path now secure_erases the intermediate child private key + chain-code between derivation iterations (evidence: test_bip32 P2-CT-001). 2026-05-21: P2-SEC-002 batch_verify CSPRNG-seeded weights (schnorr_batch_verify_impl now XORs 32 CSPRNG bytes into batch_seed before weight derivation — prevents Wagner-style adversary from pre-computing weights); P2-CT-RT-004 adaptor_nonce fixed 2-iter CT select (data-dependent retry loop removed, ct::scalar_select applied). Prior: frost_keygen_finalize receives_shares erased via RAII (TASK-004); frost_aggregate R.x zeros check (TASK-003); frost_lagrange_coefficient CT arithmetic (P1-002); schnorr_adaptor_extract rejects sig.s==0 (SEC-007); pn_unpack_points parse return checked (SEC-003); musig2 zero-tweak rejection (SEC-005); ellswift_create_fast CT path (CT-003); shim_schnorr msglen forwarded (SHIM-004). See SECURITY_CLAIMS.md.",
   "entries": [
     {
       "api": "ufsecp_schnorr_sign",
@@ -301,6 +301,38 @@
         "docs/API_REFERENCE.md",
         "docs/BACKEND_ASSURANCE_MATRIX.md",
         "docs/SECURITY_CLAIMS.md"
+      ]
+    },
+    {
+      "api": "ufsecp_gpu_bip352_scan_batch_multispend",
+      "criticality": "critical",
+      "ct_class": "ct-required",
+      "secrets_touched": [
+        "scan_privkey"
+      ],
+      "preconditions": [
+        "GPU context is initialized (CUDA, OpenCL, or Metal)",
+        "scan private key is a valid, non-zero scalar",
+        "spend_pubkeys33 is n_spend x 33 compressed pubkeys and tweak_pubkeys33 is n_tweaks x 33 compressed pubkeys"
+      ],
+      "postconditions": [
+        "spend-key-independent per-tweak work (ECDH scalar mul, BIP-352 tagged hash, hash x G) runs exactly once per tweak regardless of n_spend; only a mixed point add repeats per spend-key candidate",
+        "output is a row-major n_tweaks x n_spend matrix; with n_spend == 1 it is byte-identical to ufsecp_gpu_bip352_scan_batch's output",
+        "n_tweaks == 0 or n_spend == 0 is a valid no-op (UFSECP_OK, no output written)",
+        "an invalid or off-curve tweak or spend pubkey yields prefix64 == 0 for the affected row/column rather than failing the whole batch"
+      ],
+      "failure_modes": [
+        "invalid scan private key returns UFSECP_ERR_BAD_KEY",
+        "malformed pubkey, or n_tweaks/n_spend/their product too large, returns UFSECP_ERR_BAD_INPUT"
+      ],
+      "evidence_tests": [
+        "gpu_bip352_scan",
+        "exploit_bip352_batch_correctness"
+      ],
+      "evidence_docs": [
+        "docs/API_REFERENCE.md",
+        "docs/BACKEND_ASSURANCE_MATRIX.md",
+        "docs/USER_GUIDE.md"
       ]
     }
   ]

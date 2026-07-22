@@ -81,18 +81,12 @@ static std::array<uint8_t, 32> make_msg(uint8_t seed) {
     return m;
 }
 
+// Repair (issue #335 acceptance repair, round 5): the previous 3-candidate
+// prefix list only resolved when CWD happened to be the repo root or one
+// level below it. Route through the shared, UFSECP_SOURCE_ROOT-aware
+// resolver (audit_check.hpp) so this scan is independent of process CWD.
 static std::string read_source_file(const char* name) {
-    const char* prefixes[] = {"", "src/cpu/src/", "../cpu/src/", nullptr};
-    for (int i = 0; prefixes[i]; ++i) {
-        std::string path = std::string(prefixes[i]) + name;
-        std::ifstream f(path);
-        if (f.is_open()) {
-            std::ostringstream ss;
-            ss << f.rdbuf();
-            return ss.str();
-        }
-    }
-    return {};
+    return audit_read_source_file((std::string("src/cpu/src/") + name).c_str());
 }
 
 // ── NCER-1: rfc6979_nonce path — 200 ECDSA sign+verify round-trips ──────────
@@ -170,8 +164,12 @@ static void test_source_scan_cand_erase() {
     printf("[5] source-scan: secure_erase(&cand1/cand2) after ct::scalar_select (P2-CT-001/002/003/007)\n");
 
     // ecdsa.cpp: both rfc6979_nonce and rfc6979_nonce_hedged
+    // Fail-closed (issue #335 acceptance repair, round 5): these files always
+    // exist in-tree. A failed read means the source could not be resolved,
+    // NOT that the property holds -- must never be a silent 0-checks skip.
     {
         auto src = read_source_file("ecdsa.cpp");
+        CHECK(!src.empty(), "ecdsa.cpp must be readable (in-tree source always exists)");
         if (!src.empty()) {
             // Count occurrences of secure_erase(&cand1 — expect at least 2 (one per function)
             int count1 = 0, count2 = 0;
@@ -185,14 +183,13 @@ static void test_source_scan_cand_erase() {
             }
             CHECK(count1 >= 2, "ecdsa.cpp: secure_erase(&cand1) appears >= 2× (P2-CT-001/002)");
             CHECK(count2 >= 2, "ecdsa.cpp: secure_erase(&cand2) appears >= 2× (P2-CT-001/002)");
-        } else {
-            printf("  [SKIP] ecdsa.cpp not found — source scan skipped\n");
         }
     }
 
     // musig2.cpp: k1 and k2 blocks
     {
         auto src = read_source_file("musig2.cpp");
+        CHECK(!src.empty(), "musig2.cpp must be readable (in-tree source always exists)");
         if (!src.empty()) {
             int count1 = 0, count2 = 0;
             std::string::size_type pos = 0;
@@ -205,21 +202,18 @@ static void test_source_scan_cand_erase() {
             }
             CHECK(count1 >= 2, "musig2.cpp: secure_erase(&cand1) appears >= 2× (k1+k2 blocks, P2-CT-003)");
             CHECK(count2 >= 2, "musig2.cpp: secure_erase(&cand2) appears >= 2× (k1+k2 blocks, P2-CT-003)");
-        } else {
-            printf("  [SKIP] musig2.cpp not found — source scan skipped\n");
         }
     }
 
     // frost.cpp: derive_scalar_from_hash
     {
         auto src = read_source_file("frost.cpp");
+        CHECK(!src.empty(), "frost.cpp must be readable (in-tree source always exists)");
         if (!src.empty()) {
             bool has_cand1 = (src.find("secure_erase(&cand1") != std::string::npos);
             bool has_cand2 = (src.find("secure_erase(&cand2") != std::string::npos);
             CHECK(has_cand1, "frost.cpp: secure_erase(&cand1) present (P2-CT-007)");
             CHECK(has_cand2, "frost.cpp: secure_erase(&cand2) present (P2-CT-007)");
-        } else {
-            printf("  [SKIP] frost.cpp not found — source scan skipped\n");
         }
     }
 }

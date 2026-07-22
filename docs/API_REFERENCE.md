@@ -2585,6 +2585,12 @@ Current GPU C ABI failure semantics:
 - `ufsecp_bip352_prepare_scan_plan` and `ufsecp_gpu_bip352_scan_batch` reject
   `scan_privkey32 == 0` and `scan_privkey32 >= n`; rejected scan keys leave
   `plan264_out` / `prefix64_out` zeroed
+- `ufsecp_gpu_bip352_scan_batch` and `_multispend` reject dangerous
+  pointer-range overlap between `prefix64_out` and any of
+  `scan_privkey32`/`spend_pubkeys33`/`tweak_pubkeys33` with
+  `UFSECP_ERR_BAD_INPUT`, before any output clearing or GPU dispatch
+  (overflow-safe range check; zero-count calls remain a true no-op even with
+  a degenerate/aliased pointer) — added 2026-07-15, issue #335 acceptance repair
 - secret-bearing GPU backends erase uploaded ECDH, BIP-352, and BIP-324 key
   buffers before releasing host/shared/device storage
 - `ufsecp_gpu_*_verify_collect` is excluded from output pre-clearing because
@@ -2639,13 +2645,15 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_bip324_aead_decrypt_batch` | `(ctx, keys32[], nonces12[], wire[], sizes[], max_payload, n, plain_out[], valid[]) -> error_t` | Batch BIP-324 ChaCha20-Poly1305 AEAD decrypt (SECRET) |
 | `ufsecp_gpu_zk_ecdsa_snark_witness_batch` | `(ctx, msgs32[], pubs33[], sigs64[], n, witnesses760_out[]) -> error_t` | Batch ECDSA SNARK witness generation — eprint 2025/695 (PUBLIC inputs) |
 | `ufsecp_gpu_zk_schnorr_snark_witness_batch` | `(ctx, msgs32[], pubkeys_x32[], sigs64[], n, witnesses472_out[]) -> error_t` | Batch BIP-340 Schnorr SNARK witness generation (PUBLIC inputs). GPU kernels pending — CPU fallback returns `Unsupported` via virtual dispatch. |
-| `ufsecp_gpu_bip352_scan_batch` | `(ctx, scan_privkey32, spend_pubkey33, tweaks33[], n, prefix64_out[]) -> error_t` | BIP-352 Silent Payment batch scan — returns upper-64-bit x-coordinate prefix per tweak (SECRET-BEARING: scan key sent to GPU) |
+| `ufsecp_gpu_bip352_scan_batch` | `(ctx, scan_privkey32, spend_pubkey33, tweaks33[], n, prefix64_out[]) -> error_t` | BIP-352 Silent Payment batch scan (single spend key) — returns upper-64-bit x-coordinate prefix per tweak (SECRET-BEARING: scan key sent to GPU). Thin wrapper delegating to `ufsecp_gpu_bip352_scan_batch_multispend` with `n_spend=1`; unchanged output/error semantics. |
+| `ufsecp_gpu_bip352_scan_batch_multispend` | `(ctx, scan_privkey32, spend_pubkeys33[], n_spend, tweaks33[], n_tweaks, prefix64_out[]) -> error_t` | BIP-352 batch scan across `n_spend` candidate spend keys (issue #335, e.g. base + change-label spend keys). ECDH/tagged-hash/hash×G run once per tweak; one mixed point add per `(tweak, spend)` cell. Row-major `prefix64_out[tweak*n_spend+spend]`; native CUDA/OpenCL/Metal (SECRET-BEARING) |
+| `ufsecp_gpu_set_metal_shader_path` | `(absolute_dir) -> error_t` | Install an explicit, validated, absolute directory to locate the Metal shader library, for loadable-library consumers whose process CWD is unreliable (issue #335). Precedence: this call > `UFSECP_METAL_SHADER_PATH` env var > legacy CWD-relative search. Path-traversal rejection is component-based (a literal `..` path segment), not a raw substring match, so a directory name merely containing two dots (e.g. `v2..final`) is accepted. Behavior is IDENTICAL on Metal and non-Metal builds (validation/storage always run); on a build with no Metal backend the stored value is simply never consulted. |
 
 #### BIP-352 CPU utility
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `ufsecp_bip352_prepare_scan_plan` | `(scan_privkey32, plan264_out) -> error_t` | Precompute 264-byte BIP-352 GLV wNAF scan plan for repeated GPU batch scans; rejects zero/order-or-larger scan keys and zeroes the plan on error |
+| `ufsecp_bip352_prepare_scan_plan` | `(scan_privkey32, plan264_out) -> error_t` | Precompute the 264-byte BIP-352 GLV wNAF plan layout. CPU-only diagnostic utility: no `bip352_scan_batch*` function currently accepts a plan parameter, so this has no effect on GPU scan cost (see `docs/BACKEND_ASSURANCE_MATRIX.md`) |
 
 ---
 

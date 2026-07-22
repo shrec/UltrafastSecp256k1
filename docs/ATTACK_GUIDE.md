@@ -4,7 +4,7 @@
 > or prove we missed something — start here. We want you to find real bugs more
 > than we want to look clean.
 
-**Current assurance state**: 272 exploit PoCs modules + 175 non-exploit modules = 447 total
+**Current assurance state**: 275 exploit PoCs modules + 183 non-exploit modules = 458 total
 (via `audit/unified_audit_runner`), 11 fuzzer harnesses, dudect
 + Valgrind CT evidence, full Wycheproof vector coverage. None of this means the library is bug-free.
 It means we tried hard. Now you try.
@@ -275,6 +275,77 @@ Attack scenarios:
 - A participant submits a partial signature for the wrong challenge — is the
   identification step robust?
 - Threshold = 1 with n = 1 — does the library degenerate gracefully to single-sig?
+
+---
+
+### Attack 11 — GPU BIP-352 Multi-Spend Scan: Limb Reversal, ABI Overlap, Fail-Open (GitHub issue #335)
+
+**Target**: `src/cuda/include/ct/ct_point.cuh`, `src/gpu/src/gpu_backend_cuda.cu`,
+`src/gpu/src/gpu_backend_opencl.cpp`, `src/cpu/src/ufsecp_gpu_impl.cpp`
+**Entry**: `ufsecp_gpu_bip352_scan_batch`, `ufsecp_gpu_bip352_scan_batch_multispend`
+
+Three distinct attack/failure classes were found and fixed in the same
+repair, all specific to the GPU-accelerated BIP-352 Silent Payment scan path:
+
+1. **Limb-order scalar corruption (P0, found by this task's own mandated
+   cross-oracle testing):** `ct_scalar_mul_varbase`'s bit-to-limb-index
+   mapping assumed the wrong significance order for `Scalar::limbs[4]`. The
+   scan private key was silently consumed with its four 64-bit limbs
+   reversed — a deterministic, non-crashing, non-zero WRONG result for
+   essentially every real scan key. **This class of bug is invisible to any
+   check that only verifies "output is non-zero and deterministic"** — a
+   reversed scalar multiplication is still a valid, deterministic
+   multiplication of *some* 256-bit value. The only way to catch it is an
+   independent re-implementation of the same computation compared
+   byte-for-byte (see `audit/test_regression_bip352_ct_varbase.cpp` and
+   `audit/test_exploit_gpu_bip352_scalar_limb_order.cpp`). **Lesson for
+   future GPU kernel ports**: any time a scalar/field-element representation
+   crosses a host↔device or CPU↔GPU-language boundary (BE bytes → LE limbs,
+   different limb-count conventions, etc.), write the cross-implementation
+   oracle test FIRST, before trusting "it runs and returns something."
+2. **ABI output/input pointer-range aliasing:** `prefix64_out` was never
+   checked for overlap against `scan_privkey32`/`spend_pubkeys33`/
+   `tweak_pubkeys33`. The ABI wrapper zeroes `prefix64_out` before dispatch
+   — if a caller (accidentally or adversarially) aliased the output buffer
+   onto an input range, that zeroing corrupts input data the backend reads
+   immediately afterward, producing a wrong result from a corrupted read
+   rather than a clean, diagnosable rejection. Any multi-buffer C ABI
+   function taking both raw input and output pointers should reject
+   dangerous aliasing with an overflow-safe range check before touching
+   either buffer.
+3. **Fail-open GPU error paths:** the OpenCL backend override left
+   `clFinish`/`clEnqueueReadBuffer` unchecked and returned `GpuError::Ok`
+   unconditionally afterward — a GPU fault or partial readback was reported
+   as success with corrupted/stale output. **General lesson**: in any GPU
+   backend, a `return Ok` that is not preceded by a checked return code for
+   every driver/runtime call in between is a potential fail-open path,
+   regardless of how unlikely the specific failure seems.
+
+See `audit/test_regression_bip352_ct_varbase.cpp` (CRIT-02),
+`audit/test_exploit_gpu_bip352_scalar_limb_order.cpp`, and
+`audit/test_exploit_gpu_bip352_multispend_failclosed.cpp` for the full PoC
+and regression coverage added for this attack class.
+
+**Round 3 addendum (2026-07-16, OpenCL track):** a review of round 2's
+OpenCL fix found that "checked return code for every driver/runtime call"
+still had two gaps specific to OpenCL: (a) `clGetCommandQueueInfo` and both
+`clGetKernelWorkGroupInfo` queries tolerated failure with a silent
+local-size fallback and could still return `Ok`; (b) the only real
+end-to-end fault-injection evidence covered exactly ONE of the 18 documented
+OpenCL control-call sites (`clFinish`) — every other site was only exercised
+via a generic fault-injector probe call, not a real dispatch through the
+public ABI, which does not prove the *production dispatch path* actually
+observes and propagates that site's failure. Both gaps are fixed (every
+query is now fail-closed; a new file,
+`audit/test_exploit_opencl_bip352_control_call_failclosed.cpp`, arms and
+verifies each of the 18 sites individually through a real
+`ufsecp_gpu_bip352_scan_batch_multispend` call) and were run for real on
+this machine's GPU: `Result: 37 passed, 0 failed, 0 inconclusive/advisory-skip`.
+**General lesson (extends the one above):** "every call is checked" and
+"every call's checked-ness is actually exercised by a test that goes through
+the real dispatch path" are different claims — a generic probe of the fault
+injector alone proves the injector works, not that the code path under test
+propagates the failure the way production traffic would reach it.
 
 ---
 

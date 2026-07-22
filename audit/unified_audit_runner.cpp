@@ -243,6 +243,7 @@ int test_metamorphic_adaptor_run(); // METAMORPHIC-PROBE: positive complement �
 int test_soundness_snark_witness_attestation_run(); // SOUNDNESS-PROBE: ecdsa/schnorr_snark_witness.valid==1 MUST IMPLY canonical verify==OK across forged inputs (r>=p, tampered/malleable scalars) — GHSA-c7q2 shape on SNARK attestations (2026-06-11)
 int test_regression_musig_keyagg_lifetime_run(); // UAF-REGRESSION (blind-zone #4): shim g_ka holds shared_ptr<KAEntry> + ka_get returns a snapshot, not raw it->second.get() — unlock-then-use UAF class (2026-06-11)
 int test_regression_bip39_csprng_failclosed_run(); // ENTROPY-SOURCE (blind-zone #5): bip39.cpp uses canonical fail-closed detail::csprng_fill, not a local fail-open duplicate (2026-06-11)
+int test_regression_audit_source_root_cwd_independence_run(); // issue #335 acceptance repair round 5: source-reading audit modules resolve in-tree source identically from repo root and an unrelated CWD, and hard-fail (never silently 0-check PASS or advisory-skip) when resolution genuinely fails (SECP256K1_HAS_WALLET must be enabled — this module's [3] probe calls test_regression_bip39_csprng_failclosed_run)
 int test_regression_batch_dos_cap_run(); // RESOURCE-EXHAUSTION (blind-zone #15): batch sign ABI rejects count>kMaxBatchN (1<<20) before allocation — DoS ceiling (2026-06-11)
 int test_regression_abi_invalid_reject_run(); // VALID/INVALID coverage: live ABI reject branches (seckey_negate >=n, shamir/MSM scalar>=n + off-curve) that the blocking suite never exercised — wrong-accept trap (2026-06-11)
 int test_external_anchor_kat_run(); // EXTERNAL-ANCHOR KAT: ufsecp_sha512 vs NIST FIPS 180-4 + ufsecp_taproot_output_key vs official BIP-341 vectors — defeats common-mode self-anchoring (2026-06-11)
@@ -634,6 +635,23 @@ static inline int test_regression_gpu_key_erase_raii_run() { return 77; }
 // FE52-compute verify differential — pairs commit 875d5bee (SECP256K1_FE52_COMPUTE).
 int test_fe52_compute_verify_run();
 int test_regression_bip352_ct_varbase_run();      // CRIT-02: BIP-352 CT variable-base scalar mul
+// issue #335 acceptance repair (2026-07): GPU BIP-352 multi-spend-key scan
+// wiring + adversarial PoCs. Same GPU-ABI-availability shape as CRIT-02
+// above (ufsecp_gpu_* C ABI symbols are always linked; GPU hardware absence
+// is handled by an internal runtime advisory-skip inside each _run(), not by
+// a compile-time stub) -- each file also has always-run CPU-only/static
+// checks, so these are registered advisory=false, matching the existing
+// test_exploit_gpu_bip352_key_erase precedent.
+int test_gpu_bip352_scan_run();                                    // SW-BIP352-*: GPU BIP-352 scan + multi-spend-key coverage
+int test_exploit_gpu_bip352_scalar_limb_order_run();                // P0-CUDA-BIP352-CT-SCALAR-MUL-LIMB-REVERSAL (LO-1..N, IM-1..2)
+int test_exploit_gpu_bip352_multispend_failclosed_run();            // issue #335 repair: ABI overlap + OpenCL/CUDA fail-closed hazards (FC-1..11)
+// issue #335 acceptance repair, round 3 (Codex's 2nd rejection, OpenCL
+// track): see benchmarks/github_issue_335/opencl_round3_evidence/README.md
+// for the full evidence bundle. These 3 files were written by the OpenCL
+// Phase-1 agent but never wired into ALL_MODULES[] until this pass.
+int test_regression_opencl_bip352_faultinject_symbols_absent_run(); // SAS-1..3: fault-injection hooks absent from release symbol table (nm/nm -D on running binary)
+int test_exploit_opencl_bip352_control_call_failclosed_run();       // per-site E2E fail-closed proof for all 18 OpenCL control-call sites (complements exploit_gpu_bip352_multispend_failclosed's single-site E2E case)
+int test_regression_opencl_kernel_resolver_unrelated_cwd_run();     // RCU-1..8: systemic OpenCL kernel-resolver fix (5 loaders), unrelated-CWD + installed-layout + genuine relocated-install (round 10)
 int test_regression_signing_ct_scalar_correctness_run(); // CT gen-mul, inv, cswap, Pippenger, BatchVerify
 int test_regression_ct_fast_scalar_v01_run();            // V-01: fast::Scalar operator* timing guard (advisory)
 int test_regression_schnorr_abi_edge_cases_run();        // TQ-005: Schnorr r==0/r>=p/s==0/s>=n ABI rejection
@@ -805,6 +823,13 @@ static const SectionInfo SECTIONS[] = {
                            "Exploit PoC Security Probes" },
     { "shim_regression",   "Shim \xe1\x83\xa0\xe1\x83\x94\xe1\x83\x92\xe1\x83\xa0\xe1\x83\x94\xe1\x83\xa1\xe1\x83\x98\xe1\x83\x98\xe1\x83\xa1 \xe1\x83\x9d\xe1\x83\xae\xe1\x83\xa0\xe1\x83\x90\xe1\x83\x9b\xe1\x83\x93\xe1\x83\x94\xe1\x83\x91\xe1\x83\x98",
                            "libsecp256k1 Shim Regression Guards" },
+    // 2026-07-16, issue #335 round 3 (OpenCL track): release-artifact
+    // symbol-hygiene / fault-injection-hook-absence gates. Distinct from
+    // exploit_poc (attacker-facing PoC) and memory_safety (runtime data
+    // hazard) -- this section is specifically "does the shipped binary/lib
+    // itself carry test-only attack surface it should not."
+    { "security_gate",     "\xe1\x83\x92\xe1\x83\x90\xe1\x83\x9b\xe1\x83\x9d\xe1\x83\xa9\xe1\x83\x94\xe1\x83\x9c\xe1\x83\x98\xe1\x83\xa1 \xe1\x83\x99\xe1\x83\x90\xe1\x83\xa0\xe1\x83\x98\xe1\x83\x91\xe1\x83\xa9\xe1\x83\x94",
+                           "Security Gate (Release Artifact Hygiene)" },
 };
 static constexpr int NUM_SECTIONS = sizeof(SECTIONS) / sizeof(SECTIONS[0]);
 
@@ -929,6 +954,13 @@ static const AuditModule ALL_MODULES[] = {
 #if SECP256K1_HAS_FROST
     { "musig2_frost",      "MuSig2 + FROST protocol suite",              "protocol_security", test_musig2_frost_protocol_run, false },
     { "musig2_frost_adv",  "MuSig2 + FROST advanced/adversar",           "protocol_security", test_musig2_frost_advanced_run, false },
+    // 2026-07-15 acceptance-repair: SEC-010 was forward-declared (2026-05-12)
+    // but never registered here — orphan module, never executed in unified
+    // evidence. real _run() (test_regression_frost_threshold_zero.cpp) runs
+    // when SECP256K1_HAS_FROST; feature_run_stubs_unified.cpp supplies the
+    // ADVISORY_SKIP_CODE(77) stub under the mirrored !SECP256K1_HAS_FROST guard
+    // so the row is never a phantom/link-error either way.
+    { "regression_frost_threshold_zero", "SEC-010: frost_sign threshold==0 unsigned-comparison bypass guard + ABI ufsecp_frost_sign threshold<2 rejection (FTZ-1..5)", "protocol_security", test_regression_frost_threshold_zero_run, false },
 #endif // SECP256K1_HAS_FROST
     { "frost_musig2_degen","FROST infinity key + MuSig2 e=0 guard (FMD-1..4)", "protocol_security", test_regression_frost_musig2_degenerate_run, false },
     { "audit_integration", "Integration (ECDH/batch/cross-proto)",        "protocol_security", audit_integration_run, false },
@@ -951,6 +983,10 @@ static const AuditModule ALL_MODULES[] = {
     { "c_abi_thread_stress", "C ABI thread stress (one ctx per thread)",  "memory_safety",  test_c_abi_thread_stress_run, false },
     { "secure_erase",      "Secure memory erasure (volatile readback)",   "memory_safety",  audit_secure_erase_run, false },
     { "s_scalar_erasure",  "s/r scalar erase in ecdsa_sign + musig2_partial_sig_agg (SSR-1..3)", "memory_safety", test_regression_s_scalar_erasure_run, false },
+    // 2026-07-15 acceptance-repair: SEC-004 was forward-declared (2026-05-12)
+    // but never registered here — orphan module. No feature flag / stub:
+    // compute_three_block is always compiled (core ECDSA hedged-sign path).
+    { "regression_hash_three_block_bounds", "SEC-004: compute_three_block missing input bounds guard (msg_len<128 caused size_t underflow in memset length) — hedged-sign correctness across sig/determinism/pubkey/verify (HTB-1..5)", "memory_safety", test_regression_hash_three_block_bounds_run, false },
     // advisory=true: returns ADVISORY_SKIP_CODE (77) when source tree is absent (e.g. out-of-tree build).
     { "ct_namespace",      "CT namespace discipline (source-level scan)", "memory_safety",  audit_ct_namespace_run, true },
     { "kat_all_ops",       "KAT: ECDH/WIF/P2PKH/P2WPKH/P2TR/hash/arith","standard_vectors", test_kat_all_operations_run, false },
@@ -1343,8 +1379,55 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_musig2_zero_psig",       "musig2_partial_sign degenerate zero psig → UFSECP_ERR_INTERNAL (CRIT-03) — 2026-05-02",       "exploit_poc", test_regression_musig2_zero_psig_run,         false },
     { "regression_gpu_key_erase_raii",     "GPU key material erased on all exit paths: CUDA RAII + OpenCL pubkey-first + scalar buffer zero (CRIT-01, HIGH-01, HIGH-02, HIGH-04) — 2026-05-02", "memory_safety", test_regression_gpu_key_erase_raii_run, true },
 #if SECP256K1_HAS_BIP352
-    { "regression_bip352_ct_varbase",      "BIP-352 scan kernel uses CT variable-base scalar mul for scan_k (CRIT-02) — 2026-05-02",       "ct_analysis",  test_regression_bip352_ct_varbase_run,        false },
+    { "regression_bip352_ct_varbase",      "BIP-352 scan kernel uses CT variable-base scalar mul for scan_k, byte-exact vs independent CPU oracle at every 64-bit limb boundary (CRIT-02) — 2026-05-02, repaired 2026-07 (issue #335 acceptance repair)", "ct_analysis",  test_regression_bip352_ct_varbase_run,        false },
+    // 2026-07-15 acceptance-repair: SEC-002 was forward-declared 2026-05-12
+    // but never registered here — orphan module. Guarded like its BIP-352
+    // siblings below: real _run() when SECP256K1_HAS_BIP352, mirrored
+    // ADVISORY_SKIP_CODE(77) stub in feature_run_stubs_unified.cpp otherwise.
+    { "regression_opencl_bip352_scan_key_boundary", "SEC-002: BIP-352 GPU scan private key must use parse_bytes_strict_nonzero (Scalar::from_bytes silently reduces mod n: scan_key==n becomes 0, n+1 becomes 1) — boundary rejection at n/n+1/0/0xFF..FF, valid key accepted (SKB-1..5)", "memory_safety", test_regression_opencl_bip352_scan_key_boundary_run, false },
+    // issue #335 acceptance repair (2026-07): GPU BIP-352 multi-spend-key
+    // scan wiring (previously compiled/CTest-only, never registered here)
+    // + the two new bug-to-CAAS PoCs for the P0 limb-reversal bug and the
+    // multi-spend ABI-overlap/fail-open hazards fixed in the same repair.
+    { "gpu_bip352_scan",                    "GPU BIP-352 scan + multi-spend-key coverage: CPU plan, single/multi-spend GPU dispatch, byte-exact independent-oracle cross-check, legacy/multispend(n_spend=1) parity (SW-BIP352-*) — issue #335", "differential", test_gpu_bip352_scan_run, false },
+    { "exploit_gpu_bip352_scalar_limb_order", "P0 GPU BIP-352 scan key limb-order reversal in ct_scalar_mul_varbase: static regression guard + boundary-bit byte-exact oracle cross-check + wallet-scan-miss impact PoC (LO-1..N, IM-1..2) — issue #335", "exploit_poc", test_exploit_gpu_bip352_scalar_limb_order_run, false },
+    { "exploit_gpu_bip352_multispend_failclosed", "GPU BIP-352 multi-spend ABI overlap rejection + OpenCL/CUDA fail-closed output on error (FC-1..11) — issue #335 acceptance repair", "exploit_poc", test_exploit_gpu_bip352_multispend_failclosed_run, false },
+    // issue #335 round 3 (OpenCL track, 2026-07-16): full evidence bundle at
+    // benchmarks/github_issue_335/opencl_round3_evidence/README.md.
+    // Complements exploit_gpu_bip352_multispend_failclosed directly above:
+    // that file's SW-FI-E2E case exercises exactly ONE OpenCL control-call
+    // site (clFinish) end-to-end; this file exercises all 18 documented
+    // sites (queue-info, both work-group-info queries, all 11
+    // clSetKernelArg calls across both kernels, both launches, finish,
+    // readback) individually, each through a real dispatch via the public
+    // C ABI -- not a generic fi_call() probe. Not a duplicate: the two files
+    // are deliberately different granularity (impact PoC vs exhaustive
+    // per-site fail-closed verification) and are both required.
+    { "exploit_opencl_bip352_control_call_failclosed", "OpenCL BIP-352 multi-spend: every one of the 18 control-call sites (queue/WG-info queries, all clSetKernelArg calls, both launches, finish, readback) fails closed under a real end-to-end dispatch, individually armed — issue #335 round 3", "exploit_poc", test_exploit_opencl_bip352_control_call_failclosed_run, false },
 #endif // SECP256K1_HAS_BIP352
+    // issue #335 round 3 (OpenCL track, 2026-07-16): release-artifact symbol
+    // hygiene -- proves the 4 OpenCL BIP-352 fault-injection hook functions
+    // (test-only attack surface fixed by gating them behind
+    // SECP256K1_BUILD_FAULT_INJECTION_TESTS, see gpu_backend_opencl.cpp) are
+    // genuinely absent from this binary's own static AND dynamic symbol
+    // tables. No BIP-352 feature dependency (pure nm/self-exe inspection).
+    { "regression_opencl_bip352_faultinject_symbols_absent", "SAS-1..3: OpenCL BIP-352 fault-injection test hooks (ufsecp_test_opencl_bip352_*) are compiled out of every normal build and absent from the running binary's static (nm) and dynamic (nm -D) symbol tables — issue #335 round 3", "security_gate", test_regression_opencl_bip352_faultinject_symbols_absent_run, false },
+    // issue #335 round 3 (OpenCL track, 2026-07-16): systemic OpenCL kernel-
+    // resolver fix — ensure_frost_kernel/ensure_hash160_kernel/
+    // ensure_zk_kernels/ensure_bip324_kernels/ensure_bip352_kernel all now
+    // share resolve_opencl_kernel() instead of their own CWD-only search
+    // paths; resolve_opencl_kernel() itself gained a walk-up-from-CWD
+    // fallback. Round 9 (2026-07-19): fixed RCU-3's own CWD-dependent
+    // bootstrap (newly caught by round 8's repaired dual-CWD gate on its
+    // first-ever clean run); extended RCU coverage to the 3 previously-
+    // untested loaders (BIP-352, ZK, BIP-324, RCU-4..6); added RCU-7 proving
+    // the explicit UFSECP_OPENCL_KERNEL_DIR override now fails closed (no
+    // fallthrough) instead of silently degrading to weaker strategies;
+    // resolver gained a compile-time install-prefix-baked production
+    // discovery strategy (gpu_backend_opencl.cpp Strategy 2,
+    // src/gpu/CMakeLists.txt). Always compiles, runtime advisory-skips
+    // without an OpenCL device.
+    { "regression_opencl_kernel_resolver_unrelated_cwd", "RCU-1..8: OpenCL kernel-source resolver (5 loaders: BIP-352/FROST/hash160/ZK/BIP-324) resolves correctly from an unrelated CWD (out-of-tree build dirs, CTest WORKING_DIRECTORY==repo-root), honors UFSECP_OPENCL_KERNEL_DIR for an installed-layout simulation, fails closed (no fallthrough) on an invalid explicit override, covers every admitted loader (round 9), and proves the production (no-override) path survives a GENUINE relocated `cmake --install` (RCU-8, POSIX-only, round 10)", "differential", test_regression_opencl_kernel_resolver_unrelated_cwd_run, false },
     // === 2026-05-04 Performance Review Security + Correctness Fixes ===
     { "signing_ct_scalar_correctness_regression", "CT signing scalar correctness: gen-mul, inv, cswap, Pippenger, BatchVerify (PRF-1..8)", "exploit_poc", test_regression_signing_ct_scalar_correctness_run, false },
     // === 2026-05-05 Full Red-Team Audit Regression Guards ===
@@ -1494,6 +1577,11 @@ static const AuditModule ALL_MODULES[] = {
 #if SECP256K1_HAS_WALLET
     // === 2026-06-11 ENTROPY-SOURCE-INTEGRITY: BIP-39 fail-closed CSPRNG (blind-zone #5) ===
     { "regression_bip39_csprng_failclosed", "ENTROPY-SOURCE (blind-zone #5): bip39.cpp shipped a local fail-OPEN csprng_fill (returned false on /dev/urandom failure) duplicating + weakening the single canonical fail-CLOSED detail::csprng_fill (std::abort on RNG failure). Fixed to use the canonical helper; source-scan asserts no local csprng_fill + detail::csprng_fill usage; functional smoke generates+validates a CSPRNG mnemonic and a deterministic fixed-entropy one", "memory_safety", test_regression_bip39_csprng_failclosed_run, false },
+    // === 2026-07-17 issue #335 acceptance repair round 5: audit source-file resolution is CWD-independent ===
+    // advisory=false: [1]/[2] are self-contained (no external infra); [3] re-invokes the
+    // repaired production _run() entry points from a CWD unrelated to the repo — those
+    // always resolve their source now (UFSECP_SOURCE_ROOT), so this must be a hard PASS.
+    { "regression_audit_source_root_cwd_independence", "CWD-INDEPENDENCE (issue #335 round 5, extended round 6): regression_bip39_csprng_failclosed / regression_nonce_candidate_erase / regression_secret_stack_residue_v9 / regression_ct_blinding_nonce_path silently reported a 0-checks PASS (a [SKIP] printf with no CHECK()) when unified_audit_runner ran from a CWD unrelated to the repo, because their source-scan resolvers were CWD-relative only; audit_ct_namespace (advisory) silently returned ADVISORY_SKIP_CODE(77) for the same reason. Fixed via a shared UFSECP_SOURCE_ROOT-aware audit_read_source_file() (audit_check.hpp) plus CHECK(!src.empty(), ...) hard-fail at every call site. [1] proves the old CWD-only walk-up genuinely fails from an unrelated CWD (fail-before anchor); [2] proves the new resolver succeeds from the identical CWD; [3] re-runs the five repaired production modules from that same unrelated CWD with stdout captured, asserting rc==0 AND no silent-skip marker in their output; [4] (standalone-only) spawns 8 real concurrent child processes racing capture_stdout() to prove its round-6 collision-safe (PID-unique) temp path never clobbers between processes — the exact false-pass Codex found (ct_blinding_nonce, round 5) plus the shared-filename race Codex found in this harness (round 6) are now both impossible. The exhaustive sweep over every OTHER mandatory module is ci/check_audit_cwd_independence.py (needs a real binary; run separately, see ci_local.sh --full)", "memory_safety", test_regression_audit_source_root_cwd_independence_run, false },
 #endif // SECP256K1_HAS_WALLET
     // === 2026-06-11 RESOURCE-EXHAUSTION: batch-sign DoS count ceiling (blind-zone #15) ===
     { "regression_batch_dos_cap", "RESOURCE-EXHAUSTION (blind-zone #15): ufsecp_ecdsa_sign_batch / ufsecp_schnorr_sign_batch enforce a hard count ceiling kMaxBatchN=1<<20 BEFORE any count*size allocation, so a hostile count cannot drive an unbounded malloc/DoS. The cap existed but was untested/ungated. Asserts count>kMaxBatchN and count==0 -> BAD_INPUT (no alloc), and a small valid batch still succeeds", "memory_safety", test_regression_batch_dos_cap_run, false },
@@ -1599,6 +1687,13 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-05-23 SEC-002: shim_ecdh xy64 secure_erase ===
     // advisory=true: depends on libsecp256k1 shim (secp256k1_ecdh ABI).
     { "regression_ecdh_xy64_erase", "SEC-002: secp256k1_ecdh() erases xy64 shared-secret buffer after hashfp call — correctness verified (both parties same output, X-coord match, non-zero output, null-ctx rejection) (EXY-1..4)", "shim_regression", test_regression_ecdh_xy64_erase_run, true },
+    // === 2026-07-15 acceptance-repair: SEC-006/SEC-007 orphan registration ===
+    // Forward-declared 2026-05-12 but never registered here. advisory=true:
+    // weak-linked shim symbols (SHIM_WEAK) resolve to null and the _run()
+    // itself returns ADVISORY_SKIP_CODE(77) at runtime when the libsecp256k1
+    // shim is not linked into this binary — same runtime-detection pattern as
+    // regression_ecdh_xy64_erase above, no compile-time #if needed.
+    { "regression_schnorr_r_zero_ct", "SEC-006/SEC-007: shim secp256k1_schnorrsig_sign32/sign_custom R-zero check now uses CT OR-accumulator (r_nonzero|=byte) instead of a variable-time for+break loop — non-zero r, key-sensitivity, determinism, sign_custom 32/64-byte (SRC-1..5)", "shim_regression", test_regression_schnorr_r_zero_ct_run, true },
     // === 2026-05-27 SEC-005: ecdh_compute* reject off-curve and infinity pubkeys ===
     // advisory=false: uses CPU C++ API only, no GPU/shim dependency.
     { "regression_ecdh_off_curve", "SEC-005: ecdh_compute/ecdh_compute_xonly/ecdh_compute_raw reject off-curve pubkeys (y²≠x³+7) and point-at-infinity before ct::scalar_mul — closes ePrint 2015/1233 invalid-curve twist-injection (OCK-1..5)", "memory_safety", test_regression_ecdh_off_curve_run, false },
@@ -1629,7 +1724,7 @@ static const AuditModule ALL_MODULES[] = {
     // === 2026-07-21 OpenCL collect dispatch/synchronisation regression (#346) ===
     { "regression_opencl_collect_dispatch", "OpenCL ECDSA/Schnorr collect paths check kernel arguments and queue completion, use padded explicit-local dispatch, and retain bounds guards for ghost work-items (OCD-0..7)", "memory_safety", test_regression_opencl_collect_dispatch_run, false },
     // === 2026-07-21 P2SH context diagnostics ABI regression (#348) ===
-    { "regression_p2sh_context_abi", "ufsecp_addr_p2sh_with_ctx provides context diagnostics while preserving the legacy ufsecp_addr_p2sh symbol and byte-identical output (PCA-0..9)", "memory_safety", test_regression_p2sh_context_abi_run, false },
+    { "regression_p2sh_context_abi", "ufsecp_addr_p2sh_with_ctx provides context diagnostics while preserving the legacy ufsecp_addr_p2sh symbol and byte-identical output, including the zero-length edge (PCA-0..9 + PCA-5Z)", "memory_safety", test_regression_p2sh_context_abi_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);
@@ -2234,6 +2329,7 @@ static void print_usage() {
     std::printf("  --report-dir <dir>     Write reports to <dir> (default: exe dir)\n");
     std::printf("  --section <id>         Run only modules in section <id>\n");
     std::printf("  --list-sections        Print available sections and exit\n");
+    std::printf("  --list-modules         Print this build's exact active module-id set and exit\n");
     std::printf("  --help                 Show this message\n\n");
     std::printf("Sections:\n");
     for (int s = 0; s < NUM_SECTIONS; ++s) {
@@ -2273,6 +2369,22 @@ int main(int argc, char* argv[]) {
             } else if (std::strcmp(argv[i], "--list-sections") == 0) {
                 for (int s = 0; s < NUM_SECTIONS; ++s) {
                     std::printf("%s\n", SECTIONS[s].id);
+                }
+                return 0;
+            } else if (std::strcmp(argv[i], "--list-modules") == 0) {
+                // Round 8 (issue #335 acceptance repair): print the EXACT
+                // module-id set this compiled binary will actually run --
+                // i.e. ALL_MODULES[] as resolved by the preprocessor for
+                // this build's SECP256K1_HAS_{FROST,ZK,ECIES,BIP352,ADAPTOR,
+                // WALLET,...} flags, not the superset a source-text scan of
+                // unified_audit_runner.cpp would see (which cannot evaluate
+                // #if conditions). Zero file I/O, zero side effects, exits
+                // immediately -- CWD-independent by construction. This is
+                // the authoritative source ci/check_audit_cwd_independence.py
+                // now compares against for exact module-set equality,
+                // replacing the old fuzzy completeness-floor heuristic.
+                for (int m = 0; m < NUM_MODULES; ++m) {
+                    std::printf("%s\n", ALL_MODULES[m].id);
                 }
                 return 0;
             } else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {

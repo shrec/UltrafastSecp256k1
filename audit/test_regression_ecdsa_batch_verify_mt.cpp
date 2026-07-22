@@ -46,10 +46,7 @@ using fast::Point;
 #endif
 
 static int g_pass = 0, g_fail = 0;
-#define CHECK(cond, msg) do { \
-    if (cond) { ++g_pass; } \
-    else { ++g_fail; std::printf("  FAIL [%s:%d] %s\n", __FILE__, __LINE__, msg); } \
-} while(0)
+#include "audit_check.hpp"
 
 static std::vector<ECDSABatchEntry> make_batch(std::size_t N) {
     std::vector<ECDSABatchEntry> e(N);
@@ -114,18 +111,18 @@ static void test_mt_multichunk() {
     CHECK(!ecdsa_batch_verify_mt(e3.data(), N, 8), "corruption in 3rd chunk detected");
 }
 
-// Read a repo source file by trying the common build-tree-relative paths.
+// Read a repo source file.
+//
+// Repair (issue #335 acceptance repair, round 5): the previous bounded
+// CWD-relative-only prefix list never resolved when unified_audit_runner was
+// invoked from a CWD unrelated to the repo (e.g. /tmp); the caller then
+// printed a [skip] line and returned WITHOUT calling CHECK() -- a silent
+// 0-checks-executed skip that let this (advisory=false) module still report
+// an overall PASS with the actual source-scan coverage vacuously absent.
+// Route through the shared, UFSECP_SOURCE_ROOT-aware audit_read_source_file()
+// (audit_check.hpp).
 static std::string read_repo_source(const char* rel) {
-    static const char* prefixes[] = {
-        "", "../", "../../", "../../../", nullptr };
-    for (int i = 0; prefixes[i]; ++i) {
-        std::ifstream f(std::string(prefixes[i]) + rel);
-        if (f) {
-            std::ostringstream ss; ss << f.rdbuf();
-            return ss.str();
-        }
-    }
-    return "";
+    return audit_read_source_file(rel);
 }
 
 // The arbitrary 64-thread cap was removed: the worker count is the caller's to
@@ -146,10 +143,11 @@ static void test_mt_no_thread_cap() {
     }
 
     const std::string src = read_repo_source("src/cpu/src/batch_verify.cpp");
-    if (src.empty()) {
-        std::printf("    [skip] batch_verify.cpp not found from cwd — source scan skipped\n");
-        return;
-    }
+    // Fail-closed (issue #335 acceptance repair, round 5): batch_verify.cpp
+    // always exists in-tree. A failed read means the source could not be
+    // resolved, NOT that the property holds -- never a silent 0-checks skip.
+    CHECK(!src.empty(), "batch_verify.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
     CHECK(src.find("kMaxThreads") == std::string::npos,
           "batch_verify.cpp: no hard-coded kMaxThreads cap");
     CHECK(src.find("std::array<std::thread") == std::string::npos,

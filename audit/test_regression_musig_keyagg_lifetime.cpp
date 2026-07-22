@@ -32,17 +32,20 @@
 
 static int g_pass = 0, g_fail = 0;
 
+// Repair (issue #335 acceptance repair, round 5): shim_musig.cpp is an
+// in-tree source file that always exists (a source-scan needs the file
+// text, not a built shim target) -- this module is also registered
+// advisory=false in ALL_MODULES (mandatory), so returning
+// ADVISORY_SKIP_CODE on a resolution failure was already internally
+// inconsistent with its own registration (the unified runner still counts
+// a non-zero, non-{0,77} rc from a non-advisory module as a hard FAIL, so
+// this was never a silent PASS -- but it also never resolved the real
+// source from a CWD unrelated to the repo, unlike every sibling in-tree
+// source file this same round). Route through the shared,
+// UFSECP_SOURCE_ROOT-aware audit_read_source_file() (audit_check.hpp) and
+// hard-fail via CHECK() instead of the advisory-skip sentinel.
 static std::string read_source_file(const char* rel_path) {
-    std::string up;
-    for (int depth = 0; depth <= 6; ++depth) {
-        std::ifstream f(up + rel_path);
-        if (f.is_open()) {
-            return {std::istreambuf_iterator<char>(f),
-                    std::istreambuf_iterator<char>()};
-        }
-        up += "../";
-    }
-    return {};
+    return audit_read_source_file(rel_path);
 }
 
 int test_regression_musig_keyagg_lifetime_run() {
@@ -53,9 +56,11 @@ int test_regression_musig_keyagg_lifetime_run() {
 
     std::string src = read_source_file("compat/libsecp256k1_shim/src/shim_musig.cpp");
     if (src.empty()) src = read_source_file("shim_musig.cpp");
+    CHECK(!src.empty(), "shim_musig.cpp must be readable (in-tree source always exists)");
     if (src.empty()) {
-        printf("  shim_musig.cpp not readable from this CWD — advisory skip\n");
-        return ADVISORY_SKIP_CODE;  // out-of-tree build; CI scans in-tree
+        printf("\n[regression_musig_keyagg_lifetime] %d/%d checks passed\n",
+               g_pass, g_pass + g_fail);
+        return 1;
     }
 
     // The map must hold shared_ptr so a snapshot outlives a concurrent erase.

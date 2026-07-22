@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 447 modules (175 non-exploit + 272 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 458 modules (183 non-exploit + 275 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -75,6 +75,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_ethereum.cpp` | Ethereum signing: EIP-155, EIP-191, ecrecover, personal_sign | [OK] |
 | `test_musig2.cpp` | MuSig2 protocol tests | [OK] |
 | `test_batch_add_affine.cpp` | Batch affine addition | [OK] |
+| `test_bip352_cpu_regression.cpp` (CTest: `bip352_cpu_regression`) | GitHub issue #336 BIP-352 CPU scan-path regression: fixed-base `scalar_mul_generator`/`batch_scalar_mul_generator` vs VT oracle, batch boundary sizes (0/1/17/18/19/37/200), repeated-scan stability, concurrent readers vs `configure_fixed_base` reconfigure at 1 and 18 threads (exercises the ISSUE-336-MUTEX-CONTENTION lock-free `g_context` fast path), context reuse/lifecycle across window_bits changes, end-to-end valid/invalid candidate pipeline (wrong scan key / wrong spend key), and an 18-thread throughput-floor resource/DoS reproducer (`test_concurrent_throughput_floor`) that fails closed if per-call cost under oversubscribed concurrency blows up beyond a portable multiple of the single-thread cost | [OK] |
 | `test_cache_dir_api.cpp` | Cache directory API + no-config.ini regression (`set_cache_directory` / `ufsecp_set_cache_dir`) | [OK] |
 | `test_multiscalar_batch.cpp` | Multi-scalar multiplication | [OK] |
 | `test_simd_batch.cpp` | SIMD batch operations | [OK] |
@@ -105,14 +106,15 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 447 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 458 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 447 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 458 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
-| `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test for CT generator/signing kernels with JSON evidence output |
+| `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test on CT generator and signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
 | `src/cuda/src/test_windows_macro_compat.cu` | CUDA/MSVC | `cuda_windows_macro_compat`: compile regression for Windows SDK `small` macro collisions in the public CUDA header |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 447 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 458 modules, 8 sections) |
+
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
 | `compat/libsecp256k1_shim/tests/shim_test.cpp` | CPU | `secp256k1_shim_test`: libsecp256k1 API compatibility shim |
@@ -216,6 +218,10 @@ CTest inventory exactly:
 - `mutation_artifact_scan`
 - `opencl_selftest`
 - `parse_strictness`
+- `pr353_msvc_link_retention_runtime_baseline_absent`
+- `pr353_msvc_link_retention_runtime_retained_present`
+- `pr353_msvc_link_retention_symtab_baseline_absent`
+- `pr353_msvc_link_retention_symtab_retained_present`
 - `regression_shim_xonly_parse`
 - `rfc6979_vectors`
 - `secp256k1_ecdh_example`
@@ -648,10 +654,71 @@ Machine-checked proofs (Fiat-Crypto/Vale/Jasmin) are not yet applied.
 | macOS ARM64 | AppleClang | -- | Full suite |
 | macOS x86-64 | AppleClang | -- | Full suite |
 | iOS ARM64 | Xcode toolchain | -- | Build only |
-| Android ARM64 | NDK | -- | Build only |
+| Android ARM64 | NDK | -- | Build + link regression guard (`benchmarks/github_issue_336/check_android_ndk_link.sh`) + on-device smoke run |
 | WASM | Emscripten | -- | Build + smoke |
 | CUDA | nvcc + host compiler | -- | GPU-specific |
 | Valgrind | GCC/Clang | Memcheck | Weekly |
+
+---
+
+### Android NDK Link Regression Guard (GitHub issue #336)
+
+**Script:** `benchmarks/github_issue_336/check_android_ndk_link.sh`
+
+**Bug this guards against:** Android's Bionic libc bundles pthread symbols
+directly into libc — there is no separate `libpthread.so`/`.a` to link
+against. A literal
+
+```cmake
+if(UNIX)
+    target_link_libraries(<target> PRIVATE pthread)
+endif()
+```
+
+in `src/cpu/CMakeLists.txt` breaks Android NDK cross-compiles at link time
+(Linux/macOS both satisfy `if(UNIX)`, but Android's toolchain has no
+`-lpthread` to resolve), failing with:
+
+```
+ld.lld: error: unable to find library -lpthread
+```
+
+This was reproduced independently with a minimal `add_executable` +
+`if(UNIX) target_link_libraries(... pthread) endif()` repro against NDK
+27.2.12479018 (`arm64-v8a`, `android-33`) — confirms the exact failure text
+above — and the same repro with `find_package(Threads REQUIRED)` +
+`target_link_libraries(... Threads::Threads)` links cleanly. All four
+`if(UNIX) ... pthread ... endif()` occurrences in `src/cpu/CMakeLists.txt`
+(`bench_bip352_cpu`, `bench_bip352_issue336`, `bench_bip324_transport`,
+`test_bip352_cpu_regression_standalone`) were converted to the portable
+`Threads::Threads` form, which resolves correctly on Linux/macOS/BSD
+(links pthread) AND on Android (links nothing extra, since Bionic already
+provides it).
+
+**What the script does:** clean, from-scratch NDK configure + build of
+`test_bip352_cpu_regression_standalone` (default target; overridable via
+`NDK_BUILD_TARGETS`) in a fresh scratch directory. Exits non-zero with a
+clear diagnostic (calling out the pthread-link failure signature by name if
+detected) if configure, build, or link fails; exits `0` on success; exits
+`77` (this repo's `ADVISORY_SKIP_CODE` convention for "infrastructure not
+present," see `audit/audit_check.hpp`) if no NDK toolchain is found
+on the host. Verified end-to-end on real hardware: cross-compiled with NDK
+27.2.12479018 for `arm64-v8a`/`android-33`, then `adb push` +
+`adb shell chmod +x` + executed both `bench_bip352_issue336` and
+`test_bip352_cpu_regression_standalone` (105/105 checks passed) on a
+Rockchip RK3588 Android 13 device — confirming the fix is not just a
+successful link but a runnable binary on-device.
+
+**Scope note:** `audit/` was outside the allowed-write scope for the task
+that introduced this guard, so it could not be wired into
+`audit/unified_audit_runner.cpp` via the normal `ALL_MODULES[]` pattern (see
+`docs/EXPLOIT_TEST_CATALOG.md` / `docs/AUDIT_CHANGELOG.md` for that
+mechanism). Following this codebase's established fallback for scope-limited
+regression coverage — landing the check as a standalone, independently
+runnable artifact rather than deferring it — this guard lives as a shell
+script under `benchmarks/github_issue_336/` and is documented here instead
+of the exploit/audit catalogs. A full `unified_audit_runner.cpp`
+registration can be added later by an agent with `audit/` write access.
 
 ---
 
@@ -959,6 +1026,7 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `soundness_snark_witness_attestation` | `audit/test_soundness_snark_witness_attestation.cpp` | SOUNDNESS-PROBE (blind-zone #1, eprint 2025/695, GHSA-c7q2 class): ecdsa/schnorr_snark_witness.valid==1 MUST IMPLY canonical ufsecp verify==OK across forged inputs (tampered/malleable s, tampered r, non-canonical r≥p, s==0, wrong msg). The struct-returning attestation that the self-deriving soundness scan now catches |
 | `regression_musig_keyagg_lifetime` | `audit/test_regression_musig_keyagg_lifetime.cpp` | UAF-REGRESSION (blind-zone #4): shim_musig.cpp g_ka now holds shared_ptr<KAEntry> and ka_get/ka_get_by_token return a shared_ptr snapshot, not a raw it->second.get() from the mutex-guarded map (unlock-then-use UAF class, same as PRECOMPUTE-GCONTEXT-UAF). Guarded by ci/check_locked_map_handle_escape.py |
 | `regression_bip39_csprng_failclosed` | `audit/test_regression_bip39_csprng_failclosed.cpp` | ENTROPY-SOURCE (blind-zone #5): bip39.cpp no longer defines a local fail-open csprng_fill; routes through the canonical fail-closed detail::csprng_fill (abort on RNG failure). Source-scan + functional mnemonic generate/validate. Guarded by ci/check_entropy_source_integrity.py |
+| `regression_audit_source_root_cwd_independence` | `audit/test_regression_audit_source_root_cwd_independence.cpp` | CWD-INDEPENDENCE (issue #335 acceptance repair, round 5): proves source-reading audit modules resolve in-tree source identically from the repo root and from a CWD unrelated to the repo (e.g. `/tmp`), and hard-fail (never silently pass with 0 checks executed, never advisory-skip) when resolution genuinely fails. `[1]` fail-before anchor (old CWD-only walk-up fails from an unrelated CWD); `[2]` pass-after (`audit_read_source_file()` resolves from the same CWD); `[3]` (unified-runner-only) re-invokes the repaired production modules from an unrelated CWD with stdout captured, asserting `rc==0` and no silent-skip marker |
 | `regression_batch_dos_cap` | `audit/test_regression_batch_dos_cap.cpp` | RESOURCE-EXHAUSTION (blind-zone #15): batch sign ABI rejects count>kMaxBatchN (1<<20) and count==0 with BAD_INPUT before any count*size allocation (DoS ceiling); small valid batch still succeeds |
 | `regression_abi_invalid_reject` | `audit/test_regression_abi_invalid_reject.cpp` | VALID/INVALID coverage: live ABI reject branches the blocking suite never exercised — ufsecp_seckey_negate (>=n->BAD_KEY), ufsecp_shamir_trick + ufsecp_multi_scalar_mul (scalar>=n->BAD_INPUT, off-curve->BAD_PUBKEY). Wrong-accept trap closed |
 | `external_anchor_kat` | `audit/test_external_anchor_kat.cpp` | EXTERNAL-ANCHOR KAT (common-mode defence): ufsecp_sha512 vs NIST FIPS 180-4 (""/"abc"); ufsecp_taproot_output_key vs OFFICIAL BIP-341 wallet-test-vectors (scriptPubKey[0] keypath-only, pins H_TapTweak to the Bitcoin spec, not self-derivation) |

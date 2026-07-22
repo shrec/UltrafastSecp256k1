@@ -221,23 +221,30 @@ static std::array<uint8_t, 32> random_msg_() {
     return m;
 }
 
+// Fail-closed (issue #335 acceptance repair, round 6): this file's 6
+// source-scan sub-tests all read via this helper, and until this fix it was
+// a CWD-relative-only bounded search ("", "src/cpu/src/", "../cpu/src/")
+// identical in class to the resolver round 5 removed from
+// test_regression_bip39_csprng_failclosed.cpp and friends. ci/check_audit_
+// cwd_independence.py (the round-6 exhaustive dual-CWD sweep) caught this
+// file specifically: from an unrelated CWD every one of the 6 callers below
+// silently printed "[SKIP] <file> not found" and skipped its source-scan
+// CHECK()s while the module still reported an overall PASS. Routes through
+// the shared, UFSECP_SOURCE_ROOT-aware audit_read_source_file() first (see
+// audit_check.hpp); the bare-name fallback is kept only for the standalone
+// CTest build, which does not define UFSECP_SOURCE_ROOT.
 static std::string read_src_file_(const char* name) {
-    const char* pfx[] = {"", "src/cpu/src/", "../cpu/src/", nullptr};
-    for (int i = 0; pfx[i]; ++i) {
-        std::string path = std::string(pfx[i]) + name;
-        std::ifstream f(path);
-        if (f.is_open()) {
-            return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
-        }
-    }
-    return {};
+    std::string src = audit_read_source_file((std::string("src/cpu/src/") + name).c_str());
+    if (!src.empty()) return src;
+    return audit_read_source_file(name);
 }
 
 // -- CT-005: ecdsa_sign_verified calls ct::ecdsa_sign (source scan) --
 static void test_ct005_source_scan() {
     std::printf("  [CT-005] source scan: ecdsa_sign_verified calls ct::ecdsa_sign\n");
     std::string src = read_src_file_("ecdsa.cpp");
-    if (src.empty()) { std::printf("    [SKIP] ecdsa.cpp not found\n"); return; }
+    CHECK(!src.empty(), "CT-005: ecdsa.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
     size_t pos = src.find("ECDSASignature ecdsa_sign_verified");
     bool ct_call = false;
     bool pragma_gone = true;
@@ -254,12 +261,11 @@ static void test_ct005_source_scan() {
 static void test_ct004_musig2_blinded() {
     std::printf("  [CT-004] musig2_nonce_gen: generator_mul_blinded + transparency\n");
     std::string src = read_src_file_("musig2.cpp");
+    CHECK(!src.empty(), "CT-004: musig2.cpp must be readable (in-tree source always exists)");
     if (!src.empty()) {
         bool ok = (src.find("generator_mul_blinded(sec.k1)") != std::string::npos &&
                    src.find("generator_mul_blinded(sec.k2)") != std::string::npos);
         CHECK(ok, "CT-004: musig2.cpp: generator_mul_blinded(sec.k1/k2) present");
-    } else {
-        std::printf("    [SKIP] musig2.cpp not found\n");
     }
 
     Scalar sk = random_nonzero_scalar_();
@@ -297,6 +303,7 @@ static void test_sec007_batch_weight_nonzero() {
 static void test_sec008_adaptor_sentinel() {
     std::printf("  [SEC-008] adaptor: degenerate sentinel source scan + round-trip\n");
     std::string src = read_src_file_("adaptor.cpp");
+    CHECK(!src.empty(), "SEC-008: adaptor.cpp must be readable (in-tree source always exists)");
     if (!src.empty()) {
         bool old_partial =
             (src.find("ECDSAAdaptorSig{R_hat, Scalar::zero(), r}") != std::string::npos);
@@ -306,8 +313,6 @@ static void test_sec008_adaptor_sentinel() {
         bool new_sentinel = (src.find("ECDSAAdaptorSig kZero") != std::string::npos)
                          && (src.find("return kZero") != std::string::npos);
         CHECK(new_sentinel, "SEC-008: degenerate r returns the fully-zero kZero sentinel");
-    } else {
-        std::printf("    [SKIP] adaptor.cpp not found\n");
     }
     // Normal path round-trip
     {
@@ -328,11 +333,10 @@ static void test_sec008_adaptor_sentinel() {
 static void test_sec010_bip32_strict_nonzero() {
     std::printf("  [SEC-010] bip32_master_key: parse_bytes_strict_nonzero\n");
     std::string src = read_src_file_("bip32.cpp");
+    CHECK(!src.empty(), "SEC-010: bip32.cpp must be readable (in-tree source always exists)");
     if (!src.empty()) {
         CHECK(src.find("parse_bytes_strict_nonzero(IL, master_key)") != std::string::npos,
               "SEC-010: bip32.cpp: parse_bytes_strict_nonzero(IL, master_key) present");
-    } else {
-        std::printf("    [SKIP] bip32.cpp not found\n");
     }
     // BIP-32 TV1 seed
     const uint8_t seed[] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
@@ -345,13 +349,12 @@ static void test_sec010_bip32_strict_nonzero() {
 static void test_sec002_frost_lagrange() {
     std::printf("  [SEC-002/CT-002] frost_lagrange: ct::scalar_mul source scan + 2-of-3\n");
     std::string src = read_src_file_("frost.cpp");
+    CHECK(!src.empty(), "SEC-002/CT-002: frost.cpp must be readable (in-tree source always exists)");
     if (!src.empty()) {
         CHECK(src.find("ct::scalar_mul(num, x_j)") != std::string::npos,
               "SEC-002/CT-002: frost.cpp: ct::scalar_mul(num, x_j) in lagrange loop");
         CHECK(src.find("ct::scalar_sub(x_j, x_i)") != std::string::npos,
               "SEC-002/CT-002: frost.cpp: ct::scalar_sub(x_j, x_i) in lagrange loop");
-    } else {
-        std::printf("    [SKIP] frost.cpp not found\n");
     }
 
 #if HAS_FROST
@@ -391,7 +394,8 @@ static void test_sec002_frost_lagrange() {
 static void test_sec002_adaptor_extract_ct() {
     std::printf("  [SEC-002-EXTRACT] schnorr_adaptor_extract: ct::scalar_sub + ct::scalar_cneg source scan\n");
     std::string src = read_src_file_("adaptor.cpp");
-    if (src.empty()) { std::printf("    [SKIP] adaptor.cpp not found\n"); return; }
+    CHECK(!src.empty(), "SEC-002-EXTRACT: adaptor.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
 
     // Verify old VT operator- is gone from schnorr_adaptor_extract
     // The old code was: Scalar t = sig.s - pre_sig.s_hat;

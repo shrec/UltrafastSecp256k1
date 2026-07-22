@@ -15,9 +15,9 @@
       "reproduce_command": "python3 ci/check_libsecp_shim_parity.py --json",
       "freshness_days": 30,
       "severity": "blocking",
-      "last_verified": "2026-06-13",
+      "last_verified": "2026-07-22",
       "status": "pass",
-      "notes": "17/17 shim parity checks pass; runs on every push. Verified 2026-06-13."
+      "notes": "17/17 shim parity checks pass; runs on every push. Re-verified 2026-07-22 with python3 ci/check_libsecp_shim_parity.py --json."
     },
     {
       "id": "INT-CROSS-LIBSECP",

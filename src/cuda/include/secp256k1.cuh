@@ -1229,15 +1229,22 @@ __device__ inline void field_negate(const FieldElement* a, FieldElement* r) {
 }
 #endif
 
-// Field multiplication by small constant: r = a * factor (mod P)
+// Field multiplication by a small constant: r = a * factor (mod P)
 // Optimized for small constants (e.g., 7, 28 for secp256k1)
-// NOTE: parameter deliberately not named "small" — Windows rpcndr.h #defines small as char.
+// NOTE: parameter is named `factor`, not `small` -- on Windows/MSVC CUDA
+// builds, <rpcndr.h> (pulled in transitively via <windows.h>/<rpc.h> by any
+// TU that touches the Win32/COM API before this header) defines
+// `#define small char`, which the preprocessor substitutes into bare
+// identifiers -- including parameter names -- before parsing ever happens.
+// See ci/fixtures/pr353_windows_small_macro_smoke.cu for the regression test
+// and docs/WINDOWS_CUDA_BUILD_CONTRACT.md for the full contract (PR #353,
+// Eric Voskuil).
 __device__ inline void field_mul_small(const FieldElement* a, uint32_t factor, FieldElement* r) {
     // Simple approach: multiply and reduce
     // For small constants, this is faster than full field_mul
     uint64_t carry = 0;
     uint64_t tmp[4];
-    
+
     for (int i = 0; i < 4; i++) {
         tmp[i] = muladd64(a->limbs[i], static_cast<uint64_t>(factor), 0, carry);
     }
@@ -4661,4 +4668,3 @@ __device__ inline void jacobian_to_compressed_device(
 
 } // namespace cuda
 } // namespace secp256k1
-

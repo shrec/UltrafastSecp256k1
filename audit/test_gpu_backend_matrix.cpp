@@ -50,6 +50,11 @@ static void probe_ops(ufsecp_gpu_ctx* ctx, const char* backend_name) {
     auto e5 = ufsecp_gpu_hash160_pubkey_batch(ctx, pub33, 1, out);
     auto e6 = ufsecp_gpu_msm(ctx, scalar, pub33, 1, out);
     auto e7 = ufsecp_gpu_ecrecover_batch(ctx, hash32, sig64, &recid, 1, out, out + 64);
+    // Issue #335: multi-spend-key BIP-352 scan. scalar (=1) doubles as a
+    // dummy scan private key; pub33 doubles as both the single spend and
+    // single tweak candidate -- content doesn't matter for probing.
+    auto e8 = ufsecp_gpu_bip352_scan_batch_multispend(
+        ctx, scalar, pub33, 1, pub33, 1, reinterpret_cast<uint64_t*>(out));
 
     std::printf("  +----------------------------------------+\n");
     std::printf("  | %-12s | %-24s |\n", "Operation", "Status");
@@ -61,6 +66,7 @@ static void probe_ops(ufsecp_gpu_ctx* ctx, const char* backend_name) {
     std::printf("  | %-12s | %-24s |\n", "hash160",     probe_status(e5));
     std::printf("  | %-12s | %-24s |\n", "msm",         probe_status(e6));
     std::printf("  | %-12s | %-24s |\n", "ecrecover",   probe_status(e7));
+    std::printf("  | %-12s | %-24s |\n", "bip352_multi",probe_status(e8));
     std::printf("  +----------------------------------------+\n");
 }
 

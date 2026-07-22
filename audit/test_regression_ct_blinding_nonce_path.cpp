@@ -252,26 +252,15 @@ static int count_occurrences(const std::string& src, const std::string& needle) 
 static void test_ct_sign_source_has_blinded() {
     printf("[4] ct_sign.cpp source scan: nonce path must use generator_mul_blinded\n");
 
-    const char* candidates[] = {
-        "src/cpu/src/ct_sign.cpp",
-        "../cpu/src/ct_sign.cpp",
-        nullptr
-    };
-    std::string src;
-    for (int i = 0; candidates[i]; ++i) {
-        std::ifstream f(candidates[i]);
-        if (f.is_open()) {
-            src.assign(std::istreambuf_iterator<char>(f),
-                       std::istreambuf_iterator<char>());
-            break;
-        }
-    }
-
-    if (src.empty()) {
-        printf("  [SKIP] ct_sign.cpp not found — run from repo root\n");
-        // Advisory skip: cannot scan without file; add to count as advisory pass
-        return;
-    }
+    // Fail-closed (issue #335 acceptance repair, round 6): ct_sign.cpp always
+    // exists in-tree. A failed read means the source could not be resolved
+    // (CWD-dependence bug or a genuinely broken build layout), NOT that the
+    // property holds -- this must never be a silent 0-checks-executed skip
+    // that lets the module PASS regardless of process CWD.
+    std::string src = audit_read_source_file("src/cpu/src/ct_sign.cpp");
+    if (src.empty()) src = audit_read_source_file("ct_sign.cpp");
+    CHECK(!src.empty(), "ct_sign.cpp must be readable (in-tree source always exists)");
+    if (src.empty()) return;
 
     // Must appear ≥ 5 times: ecdsa_sign, ecdsa_sign_hedged, schnorr_sign,
     // ecdsa_sign_recoverable, ecdsa_sign_hedged_recoverable.

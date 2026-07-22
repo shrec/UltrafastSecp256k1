@@ -291,6 +291,20 @@ if [[ $FULL -eq 1 ]]; then
       echo -e "${YELLOW}SKIP${NC} (binary not built)"
     fi
     run_check "BIP-39 NFKD"            "$BUILD_DIR/audit/test_exploit_bip39_nfkd_standalone"
+
+    # Issue #335 round 6: dual-CWD sweep of every mandatory ALL_MODULES[]
+    # entry (repo root vs an unrelated /tmp CWD). Needs a real compiled
+    # binary, so it lives here (--full tier) rather than in the no-build
+    # fast gates. Reuse this build's already-compiled binary when present;
+    # otherwise let the gate build its own (bounded, /tmp-scratch) copy.
+    echo -e "${BOLD}[7.1] Audit CWD-independence (dual-CWD sweep)${NC}"
+    if [[ -x "$BUILD_DIR/audit/unified_audit_runner" ]]; then
+      run_caas_check "Audit CWD-independence (dual-CWD sweep)" \
+        python3 ci/check_audit_cwd_independence.py --binary "$BUILD_DIR/audit/unified_audit_runner"
+    else
+      run_caas_check "Audit CWD-independence (dual-CWD sweep, self-built)" \
+        python3 ci/check_audit_cwd_independence.py --build
+    fi
   fi
 
   rm -rf "$BUILD_DIR" 2>/dev/null || true

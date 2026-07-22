@@ -47,17 +47,15 @@ using secp256k1::fast::FixedBaseConfig;
 
 static int g_pass = 0, g_fail = 0;
 
+// Repair (issue #335 acceptance repair, round 5): route through the shared,
+// UFSECP_SOURCE_ROOT-aware audit_read_source_file() (audit_check.hpp) so
+// this resolves identically whether unified_audit_runner is invoked from
+// the repo root or from a CWD unrelated to the repo (e.g. /tmp) -- the
+// previous bounded CWD-relative walk-up (depth<=6) hard-failed correctly in
+// the latter case but did not resolve the source, so real check counts
+// diverged between the two invocations.
 static std::string read_source_file(const char* rel_path) {
-    std::string up;
-    for (int depth = 0; depth <= 6; ++depth) {
-        std::ifstream f(up + rel_path);
-        if (f.is_open()) {
-            return {std::istreambuf_iterator<char>(f),
-                    std::istreambuf_iterator<char>()};
-        }
-        up += "../";
-    }
-    return {};
+    return audit_read_source_file(rel_path);
 }
 
 static std::size_t count_occurrences(const std::string& hay, const std::string& needle) {

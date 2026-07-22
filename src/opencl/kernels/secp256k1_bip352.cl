@@ -204,6 +204,87 @@ __kernel void bip352_pipeline_kernel_compressed(
     prefixes[gid] = point_prefix64_impl(&cand);
 }
 
+/* bip352_decompress_points_kernel — decompress an array of SEC1 compressed
+ * pubkeys into AffinePoint + validity flag. Used to decode the n_spend
+ * spend-key candidates ONCE per bip352_pipeline_kernel_compressed_multispend
+ * call, independent of tweak count (issue #335 Blocker 1). Reuses the same
+ * lbtc_point_from_compressed primitive already used/validated for tweaks. */
+__kernel void bip352_decompress_points_kernel(
+    __global const uchar* pubkeys33,
+    __global AffinePoint* out_points,
+    __global uchar* out_valid,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    JacobianPoint p;
+    if (lbtc_point_from_compressed(pubkeys33 + gid * 33, &p)) {
+        out_points[gid].x = p.x;
+        out_points[gid].y = p.y;
+        out_valid[gid] = 1;
+    } else {
+        out_valid[gid] = 0;
+    }
+}
+
+/* bip352_pipeline_kernel_compressed_multispend — multi-spend-key BIP-352 scan
+ * (issue #335). One work-item per tweak: the GLV scan-key scalar-mul (ECDH),
+ * tagged hash, and hash×G run EXACTLY ONCE per work-item, identical to
+ * bip352_pipeline_kernel_compressed; only the final mixed point addition +
+ * prefix extraction repeats, once per spend-key candidate. spend_points /
+ * spend_valid are precomputed once (not per tweak) by
+ * bip352_decompress_points_kernel above.
+ *
+ * Output: prefixes[gid * n_spend + j] for spend candidate j, row-major
+ * (tweak-major) -- byte-identical to bip352_pipeline_kernel_compressed's
+ * single-row output when n_spend == 1. */
+__kernel void bip352_pipeline_kernel_compressed_multispend(
+    __global const uchar* tweak_pubkeys33,
+    __constant const BIP352ScanKeyGlv* scan_key,
+    __global const AffinePoint* spend_points,
+    __global const uchar* spend_valid,
+    const uint n_spend,
+    __global ulong* prefixes,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+
+    __global ulong* row = prefixes + (ulong)gid * (ulong)n_spend;
+
+    // Decompress tweak pubkey on GPU
+    JacobianPoint tweak_jac;
+    if (!lbtc_point_from_compressed(tweak_pubkeys33 + gid * 33, &tweak_jac)) {
+        for (uint j = 0; j < n_spend; j++) row[j] = 0;
+        return;
+    }
+    AffinePoint tweak; tweak.x = tweak_jac.x; tweak.y = tweak_jac.y;
+
+    // ECDH + tagged hash + hash×G -- ONCE per tweak (public downstream of ECDH).
+    JacobianPoint shared;
+    scalar_mul_glv_predecomp_impl(&shared, &tweak, scan_key);
+    if (point_is_infinity(&shared)) {
+        for (uint j = 0; j < n_spend; j++) row[j] = 0;
+        return;
+    }
+
+    uchar ser[37]; bip352_shared_secret_input_impl(&shared, ser);
+    uchar hash[32]; bip352_tagged_sha256_impl(ser, 37, hash);
+    Scalar hs; scalar_from_bytes_impl(hash, &hs);
+
+    JacobianPoint out;
+    scalar_mul_generator_windowed_impl(&out, &hs);
+
+    // Per spend-key candidate: one mixed point add + prefix extract.
+    for (uint j = 0; j < n_spend; j++) {
+        if (!spend_valid[j]) { row[j] = 0; continue; }
+        AffinePoint spend = spend_points[j];
+        JacobianPoint cand;
+        point_add_mixed_impl(&cand, &out, &spend);
+        row[j] = point_prefix64_impl(&cand);
+    }
+}
+
 __kernel void bip352_pipeline_kernel_lut(
     __global const AffinePoint* tweak_points,
     __constant const BIP352ScanKeyGlv* scan_key,

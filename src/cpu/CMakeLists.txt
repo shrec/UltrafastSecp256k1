@@ -10,6 +10,14 @@ endif()
 
 set(SECP256K1_LIB_NAME fastsecp256k1)
 
+# Portable threading support: CMake's Threads::Threads resolves correctly on
+# Linux/macOS/BSD (links pthread) AND on Android (links nothing extra, since
+# Bionic libc bundles pthread symbols directly into libc — there is no
+# separate libpthread.so/.a to link against). Prefer this over a literal
+# `if(UNIX) target_link_libraries(... pthread)` guard, which breaks Android
+# NDK cross-compiles with "unable to find library -lpthread" (GitHub issue #336).
+find_package(Threads REQUIRED)
+
 # =============================================================================
 # Core sources — always compiled (field arithmetic, CT layer, crypto primitives)
 # =============================================================================
@@ -1067,9 +1075,17 @@ if(SECP256K1_BUILD_BENCH)
     # BIP-352 Silent Payments CPU pipeline benchmark (single-thread vs 16-thread)
     add_executable(bench_bip352_cpu bench/bench_bip352_cpu.cpp)
     target_link_libraries(bench_bip352_cpu PRIVATE ${SECP256K1_LIB_NAME})
-    if(UNIX)
-        target_link_libraries(bench_bip352_cpu PRIVATE pthread)
-    endif()
+    target_link_libraries(bench_bip352_cpu PRIVATE Threads::Threads)
+
+    # GitHub issue #336 replay driver: v3.68.0-vs-v4.5.0 BIP-352 scan regression.
+    # ISSUE336_HAVE_BATCH_API gates the new-batch-API comparison mode (only
+    # available from the version that introduced batch_scalar_mul_generator /
+    # fe_batch_inverse_nonzero; harmless on older trees since the mode is
+    # simply unavailable there, --mode=legacy always works).
+    add_executable(bench_bip352_issue336 bench/bench_bip352_issue336.cpp)
+    target_link_libraries(bench_bip352_issue336 PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(bench_bip352_issue336 PRIVATE ISSUE336_HAVE_BATCH_API=1)
+    target_link_libraries(bench_bip352_issue336 PRIVATE Threads::Threads)
 
     # BIP-324 benchmark (ChaCha20-Poly1305, HKDF, ElligatorSwift, session)
     if(SECP256K1_BUILD_BIP324)
@@ -1078,9 +1094,7 @@ if(SECP256K1_BUILD_BENCH)
 
         add_executable(bench_bip324_transport bench/bench_bip324_transport.cpp)
         target_link_libraries(bench_bip324_transport PRIVATE ${SECP256K1_LIB_NAME})
-        if(UNIX)
-            target_link_libraries(bench_bip324_transport PRIVATE pthread)
-        endif()
+        target_link_libraries(bench_bip324_transport PRIVATE Threads::Threads)
     endif()
 
     # Unified Apple-to-Apple Benchmark (cross-platform, single binary)
@@ -1203,6 +1217,18 @@ if(BUILD_TESTING)
     target_link_libraries(test_batch_add_affine_standalone PRIVATE ${SECP256K1_LIB_NAME})
     target_compile_definitions(test_batch_add_affine_standalone PRIVATE STANDALONE_TEST)
     add_test(NAME batch_add_affine COMMAND test_batch_add_affine_standalone)
+
+    # Standalone BIP-352 CPU scan-path regression test (GitHub issue #336):
+    # correctness + concurrency coverage for scalar_mul_generator /
+    # batch_scalar_mul_generator's lock-free fast path (independent of full
+    # test runner, matches the test_batch_add_affine_standalone pattern).
+    add_executable(test_bip352_cpu_regression_standalone
+        tests/test_bip352_cpu_regression.cpp
+    )
+    target_link_libraries(test_bip352_cpu_regression_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_link_libraries(test_bip352_cpu_regression_standalone PRIVATE Threads::Threads)
+    target_compile_definitions(test_bip352_cpu_regression_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME bip352_cpu_regression COMMAND test_bip352_cpu_regression_standalone)
 
     # Standalone hash accel test
     add_executable(test_hash_accel_standalone

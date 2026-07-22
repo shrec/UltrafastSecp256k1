@@ -326,8 +326,19 @@ add_test(NAME opencl_audit COMMAND opencl_audit_runner --kernel-dir ${CMAKE_CURR
 # Installation
 # =============================================================================
 
+# Issue #335 acceptance repair (round 11): join the SAME export set the root
+# CMakeLists.txt finalizes for the ufsecp C ABI package ("ufsecpTargets"),
+# not a private "secp256k1_opencl-targets" set. The old name was never
+# finalized by a matching `install(EXPORT secp256k1_opencl-targets ...)`
+# anywhere in the repo -- dead code that additionally blocked
+# `SECP256K1_INSTALL_CABI=ON` + `SECP256K1_BUILD_OPENCL=ON` from configuring
+# at all, because ufsecp_static (include/ufsecp/CMakeLists.txt) PRIVATE-links
+# secp256k1_gpu_host, which PRIVATE-links this target, and CMake's
+# `install(EXPORT ufsecpTargets ...)` requires every such transitive target to
+# be a member of THAT SAME export set. See src/gpu/CMakeLists.txt and
+# src/cuda/CMakeLists.txt for the matching fix on the other backends.
 install(TARGETS secp256k1_opencl
-    EXPORT secp256k1_opencl-targets
+    EXPORT ufsecpTargets
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin

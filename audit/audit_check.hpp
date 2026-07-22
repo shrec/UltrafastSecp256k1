@@ -20,6 +20,8 @@
 
 #include <cstdio>
 #include <string>
+#include <fstream>
+#include <iterator>
 
 // -- Message helper: converts const char* and std::string to const char* ----
 //    Needed to support CHECK(cond, "literal") and CHECK(cond, "x"+to_string(i))
@@ -97,5 +99,61 @@ inline void audit_print_progress_(int total) {
     (void)std::printf(__VA_ARGS__); \
     (void)std::fflush(stdout); \
 } while(0)
+
+// ============================================================================
+// audit_read_source_file() -- CWD-independent source-file resolution
+// ============================================================================
+// Repair (issue #335 acceptance repair, round 5): several source-reading
+// regression modules resolved their required in-tree source (e.g.
+// src/cpu/src/bip39.cpp, src/cpu/src/frost.cpp) using CWD-relative path lists
+// or bounded CWD-relative walk-ups ONLY. When unified_audit_runner is invoked
+// directly from a CWD unrelated to the repo (e.g. /tmp), those resolvers
+// return empty -- and several call sites treated "not found" as a silent
+// 0-checks-executed skip (printing a [SKIP] line but never calling CHECK()),
+// so the module still reported an overall PASS with the actual regression
+// coverage vacuously absent. That is a false green, not a legitimate skip.
+//
+// unified_audit_runner's own CMakeLists.txt target_compile_definitions()
+// already bakes UFSECP_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.." -- a
+// compile-time ABSOLUTE path to the repo root, fixed at build time on the
+// SAME machine that later runs the binary. Resolving via this macro first
+// makes source lookup independent of BOTH the process's current working
+// directory AND the executable's own install/relocate location (the
+// resolve_opencl_kernel() exe-relative walk-up in
+// src/gpu_backend_opencl.cpp does not apply here: OpenCL kernels ship
+// alongside install layouts and can genuinely move, but these are in-tree
+// C++ sources read by a test binary built directly from them -- the
+// compile-time root is exact, not a heuristic).
+//
+// The CWD-relative walk-up remains as a fallback for translation units built
+// WITHOUT UFSECP_SOURCE_ROOT (standalone CTest targets that don't add the
+// define) so their existing ctest WORKING_DIRECTORY-based invocation keeps
+// working unchanged.
+//
+// Callers MUST treat an empty return as a hard failure (CHECK(!src.empty(),
+// ...)), never a silent skip -- "the source could not be found" is itself
+// the finding when the source is known to always exist in-tree.
+inline std::string audit_read_source_file(const char* rel_path) {
+#ifdef UFSECP_SOURCE_ROOT
+    {
+        std::string const full = std::string(UFSECP_SOURCE_ROOT) + "/" + rel_path;
+        std::ifstream f(full, std::ios::in | std::ios::binary);
+        if (f.is_open()) {
+            return std::string(std::istreambuf_iterator<char>(f),
+                                std::istreambuf_iterator<char>());
+        }
+    }
+#endif
+    std::string up;
+    for (int depth = 0; depth <= 8; ++depth) {
+        std::ifstream f(up + rel_path, std::ios::in | std::ios::binary);
+        if (f.is_open()) {
+            return std::string(std::istreambuf_iterator<char>(f),
+                                std::istreambuf_iterator<char>());
+        }
+        up += "../";
+    }
+    return {};
+}
 
 #endif // AUDIT_CHECK_HPP_

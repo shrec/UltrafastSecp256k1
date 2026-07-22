@@ -752,6 +752,32 @@ jobs:
                 f"0 false-pass, 0 failed")
           PYEOF
 
+      - name: Verify shim CTest reachability (structural gate)
+        # if: always() — mirrors the run below; if the shim security regression
+        # modules step above failed, we still want to know whether the standalone
+        # CTest layer is even reachable before spending build/test time on it.
+        if: always()
+        # ci/check_shim_test_reachability.py is the single source of truth for
+        # "which CMake targets / CTest names require secp256k1_shim to exercise
+        # real (non-stub) behavior" — derived structurally from
+        # audit/CMakeLists.txt (target_link_libraries(... secp256k1_shim ...) and
+        # direct compat/libsecp256k1_shim/src/*.cpp source compilation), not from
+        # any hand-maintained list. It cross-checks that ground truth against
+        # whatever selection mechanism (-L/-R) the ctest invocation below
+        # actually uses, and fails loudly if any shim-dependent target would be
+        # built but silently never run. This is what catches a FUTURE
+        # renamed/added shim test falling out of the mandatory gate again — the
+        # exact bug class this step exists to prevent: 3 real shim regression
+        # tests (regression_musig_xonly_zero_tweak,
+        # regression_musig_noncegen_extra_input, regression_ecdh_xy64_erase),
+        # plus 18 more found by the same investigation (21 total), were never
+        # selected by the old ctest -R substring regex — several were also
+        # never built at all, since the hand-maintained
+        # shim_security_gate_standalones aggregate in audit/CMakeLists.txt was
+        # equally incomplete. See --self-test for a deterministic reproduction
+        # of that bug against the real CTest name set.
+        run: python3 ci/check_shim_test_reachability.py
+
       - name: Run standalone shim regression CTest targets
         # if: always() — run even if the unified_audit_runner step above exited non-zero
         # (e.g. an advisory module failed). The build succeeded; CTest targets are present.
@@ -762,10 +788,26 @@ jobs:
         # CMakeLists ordering). The standalone CTest targets are built with the real
         # shim-linked test bodies. Invoke them explicitly so shim security regressions
         # produce a hard FAIL, not a silent advisory-skip.
+        #
+        # Selection mechanism: CTest LABELS, not a name-substring regex. Every
+        # shim-dependent standalone test registered in audit/CMakeLists.txt carries
+        # the exact label "shim" (set_tests_properties(... LABELS "...;shim;...")).
+        # `-L "^shim$"` selects by that exact per-label match, not by fuzzy
+        # substring search over the test NAME — a prior substring regex here
+        # (regression_shim|regression_ecdsa_batch_curve|exploit_shim|test_shim)
+        # silently missed 21 real shim-dependent tests. See
+        # ci/check_shim_test_reachability.py (structural gate, run above).
+        #
+        # _shim_security_gate_standalone_targets (audit/CMakeLists.txt) is also an
+        # incomplete, hand-maintained build aggregate — it does not build every
+        # shim-dependent target either. Build the exact target list from the SAME
+        # structural source of truth (check_shim_test_reachability.py --list-targets)
+        # so every binary `ctest -L "^shim$"` selects below is guaranteed to exist.
         run: |
-          cmake --build out/ci-shim --target shim_security_gate_standalones -j"$(nproc)"
+          SHIM_TARGETS=$(python3 ci/check_shim_test_reachability.py --list-targets)
+          cmake --build out/ci-shim --target shim_security_gate_standalones $SHIM_TARGETS -j"$(nproc)"
           ctest --test-dir out/ci-shim \
-            -R "regression_shim|regression_ecdsa_batch_curve|exploit_shim|test_shim" \
+            -L "^shim$" \
             --output-on-failure -j"$(nproc)" --timeout 120 --no-tests=error
 
       - name: Run libsecp shim API compatibility test
@@ -807,6 +849,142 @@ jobs:
       - name: CUDA/MSVC preflight
         run: python3 ci/preflight.py --cuda-msvc
 
+  gpu-export-closure:
+    name: Block 3 / GPU Export-Set Closure
+    # Issue #335 acceptance repair, round 12: wires
+    # `ci/check_release_package_contents.py --gpu-export-closure` into a mandatory,
+    # PR-blocking CI job. Round 9/10 left `SECP256K1_INSTALL_CABI=ON` combined with
+    # any GPU backend (`SECP256K1_BUILD_OPENCL`/`CUDA`/`METAL`) broken at CMake
+    # configure time (`ufsecpTargets` export set did not include
+    # `secp256k1_gpu_host`); round 11 fixed the CMakeLists.txt join
+    # (src/gpu|opencl|cuda|metal/CMakeLists.txt); round 12 removed this gate's own
+    # classifier waiver for that exact failure signature (see
+    # `classify_configure_failure()` in ci/check_release_package_contents.py) so a
+    # regression back to it is now unconditionally blocking in the script itself —
+    # but nothing yet ran that script on a real PR/push. This job is that wiring.
+    #
+    # This gate runs a REAL `cmake -S -B` configure + `cmake --build --target
+    # install` for five `SECP256K1_INSTALL_CABI=ON` backend combinations (cpu_only
+    # positive control, opencl, cuda, metal, opencl+cuda combined) and asserts the
+    # installed tree genuinely contains the GPU C ABI header (ufsecp_gpu.h) for
+    # GPU-backend combos — not merely that configure exited 0 (see
+    # check_install_tree_contents() / the Metal fabricated-pass scenario documented
+    # in that script's module docstring).
+    #
+    # Deliberately independent of the run_gpu detect-impact flag (unlike
+    # gpu-wasm-smoke below, which only runs when src/gpu|opencl|cuda|metal/** itself
+    # changed): the export-set-closure bug this gate guards against can just as
+    # easily regress via changes to the root CMakeLists.txt's
+    # `install(EXPORT ufsecpTargets ...)` logic alone, which classifies as the
+    # "core-engine" profile, not "gpu-public-data" — gpu-wasm-smoke's condition
+    # would silently miss that class of regression. `if: docs_only != 'true'`
+    # mirrors build-test's own unconditional-on-code-changes guard instead.
+    runs-on: ubuntu-24.04
+    # Local dev-machine measurement (issue #335 round 12 task brief): the full
+    # 5-combo sweep (uncached — this script always uses a fresh tempfile build dir,
+    # no ccache) took ~1118s (~18.6 min) on that machine. This GH-hosted runner's
+    # relative speed for this specific workload has not been measured (no number
+    # here is claimed as measured on GH infrastructure); 40 minutes is a generous
+    # multiple of the one real measurement available, not a guess dressed up as
+    # data. Restrict via `--combo` (see the run step below) if this ever needs
+    # tightening after real GH-hosted timing data exists.
+    timeout-minutes: 40
+    needs: [detect-impact, fast-gates]
+    if: needs.detect-impact.outputs.docs_only != 'true'
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.12'
+
+      - name: Install OpenCL + CUDA toolchains (native Ubuntu packages; no GPU hardware required)
+        # ocl-icd-opencl-dev (universe): OpenCL ICD loader + headers. Satisfies
+        # find_package(OpenCL) at configure time and lets detect_opencl_toolchain()
+        # (ci/check_release_package_contents.py) find a real libOpenCL — no GPU
+        # device needed to configure+build+install a host-side OpenCL C ABI wrapper.
+        #
+        # nvidia-cuda-toolkit (multiverse): a real nvcc. Verified LIVE on the local
+        # dev machine (this task; see the final report for the exact commands) that:
+        #   1. this exact package resolves to the SAME nvcc version (12.0.140)
+        #      already installed on that machine's default PATH;
+        #   2. `-DSECP256K1_CUDA_ARCH_PROFILE=local-native`
+        #      (CMAKE_CUDA_ARCHITECTURES=native) does NOT probe for a physical GPU
+        #      at CMake configure time — configure succeeds with no device visible
+        #      at all (tested via CUDA_VISIBLE_DEVICES="");
+        #   3. at compile time with no device visible, nvcc emits
+        #      `nvcc warning : Cannot find valid GPU for '-arch=native', default
+        #      arch is used` and falls back to its built-in default architecture —
+        #      the build and `--target install` both still succeed end-to-end and
+        #      the installed tree contains ufsecp_gpu.h.
+        # So this genuinely exercises the CUDA export-closure configure+build+
+        # install path on a GPU-less runner; it does not merely check that an nvcc
+        # binary exists on PATH.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ocl-icd-opencl-dev nvidia-cuda-toolkit
+
+      - name: GPU CMake export-set closure probe (issue #335, mandatory)
+        # set +e / set -e: mirrors the "Run audit gate" pattern used elsewhere in
+        # this repo's workflows (e.g. caas.yml's audit_gate job) — capture the
+        # script's real exit code, write the report, then let the inline Python
+        # parser below (not bare `-e`) decide this step's final exit code, so a
+        # FAIL verdict is still fully parsed and annotated per-combo rather than
+        # aborting the step opaquely. The step's own exit code is the REAL verdict
+        # here — this is a single step, not split across steps, so nothing can
+        # report a misleading green status for a run that actually failed.
+        run: |
+          set +e
+          python3 ci/check_release_package_contents.py --gpu-export-closure --json > gpu_export_closure_report.json
+          GATE_EXIT=$?
+          set -e
+          if [ ! -s gpu_export_closure_report.json ]; then
+            echo "::error::gpu_export_closure_report.json missing or empty (gate_exit=$GATE_EXIT) — the probe crashed before writing JSON"
+            exit 1
+          fi
+          python3 - "$GATE_EXIT" <<'EOF'
+          import json, sys
+          gate_exit = int(sys.argv[1])
+          with open("gpu_export_closure_report.json") as f:
+              report = json.load(f)
+          if "error" in report:
+              print(f"::error::GPU export-set closure probe error: {report['error']}")
+              sys.exit(1)
+          for combo in report.get("combos", []):
+              key = combo.get("key", "?")
+              status = combo.get("status", "?")
+              if status == "UNEXPECTED_FAIL":
+                  print(f"::error::GPU export-closure combo '{key}' FAILED: {combo.get('message', '')}")
+              elif status == "ADVISORY_SKIP":
+                  print(f"::notice::GPU export-closure combo '{key}' advisory-skipped: {combo.get('reason', '')}")
+              else:
+                  print(f"::notice::GPU export-closure combo '{key}': {status} — {combo.get('message', '')}")
+          overall_pass = report.get("overall_pass", False)
+          blocking = report.get("blocking_combos", [])
+          if not overall_pass or gate_exit != 0:
+              print(f"::error::GPU export-set closure gate FAILED — blocking combo(s): {blocking}, gate_exit={gate_exit}")
+              sys.exit(1)
+          print("::notice::GPU export-set closure gate PASSED — every combo is a genuine PASS or an honest toolchain-unavailable skip")
+          EOF
+
+      - name: Upload GPU export-closure report
+        # if: always() — the report must be uploaded whether the step above
+        # passed or failed, matching the retention/evidence pattern used by every
+        # other CAAS/gate evidence artifact in this workflow.
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: gate-gpu-export-closure-${{ github.run_id }}
+          path: gpu_export_closure_report.json
+          if-no-files-found: warn
+          retention-days: 365
+
   final-verdict:
     name: Gate / Final Verdict
     runs-on: ubuntu-24.04
@@ -819,6 +997,7 @@ jobs:
       - caas-security
       - bindings-smoke
       - gpu-wasm-smoke
+      - gpu-export-closure
       - shim-gate
     if: always()
     steps:
@@ -837,6 +1016,7 @@ jobs:
           echo "| caas-security | ${{ needs.caas-security.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| bindings-smoke | ${{ needs.bindings-smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| gpu-wasm-smoke | ${{ needs.gpu-wasm-smoke.result }} |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| gpu-export-closure | ${{ needs.gpu-export-closure.result }} |" >> "$GITHUB_STEP_SUMMARY"
           echo "| shim-gate | ${{ needs.shim-gate.result }} |" >> "$GITHUB_STEP_SUMMARY"
 
           # caas-security must never be silently skipped for non-docs changes.
@@ -845,6 +1025,22 @@ jobs:
           if [ "${{ needs.caas-security.result }}" = "skipped" ]; then
             if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then
               echo "::error::caas-security was skipped — security gates must always run for non-docs changes"
+              exit 1
+            fi
+          fi
+
+          # gpu-export-closure (issue #335 round 13): same false-green class as
+          # caas-security above. Round 12 gated the job's own `if:` on
+          # `docs_only != 'true'` (it must run for every non-docs change) but
+          # the generic loop below still classified it as unconditionally
+          # `may_skip` — so a skip for ANY other reason (workflow misconfig,
+          # a bad `needs:` edge, the job never even starting) would still
+          # reach a silent PASS on a non-docs change, exactly the false-green
+          # this loop already prevents for caas-security. docs_only=true is
+          # the only legitimate skip path for this job too.
+          if [ "${{ needs.gpu-export-closure.result }}" = "skipped" ]; then
+            if [ "${{ needs.detect-impact.outputs.docs_only }}" != "true" ]; then
+              echo "::error::gpu-export-closure was skipped — the GPU CMake export-set closure gate must always run for non-docs changes"
               exit 1
             fi
           fi
@@ -866,6 +1062,7 @@ jobs:
             "caas-security:${{ needs.caas-security.result }}:may_skip" \
             "bindings-smoke:${{ needs.bindings-smoke.result }}:may_skip" \
             "gpu-wasm-smoke:${{ needs.gpu-wasm-smoke.result }}:may_skip" \
+            "gpu-export-closure:${{ needs.gpu-export-closure.result }}:may_skip" \
             "shim-gate:${{ needs.shim-gate.result }}:may_skip"; do
             block="${entry%%:*}"
             rest="${entry#*:}"

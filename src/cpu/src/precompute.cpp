@@ -2474,8 +2474,12 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
         return false;
     }
     
-    // Install the loaded context
-    g_context = std::move(ctx);
+    // Install the loaded context. atomic_store synchronizes-with the lock-free
+    // atomic_load fast path in scalar_mul_generator/batch_scalar_mul_generator
+    // (ISSUE-336-MUTEX-CONTENTION) — every write to g_context must go through
+    // the atomic free functions once any read does, or the two forms race.
+    std::atomic_store_explicit(&g_context,
+        std::shared_ptr<PrecomputeContext>(std::move(ctx)), std::memory_order_release);
     
 #if SECP256K1_DEBUG_GLV
     auto load_end = std::chrono::steady_clock::now();
@@ -2530,7 +2534,9 @@ static bool load_precompute_from_static_w8() {
         }
     }
     if (!validate_precompute_context(*ctx)) return false;
-    g_context = std::move(ctx);
+    // atomic_store: see ISSUE-336-MUTEX-CONTENTION note in load_precompute_cache_locked above.
+    std::atomic_store_explicit(&g_context,
+        std::shared_ptr<PrecomputeContext>(std::move(ctx)), std::memory_order_release);
     return true;
 }
 #endif // SECP256K1_CORE_BACKEND_MODE
@@ -2559,17 +2565,20 @@ void ensure_built_locked() {
                 return;
             }
             
-            // Cache load failed, use in-memory generation
-            g_context = build_context(g_config);
+            // Cache load failed, use in-memory generation. atomic_store: see
+            // ISSUE-336-MUTEX-CONTENTION note on scalar_mul_generator's fast path.
+            std::atomic_store_explicit(&g_context,
+                std::shared_ptr<PrecomputeContext>(build_context(g_config)), std::memory_order_release);
             if (!g_context || !validate_precompute_context(*g_context)) {
                 throw std::runtime_error("Precompute context validation failed after cache fallback rebuild");
             }
-            
+
             // Save to cache for next time
             save_precompute_cache_locked(cache_path);
         } else {
             // Cache disabled, just build in memory
-            g_context = build_context(g_config);
+            std::atomic_store_explicit(&g_context,
+                std::shared_ptr<PrecomputeContext>(build_context(g_config)), std::memory_order_release);
             if (!g_context || !validate_precompute_context(*g_context)) {
                 throw std::runtime_error("Precompute context validation failed");
             }
@@ -3284,7 +3293,9 @@ void configure_fixed_base(const FixedBaseConfig& config) {
             g_config.max_windows_to_load = v;
         }
     }
-    g_context.reset();
+    // atomic_store: see ISSUE-336-MUTEX-CONTENTION note on scalar_mul_generator's
+    // fast path — this reset must be visible to the lock-free atomic_load readers.
+    std::atomic_store_explicit(&g_context, std::shared_ptr<PrecomputeContext>{}, std::memory_order_release);
 }
 
 void ensure_fixed_base_ready() {
@@ -3300,7 +3311,7 @@ bool fixed_base_ready() {
 void set_cache_directory(const std::string& dir) {
     std::lock_guard<std::mutex> const lock(g_mutex);
     g_config.cache_dir = dir;
-    g_context.reset();
+    std::atomic_store_explicit(&g_context, std::shared_ptr<PrecomputeContext>{}, std::memory_order_release);
 }
 #endif // !SECP256K1_ESP32_BUILD
 
@@ -3544,17 +3555,41 @@ Point scalar_mul_generator_glv_predecomposed(const Scalar& /*k1*/, const Scalar&
 }
 #else
 Point scalar_mul_generator(const Scalar& scalar) {
-    std::unique_lock<std::mutex> lock(g_mutex);
-    ensure_built_locked();
-    // Snapshot the shared_ptr under the lock so a concurrent configure_fixed_base()
-    // (which does g_context.reset()) cannot free the table while we read it after
-    // unlock() — ctx_ptr keeps it alive for this whole call (PRECOMPUTE-GCONTEXT-UAF).
-    std::shared_ptr<PrecomputeContext> const ctx_ptr = g_context;
-    PrecomputeContext const& ctx = *ctx_ptr;
+    // Lock-free fast path (ISSUE-336-MUTEX-CONTENTION): once the table is
+    // built, g_mutex is never touched again by this call. Reading g_context
+    // through std::atomic_load synchronizes-with every writer below (which
+    // now uses std::atomic_store on the same object), so this is race-free
+    // without g_mutex. The overwhelmingly common case in a per-row scan
+    // workload (this function called once per row from many threads) never
+    // takes the mutex at all, eliminating the futex-syscall-driven sys-time
+    // growth that many concurrent callers previously produced. See
+    // docs/BIP352_CPU_PERFORMANCE.md for the measurement that motivated this.
+    std::shared_ptr<PrecomputeContext> ctx_ptr_fast =
+        std::atomic_load_explicit(&g_context, std::memory_order_acquire);
+    if (!ctx_ptr_fast) {
+        // Slow path: not yet built, or a concurrent reconfigure raced us to
+        // null. Build (or wait for another thread to finish building) under
+        // g_mutex exactly as before.
+        std::unique_lock<std::mutex> lock(g_mutex);
+        ensure_built_locked();
+        // Snapshot the shared_ptr under the lock so a concurrent configure_fixed_base()
+        // (which does g_context.reset()) cannot free the table while we read it after
+        // unlock() — ctx_ptr keeps it alive for this whole call (PRECOMPUTE-GCONTEXT-UAF).
+        // This is a PLAIN (non-atomic) read, not std::atomic_load: it is race-free
+        // because (a) every writer to g_context takes g_mutex before calling
+        // std::atomic_store_explicit, so no writer can run concurrently with this
+        // read while we hold the lock, and (b) a plain read can only race with a
+        // WRITE, never with another concurrent READ (incl. the lock-free
+        // atomic_load fast path above on other threads) — reading the same memory
+        // from multiple threads with no writer present is never a data race.
+        std::shared_ptr<PrecomputeContext> const ctx_ptr = g_context;
+        lock.unlock();
+        ctx_ptr_fast = ctx_ptr;
+    }
+    PrecomputeContext const& ctx = *ctx_ptr_fast;
     if (!validate_precompute_context(ctx)) {
         throw std::runtime_error("Invalid precompute context");
     }
-    lock.unlock();
 
     // PHASE 3 OPTIMIZED (Mixed Jacobian-Affine addition - 8 muls instead of 12)
     // PHASE 4: Added prefetching for next iteration data
@@ -3765,15 +3800,27 @@ void batch_scalar_mul_generator(const Scalar* scalars, Point* results, std::size
 #else
     if (n == 1) { results[0] = scalar_mul_generator(scalars[0]); return; }
 
-    // Lock once: verify context is ready, then release.
-    std::unique_lock<std::mutex> lock(g_mutex);
-    ensure_built_locked();
-    // Snapshot under the lock — keeps the table alive past unlock() even if another
-    // thread calls configure_fixed_base()->g_context.reset() (PRECOMPUTE-GCONTEXT-UAF).
-    std::shared_ptr<PrecomputeContext> const ctx_ptr = g_context;
-    PrecomputeContext const& ctx = *ctx_ptr;
+    // Lock-free fast path (ISSUE-336-MUTEX-CONTENTION) — see scalar_mul_generator
+    // above for the full rationale. Callers that migrate their own per-row
+    // scalar_mul_generator() loop to per-chunk batch_scalar_mul_generator()
+    // calls (one call per worker thread instead of one per row) get this
+    // benefit automatically once the table is warm.
+    std::shared_ptr<PrecomputeContext> ctx_ptr_fast =
+        std::atomic_load_explicit(&g_context, std::memory_order_acquire);
+    if (!ctx_ptr_fast) {
+        // Lock once: verify context is ready, then release.
+        std::unique_lock<std::mutex> lock(g_mutex);
+        ensure_built_locked();
+        // Snapshot under the lock — keeps the table alive past unlock() even if another
+        // thread calls configure_fixed_base()->g_context.reset() (PRECOMPUTE-GCONTEXT-UAF).
+        // Plain read is race-free here: see scalar_mul_generator() above for why
+        // (all writers serialize on g_mutex; concurrent reads never race).
+        std::shared_ptr<PrecomputeContext> const ctx_ptr = g_context;
+        lock.unlock();
+        ctx_ptr_fast = ctx_ptr;
+    }
+    PrecomputeContext const& ctx = *ctx_ptr_fast;
     if (!validate_precompute_context(ctx)) throw std::runtime_error("Invalid precompute context");
-    lock.unlock();
 
     const std::size_t wc = ctx.window_count;
     const unsigned    wb = ctx.window_bits;

@@ -55,6 +55,7 @@
 #endif
 
 static int g_pass = 0, g_fail = 0;
+#include "audit_check.hpp"
 
 // ============================================================================
 // Layer 1: Canonical window-4 generator table {0*G..15*G}
@@ -103,21 +104,24 @@ static const CanonicalAffine CANONICAL_TABLE_W4[16] = {
 };
 
 // ============================================================================
-// Helpers -- file reading (same pattern as test_regression_gpu_beta_constants.cpp)
+// Helpers -- file reading
 // ============================================================================
+// Repair (issue #335 acceptance repair, round 5): the previous bounded
+// CWD-relative prefix list ("", "../", "../../", ...) never resolved when
+// unified_audit_runner was invoked from a CWD unrelated to the repo (e.g.
+// /tmp) -- unlike the other round-5 fixes, this one did NOT silently pass
+// with 0 checks (every FAIL branch below already increments g_fail), but it
+// DID make this module's real check count diverge between "run from the
+// repo root" and "run from an unrelated CWD" (8/8 vs a hard, blocking
+// failure), which the same "source resolution must be CWD-independent"
+// finding also covers. Route through the shared, UFSECP_SOURCE_ROOT-aware
+// audit_read_source_file() (audit_check.hpp) -- same mechanism now used by
+// every other repaired source-reading module in this file set -- keeping
+// the bounded CWD-relative walk-up only as its own internal fallback.
 static std::string read_repo_file(const char* const* candidates, int n_candidates) {
-    const char* prefixes[] = {
-        "", "../", "../../", "../../../", "../../../../", nullptr
-    };
     for (int c = 0; c < n_candidates; ++c) {
-        for (int i = 0; prefixes[i]; ++i) {
-            std::string path = std::string(prefixes[i]) + candidates[c];
-            std::ifstream f(path);
-            if (f.is_open()) {
-                return {std::istreambuf_iterator<char>(f),
-                        std::istreambuf_iterator<char>()};
-            }
-        }
+        std::string src = audit_read_source_file(candidates[c]);
+        if (!src.empty()) return src;
     }
     return {};
 }

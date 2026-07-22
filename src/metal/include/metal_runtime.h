@@ -184,6 +184,34 @@ public:
                        uint32_t threadgroup_size,
                        const std::vector<MetalBuffer*>& buffers);
 
+    // Synchronous dispatch that PROPAGATES command-buffer failure to the
+    // caller. dispatch_sync() above only inspects `cmd_buf.error` internally
+    // and logs it to stderr -- it returns void, so a fire-and-forget call
+    // site silently falls through "as if" a failed GPU dispatch (device
+    // lost, runtime shader fault, driver timeout) succeeded, and the caller
+    // proceeds to read back stale/undefined buffer contents and reports
+    // GpuError::Ok.
+    //
+    // dispatch_sync_checked() returns false iff the command buffer completed
+    // with a non-nil error, so security/correctness-critical callers can
+    // fail closed (zero their output buffer, return a real GpuError) instead
+    // of reporting corrupted output as success. Added 2026-07 (GitHub issue
+    // #335 acceptance repair, round 2), then migrated repo-wide (round 8):
+    // gpu_backend_metal.mm now calls dispatch_sync_checked() at all 37 of
+    // its GpuBackend virtual-method dispatch sites and has zero remaining
+    // bare dispatch_sync() calls -- see check_gpu_backend_parity.py / the
+    // per-method fail-closed patterns in that file for the current source of
+    // truth. The bare dispatch_sync() overload above is retained only for
+    // non-shipped, Apple-only dev tools (src/metal/app/bench_metal.mm,
+    // src/metal/app/metal_test.mm) that are not part of the production C-ABI
+    // surface and are gated `if(NOT APPLE) return()` in
+    // src/metal/CMakeLists.txt. This doc comment was stale after the round-8
+    // migration landed -- keep it in sync with gpu_backend_metal.mm.
+    bool dispatch_sync_checked(const ComputePipeline& pipeline,
+                               uint32_t grid_size,
+                               uint32_t threadgroup_size,
+                               const std::vector<MetalBuffer*>& buffers);
+
     // Wait for all pending work
     void synchronize();
 

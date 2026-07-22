@@ -26,6 +26,22 @@
 // These are referenced by inline ecdsa_sign / schnorr_sign / ecdsa_sign_recoverable
 // wrappers below. Their bodies live in secp256k1_ct_sign.h, which is included
 // after this header in secp256k1_kernels.metal.
+//
+// SECP256K1_METAL_SCAN_ONLY (GitHub issue #335): a loadable-library consumer
+// that embeds only this "extended" header subset (field/point/hash160 +
+// this file) to build a scan-only kernel -- e.g. a BIP-352 batch scanner --
+// never includes secp256k1_ct_sign.h and never calls ecdsa_sign/schnorr_sign/
+// ecdsa_sign_recoverable. Compiling those wrapper bodies (which reference the
+// undefined ct_*_metal symbols below) into such a TU fails at metallib link
+// time even though nothing calls them, because Metal's AIR compiler does not
+// guarantee dead-stripping of unused non-kernel functions with unresolved
+// callees. Defining SECP256K1_METAL_SCAN_ONLY before including this header
+// excludes the three forward declarations AND their wrapper definitions
+// below (ecdsa_sign, schnorr_sign, ecdsa_sign_recoverable), restoring
+// self-containment for a scan-only build. The DEFAULT build (this repo's own
+// secp256k1_kernels.metallib, which always includes secp256k1_ct_sign.h) never
+// defines this macro, so its signing kernels are unaffected either way.
+#ifndef SECP256K1_METAL_SCAN_ONLY
 inline bool ct_ecdsa_sign_metal(thread const uchar msg_hash[32],
                                 thread const Scalar256 &priv,
                                 thread Scalar256 &r_out,
@@ -41,6 +57,7 @@ inline bool ct_ecdsa_sign_recoverable_metal(thread const uchar msg_hash[32],
                                             thread Scalar256 &r_out,
                                             thread Scalar256 &s_out,
                                             thread int &recid_out);
+#endif // !SECP256K1_METAL_SCAN_ONLY
 
 // =============================================================================
 // Constants -- 8x32 little-endian
@@ -1015,11 +1032,13 @@ struct ECDSASignature {
     Scalar256 s;
 };
 
+#ifndef SECP256K1_METAL_SCAN_ONLY
 inline bool ecdsa_sign(thread const uchar msg_hash[32], thread const Scalar256 &priv,
                         thread ECDSASignature &sig) {
     if (scalar256_is_zero(priv)) return false;
     return ct_ecdsa_sign_metal(msg_hash, priv, sig.r, sig.s);
 }
+#endif // !SECP256K1_METAL_SCAN_ONLY
 
 inline bool ecdsa_verify(thread const uchar msg_hash[32], thread const JacobianPoint &pubkey,
                           thread const ECDSASignature &sig) {
@@ -1139,6 +1158,7 @@ struct SchnorrSignature {
     Scalar256 s;
 };
 
+#ifndef SECP256K1_METAL_SCAN_ONLY
 inline bool schnorr_sign(thread const Scalar256 &priv, thread const uchar msg[32],
                           thread const uchar aux_rand[32], thread SchnorrSignature &sig) {
     if (scalar256_is_zero(priv)) return false;
@@ -1148,6 +1168,7 @@ inline bool schnorr_sign(thread const Scalar256 &priv, thread const uchar msg[32
     sig.s = scalar_from_bytes(sig_bytes + 32);
     return true;
 }
+#endif // !SECP256K1_METAL_SCAN_ONLY
 
 inline bool schnorr_verify(thread const uchar pubkey_x[32], thread const uchar msg[32],
                              thread const SchnorrSignature &sig) {
@@ -1312,11 +1333,13 @@ inline bool lift_x_field(thread const FieldElement &x_fe, int parity, thread Jac
     return true;
 }
 
+#ifndef SECP256K1_METAL_SCAN_ONLY
 inline bool ecdsa_sign_recoverable(thread const uchar msg_hash[32], thread const Scalar256 &priv,
                                      thread RecoverableSignature &rsig) {
     if (scalar256_is_zero(priv)) return false;
     return ct_ecdsa_sign_recoverable_metal(msg_hash, priv, rsig.sig.r, rsig.sig.s, rsig.recid);
 }
+#endif // !SECP256K1_METAL_SCAN_ONLY
 
 inline bool ecdsa_recover(thread const uchar msg_hash[32], thread const ECDSASignature &sig,
                             int recid, thread JacobianPoint &Q) {

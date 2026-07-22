@@ -58,35 +58,28 @@
 #include <fstream>
 #include <string>
 
+static int g_pass = 0, g_fail = 0;
+#include "audit_check.hpp"
+
 namespace {
 
-static int g_pass = 0, g_fail = 0;
 static bool g_marker_present = false;  // assume bug-fixed; scan overrides to true if marker found
 
-#define CHECK(cond, msg) do { \
-    if (cond) { ++g_pass; } \
-    else { ++g_fail; std::printf("  [FAIL] %s\n", (msg)); } \
-} while(0)
-
 // ── [1] Source scan: detect SHIM-NONCEGEN-001 marker ────────────────────────
-
+//
+// Repair (issue #335 acceptance repair, round 5): the previous 3-candidate
+// CWD-relative path list never resolved when unified_audit_runner was
+// invoked from a CWD unrelated to the repo (e.g. /tmp). This does not
+// silently 0-check-pass the way the other round-5 fixes did (the marker's
+// presence/absence only selects a MODE for the mandatory, source-independent
+// checks in [2]/[3] below, which always run with real assertions), but a
+// resolver that cannot find the source still means the mode selection can
+// silently default to the wrong branch. Route through the shared,
+// UFSECP_SOURCE_ROOT-aware audit_read_source_file() (audit_check.hpp).
 static void test_source_marker_present() {
     std::printf("  [NONCEGEN-1] Source scan: detect SHIM-NONCEGEN-001 marker in shim_musig.cpp\n");
 
-    const char* paths[] = {
-        "compat/libsecp256k1_shim/src/shim_musig.cpp",
-        "../compat/libsecp256k1_shim/src/shim_musig.cpp",
-        "../../compat/libsecp256k1_shim/src/shim_musig.cpp",
-        nullptr
-    };
-    std::string src;
-    for (int i = 0; paths[i]; ++i) {
-        std::ifstream f(paths[i]);
-        if (f.is_open()) {
-            src = {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
-            break;
-        }
-    }
+    std::string src = audit_read_source_file("compat/libsecp256k1_shim/src/shim_musig.cpp");
     if (src.empty()) {
         std::printf("  [SKIP] shim_musig.cpp not found — source scan skipped, defaulting to bug-open mode\n");
         return;

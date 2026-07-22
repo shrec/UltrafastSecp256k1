@@ -64,6 +64,20 @@ int test_regression_p2sh_context_abi_run() {
               std::strcmp(ufsecp_last_error_msg(ctx), "redeem script is NULL") == 0,
           "PCA-5", "NULL script records a contextual diagnostic");
 
+    // Zero-edge: an empty but non-NULL redeem script is valid and must keep
+    // byte-identical behavior across the legacy and context-aware ABIs.
+    const uint8_t empty_script = 0;
+    legacy_len = sizeof(legacy);
+    contextual_len = sizeof(contextual);
+    check(ufsecp_addr_p2sh(&empty_script, 0, UFSECP_NET_MAINNET,
+                           legacy, &legacy_len) == UFSECP_OK &&
+              ufsecp_addr_p2sh_with_ctx(ctx, &empty_script, 0,
+                                        UFSECP_NET_MAINNET, contextual,
+                                        &contextual_len) == UFSECP_OK &&
+              legacy_len == contextual_len &&
+              std::strcmp(legacy, contextual) == 0,
+          "PCA-5Z", "zero-length redeem script preserves ABI parity");
+
     contextual_len = sizeof(contextual);
     check(ufsecp_addr_p2sh_with_ctx(ctx, redeem_script, sizeof(redeem_script),
                                     2, contextual, &contextual_len) == UFSECP_ERR_BAD_INPUT &&

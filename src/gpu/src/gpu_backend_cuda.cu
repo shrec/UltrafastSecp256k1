@@ -14,6 +14,7 @@
 #include <cstring>
 #include <cstdio>
 #include <vector>
+#include <limits>
 
 /* -- Secure erase for private key zeroization ------------------------------ */
 #include "secp256k1/detail/secure_erase.hpp"
@@ -238,39 +239,75 @@ static __global__ void bip352_scan_batch_kernel(
     prefixes[idx] = pref;
 }
 
-/** BIP-352 scan kernel — compressed pubkey variant.
- *  Takes 33-byte SEC1 pubkeys directly. Decompresses on GPU (no CPU sqrt).
- *  Eliminates GPU→CPU→GPU round-trip of intermediate JacobianPoints. */
-__global__ void bip352_scan_batch_kernel_compressed(
-    const uint8_t* __restrict__ tweaks33,
-    const secp256k1::cuda::Scalar* __restrict__ scan_k,
-    const uint8_t* __restrict__ spend33,
-    uint64_t* __restrict__ prefixes,
+/** GPU kernel: decompress an array of SEC1 compressed pubkeys into
+ *  AffinePoint + validity flag. Used to decode the (small, O(n_spend))
+ *  spend-key candidate array ONCE per bip352_scan_batch_multispend() call,
+ *  independent of n_tweaks, reusing the same on-GPU decompression primitive
+ *  already used/validated for tweak pubkeys (point_from_compressed). */
+__global__ void bip352_decompress_points_kernel(
+    const uint8_t* __restrict__ pubkeys33,
+    secp256k1::cuda::AffinePoint* __restrict__ out_aff,
+    uint8_t* __restrict__ out_valid,
     int n)
 {
     using namespace secp256k1::cuda;
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= n) return;
 
-    // Decompress tweak pubkey on GPU
+    JacobianPoint p;
+    if (point_from_compressed(pubkeys33 + idx * 33, &p)) {
+        out_aff[idx].x = p.x;
+        out_aff[idx].y = p.y;
+        out_valid[idx] = 1;
+    } else {
+        out_aff[idx].x = FieldElement{};
+        out_aff[idx].y = FieldElement{};
+        out_valid[idx] = 0;
+    }
+}
+
+/** BIP-352 multi-spend-key scan kernel — 1 thread per tweak.
+ *
+ *  Generalizes bip352_scan_batch_kernel_compressed() (issue #335): the ECDH
+ *  scalar-mul (CT, Rule 8), tagged hash, and hash×G run EXACTLY ONCE per
+ *  thread/tweak (identical to the single-spend kernel); only the final mixed
+ *  point addition + prefix extraction is repeated, once per spend-key
+ *  candidate. spend_aff/spend_valid are precomputed once per call (not per
+ *  tweak) by bip352_decompress_points_kernel above.
+ *
+ *  Output: prefixes[tid * n_spend + j] for spend candidate j, row-major
+ *  (tweak-major) -- matches the single-spend layout exactly when n_spend==1. */
+__global__ void bip352_scan_batch_multispend_kernel_compressed(
+    const uint8_t* __restrict__ tweaks33,
+    const secp256k1::cuda::Scalar* __restrict__ scan_k,
+    const secp256k1::cuda::AffinePoint* __restrict__ spend_aff,
+    const uint8_t* __restrict__ spend_valid,
+    int n_spend,
+    uint64_t* __restrict__ prefixes,
+    int n_tweaks)
+{
+    using namespace secp256k1::cuda;
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= n_tweaks) return;
+
+    uint64_t* row = prefixes + (size_t)idx * (size_t)n_spend;
+
+    // Decompress tweak pubkey on GPU (same primitive as single-spend kernel).
     JacobianPoint tweak;
     if (!point_from_compressed(tweaks33 + idx * 33, &tweak)) {
-        prefixes[idx] = 0; return;
+        for (int j = 0; j < n_spend; ++j) row[j] = 0;
+        return;
     }
 
-    // Decompress spend pubkey on GPU
-    JacobianPoint spend_jac;
-    if (!point_from_compressed(spend33, &spend_jac)) {
-        prefixes[idx] = 0; return;
-    }
-    AffinePoint spend_aff; spend_aff.x = spend_jac.x; spend_aff.y = spend_jac.y;
-
-    // shared = scan_k × tweak (CT scalar mul)
+    // shared = scan_k × tweak (CT scalar mul) -- ONCE per tweak (Rule 8).
     JacobianPoint shared;
     ct::ct_scalar_mul_varbase(&tweak, scan_k, &shared);
-    if (shared.infinity) { prefixes[idx] = 0; return; }
+    if (shared.infinity) {
+        for (int j = 0; j < n_spend; ++j) row[j] = 0;
+        return;
+    }
 
-    // Serialize shared secret → tagged hash → generator mul → add spend
+    // Serialize -> tagged hash -> hash x G -- ONCE per tweak (public data).
     uint8_t ser37[37];
     point_to_compressed(&shared, ser37);
     ser37[33] = ser37[34] = ser37[35] = ser37[36] = 0;
@@ -280,17 +317,22 @@ __global__ void bip352_scan_batch_kernel_compressed(
     scalar_from_bytes(hash, &hs);
     JacobianPoint gen_out;
     scalar_mul_generator_const(&hs, &gen_out);
-    JacobianPoint cand;
-    jacobian_add_mixed(&gen_out, &spend_aff, &cand);
-    if (cand.infinity) { prefixes[idx] = 0; return; }
-    FieldElement ax, ay;
-    jacobian_to_affine(&cand, &ax, &ay);
-    (void)ay;
-    uint8_t xb[32];
-    field_to_bytes(&ax, xb);
-    uint64_t pref = 0;
-    for (int i = 0; i < 8; ++i) pref = (pref << 8) | xb[i];
-    prefixes[idx] = pref;
+
+    // Per spend-key candidate: one mixed point add + prefix extract.
+    for (int j = 0; j < n_spend; ++j) {
+        if (!spend_valid[j]) { row[j] = 0; continue; }
+        JacobianPoint cand;
+        jacobian_add_mixed(&gen_out, &spend_aff[j], &cand);
+        if (cand.infinity) { row[j] = 0; continue; }
+        FieldElement ax, ay;
+        jacobian_to_affine(&cand, &ax, &ay);
+        (void)ay;
+        uint8_t xb[32];
+        field_to_bytes(&ax, xb);
+        uint64_t pref = 0;
+        for (int b = 0; b < 8; ++b) pref = (pref << 8) | xb[b];
+        row[j] = pref;
+    }
 }
 #endif  // SECP256K1_GPU_HAS_BIP352
 
@@ -1108,7 +1150,7 @@ public:
         if (cudaGetDeviceProperties(&prop, static_cast<int>(device_index)) != cudaSuccess)
             return GpuError::Device;
 
-        std::memset(&out, 0, sizeof(out));
+        out = DeviceInfo{};
         std::memcpy(out.name, prop.name, sizeof(out.name) - 1);
         out.name[sizeof(out.name) - 1] = '\0';
         out.global_mem_bytes       = prop.totalGlobalMem;
@@ -3002,21 +3044,68 @@ dec_cleanup:
 #endif
     }
 
-    /* -- BIP-352 Silent Payment GPU batch scan ----------------------------- */
+    /* -- BIP-352 Silent Payment GPU batch scan (multi-spend, issue #335) --- */
 
-    GpuError bip352_scan_batch(
+    GpuError bip352_scan_batch_multispend(
         const uint8_t  scan_privkey32[32],
-        const uint8_t  spend_pubkey33[33],
+        const uint8_t* spend_pubkeys33,
+        size_t n_spend,
         const uint8_t* tweak_pubkeys33,
         size_t n_tweaks,
         uint64_t* prefix64_out) override
     {
         if (!ready_) return set_error(GpuError::Device, "context not initialised");
-        if (n_tweaks == 0) { clear_error(); return GpuError::Ok; }
-        if (!scan_privkey32 || !spend_pubkey33 || !tweak_pubkeys33 || !prefix64_out)
+        if (n_tweaks == 0 || n_spend == 0) { clear_error(); return GpuError::Ok; }
+        if (!scan_privkey32 || !spend_pubkeys33 || !tweak_pubkeys33 || !prefix64_out)
             return set_error(GpuError::NullArg, "NULL buffer");
 
 #if SECP256K1_GPU_HAS_BIP352
+        // Repair (issue #335 acceptance repair): n_tweaks/n_spend/their
+        // product ARE bounds-checked at the ABI layer
+        // (ufsecp_gpu_bip352_scan_batch_multispend, kMaxGpuBatchN /
+        // kMaxBip352Spend, src/cpu/src/ufsecp_gpu_impl.cpp) -- but this
+        // method is a public GpuBackend virtual reachable by direct C++
+        // callers that bypass the ABI wrapper's own checks, and the
+        // static_cast<int>(n_spend)/static_cast<int>(n_tweaks) narrowing
+        // casts used for kernel launch grid dimensions below are only safe
+        // because those bounds hold. Re-validate locally as defense-in-depth
+        // (mirrors the equivalent local check added to the OpenCL override,
+        // gpu_backend_opencl.cpp, in the same repair pass). Caps duplicated
+        // rather than shared because kMaxGpuBatchN/kMaxBip352Spend live in a
+        // different translation unit with no common header for GPU batch
+        // limits.
+        static constexpr size_t kLocalMaxGpuBatchN   = size_t{1} << 26; // 64M
+        static constexpr size_t kLocalMaxBip352Spend = size_t{1} << 16; // 65536
+        if (n_spend > kLocalMaxBip352Spend)
+            return set_error(GpuError::BadInput, "n_spend too large");
+        if (n_tweaks > kLocalMaxGpuBatchN)
+            return set_error(GpuError::BadInput, "n_tweaks too large");
+        if (n_spend != 0 && n_tweaks > std::numeric_limits<size_t>::max() / n_spend)
+            return set_error(GpuError::BadInput, "n_tweaks * n_spend overflow");
+        const size_t n_rows = n_tweaks * n_spend;
+        if (n_rows > kLocalMaxGpuBatchN)
+            return set_error(GpuError::BadInput, "n_tweaks * n_spend too large");
+
+        // Repair (issue #335 acceptance repair): fail-closed output guard.
+        // CUDA_TRY(...) below performs a bare `return last_error();` on any
+        // CUDA driver/kernel failure -- previously that left prefix64_out
+        // completely untouched by this method on failure (fail-closed
+        // behavior existed only via the ABI wrapper's own pre-zero +
+        // to_abi_error_clear_on_fail, not from this backend method itself).
+        // This RAII guard zeroes prefix64_out (n_rows -- already validated
+        // above -- x 8 bytes) on ANY exit path where `success` was not
+        // explicitly set true just before the final Ok return, exactly
+        // mirroring how CudaKeyGuard already guarantees secret device
+        // buffers are erased on every CUDA_TRY early return.
+        struct FailClosedOutputGuard {
+            uint64_t* out;
+            size_t    n_rows;
+            bool      success = false;
+            ~FailClosedOutputGuard() {
+                if (!success && out) std::memset(out, 0, sizeof(uint64_t) * n_rows);
+            }
+        } out_guard{prefix64_out, n_rows};
+
         /* -- 1. Convert scan key to Scalar on CPU -- */
         {
             secp256k1::fast::Scalar scan_check;
@@ -3055,31 +3144,210 @@ dec_cleanup:
         CUDA_TRY(cudaMemcpy(d_tweaks33, tweak_pubkeys33, n_tweaks * 33, cudaMemcpyHostToDevice));
 
         uint8_t* d_spend33 = nullptr;
-        CUDA_TRY(cudaMalloc(&d_spend33, 33));
-        CudaKeyGuard d_spend33_guard(d_spend33, 33);
-        CUDA_TRY(cudaMemcpy(d_spend33, spend_pubkey33, 33, cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMalloc(&d_spend33, n_spend * 33));
+        CudaKeyGuard d_spend33_guard(d_spend33, n_spend * 33);
+        CUDA_TRY(cudaMemcpy(d_spend33, spend_pubkeys33, n_spend * 33, cudaMemcpyHostToDevice));
+
+        cuda::AffinePoint* d_spend_aff = nullptr;
+        CUDA_TRY(cudaMalloc(&d_spend_aff, n_spend * sizeof(cuda::AffinePoint)));
+        CudaKeyGuard d_spend_aff_guard(d_spend_aff, n_spend * sizeof(cuda::AffinePoint));
+
+        uint8_t* d_spend_valid = nullptr;
+        CUDA_TRY(cudaMalloc(&d_spend_valid, n_spend * sizeof(uint8_t)));
+        CudaKeyGuard d_spend_valid_guard(d_spend_valid, n_spend * sizeof(uint8_t));
 
         uint64_t* d_prefixes = nullptr;
-        CUDA_TRY(cudaMalloc(&d_prefixes, n_tweaks * sizeof(uint64_t)));
-        CudaKeyGuard d_prefixes_guard(d_prefixes, n_tweaks * sizeof(uint64_t));
+        CUDA_TRY(cudaMalloc(&d_prefixes, n_rows * sizeof(uint64_t)));
+        CudaKeyGuard d_prefixes_guard(d_prefixes, n_rows * sizeof(uint64_t));
 
-        /* -- 3. Launch compressed BIP-352 scan kernel (decompress+scan fused) -- */
-        int threads = 128;
-        int blocks  = (static_cast<int>(n_tweaks) + threads - 1) / threads;
-        bip352_scan_batch_kernel_compressed<<<blocks, threads>>>(
-            d_tweaks33, d_scan_k, d_spend33, d_prefixes, static_cast<int>(n_tweaks));
-        CUDA_TRY(cudaGetLastError());
+        /* -- 3. Decompress the n_spend spend-key candidates ONCE, independent
+         *      of n_tweaks (issue #335 Blocker 1: marginal cost per extra
+         *      spend key must not redo per-tweak work). -- */
+        {
+            int threads = 128;
+            int blocks  = (static_cast<int>(n_spend) + threads - 1) / threads;
+            bip352_decompress_points_kernel<<<blocks, threads>>>(
+                d_spend33, d_spend_aff, d_spend_valid, static_cast<int>(n_spend));
+            CUDA_TRY(cudaGetLastError());
+        }
+
+        /* -- 4. Main scan kernel: 1 thread per tweak; ECDH/tagged-hash/hash×G
+         *      computed once per thread, then n_spend mixed adds. -- */
+        {
+            int threads = 128;
+            int blocks  = (static_cast<int>(n_tweaks) + threads - 1) / threads;
+            bip352_scan_batch_multispend_kernel_compressed<<<blocks, threads>>>(
+                d_tweaks33, d_scan_k, d_spend_aff, d_spend_valid,
+                static_cast<int>(n_spend), d_prefixes, static_cast<int>(n_tweaks));
+            CUDA_TRY(cudaGetLastError());
+        }
         CUDA_TRY(cudaDeviceSynchronize());
 
-        /* -- 4. Download prefixes -- */
+        /* -- 5. Download prefixes -- */
         CUDA_TRY(cudaMemcpy(prefix64_out, d_prefixes,
-                            n_tweaks * sizeof(uint64_t), cudaMemcpyDeviceToHost));
+                            n_rows * sizeof(uint64_t), cudaMemcpyDeviceToHost));
 
         // HIGH-3: zero device copy of scan private key before freeing device memory.
         cudaMemset(d_scan_k, 0, sizeof(cuda::Scalar));
         // HIGH-3: zero host copy of scan private key (also done by ScanKeyGuard dtor).
         secp256k1::detail::secure_erase(&h_scan_k, sizeof(h_scan_k));
 
+        out_guard.success = true;  // prefix64_out now holds valid results -- do not zero it.
+        clear_error();
+        return GpuError::Ok;
+#else
+        return set_error(GpuError::Unsupported, "GPU BIP-352 module disabled at build time");
+#endif
+    }
+
+    /* issue #335 acceptance repair: CUDA-event transfer/setup/kernel/readback
+     * timing breakdown for bip352_scan_batch_multispend. Diagnostic/benchmark
+     * use only (see GpuBackend::bip352_scan_batch_multispend_timed's doc
+     * comment in gpu_backend.hpp -- not part of the ABI-stable C surface, not
+     * subject to the GPU backend compute-parity rule). Structurally mirrors
+     * bip352_scan_batch_multispend() above (same validation, same key
+     * hygiene, same fail-closed guard) with cudaEvent_t timestamps inserted
+     * at each phase boundary; kept as a separate method rather than
+     * refactored to share a common body, to avoid touching the already
+     * validated production dispatch path for a benchmark-only feature. */
+    GpuError bip352_scan_batch_multispend_timed(
+        const uint8_t  scan_privkey32[32],
+        const uint8_t* spend_pubkeys33,
+        size_t n_spend,
+        const uint8_t* tweak_pubkeys33,
+        size_t n_tweaks,
+        uint64_t* prefix64_out,
+        TimingBreakdownMs* timing_out) override
+    {
+        if (timing_out) *timing_out = TimingBreakdownMs{};
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (n_tweaks == 0 || n_spend == 0) { clear_error(); return GpuError::Ok; }
+        if (!scan_privkey32 || !spend_pubkeys33 || !tweak_pubkeys33 || !prefix64_out)
+            return set_error(GpuError::NullArg, "NULL buffer");
+
+#if SECP256K1_GPU_HAS_BIP352
+        static constexpr size_t kLocalMaxGpuBatchN   = size_t{1} << 26;
+        static constexpr size_t kLocalMaxBip352Spend = size_t{1} << 16;
+        if (n_spend > kLocalMaxBip352Spend)
+            return set_error(GpuError::BadInput, "n_spend too large");
+        if (n_tweaks > kLocalMaxGpuBatchN)
+            return set_error(GpuError::BadInput, "n_tweaks too large");
+        if (n_spend != 0 && n_tweaks > std::numeric_limits<size_t>::max() / n_spend)
+            return set_error(GpuError::BadInput, "n_tweaks * n_spend overflow");
+        const size_t n_rows = n_tweaks * n_spend;
+        if (n_rows > kLocalMaxGpuBatchN)
+            return set_error(GpuError::BadInput, "n_tweaks * n_spend too large");
+
+        struct FailClosedOutputGuard {
+            uint64_t* out;
+            size_t    n_rows;
+            bool      success = false;
+            ~FailClosedOutputGuard() {
+                if (!success && out) std::memset(out, 0, sizeof(uint64_t) * n_rows);
+            }
+        } out_guard{prefix64_out, n_rows};
+
+        {
+            secp256k1::fast::Scalar scan_check;
+            if (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(
+                    scan_privkey32, scan_check)) {
+                secp256k1::detail::secure_erase(&scan_check, sizeof(scan_check));
+                return set_error(GpuError::BadKey,
+                                 "invalid scan key (zero or >= group order)");
+            }
+            secp256k1::detail::secure_erase(&scan_check, sizeof(scan_check));
+        }
+
+        struct ScanKeyGuard {
+            cuda::Scalar k{};
+            ~ScanKeyGuard() { secp256k1::detail::secure_erase(&k, sizeof(k)); }
+        } scan_key_guard;
+        cuda::Scalar& h_scan_k = scan_key_guard.k;
+        for (int limb = 0; limb < 4; ++limb) {
+            uint64_t v = 0;
+            int base = (3 - limb) * 8;
+            for (int b = 0; b < 8; ++b) v = (v << 8) | scan_privkey32[base + b];
+            h_scan_k.limbs[limb] = v;
+        }
+
+        // Phase-boundary events (default stream, so recording order == actual
+        // execution order): e0=start, e1=after mallocs, e2=after H2D copies,
+        // e3=after decompress kernel (end of "setup"), e4=after main scan
+        // kernel, e5=after D2H readback.
+        struct EventGuard {
+            cudaEvent_t e[6] = {};
+            EventGuard() { for (auto& ev : e) cudaEventCreate(&ev); }
+            ~EventGuard() { for (auto& ev : e) if (ev) cudaEventDestroy(ev); }
+        } ev;
+        cudaEventRecord(ev.e[0]);
+
+        cuda::Scalar* d_scan_k = nullptr;
+        CUDA_TRY(cudaMalloc(&d_scan_k, sizeof(cuda::Scalar)));
+        CudaKeyGuard d_scan_k_guard(d_scan_k, sizeof(cuda::Scalar));
+        uint8_t* d_tweaks33 = nullptr;
+        CUDA_TRY(cudaMalloc(&d_tweaks33, n_tweaks * 33));
+        CudaKeyGuard d_tweaks33_guard(d_tweaks33, n_tweaks * 33);
+        uint8_t* d_spend33 = nullptr;
+        CUDA_TRY(cudaMalloc(&d_spend33, n_spend * 33));
+        CudaKeyGuard d_spend33_guard(d_spend33, n_spend * 33);
+        cuda::AffinePoint* d_spend_aff = nullptr;
+        CUDA_TRY(cudaMalloc(&d_spend_aff, n_spend * sizeof(cuda::AffinePoint)));
+        CudaKeyGuard d_spend_aff_guard(d_spend_aff, n_spend * sizeof(cuda::AffinePoint));
+        uint8_t* d_spend_valid = nullptr;
+        CUDA_TRY(cudaMalloc(&d_spend_valid, n_spend * sizeof(uint8_t)));
+        CudaKeyGuard d_spend_valid_guard(d_spend_valid, n_spend * sizeof(uint8_t));
+        uint64_t* d_prefixes = nullptr;
+        CUDA_TRY(cudaMalloc(&d_prefixes, n_rows * sizeof(uint64_t)));
+        CudaKeyGuard d_prefixes_guard(d_prefixes, n_rows * sizeof(uint64_t));
+        cudaEventRecord(ev.e[1]);
+
+        CUDA_TRY(cudaMemcpy(d_scan_k, &h_scan_k, sizeof(cuda::Scalar), cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_tweaks33, tweak_pubkeys33, n_tweaks * 33, cudaMemcpyHostToDevice));
+        CUDA_TRY(cudaMemcpy(d_spend33, spend_pubkeys33, n_spend * 33, cudaMemcpyHostToDevice));
+        cudaEventRecord(ev.e[2]);
+
+        {
+            int threads = 128;
+            int blocks  = (static_cast<int>(n_spend) + threads - 1) / threads;
+            bip352_decompress_points_kernel<<<blocks, threads>>>(
+                d_spend33, d_spend_aff, d_spend_valid, static_cast<int>(n_spend));
+            CUDA_TRY(cudaGetLastError());
+        }
+        cudaEventRecord(ev.e[3]);
+
+        {
+            int threads = 128;
+            int blocks  = (static_cast<int>(n_tweaks) + threads - 1) / threads;
+            bip352_scan_batch_multispend_kernel_compressed<<<blocks, threads>>>(
+                d_tweaks33, d_scan_k, d_spend_aff, d_spend_valid,
+                static_cast<int>(n_spend), d_prefixes, static_cast<int>(n_tweaks));
+            CUDA_TRY(cudaGetLastError());
+        }
+        CUDA_TRY(cudaDeviceSynchronize());
+        cudaEventRecord(ev.e[4]);
+
+        CUDA_TRY(cudaMemcpy(prefix64_out, d_prefixes,
+                            n_rows * sizeof(uint64_t), cudaMemcpyDeviceToHost));
+        cudaEventRecord(ev.e[5]);
+        cudaEventSynchronize(ev.e[5]);
+
+        if (timing_out) {
+            float ms_malloc = 0.f, ms_h2d = 0.f, ms_decompress = 0.f, ms_kernel = 0.f, ms_d2h = 0.f;
+            cudaEventElapsedTime(&ms_malloc,     ev.e[0], ev.e[1]);
+            cudaEventElapsedTime(&ms_h2d,        ev.e[1], ev.e[2]);
+            cudaEventElapsedTime(&ms_decompress, ev.e[2], ev.e[3]);
+            cudaEventElapsedTime(&ms_kernel,     ev.e[3], ev.e[4]);
+            cudaEventElapsedTime(&ms_d2h,        ev.e[4], ev.e[5]);
+            timing_out->setup_ms  = static_cast<double>(ms_malloc) + static_cast<double>(ms_decompress);
+            timing_out->h2d_ms    = static_cast<double>(ms_h2d);
+            timing_out->kernel_ms = static_cast<double>(ms_kernel);
+            timing_out->d2h_ms    = static_cast<double>(ms_d2h);
+        }
+
+        cudaMemset(d_scan_k, 0, sizeof(cuda::Scalar));
+        secp256k1::detail::secure_erase(&h_scan_k, sizeof(h_scan_k));
+
+        out_guard.success = true;
         clear_error();
         return GpuError::Ok;
 #else

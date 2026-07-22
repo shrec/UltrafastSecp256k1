@@ -779,16 +779,46 @@ int main(void) {
 }
 ```
 
-#### Precomputing the scan plan
+#### Multiple spend-key candidates (change labels, issue #335)
 
-For workloads where the same scan key is used repeatedly across many batches, you can precompute
-the 264-byte GLV wNAF plan once on the CPU:
+A real wallet must check the base spend key *and* every change-label-derived
+spend key (`B_spend + label_m·G`, precomputed by the caller — this library has
+no label semantics) against every tweak. `ufsecp_gpu_bip352_scan_batch_multispend`
+does this in one call: the expensive per-tweak ECDH/tagged-hash/hash×G work
+runs once, and only a mixed point add repeats per spend-key candidate, instead
+of one full `ufsecp_gpu_bip352_scan_batch` call per candidate.
+
+```c
+uint8_t spend_pubkeys[3 * 33] = { /* base spend key, then 2 label-derived keys */ };
+uint64_t matrix[4 * 3] = {0};   /* row-major: matrix[tweak_idx * 3 + spend_idx] */
+
+ufsecp_error_t rc = ufsecp_gpu_bip352_scan_batch_multispend(
+    gpu, scan_privkey, spend_pubkeys, /*n_spend=*/3, tweaks, /*n_tweaks=*/N, matrix);
+```
+
+#### Precomputing the scan plan (diagnostic utility)
+
+`ufsecp_bip352_prepare_scan_plan` precomputes the 264-byte GLV wNAF layout a
+scan key decomposes to. It is a CPU-only diagnostic: as of this release no
+`bip352_scan_batch*` function accepts a plan parameter, so calling it has no
+effect on scan-batch cost.
 
 ```c
 uint8_t plan[UFSECP_BIP352_SCAN_PLAN_BYTES];
 ufsecp_error_t rc = ufsecp_bip352_prepare_scan_plan(scan_privkey, plan);
 /* plan can be cached; it does NOT contain the raw key, only wNAF digits */
 ```
+
+#### Metal shader discovery for loadable libraries (issue #335)
+
+A plugin/extension (e.g. a DuckDB extension) that `dlopen()`s this library
+into a host process cannot rely on the Metal backend's legacy CWD-relative
+shader search. Before creating a Metal GPU context, either call
+`ufsecp_gpu_set_metal_shader_path("/absolute/path/to/shader/dir")` or set the
+`UFSECP_METAL_SHADER_PATH` environment variable to an absolute directory
+containing `secp256k1_kernels.metallib` and/or its `shaders/` source tree. An
+invalid override (relative, `..`, or nothing found there) fails closed rather
+than silently falling back to CWD guessing.
 
 The plan is not secret itself (it contains wNAF digits only), but it was derived from a secret key — store and clear it with the same care as the scan key.
 

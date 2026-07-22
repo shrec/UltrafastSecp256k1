@@ -85,7 +85,7 @@ Understanding an attack class academically is not sufficient. The attack must
 be expressed as executable code that demonstrates the vulnerability, or
 demonstrates that it is not present under specific conditions.
 
-272 exploit PoCs modules exist in this repository. Each one:
+275 exploit PoCs modules exist in this repository. Each one:
 - Documents a known attack class (CVE, ePrint, published exploit)
 - Attempts the attack against the current implementation
 - Passes only if the implementation is not vulnerable
@@ -151,7 +151,7 @@ matrix. They are not self-reported estimates.
 
 ## Historical Metrics (as of v3.64.0 — see [docs/AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) for current)
 
-> **Current as of v4.0.0:** 272 exploit-PoC modules, 371 total audit modules.
+> **Current as of v4.0.0:** 275 exploit-PoC modules, 371 total audit modules.
 > See [AUDIT_COVERAGE.md](AUDIT_COVERAGE.md) for the authoritative current counts.
 
 | Metric | Value |

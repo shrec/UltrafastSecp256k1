@@ -27,17 +27,6 @@ using namespace secp256k1;
 
 static int g_pass = 0, g_fail = 0;
 
-static std::string read_source_file(const char* rel_path) {
-    std::string up;
-    for (int depth = 0; depth <= 6; ++depth) {
-        std::ifstream f(up + rel_path);
-        if (f.is_open())
-            return {std::istreambuf_iterator<char>(f), std::istreambuf_iterator<char>()};
-        up += "../";
-    }
-    return {};
-}
-
 int test_regression_bip39_csprng_failclosed_run() {
     g_pass = 0; g_fail = 0;
     printf("======================================================================\n");
@@ -45,15 +34,18 @@ int test_regression_bip39_csprng_failclosed_run() {
     printf("======================================================================\n\n");
 
     // [1] Source-scan: no local csprng_fill; routes through the canonical helper.
-    std::string src = read_source_file("src/cpu/src/bip39.cpp");
-    if (src.empty()) src = read_source_file("bip39.cpp");
+    // Fail-closed (issue #335 acceptance repair, round 5): bip39.cpp always exists
+    // in-tree. A failed read means the source could not be resolved (CWD-dependence
+    // bug or a genuinely broken build layout), NOT that the property holds -- this
+    // must never be a silent 0-checks-executed skip that lets the module PASS.
+    std::string src = audit_read_source_file("src/cpu/src/bip39.cpp");
+    if (src.empty()) src = audit_read_source_file("bip39.cpp");
+    CHECK(!src.empty(), "bip39.cpp must be readable (in-tree source always exists)");
     if (!src.empty()) {
         CHECK(src.find("bool csprng_fill(") == std::string::npos,
               "bip39.cpp must NOT define a local fail-open csprng_fill (single-source)");
         CHECK(src.find("detail::csprng_fill(") != std::string::npos,
               "bip39.cpp must use the canonical fail-closed detail::csprng_fill");
-    } else {
-        printf("  (bip39.cpp not readable from this CWD — source-scan skipped)\n");
     }
 
     // [2] Functional smoke: CSPRNG-generated mnemonic is valid.

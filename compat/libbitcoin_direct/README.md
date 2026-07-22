@@ -139,6 +139,36 @@ deterministic CPU fallback, not a GPU performance claim.
 The shim, the C ABI, and the `ufsecp_lbtc_*` bridge are compatibility-only and
 live behind a separate flag — `-DSECP256K1_BUILD_LIBBITCOIN_BRIDGE=ON`.
 
+## Windows / MSVC toolchain notes
+
+The GPU accelerator path (`SECP256K1_BUILD_LIBBITCOIN_GPU=ON`) retains the
+self-installing `GpuColumnsVerifyHook` provider object (`gpu_engine_hook.cpp`)
+at link time using a linker option, because none of these executables
+reference any symbol in that object directly. That option is
+**platform-specific**:
+
+| toolchain | linker option |
+|-----------|---------------|
+| GCC / Clang / any GNU-like linker | `LINKER:--undefined=secp256k1_gpu_columns_provider_anchor` |
+| MSVC (`link.exe`, Visual Studio 17 2022) | `LINKER:/INCLUDE:secp256k1_gpu_columns_provider_anchor` |
+
+CMake selects the correct option automatically via `if(MSVC)` in this file —
+no consumer action required. Using the GNU-style flag unconditionally on
+MSVC means `link.exe` does not retain the anchor object, the self-installing
+hook never runs, and `SECP256K1_BUILD_LIBBITCOIN_GPU=ON` silently downgrades
+to CPU-only column verify on Windows — no build error, no test failure, just
+a lost optimization. See `docs/WINDOWS_CUDA_BUILD_CONTRACT.md` for the full
+contract, the CI fixture proving the retention actually happens
+(`ci/fixtures/pr353_msvc_link_retention/`), and the adversarial CUDA fixture
+for the `field_mul_small` reserved-name collision with Windows `<rpcndr.h>`
+(`ci/fixtures/pr353_windows_small_macro_smoke.cu`).
+
+A real `SECP256K1_BUILD_CUDA=ON` + `SECP256K1_BUILD_LIBBITCOIN_GPU=ON`
+Windows binary additionally needs the NVIDIA CUDA Toolkit's MSBuild
+integration; that combination is currently exercised only outside this
+repo's GitHub-hosted CI — see `docs/WINDOWS_CUDA_BUILD_CONTRACT.md`'s
+"Unresolved limitations".
+
 ## Consumer rule
 
 The libbitcoin consumer should link exactly

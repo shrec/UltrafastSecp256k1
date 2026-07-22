@@ -103,14 +103,67 @@ add_library(secp256k1_gpu_host STATIC
 #     gated and dropped from GPU_REGISTRY_SRC when ZK is off, see above and
 #     gpu_backend.hpp. LBTC-GPU-DIRECT-ZK-BLOCKER.)
 
+# Issue #335 acceptance repair (round 11): this directory was PUBLIC, an
+# unwrapped source-tree-absolute path -- CMake refuses to export a target
+# whose PUBLIC/INTERFACE include dirs are not BUILD_INTERFACE/INSTALL_INTERFACE-
+# wrapped. Checked every current consumer before demoting to PRIVATE (round 10's
+# theorized fix would have been to wrap it instead, which also would have
+# worked but would additionally require installing this header pair into the
+# public package tree for no real consumer):
+#   - include/ufsecp/CMakeLists.txt's ufsecp_configure() (the only in-tree
+#     consumer that links secp256k1_gpu_host into an installed target) already
+#     explicitly adds this exact directory itself, PRIVATE, one level up
+#     ("Link GPU host ops layer if available" block) -- this PUBLIC copy was
+#     entirely redundant for it.
+#   - compat/libbitcoin_direct/CMakeLists.txt links secp256k1_gpu_host into
+#     several executables but only for its self-installing static-initializer
+#     retention anchor (LBTC-GPU-SELFINSTALL-DROP, `-u` linker retention) --
+#     none of its headers/tests #include gpu_backend.hpp or
+#     gpu_cuda_host_helpers.h, so none of them compile against this path.
+# PRIVATE is therefore correct: it keeps this target's own two TUs compiling
+# unchanged and removes the export-interface requirement entirely (no
+# INSTALL_INTERFACE / install(DIRECTORY) needed for this internal host-side
+# abstraction header -- the STABLE public GPU surface is ufsecp_gpu.h,
+# installed separately by the root CMakeLists.txt `if(TARGET secp256k1_gpu_host)`).
 target_include_directories(secp256k1_gpu_host
-    PUBLIC  ${CMAKE_CURRENT_SOURCE_DIR}/include
-    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
             ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 
 # Pass backend availability defines
 target_compile_definitions(secp256k1_gpu_host PRIVATE ${GPU_BACKEND_DEFS})
+
+# Issue #335 acceptance repair (round 9; DEMOTED round 10): bake the
+# compile-time install prefix for OpenCL kernel sources into
+# secp256k1_gpu_host itself. This used to be gpu_backend_opencl.cpp's
+# resolve_opencl_kernel() PRIMARY production/installed-package discovery
+# strategy; round 10 replaced that role with a genuinely RELOCATABLE
+# runtime discovery mechanism (dladdr()/GetModuleHandleExA on the loaded
+# module's own current on-disk path -- resolve_opencl_kernel() Strategy 2)
+# because this compile-time-baked path is NOT relocatable: it silently
+# breaks the moment an installed package is moved to a different prefix
+# after `cmake --install` (round 10's acceptance bar -- proven with a real
+# `cmake --install` to prefix A, `mv` to prefix B, prefix A deleted, then a
+# fresh consumer linked against prefix B succeeds with this macro's baked
+# value pointing at a prefix that no longer exists). This macro is now
+# kept ONLY as defense-in-depth Strategy 3, tried after the relocatable
+# strategy fails, for the narrower case of an installed-but-never-moved
+# package. CMAKE_INSTALL_PREFIX is always defined by CMake (defaults to
+# /usr/local or platform equivalent) even without an install() rule in
+# THIS file. The path intentionally matches, byte for byte,
+# src/opencl/CMakeLists.txt's own
+# `install(DIRECTORY kernels/ DESTINATION share/secp256k1/opencl ...)` rule
+# -- the two must stay in sync so this fallback stays valid for an
+# un-relocated install/packaged build. This is a fallback discovery path,
+# not a user override: resolve_opencl_kernel() still checks the explicit
+# UFSECP_OPENCL_KERNEL_DIR environment-variable override FIRST (round 9
+# fixed that override to fail closed rather than silently falling through
+# to weaker strategies).
+if(SECP256K1_BUILD_OPENCL AND TARGET secp256k1_opencl)
+    target_compile_definitions(secp256k1_gpu_host PRIVATE
+        SECP256K1_GPU_OPENCL_INSTALL_DIR="${CMAKE_INSTALL_PREFIX}/share/secp256k1/opencl")
+endif()
 
 # Link CPU library (needed for host-side type conversions)
 if(TARGET fastsecp256k1)
@@ -160,4 +213,58 @@ set_target_properties(secp256k1_gpu_host PROPERTIES
     CXX_STANDARD 20
     CXX_STANDARD_REQUIRED ON
     POSITION_INDEPENDENT_CODE ON
+)
+
+# Issue #335 acceptance repair (round 11) -- FIXED.
+#
+# History: SECP256K1_INSTALL_CABI=ON combined with any GPU backend
+# (SECP256K1_BUILD_OPENCL/CUDA/METAL) never configured successfully (rounds
+# 9-10). secp256k1_gpu_host was never installed/exported, even though
+# ufsecp_static/ufsecp_shared (include/ufsecp/CMakeLists.txt) link it
+# PRIVATE whenever a GPU backend is enabled -- CMake's
+# `install(EXPORT ufsecpTargets ...)` (root CMakeLists.txt) refused to
+# generate ("includes target ufsecp_static which requires target
+# secp256k1_gpu_host that is not in any export set"), a hard configure-time
+# error. Round 9/10 diagnosed two compounding causes but could not fix them
+# (both files were outside their allowed_writes):
+#   1. secp256k1_gpu_host had no `install(TARGETS ...)` rule at all -- it
+#      could not join any export set.
+#   2. Its own PUBLIC include dir (immediately above) was an unwrapped
+#      source-tree-absolute path; CMake refuses to export a target whose
+#      PUBLIC/INTERFACE include dirs are not BUILD_INTERFACE/INSTALL_INTERFACE-
+#      wrapped. Round 11 resolved this by demoting it to PRIVATE instead
+#      (see the comment on target_include_directories(secp256k1_gpu_host ...)
+#      above) after confirming no consumer needs the PUBLIC propagation --
+#      simpler than wrapping + installing the header pair, and removes the
+#      export-interface requirement for this internal host-side header
+#      entirely.
+#   3. secp256k1_gpu_host itself PRIVATE-links secp256k1_opencl, which
+#      joined a dead-code export set ("secp256k1_opencl-targets", never
+#      finalized by a matching `install(EXPORT ...)` anywhere in the repo)
+#      instead of `ufsecpTargets` -- fixed in src/opencl/CMakeLists.txt
+#      (one-line EXPORT-name fix; its include dirs were already correctly
+#      wrapped).
+#   4. secp256k1_cuda_lib had the same two gaps (no install rule, unwrapped
+#      PUBLIC include dirs) -- fixed in src/cuda/CMakeLists.txt with the
+#      same install(TARGETS ... EXPORT ufsecpTargets ...) + PRIVATE-include
+#      treatment (verified: nothing outside src/cuda/CMakeLists.txt's own
+#      directory-scope `include_directories()` sibling targets relies on the
+#      PUBLIC propagation).
+#   5. secp256k1_metal_lib got the same structural fix for parity
+#      (src/metal/CMakeLists.txt) -- NOT runtime-verified on this Linux host
+#      (Metal GPU code only compiles under APPLE); configure-level parity
+#      only. See METAL_RUNTIME_CONFIRMATION_PENDING convention.
+#
+# The install(TARGETS secp256k1_gpu_host ...) rule below joins the SAME
+# `ufsecpTargets` export set the root CMakeLists.txt finalizes for the
+# ufsecp C ABI package, closing the export-set closure for
+# `SECP256K1_INSTALL_CABI=ON` + any GPU backend. Verified with a real
+# `cmake --install` (including ufsecp_static, not just ufsecp_shared -- the
+# `-DUFSECP_BUILD_STATIC=OFF` workaround from round 10 is no longer needed)
+# and a real prefix-move relocation test; see
+# ci/check_release_package_contents.py --gpu-export-closure.
+include(GNUInstallDirs)
+install(TARGETS secp256k1_gpu_host
+    EXPORT ufsecpTargets
+    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )

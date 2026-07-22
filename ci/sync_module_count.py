@@ -380,7 +380,6 @@ DOC_FILES = [
     'README.md',
     'docs/AUDIT_GUIDE.md',
     'docs/AUDIT_REPORT.md',
-    'docs/AUDIT_CHANGELOG.md',
     'docs/AUDIT_TRACEABILITY.md',
     'docs/ASSURANCE_LEDGER.md',
     '.github/workflows/security-audit.yml',
@@ -401,11 +400,17 @@ DOC_FILES = [
     # (e.g. "270 exploit proof-of-concept regression tests") which previously
     # drifted. Scan and substitute via the same regex set.
     '.zenodo.json',
-    # CHANGELOG: NOT in this list. The regex set targets generic patterns
-    # ("\d+ modules skipped", "\d+ exploit PoC modules", etc.) which match
-    # historical section text and over-rewrite it. CHANGELOG.md is checked
-    # by ci/check_changelog_canonical_consistency.py instead, which only
-    # validates the topmost ([Unreleased] or most recent [X.Y.Z]) section.
+    # CHANGELOG.md and docs/AUDIT_CHANGELOG.md: NOT in this list, on purpose.
+    # The regex set targets generic patterns ("\d+ modules skipped",
+    # "\d+ exploit PoC modules", etc.) which match historical/dated section
+    # text and over-rewrite it as if it were a live claim. CHANGELOG.md is
+    # checked by ci/check_changelog_canonical_consistency.py instead, which
+    # only validates the topmost ([Unreleased] or most recent [X.Y.Z])
+    # section; docs/AUDIT_CHANGELOG.md is a pure historical log and is never
+    # count-checked (each entry describes a past point-in-time count, not the
+    # current state — see the SKIP_DYNAMIC set below, which keeps it, and
+    # docs/EXPLOIT_TEST_CATALOG.md's dated growth-log, out of the dynamic
+    # docs/*.md sweep too).
 ]
 
 
@@ -444,10 +449,17 @@ def main() -> int:
 
     # Combine fixed DOC_FILES with dynamic scan of all docs/*.md files.
     # This ensures no file is missed when new docs are added.
-    # Skip changelog files that contain historical (non-current) counts.
+    # Skip changelog/catalog files that contain historical (non-current, dated)
+    # counts — the regex set has no date-awareness and will over-rewrite a
+    # dated "as of that point in time" number as if it were a live claim
+    # (see docs/AUDIT_CHANGELOG.md incident: seven dated entries had their
+    # original 272-exploit-PoC counts silently rewritten to the current count
+    # before this file was excluded from DOC_FILES; docs/EXPLOIT_TEST_CATALOG.md's
+    # 2026-04-11 dated growth-log row had its "442 modules" similarly rewritten
+    # to the current total before being added here).
     SKIP_DYNAMIC = {
         'CHANGELOG.md', 'AUDIT_CHANGELOG.md', 'ROADMAP.md',
-        'AUDIT_REPORT.md', 'RELEASE_NOTES.md',
+        'AUDIT_REPORT.md', 'RELEASE_NOTES.md', 'EXPLOIT_TEST_CATALOG.md',
     }
     dynamic_paths = []
     docs_dir = BASE / 'docs'

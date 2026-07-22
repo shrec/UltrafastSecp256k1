@@ -16,6 +16,7 @@
 #include "secp256k1/config.hpp"
 #include <cstring>
 #include <cstdlib>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <new>
@@ -112,6 +113,31 @@ static bool checked_mul_size(std::size_t a, std::size_t b, std::size_t& out) {
     }
     out = a * b;
     return true;
+}
+
+/* Overflow-safe pointer-range overlap check (issue #335 acceptance repair).
+ * Two half-open byte ranges [a, a+lenA) and [b, b+lenB) overlap iff
+ * a < b+lenB && b < a+lenA. Computed via checked_add_size so a range whose
+ * end address would overflow uintptr_t is treated as "overlaps" (fail
+ * closed on the arithmetic itself, not just on the addresses compared) --
+ * this never happens for real allocations but a hostile/malformed
+ * (ptr, len) pair must not be able to bypass the check by wrapping around.
+ * A null pointer or a zero-length range never overlaps anything (needed so
+ * zero-count no-op calls remain true no-ops even if a caller passes NULL or
+ * degenerate pointers). No existing generic overlap-check helper exists
+ * elsewhere in this codebase (confirmed via source_graph search) -- this is
+ * a fresh, minimal addition next to the other checked-arithmetic helpers
+ * above, for reuse by any future ABI function with multiple raw-pointer
+ * input/output ranges. */
+static bool ranges_overlap(const void* a, std::size_t lenA,
+                            const void* b, std::size_t lenB) {
+    if (!a || !b || lenA == 0 || lenB == 0) return false;
+    const auto ua = reinterpret_cast<std::uintptr_t>(a);
+    const auto ub = reinterpret_cast<std::uintptr_t>(b);
+    std::size_t a_end = 0, b_end = 0;
+    if (!checked_add_size(static_cast<std::size_t>(ua), lenA, a_end)) return true;
+    if (!checked_add_size(static_cast<std::size_t>(ub), lenB, b_end)) return true;
+    return ua < b_end && ub < a_end;
 }
 
 static bool clear_output_bytes(void* out, std::size_t count, std::size_t stride) {
@@ -1167,6 +1193,15 @@ ufsecp_error_t ufsecp_gpu_bip352_scan_batch(
     if (!ctx || !scan_privkey32 || !spend_pubkey33 || !tweak_pubkeys33 || !prefix64_out)
         return UFSECP_ERR_NULL_ARG;
     if (n_tweaks > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    // Repair (issue #335 acceptance repair): same overlap rejection as the
+    // multi-spend entry point below -- see its comment for rationale.
+    // ranges_overlap() returning false for zero-length ranges preserves
+    // n_tweaks == 0 no-op semantics.
+    if (ranges_overlap(prefix64_out, n_tweaks * sizeof(uint64_t), scan_privkey32, 32) ||
+        ranges_overlap(prefix64_out, n_tweaks * sizeof(uint64_t), spend_pubkey33, 33) ||
+        ranges_overlap(prefix64_out, n_tweaks * sizeof(uint64_t), tweak_pubkeys33, n_tweaks * 33)) {
+        return UFSECP_ERR_BAD_INPUT;
+    }
     if (!clear_output_bytes(prefix64_out, n_tweaks, sizeof(uint64_t))) {
         return UFSECP_ERR_BAD_INPUT;
     }
@@ -1187,12 +1222,101 @@ ufsecp_error_t ufsecp_gpu_bip352_scan_batch(
         if (prefix != 0x02 && prefix != 0x03)
             return UFSECP_ERR_BAD_INPUT;
     }
+    // Issue #335: delegate to the general multi-spend-key backend method with
+    // n_spend == 1. All validation above is unchanged from prior releases, so
+    // output and error semantics for this single-spend-key entry point stay
+    // byte-identical -- only the final dispatch target generalized.
     try {
         return to_abi_error_clear_on_fail(
-            ctx->backend->bip352_scan_batch(
-                scan_privkey32, spend_pubkey33, tweak_pubkeys33, n_tweaks, prefix64_out),
+            ctx->backend->bip352_scan_batch_multispend(
+                scan_privkey32, spend_pubkey33, /*n_spend=*/1,
+                tweak_pubkeys33, n_tweaks, prefix64_out),
             prefix64_out, n_tweaks, sizeof(uint64_t));
     } UFSECP_GPU_CATCH
+}
+
+/* Hard upper bound on the number of spend-key candidates per multi-spend
+ * scan call. Independent of kMaxGpuBatchN (which bounds the output row
+ * count n_tweaks * n_spend); this bounds the O(n_spend) decompress-once
+ * pass and the per-tweak inner loop trip count. BIP-352 change-label
+ * scanning realistically needs single-digit-to-low-hundreds of candidates
+ * (base spend key + a bounded set of labels), never millions. */
+static constexpr std::size_t kMaxBip352Spend = std::size_t{1} << 16;  /* 65536 */
+
+ufsecp_error_t ufsecp_gpu_bip352_scan_batch_multispend(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t   scan_privkey32[32],
+    const uint8_t*  spend_pubkeys33,
+    size_t          n_spend,
+    const uint8_t*  tweak_pubkeys33,
+    size_t          n_tweaks,
+    uint64_t*       prefix64_out)
+{
+    if (!ctx || !scan_privkey32) return UFSECP_ERR_NULL_ARG;
+    if (n_spend > kMaxBip352Spend) return UFSECP_ERR_BAD_INPUT;
+    if (n_tweaks > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    std::size_t n_rows = 0;
+    if (!checked_mul_size(n_tweaks, n_spend, n_rows) || n_rows > kMaxGpuBatchN)
+        return UFSECP_ERR_BAD_INPUT;
+    if (n_tweaks != 0 && !tweak_pubkeys33) return UFSECP_ERR_NULL_ARG;
+    if (n_spend != 0 && !spend_pubkeys33) return UFSECP_ERR_NULL_ARG;
+    if (n_rows != 0 && !prefix64_out) return UFSECP_ERR_NULL_ARG;
+    // Repair (issue #335 acceptance repair): reject dangerous pointer-range
+    // overlap between prefix64_out and any input range BEFORE the
+    // clear_output_bytes() call below -- clear_output_bytes zeroes
+    // prefix64_out, and if the caller aliased it onto scan_privkey32,
+    // spend_pubkeys33, or tweak_pubkeys33, that zeroing would corrupt input
+    // data the backend reads afterward, silently producing wrong results
+    // rather than a clear rejection. ranges_overlap() returns false for any
+    // zero-length range, so this is automatically a no-op-safe check: when
+    // n_rows == 0 (n_tweaks == 0 or n_spend == 0), prefix64_out's range has
+    // length 0 and can never "overlap" anything, preserving the zero-count
+    // no-op semantics exactly as before (a degenerate/overlapping pointer
+    // in a zero-count call is still accepted as a true no-op).
+    if (ranges_overlap(prefix64_out, n_rows * sizeof(uint64_t), scan_privkey32, 32) ||
+        ranges_overlap(prefix64_out, n_rows * sizeof(uint64_t), spend_pubkeys33, n_spend * 33) ||
+        ranges_overlap(prefix64_out, n_rows * sizeof(uint64_t), tweak_pubkeys33, n_tweaks * 33)) {
+        return UFSECP_ERR_BAD_INPUT;
+    }
+    if (!clear_output_bytes(prefix64_out, n_rows, sizeof(uint64_t))) {
+        return UFSECP_ERR_BAD_INPUT;
+    }
+    if (n_tweaks == 0 || n_spend == 0) {
+        // Valid no-op: nothing to scan, output already cleared above.
+        return UFSECP_OK;
+    }
+    {
+        secp256k1::fast::Scalar scan_k;
+        if (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(scan_privkey32, scan_k)) {
+            secp256k1::detail::secure_erase(&scan_k, sizeof(scan_k));
+            return UFSECP_ERR_BAD_KEY;
+        }
+        secp256k1::detail::secure_erase(&scan_k, sizeof(scan_k));
+    }
+    // Validate compressed pubkey prefixes (must be 0x02 or 0x03) for every
+    // spend candidate and every tweak pubkey. Reject invalid input before it
+    // reaches the GPU kernel. (An off-curve x within a well-formed prefix is
+    // handled per-row/column by the GPU decompression step -- see the
+    // GpuBackend::bip352_scan_batch_multispend doc comment.)
+    if (!has_valid_compressed_pubkeys(spend_pubkeys33, n_spend))
+        return UFSECP_ERR_BAD_INPUT;
+    if (!has_valid_compressed_pubkeys(tweak_pubkeys33, n_tweaks))
+        return UFSECP_ERR_BAD_INPUT;
+    try {
+        return to_abi_error_clear_on_fail(
+            ctx->backend->bip352_scan_batch_multispend(
+                scan_privkey32, spend_pubkeys33, n_spend,
+                tweak_pubkeys33, n_tweaks, prefix64_out),
+            prefix64_out, n_rows, sizeof(uint64_t));
+    } UFSECP_GPU_CATCH
+}
+
+ufsecp_error_t ufsecp_gpu_set_metal_shader_path(const char* absolute_dir)
+{
+    if (!absolute_dir || !*absolute_dir) return UFSECP_ERR_NULL_ARG;
+    if (!secp256k1::gpu::set_metal_shader_path_override(absolute_dir))
+        return UFSECP_ERR_BAD_INPUT;
+    return UFSECP_OK;
 }
 
 /* ===========================================================================
