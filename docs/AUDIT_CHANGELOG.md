@@ -1,5 +1,17 @@
 # Audit Changelog
 
+## 2026-07-21 — OpenCL collect dispatch and queue synchronisation
+
+- Updated OpenCL ECDSA/Schnorr collect verification to use the same
+  device-aware explicit local size and padded global range as the columns path;
+  both kernels already reject padded work-items beyond `count`.
+- Checked every collect kernel-argument binding and `clFinish` result. Queue
+  completion failures now return `GpuError::Queue` before verdict readback,
+  preserving the engine's operational-error-to-CPU-fallback contract.
+- Added blocking `regression_opencl_collect_dispatch` unified/standalone
+  coverage with a rejected pre-fix fixture and source checks for both host
+  methods and both kernel bounds guards.
+
 ## 2026-07-21 — Metal generic batch fatal-not-invalid contract
 
 - Seeded generic Metal ECDSA/Schnorr batch result buffers with an impossible

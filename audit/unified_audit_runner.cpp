@@ -716,6 +716,7 @@ int test_regression_gpu_ecdh_extended_ct_run(); // GEC-1..7: correctness guard a
 int test_regression_metal_snark_readiness_run(); // #344: Metal SNARK methods guard runtime_ before dispatch
 int test_regression_cuda_buffer_raii_run(); // #345: CUDA_TRY early returns retain no device allocations
 int test_regression_metal_batch_sentinel_run(); // #347: dispatch failure is not a signature verdict
+int test_regression_opencl_collect_dispatch_run(); // #346: padded collect dispatch + checked queue sync
 
 // ============================================================================
 // Forward declarations -- 2026-05-22 SHIM-013: ecdsa_verify cache consistency
@@ -1624,6 +1625,8 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_cuda_buffer_raii", "CUDA ECDSA/Schnorr verify, FROST partial verify, and ECDSA/Schnorr SNARK witness allocations are RAII-owned across every CUDA_TRY early return (CBR-0..8)", "memory_safety", test_regression_cuda_buffer_raii_run, false },
     // === 2026-07-21 Metal generic batch fatal-not-invalid regression (#347) ===
     { "regression_metal_batch_sentinel", "Metal ECDSA/Schnorr generic batch verification detects unwritten result buffers and returns GpuError::Launch for CPU fallback instead of emitting signature verdicts (MBS-0..4)", "memory_safety", test_regression_metal_batch_sentinel_run, false },
+    // === 2026-07-21 OpenCL collect dispatch/synchronisation regression (#346) ===
+    { "regression_opencl_collect_dispatch", "OpenCL ECDSA/Schnorr collect paths check kernel arguments and queue completion, use padded explicit-local dispatch, and retain bounds guards for ghost work-items (OCD-0..7)", "memory_safety", test_regression_opencl_collect_dispatch_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

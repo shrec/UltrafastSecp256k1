@@ -1100,6 +1100,7 @@ public:
         cl_mem d_pub  = g_ocl_columns_pool.d_key;
         cl_mem d_sig  = g_ocl_columns_pool.d_sig;
         cl_mem d_keys = g_ocl_columns_pool.d_keys;
+        const size_t local = lbtc_columns_local_size(ext_ecdsa_lbtc_collect_, queue);
 
         for (size_t off = 0; off < count; off += chunk) {
             const size_t n = (count - off < chunk) ? (count - off) : chunk;
@@ -1117,18 +1118,23 @@ public:
                 return set_error(GpuError::Memory, "ecdsa collect upload failed");
 
             cl_uint cl_count = static_cast<cl_uint>(n);
-            clSetKernelArg(ext_ecdsa_lbtc_collect_, 0, sizeof(cl_mem), &d_dig);
-            clSetKernelArg(ext_ecdsa_lbtc_collect_, 1, sizeof(cl_mem), &d_pub);
-            clSetKernelArg(ext_ecdsa_lbtc_collect_, 2, sizeof(cl_mem), &d_sig);
-            clSetKernelArg(ext_ecdsa_lbtc_collect_, 3, sizeof(cl_mem), &d_keys);
-            clSetKernelArg(ext_ecdsa_lbtc_collect_, 4, sizeof(cl_uint), &cl_count);
+            cl_int argerr = CL_SUCCESS;
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_collect_, 0, sizeof(cl_mem), &d_dig);
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_collect_, 1, sizeof(cl_mem), &d_pub);
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_collect_, 2, sizeof(cl_mem), &d_sig);
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_collect_, 3, sizeof(cl_mem), &d_keys);
+            argerr |= clSetKernelArg(ext_ecdsa_lbtc_collect_, 4, sizeof(cl_uint), &cl_count);
+            if (argerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "ecdsa collect kernel arg bind failed");
 
-            size_t global = n;
+            size_t global = lbtc_columns_padded_global(n, local);
             clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_lbtc_collect_, 1, nullptr,
-                                           &global, nullptr, 0, nullptr, nullptr);
+                                           &global, &local, 0, nullptr, nullptr);
             if (clerr != CL_SUCCESS)
                 return set_error(GpuError::Launch, "ecdsa collect kernel launch failed");
-            clFinish(queue);
+            clerr = clFinish(queue);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Queue, "ecdsa collect queue finish failed");
             // Read the verdict channel back VERBATIM — valid rows are now 0,
             // invalid rows retain the caller's seed.
             clerr = clEnqueueReadBuffer(queue, d_keys, CL_TRUE, 0, n, key_buffer + off, 0, nullptr, nullptr);
@@ -1165,6 +1171,7 @@ public:
         cl_mem d_xon  = g_ocl_columns_pool.d_key;  // 33 B/row buffer backs 32 B x-only
         cl_mem d_sig  = g_ocl_columns_pool.d_sig;
         cl_mem d_keys = g_ocl_columns_pool.d_keys;
+        const size_t local = lbtc_columns_local_size(ext_schnorr_lbtc_collect_, queue);
 
         for (size_t off = 0; off < count; off += chunk) {
             const size_t n = (count - off < chunk) ? (count - off) : chunk;
@@ -1179,18 +1186,23 @@ public:
                 return set_error(GpuError::Memory, "schnorr collect upload failed");
 
             cl_uint cl_count = static_cast<cl_uint>(n);
-            clSetKernelArg(ext_schnorr_lbtc_collect_, 0, sizeof(cl_mem), &d_dig);
-            clSetKernelArg(ext_schnorr_lbtc_collect_, 1, sizeof(cl_mem), &d_xon);
-            clSetKernelArg(ext_schnorr_lbtc_collect_, 2, sizeof(cl_mem), &d_sig);
-            clSetKernelArg(ext_schnorr_lbtc_collect_, 3, sizeof(cl_mem), &d_keys);
-            clSetKernelArg(ext_schnorr_lbtc_collect_, 4, sizeof(cl_uint), &cl_count);
+            cl_int argerr = CL_SUCCESS;
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_collect_, 0, sizeof(cl_mem), &d_dig);
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_collect_, 1, sizeof(cl_mem), &d_xon);
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_collect_, 2, sizeof(cl_mem), &d_sig);
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_collect_, 3, sizeof(cl_mem), &d_keys);
+            argerr |= clSetKernelArg(ext_schnorr_lbtc_collect_, 4, sizeof(cl_uint), &cl_count);
+            if (argerr != CL_SUCCESS)
+                return set_error(GpuError::Launch, "schnorr collect kernel arg bind failed");
 
-            size_t global = n;
+            size_t global = lbtc_columns_padded_global(n, local);
             clerr = clEnqueueNDRangeKernel(queue, ext_schnorr_lbtc_collect_, 1, nullptr,
-                                           &global, nullptr, 0, nullptr, nullptr);
+                                           &global, &local, 0, nullptr, nullptr);
             if (clerr != CL_SUCCESS)
                 return set_error(GpuError::Launch, "schnorr collect kernel launch failed");
-            clFinish(queue);
+            clerr = clFinish(queue);
+            if (clerr != CL_SUCCESS)
+                return set_error(GpuError::Queue, "schnorr collect queue finish failed");
             clerr = clEnqueueReadBuffer(queue, d_keys, CL_TRUE, 0, n, key_buffer + off, 0, nullptr, nullptr);
             if (clerr != CL_SUCCESS)
                 return set_error(GpuError::Memory, "schnorr collect result read failed");

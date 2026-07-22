@@ -6263,3 +6263,15 @@ add_test(NAME regression_metal_batch_sentinel
 set_tests_properties(regression_metal_batch_sentinel PROPERTIES TIMEOUT 30
     LABELS "audit;regression;metal;gpu;memory-safety;verdict")
 target_sources(unified_audit_runner PRIVATE test_regression_metal_batch_sentinel.cpp)
+
+# GitHub #346: OpenCL ECDSA/Schnorr collect launches must use a padded explicit
+# local range and propagate queue completion failures before reading verdicts.
+add_executable(test_regression_opencl_collect_dispatch_standalone
+    test_regression_opencl_collect_dispatch.cpp)
+audit_target_defaults(test_regression_opencl_collect_dispatch_standalone)
+target_compile_definitions(test_regression_opencl_collect_dispatch_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_opencl_collect_dispatch
+    COMMAND test_regression_opencl_collect_dispatch_standalone)
+set_tests_properties(regression_opencl_collect_dispatch PROPERTIES TIMEOUT 30
+    LABELS "audit;regression;opencl;gpu;queue;dispatch")
+target_sources(unified_audit_runner PRIVATE test_regression_opencl_collect_dispatch.cpp)
