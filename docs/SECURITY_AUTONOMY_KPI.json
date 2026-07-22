@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-07-21T23:15:30.974383+00:00",
-  "autonomy_score": 70,
-  "autonomy_ready": false,
+  "timestamp": "2026-07-22T22:52:52.892071+00:00",
+  "autonomy_score": 100,
+  "autonomy_ready": true,
   "advisory_skip_all": false,
   "gates_total": 8,
-  "gates_passing": 5,
+  "gates_passing": 8,
   "gates_skipped": 0,
-  "overall_pass": false,
+  "overall_pass": true,
   "gates": [
     {
       "gate": "formal_invariants",
@@ -28,9 +28,9 @@
       "gate": "audit_sla",
       "weight": 10,
       "status": "ran",
-      "passing": false,
-      "score": 0,
-      "returncode": 1
+      "passing": true,
+      "score": 10,
+      "returncode": 0
     },
     {
       "gate": "supply_chain",
@@ -52,9 +52,9 @@
       "gate": "misuse_resistance",
       "weight": 10,
       "status": "ran",
-      "passing": false,
-      "score": 0,
-      "returncode": 1
+      "passing": true,
+      "score": 10,
+      "returncode": 0
     },
     {
       "gate": "evidence_governance",
@@ -68,9 +68,9 @@
       "gate": "incident_drills",
       "weight": 10,
       "status": "ran",
-      "passing": false,
-      "score": 0,
-      "returncode": 1
+      "passing": true,
+      "score": 10,
+      "returncode": 0
     }
   ]
 }
