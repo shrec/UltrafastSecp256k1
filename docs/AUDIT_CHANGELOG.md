@@ -75,8 +75,10 @@
 - Added mandatory `WIN-CUDA-001` validation and synthetic negative fixtures for
   incomplete CUDA subpackages, silent CPU-only configuration, and workflows
   that configure CUDA but never build the GPU host/kernel targets.
-- Pinned PyYAML in the Fast Gate so structured workflow checks run in CI instead
-  of taking their no-parser compatibility path.
+- Pinned PyYAML in every workflow that invokes the fast/audit Python gates so
+  structured workflow checks run identically in Gate, Doc Gates, and Preflight.
+  The audit self-test now rejects any of those workflows if the parser setup is
+  removed, preventing clean-runner-only failures from recurring.
 
 ## 2026-07-21 — Node.js FFI package install contract
 

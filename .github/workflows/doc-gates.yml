@@ -54,5 +54,8 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install deterministic gate dependencies
+        run: python3 -m pip install --disable-pip-version-check --no-cache-dir PyYAML==6.0.2
+
       - name: Fast deterministic gates
         run: bash ci/run_fast_gates.sh

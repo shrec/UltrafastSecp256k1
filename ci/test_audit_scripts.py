@@ -3092,6 +3092,18 @@ def check_node_package_contract_fixtures() -> None:
 def check_windows_cuda_contract_fixtures() -> None:
     """WIN-CUDA-001: reject silent CPU fallback and incomplete CUDA installs."""
     tag = "WIN-CUDA:workflow_contract_fixtures"
+    failures = []
+    dependency_step = "python3 -m pip install --disable-pip-version-check --no-cache-dir PyYAML==6.0.2"
+    for workflow_name in ("gate.yml", "doc-gates.yml", "preflight.yml"):
+        workflow = LIB_ROOT / ".github" / "workflows" / workflow_name
+        try:
+            workflow_text = workflow.read_text(encoding="utf-8")
+        except OSError as exc:
+            failures.append(f"could not read {workflow_name}: {exc}")
+            continue
+        if dependency_step not in workflow_text:
+            failures.append(f"{workflow_name} does not install pinned PyYAML before Python gates")
+
     try:
         mod = _load_ci_module("check_windows_cuda_contract.py", "windows_cuda_contract_selftest")
     except Exception as exc:
@@ -3117,7 +3129,6 @@ def check_windows_cuda_contract_fixtures() -> None:
             },
         ]}},
     }
-    failures = []
     if mod.evaluate_document(clean):
         failures.append("complete Windows CUDA workflow was rejected")
 
@@ -3166,7 +3177,7 @@ def check_windows_cuda_contract_fixtures() -> None:
     if failures:
         fail(tag, "; ".join(failures))
     else:
-        ok(tag, "wrong Windows header package, CPU fallback, and omitted CUDA targets fail; real workflow passes")
+        ok(tag, "pinned parser dependency is present; wrong Windows header package, CPU fallback, and omitted CUDA targets fail; real workflow passes")
 
 
 def check_version_header_contract_fixtures() -> None:
