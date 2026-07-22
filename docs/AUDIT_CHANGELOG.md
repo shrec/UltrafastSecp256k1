@@ -1,5 +1,21 @@
 # Audit Changelog
 
+## 2026-07-22 — Roadmap evidence reconciliation (`ROADMAP_FINAL_005`)
+
+- Preserved the proven G-1..G-10, G-9b, and P21 closures and reconciled the
+  roadmaps to candidate `3fbf1cf47fbc590c1c4570744f6195b6477d0377`: 29/29
+  fast checks with two advisory skips, zero audit-gate blockers, autonomy
+  100/100, external bundle 12/12, local Source Graph quality 38/38, and BIP352
+  105/105 at `0.341x <= 0.36x`.
+- Replaced stale Scorecard completion language with the authoritative 8.4
+  result and left the 9.5 target open. Kept GitHub #335 and #336 open because
+  physical M5 Max Metal and exact performance acceptance remain unproven.
+- Recorded exact owners/actions for the five current items: Scorecard, #335,
+  #336, canonical Source Graph routing (`UFSG_RESEARCH_005`), and the tracked
+  `ci_local` Git-environment hardening implementation that follows graph
+  restoration. Canonical MCP zero hits do not invalidate prior completed gates.
+- Validation: `git diff --check`.
+
 ## 2026-07-21 — Context-aware P2SH ABI without a breaking signature change
 
 - Added `ufsecp_addr_p2sh_with_ctx` as an additive ABI v4 symbol with contextual

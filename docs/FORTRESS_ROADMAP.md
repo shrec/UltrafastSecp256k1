@@ -2,6 +2,13 @@
 
 Roadmap for closing the remaining assurance-system gap in UltrafastSecp256k1.
 
+Reconciled 2026-07-22 by `ROADMAP_FINAL_005`: all prior G-1..G-10, G-9b, and
+P21 closures remain intact. The authoritative current open-item register is the
+five-row owner/action table in `docs/CAAS_GAP_CLOSURE_ROADMAP.md`; this document's
+workstreams describe longer-horizon hardening and must not be read as reopening
+those closures. The live Scorecard is 8.4, not 9.0 and not the unproven 9.5
+target. GitHub #335 and #336 remain open pending physical M5 Max evidence.
+
 The objective is not to wait for outside validation before becoming robust.
 The objective is to make the repository itself increasingly difficult to break,
 increasingly easy to audit, and increasingly strict about public claims.

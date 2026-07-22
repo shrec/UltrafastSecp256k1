@@ -1,6 +1,6 @@
 # CAAS Gap-Closure Roadmap — Self-Contained Evidence
 
-> Version: 1.2 — reconciled 2026-06-13
+> Version: 1.3 — reconciled 2026-07-22
 > Status: H-1..H-12 complete (`docs/CAAS_HARDENING_TODO.md`). **G-1..G-10 plus
 > G-9b are all closed**, and **P21 is registered and CI-gated**
 > (`audit_gate.py --external-audit-replacement`, live verdict PASS). The
@@ -12,6 +12,31 @@
 > Goal: when this file is fully checked, CAAS has enough executable evidence
 > that independent reviewers focus on methodology, replay, and novel hypotheses
 > rather than rediscovering known bug classes.
+
+## 2026-07-22 live reconciliation (`ROADMAP_FINAL_005`)
+
+The prior G-1..G-10, G-9b, and P21 closures remain closed. On candidate
+`3fbf1cf47fbc590c1c4570744f6195b6477d0377`, the manager recorded 29/29 fast
+checks with two advisory skips, zero `audit_gate` blockers, security autonomy
+100/100, external bundle 12/12, local Source Graph quality 38/38, and the
+BIP352 regression 105/105 with normalized performance `0.341x <= 0.36x`.
+Canonical MCP zero hits constrain new code-task discovery; they do not negate
+those completed results. The accepted Source Graph predecessor is
+`UFSG_RESEARCH_005`. Its Git-environment hardening specification remains a
+tracked implementation blocker, not a completed CI fix.
+
+The roadmap has exactly five open reconciliation items. Neither the old 9.0
+Scorecard value nor the 9.5 target is a completed claim: the authoritative
+2026-07-20 scan is 8.4. Issues #335 and #336 remain open because the available
+Linux/x86-64 host cannot supply M5 Max evidence.
+
+| Open item | Live state | Owner | Exact next action |
+|---|---|---|---|
+| OpenSSF Scorecard 8.4 vs 9.5 | **Open**; 9.5 not proven | Repository maintainers and GitHub administrators | Strengthen review/branch controls, preserve signed-release provenance, complete truthful external badge/community work, then record a later authoritative API scan at >=9.5 for the intended commit. |
+| GitHub #335 Metal M5 evidence | **Open**; no Metal acceptance run | M5 Max hardware owner | Run the documented shader-loading, CPU/GPU differential, fail-closed artifact, backend-reuse, and backend-suite matrix on physical M5 Max hardware; attach raw evidence and close only if every row passes. |
+| GitHub #336 exact M5 Max evidence | **Open**; reporter-equivalent matrix pending | M5 Max performance owner | On physical M5 Max, run clean non-LTO baseline `a671ea2e3d355a26596d67d583ecf01252afd9d7` and candidate `3fbf1cf47fbc590c1c4570744f6195b6477d0377` at 1 and 18 threads with 10,360,000 tweaks, profiles, timing/RSS, and prove each normalized result is <=0.36x. |
+| Canonical Source Graph MCP routing | **Open**; canonical roadmap/CI discovery returns zero hits (`UFSG_RESEARCH_005`) | AIWorkHub Source Graph owner | Restore correct canonical repository routing/indexing and return a non-empty acknowledged bundle for the exact implementation targets before opening a code card. |
+| Tracked `ci_local` Git-environment hardening | **Open**; specification accepted, implementation blocked by Source Graph | CI-hook owner, after Source Graph restoration | Create a separate tracked implementation card; clear every `git rev-parse --local-env-vars` value at the hook boundary and add the hostile-environment regression preserving canonical `core.bare=false` and the foreign bare sentinel unchanged. |
 
 ## Why this file exists
 

@@ -2,7 +2,7 @@
 
 **Author:** Audit Agent
 **Original date:** 2026-04-27
-**Reconciled:** 2026-06-13 — every "Remaining gap" from the original draft was
+**Reconciled:** 2026-07-22 — every "Remaining gap" from the original draft was
 re-verified against the live gates and current files. All six structural gaps
 the original draft listed as missing/partial are now **closed and CI-gated**.
 The frontier has moved: see [Bastion Final Mile](#bastion-final-mile-residual-hardening).
@@ -13,6 +13,16 @@ The frontier has moved: see [Bastion Final Mile](#bastion-final-mile-residual-ha
 > evidence so no future reviewer builds new work from outdated prose. **Green
 > gates are not the same as a finished Bastion** — the residual hardening work is
 > enumerated explicitly rather than hidden behind a "done" status.
+
+> **Current authority (2026-07-22, `ROADMAP_FINAL_005`).** Preserve the proven
+> structural closures below. The live candidate evidence is 29/29 fast checks
+> (two advisory skips), zero audit-gate blockers, autonomy 100/100, external
+> bundle 12/12, local Source Graph quality 38/38, and BIP352 105/105 at 0.341x
+> (ceiling 0.36x). The only current reconciliation items are the five-owner
+> table in `CAAS_GAP_CLOSURE_ROADMAP.md`: Scorecard 8.4/9.5, #335, #336,
+> canonical Source Graph MCP routing (`UFSG_RESEARCH_005`), and tracked
+> `ci_local` Git-environment hardening. #335 and #336 remain open. Canonical
+> MCP zero hits block new code discovery only; they do not revoke prior gates.
 
 ---
 
