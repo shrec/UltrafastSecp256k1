@@ -22,6 +22,7 @@ import json
 import hashlib
 import subprocess
 from pathlib import Path
+from pathlib import PurePosixPath
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
@@ -37,6 +38,10 @@ SOURCE_EXTS = {'.cpp', '.hpp', '.h', '.cu', '.cuh', '.cl', '.metal', '.mm',
 SKIP_DIRS = {'build-linux', 'build_rel', 'build_opencl', 'build-cuda',
              'build-riscv-rel', '_research_repos', 'node_modules', '.git',
              'build', 'build_bench', 'build_rel', 'out'}
+
+# Only transient subtrees below tools/aiworkhub are excluded.  Other files in
+# that tree can be durable, tracked project inputs and must remain indexable.
+AIWORKHUB_RUNTIME_DIRS = {'logs', 'runtime', 'checkpoints'}
 
 # ---------------------------------------------------------------------------
 # SCHEMA
@@ -676,6 +681,67 @@ def should_skip_dir(dirname: str) -> bool:
     """Filter generated or irrelevant directories during graph traversal."""
     return dirname.startswith('.') or dirname in SKIP_DIRS or dirname.startswith('build')
 
+
+def normalize_project_relpath(path) -> str | None:
+    """Return a portable lexical project path, or None if it escapes the root."""
+    raw = str(path).replace('\\', '/')
+    if raw.startswith('/') or re.match(r'^[A-Za-z]:/', raw):
+        return None
+    parts = []
+    for part in PurePosixPath(raw).parts:
+        if part in ('', '.'):
+            continue
+        if part == '..':
+            if not parts:
+                return None
+            parts.pop()
+        else:
+            parts.append(part)
+    return '/'.join(parts) if parts else None
+
+
+def is_aiworkhub_runtime_path(path) -> bool:
+    """Identify generated AIWorkHub state without hiding nearby durable files."""
+    normalized = normalize_project_relpath(path)
+    if normalized is None:
+        return True
+    parts = [part.casefold() for part in normalized.split('/')]
+    return (
+        len(parts) >= 3
+        and parts[:2] == ['tools', 'aiworkhub']
+        and any(part in AIWORKHUB_RUNTIME_DIRS for part in parts[2:])
+    )
+
+
+def durable_source_path(full_path: Path, root: Path = None) -> str | None:
+    """Validate containment and return an indexable durable relative path.
+
+    Both lexical and resolved paths are checked.  Symlink files and components
+    are deliberately rejected so aliases cannot bypass the runtime policy or
+    make the graph depend on inputs outside the project root.
+    """
+    root = Path(root) if root is not None else LIB_ROOT
+    try:
+        root_real = root.resolve(strict=True)
+        lexical_rel = normalize_project_relpath(Path(full_path).relative_to(root))
+        if lexical_rel is None or is_aiworkhub_runtime_path(lexical_rel):
+            return None
+
+        current = root
+        for part in lexical_rel.split('/'):
+            current = current / part
+            if current.is_symlink():
+                return None
+
+        full_real = Path(full_path).resolve(strict=True)
+        real_rel = normalize_project_relpath(full_real.relative_to(root_real))
+        if real_rel is None or is_aiworkhub_runtime_path(real_rel):
+            return None
+        return lexical_rel
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
 def classify_file(rel_path: str):
     """Return (category, subsystem, layer) for a relative path."""
     p = rel_path.lower()
@@ -1152,17 +1218,22 @@ def get_file_history(file_path: str, cache: dict):
 # ---------------------------------------------------------------------------
 
 def populate_source_files(cur: sqlite3.Cursor):
-    """Walk the source tree and insert all source files."""
+    """Walk the source tree and insert durable project source files only."""
     count = 0
     for root, dirs, files in os.walk(LIB_ROOT):
-        # Skip build dirs
-        dirs[:] = [d for d in dirs if not should_skip_dir(d)]
+        # Do not descend through generated directories or symlink aliases.
+        dirs[:] = [
+            d for d in dirs
+            if not should_skip_dir(d) and not (Path(root) / d).is_symlink()
+        ]
         for fname in sorted(files):
             ext = os.path.splitext(fname)[1].lower()
             if ext not in SOURCE_EXTS:
                 continue
             full = Path(root) / fname
-            rel = str(full.relative_to(LIB_ROOT))
+            rel = durable_source_path(full)
+            if rel is None:
+                continue
             if any(skip in rel for skip in ['build/', 'CMakeFiles/', 'CMakeCUDACompilerId', 'CMakeCXXCompilerId',
                                              'x509_crt_bundle', 'sdkconfig.h', 'kernels_embedded']):
                 continue
