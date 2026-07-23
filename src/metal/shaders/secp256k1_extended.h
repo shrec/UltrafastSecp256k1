@@ -1458,6 +1458,7 @@ inline JacobianPoint msm_pippenger(thread const Scalar256* scalars, thread const
 // =============================================================================
 
 // ecdsa_sign: separated Scalar256 r/s outputs
+#ifndef SECP256K1_METAL_SCAN_ONLY
 inline bool ecdsa_sign(thread const Scalar256 &msg_scalar, thread const Scalar256 &priv,
                         thread Scalar256 &r_out, thread Scalar256 &s_out) {
     uchar msg_hash[32];
@@ -1468,6 +1469,7 @@ inline bool ecdsa_sign(thread const Scalar256 &msg_scalar, thread const Scalar25
     s_out = sig.s;
     return true;
 }
+#endif // !SECP256K1_METAL_SCAN_ONLY
 
 // ecdsa_verify: AffinePoint pubkey + separated Scalar256 r/s
 inline bool ecdsa_verify(thread const Scalar256 &msg_scalar, thread const AffinePoint &pub,
@@ -1482,6 +1484,7 @@ inline bool ecdsa_verify(thread const Scalar256 &msg_scalar, thread const Affine
 }
 
 // schnorr_sign: Scalar256 msg + priv -> separated Scalar256 r/s
+#ifndef SECP256K1_METAL_SCAN_ONLY
 inline bool schnorr_sign(thread const Scalar256 &msg_scalar, thread const Scalar256 &priv,
                           thread Scalar256 &sig_rx, thread Scalar256 &sig_s) {
     uchar msg_hash[32], aux[32];
@@ -1495,6 +1498,7 @@ inline bool schnorr_sign(thread const Scalar256 &msg_scalar, thread const Scalar
     sig_s = sig.s;
     return true;
 }
+#endif // !SECP256K1_METAL_SCAN_ONLY
 
 // schnorr_verify: Scalar msg + FieldElement pubkey_x + separated r/s
 inline bool schnorr_verify(thread const Scalar256 &msg_scalar, thread const FieldElement &pubkey_x,
@@ -1537,6 +1541,7 @@ inline bool ecdsa_recover(thread const Scalar256 &msg_scalar, thread const Scala
 // Metal Compute Kernels -- Extended Operations
 // =============================================================================
 
+#ifndef SECP256K1_METAL_SCAN_ONLY
 kernel void ecdsa_sign_kernel(
     device const uchar* msg_hashes       [[buffer(0)]],
     device const Scalar256* private_keys  [[buffer(1)]],
@@ -1553,6 +1558,7 @@ kernel void ecdsa_sign_kernel(
     success_flags[gid] = ecdsa_sign(msg, priv, sig) ? 1 : 0;
     signatures[gid] = sig;
 }
+#endif // !SECP256K1_METAL_SCAN_ONLY
 
 kernel void ecdsa_verify_kernel(
     device const uchar* msg_hashes          [[buffer(0)]],
@@ -1570,6 +1576,7 @@ kernel void ecdsa_verify_kernel(
     results[gid] = ecdsa_verify(msg, pub, sig) ? 1 : 0;
 }
 
+#ifndef SECP256K1_METAL_SCAN_ONLY
 kernel void schnorr_sign_kernel(
     device const uchar* messages        [[buffer(0)]],
     device const Scalar256* private_keys [[buffer(1)]],
@@ -1587,6 +1594,7 @@ kernel void schnorr_sign_kernel(
     success_flags[gid] = schnorr_sign(priv, msg, aux, sig) ? 1 : 0;
     signatures[gid] = sig;
 }
+#endif // !SECP256K1_METAL_SCAN_ONLY
 
 kernel void schnorr_verify_kernel(
     device const uchar* pubkeys_x        [[buffer(0)]],

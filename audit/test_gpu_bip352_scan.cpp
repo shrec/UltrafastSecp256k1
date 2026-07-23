@@ -46,9 +46,10 @@
  *   - Scan-only Metal self-containment (issue #335 "Related"): preprocessing
  *     secp256k1_extended.h with -DSECP256K1_METAL_SCAN_ONLY must exclude
  *     ct_ecdsa_sign_metal/ct_schnorr_sign_metal/ct_ecdsa_sign_recoverable_metal
- *     and their wrapper definitions, while the default (unguarded) build
- *     keeps them. Advisory: requires a system C preprocessor and the shader
- *     source tree to be locatable; skips (not fails) otherwise.
+ *     and every signing-only definition: the Scalar256 ECDSA/Schnorr adapters
+ *     and ECDSA/Schnorr sign kernels. Verify adapters and kernels stay
+ *     available. The test supplies a preprocessor-only metal_stdlib stub, so
+ *     these checks cannot silently skip on non-Apple hosts.
  *
  * Metal same-context concurrency + lifecycle (issue #335 acceptance repair,
  * round 2), SW-BIP352-METAL-*: targets UFSECP_GPU_BACKEND_METAL specifically.
@@ -77,6 +78,8 @@
 #include <string>
 #include <thread>
 #include <atomic>
+#include <filesystem>
+#include <fstream>
 
 #include "ufsecp/ufsecp.h"
 #include "ufsecp/ufsecp_gpu.h"
@@ -557,17 +560,16 @@ static void test_bip352_multispend_gpu(ufsecp_ctx* cpu_ctx) {
 /* ============================================================================
  * SW-BIP352-SCANONLY — Metal scan-only self-containment (issue #335 "Related")
  * ============================================================================
- * Advisory (SKIPs, does not fail, if a C preprocessor or the shader source
- * tree cannot be located): preprocesses secp256k1_extended.h with and
- * without -DSECP256K1_METAL_SCAN_ONLY and checks that the guard excludes the
+ * Preprocesses secp256k1_extended.h with and without
+ * -DSECP256K1_METAL_SCAN_ONLY and checks that the guard excludes the
  * ct_ecdsa_sign_metal / ct_schnorr_sign_metal / ct_ecdsa_sign_recoverable_metal
- * forward declarations and their ecdsa_sign / schnorr_sign /
- * ecdsa_sign_recoverable wrapper bodies only in the scan-only mode, while the
- * default (unguarded) preprocessing still contains them -- i.e. proves the
- * gate actually removes the toxic dependency without silently degrading the
- * default full build. This is a preprocessor-level self-containment check,
- * not a full Metal `.air`/.metallib compile (no macOS/Metal compiler is
- * available on every CI/dev machine); it would have caught the original
+ * forward declarations, their wrapper bodies, both Scalar256 signing adapters,
+ * and both signing kernels only in the scan-only mode, while the default
+ * preprocessing still contains them. A preprocessor-only metal_stdlib stub
+ * makes this mandatory on non-Apple hosts. Exact occurrence counts over
+ * comment-free preprocessor output prevent duplicate definitions, comments,
+ * or a misplaced #else from masking a guard regression. This is not a full
+ * Metal `.air`/.metallib compile; it would have caught the original
  * "Undefined symbol ct_ecdsa_sign_metal" link failure from issue #335. */
 static bool run_cpp_capture(const std::string& cmd, std::string& out) {
     FILE* fp = popen(cmd.c_str(), "r");
@@ -580,56 +582,132 @@ static bool run_cpp_capture(const std::string& cmd, std::string& out) {
     return rc == 0 && !out.empty();
 }
 
+static size_t count_occurrences(const std::string& text, const char* needle) {
+    size_t count = 0;
+    size_t pos = 0;
+    const size_t needle_len = std::strlen(needle);
+    while ((pos = text.find(needle, pos)) != std::string::npos) {
+        ++count;
+        pos += needle_len;
+    }
+    return count;
+}
+
 static void test_bip352_metal_scan_only_self_containment() {
     std::printf("[bip352_scan] SW-BIP352-SCANONLY: Metal scan-only self-containment\n");
 
-    const char* candidates[] = {
-        "src/metal/shaders/secp256k1_extended.h",
-        "../src/metal/shaders/secp256k1_extended.h",
-        "../../src/metal/shaders/secp256k1_extended.h",
-        "../../../src/metal/shaders/secp256k1_extended.h",
-        "../../../../src/metal/shaders/secp256k1_extended.h",
-    };
-    std::string path;
-    for (const char* c : candidates) {
-        FILE* f = std::fopen(c, "rb");
-        if (f) { std::fclose(f); path = c; break; }
-    }
-    if (path.empty()) {
-        SKIP("SW-BIP352-SCANONLY", "secp256k1_extended.h not found relative to CWD");
+    const std::filesystem::path source_path =
+        (std::filesystem::path(__FILE__).parent_path() /
+         "../src/metal/shaders/secp256k1_extended.h").lexically_normal();
+    const bool source_exists = std::filesystem::is_regular_file(source_path);
+    CHECK(source_exists, "SW-BIP352-SCANONLY-PATH",
+          "resolve secp256k1_extended.h from the compile-time test source path");
+    if (!source_exists) {
         return;
     }
 
-    const char* toxic[] = {
-        "ct_ecdsa_sign_metal", "ct_schnorr_sign_metal", "ct_ecdsa_sign_recoverable_metal"
-    };
+    const std::filesystem::path stub_dir =
+        std::filesystem::current_path() / "gpu_bip352_scan_cpp_stub";
+    std::error_code fs_error;
+    std::filesystem::create_directories(stub_dir, fs_error);
+    {
+        std::ofstream stub(stub_dir / "metal_stdlib",
+                           std::ios::binary | std::ios::trunc);
+        if (!stub) fs_error = std::make_error_code(std::errc::io_error);
+    }
+    CHECK(!fs_error, "SW-BIP352-SCANONLY-STUB",
+          "create the preprocessor-only metal_stdlib stub inside the build tree");
+    if (fs_error) return;
+
+    const std::string path = source_path.string();
+    const std::string stub = stub_dir.string();
+#if defined(_WIN32)
+    const std::string cmd_default =
+        "cl /nologo /EP /TP /I\"" + stub + "\" \"" + path + "\" 2>NUL";
+    const std::string cmd_scanonly =
+        "cl /nologo /EP /TP /I\"" + stub +
+        "\" /DSECP256K1_METAL_SCAN_ONLY=1 \"" + path + "\" 2>NUL";
+#else
+    const std::string cmd_default =
+        "cc -E -P -x c++ -I\"" + stub + "\" \"" + path + "\" 2>/dev/null";
+    const std::string cmd_scanonly =
+        "cc -E -P -x c++ -I\"" + stub +
+        "\" -DSECP256K1_METAL_SCAN_ONLY=1 \"" + path + "\" 2>/dev/null";
+#endif
 
     std::string default_out;
-    std::string cmd_default = "cc -E -x c++ \"" + path + "\" 2>/dev/null";
-    if (!run_cpp_capture(cmd_default, default_out)) {
-        SKIP("SW-BIP352-SCANONLY", "system C preprocessor unavailable or preprocessing failed");
-        return;
-    }
-    bool default_has_all = true;
-    for (const char* sym : toxic) {
-        if (default_out.find(sym) == std::string::npos) { default_has_all = false; break; }
-    }
-    CHECK(default_has_all, "SW-BIP352-SCANONLY-1",
-          "default (unguarded) preprocessing still declares/defines the ct_*_sign_metal chain");
-
     std::string scanonly_out;
-    std::string cmd_scanonly =
-        "cc -E -x c++ -DSECP256K1_METAL_SCAN_ONLY=1 \"" + path + "\" 2>/dev/null";
-    if (!run_cpp_capture(cmd_scanonly, scanonly_out)) {
-        SKIP("SW-BIP352-SCANONLY", "scan-only preprocessing failed");
-        return;
+    const bool default_ok = run_cpp_capture(cmd_default, default_out);
+    const bool scanonly_ok = run_cpp_capture(cmd_scanonly, scanonly_out);
+    std::filesystem::remove_all(stub_dir, fs_error);
+    CHECK(default_ok && scanonly_ok, "SW-BIP352-SCANONLY-PREPROCESS",
+          "default and scan-only preprocessing complete with the Metal stub");
+    if (!default_ok || !scanonly_ok) return;
+
+    const char* toxic[] = {
+        "ct_ecdsa_sign_metal",
+        "ct_schnorr_sign_metal",
+        "ct_ecdsa_sign_recoverable_metal",
+    };
+    bool toxic_chain_exact = true;
+    for (const char* marker : toxic) {
+        if (count_occurrences(default_out, marker) == 0 ||
+            count_occurrences(scanonly_out, marker) != 0) {
+            toxic_chain_exact = false;
+        }
     }
-    bool scanonly_has_none = true;
-    for (const char* sym : toxic) {
-        if (scanonly_out.find(sym) != std::string::npos) { scanonly_has_none = false; break; }
+    CHECK(toxic_chain_exact, "SW-BIP352-SCANONLY-CHAIN",
+          "scan-only preprocessing excludes the entire ct_*_sign_metal chain");
+
+    struct DefinitionProbe {
+        const char* id;
+        const char* marker;
+        bool available_in_scan_only;
+    };
+    const DefinitionProbe definitions[] = {
+        {"SW-BIP352-SCANONLY-SIGN-ADAPTER-ECDSA",
+         "inline bool ecdsa_sign(thread const Scalar256 &msg_scalar", false},
+        {"SW-BIP352-SCANONLY-SIGN-ADAPTER-SCHNORR",
+         "inline bool schnorr_sign(thread const Scalar256 &msg_scalar", false},
+        {"SW-BIP352-SCANONLY-SIGN-KERNEL-ECDSA",
+         "kernel void ecdsa_sign_kernel(", false},
+        {"SW-BIP352-SCANONLY-SIGN-KERNEL-SCHNORR",
+         "kernel void schnorr_sign_kernel(", false},
+        {"SW-BIP352-SCANONLY-VERIFY-ADAPTER-ECDSA",
+         "inline bool ecdsa_verify(thread const Scalar256 &msg_scalar", true},
+        {"SW-BIP352-SCANONLY-VERIFY-ADAPTER-SCHNORR",
+         "inline bool schnorr_verify(thread const Scalar256 &msg_scalar", true},
+        {"SW-BIP352-SCANONLY-VERIFY-KERNEL-ECDSA",
+         "kernel void ecdsa_verify_kernel(", true},
+        {"SW-BIP352-SCANONLY-VERIFY-KERNEL-SCHNORR",
+         "kernel void schnorr_verify_kernel(", true},
+    };
+    size_t scanonly_sign = 0;
+    size_t scanonly_verify = 0;
+    bool definitions_exact = true;
+    for (const DefinitionProbe& probe : definitions) {
+        const size_t default_count = count_occurrences(default_out, probe.marker);
+        const size_t scanonly_count = count_occurrences(scanonly_out, probe.marker);
+        const size_t expected_scanonly = probe.available_in_scan_only ? 1 : 0;
+        const bool exact = default_count == 1 && scanonly_count == expected_scanonly;
+        CHECK(exact, probe.id,
+              "definition count must be default=1 and scan-only=expected");
+        if (exact) {
+            std::printf("  PASS %s: default=%zu scan-only=%zu\n",
+                        probe.id, default_count, scanonly_count);
+        }
+        definitions_exact = definitions_exact && exact;
+        if (probe.available_in_scan_only) scanonly_verify += scanonly_count;
+        else scanonly_sign += scanonly_count;
     }
-    CHECK(scanonly_has_none, "SW-BIP352-SCANONLY-2",
-          "SECP256K1_METAL_SCAN_ONLY preprocessing excludes the entire ct_*_sign_metal chain");
+    const bool counts_exact =
+        definitions_exact && scanonly_sign == 0 && scanonly_verify == 4;
+    CHECK(counts_exact, "SW-BIP352-SCANONLY-COUNTS",
+          "scan-only definition counts must be signing=0/4 and verify=4/4");
+    if (counts_exact) {
+        std::printf("  PASS SW-BIP352-SCANONLY-COUNTS: signing=%zu/4 verify=%zu/4\n",
+                    scanonly_sign, scanonly_verify);
+    }
 }
 
 /* ============================================================================
