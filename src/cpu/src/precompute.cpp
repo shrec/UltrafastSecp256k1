@@ -631,13 +631,37 @@ constexpr Limbs4 kGroupOrder{{
 std::mutex g_mutex;
 #endif
 FixedBaseConfig g_config{};
-// shared_ptr (not unique_ptr): scalar_mul_generator / batch_scalar_mul_generator
-// take a local shared_ptr snapshot under g_mutex, then release the lock and read the
-// tables. A concurrent configure_fixed_base() does g_context.reset(); with shared_ptr
-// the live snapshot keeps the PrecomputeContext alive until the reader finishes,
-// preventing a use-after-free (PRECOMPUTE-GCONTEXT-UAF). build_context() still returns
-// a unique_ptr, which converts to shared_ptr on assignment.
+#if SECP256K1_ESP32_BUILD
+// ESP32 has no desktop publication protocol or mutex. Its fixed-base fallback
+// keeps the historical single owner.
 std::shared_ptr<PrecomputeContext> g_context;
+#else
+// Desktop ownership/publication protocol (GitHub #336):
+//
+// * g_context_owner is accessed only while g_mutex is held.
+// * g_published_context is an identity token, never an unowned object handle.
+// * tl_context_owner is the lifetime owner for unlocked readers.
+//
+// A reader may dereference the published identity only by dereferencing the
+// matching TLS shared_ptr. A reset publishes nullptr before releasing the
+// mutex-owned owner, so an in-flight reader remains protected by its TLS owner.
+std::shared_ptr<PrecomputeContext> g_context_owner;
+std::atomic<PrecomputeContext const*> g_published_context{nullptr};
+thread_local std::shared_ptr<PrecomputeContext const> tl_context_owner;
+
+static_assert(
+    std::atomic<PrecomputeContext const*>::is_always_lock_free,
+    "The issue #336 hot path requires an always-lock-free pointer atomic");
+
+#if defined(SECP256K1_PRECOMPUTE_TEST_HOOKS)
+std::atomic<std::uint64_t> g_diagnostic_epoch{0};
+std::atomic<std::uint64_t> g_published_epoch{0};
+thread_local std::uint64_t tl_context_epoch{0};
+thread_local std::uint64_t tl_acquisition_calls{0};
+std::atomic<bool> g_test_pause_after_acquire{false};
+std::atomic<bool> g_test_acquire_paused{false};
+#endif
+#endif
 
 Scalar make_scalar(const std::array<std::uint8_t, 32>& bytes) {
     return Scalar::from_bytes(bytes);
@@ -2229,6 +2253,32 @@ ScalarDecomposition split_scalar_internal(const Scalar& scalar) {
 // Cache System
 // ============================================================================
 
+// g_mutex must be held by every caller. Construction and validation happen
+// before this function, then ownership is installed before the release-store
+// publishes its identity.
+void publish_context_locked(std::shared_ptr<PrecomputeContext> next) {
+    g_context_owner = std::move(next);
+#if defined(SECP256K1_PRECOMPUTE_TEST_HOOKS)
+    const std::uint64_t epoch =
+        g_diagnostic_epoch.fetch_add(1, std::memory_order_relaxed) + 1;
+    g_published_epoch.store(epoch, std::memory_order_relaxed);
+#endif
+    g_published_context.store(g_context_owner.get(), std::memory_order_release);
+}
+
+// g_mutex must be held by every caller. Publishing nullptr first prevents a
+// new reader from accepting the retiring identity. Existing readers keep the
+// allocation alive through tl_context_owner until their thread refreshes/exits.
+void invalidate_context_locked() {
+    g_published_context.store(nullptr, std::memory_order_release);
+#if defined(SECP256K1_PRECOMPUTE_TEST_HOOKS)
+    const std::uint64_t epoch =
+        g_diagnostic_epoch.fetch_add(1, std::memory_order_relaxed) + 1;
+    g_published_epoch.store(epoch, std::memory_order_release);
+#endif
+    g_context_owner.reset();
+}
+
 #if defined(__clang__)
 __attribute__((no_sanitize("memory")))
 #endif
@@ -2296,11 +2346,11 @@ bool read_affine_point(std::ifstream& file, AffinePointPacked& point) {
 
 // Internal version without lock - must be called with g_mutex already locked
 bool save_precompute_cache_locked(const std::string& path) {
-    if (!g_context) {
+    if (!g_context_owner) {
         return false;  // Nothing to save
     }
     
-    PrecomputeContext const& ctx = *g_context;
+    PrecomputeContext const& ctx = *g_context_owner;
     
     // Atomic write: write to a temporary file, then rename.
     // This prevents cross-process races where a reader sees a partially-written file
@@ -2474,12 +2524,7 @@ bool load_precompute_cache_locked(const std::string& path, unsigned max_windows)
         return false;
     }
     
-    // Install the loaded context. atomic_store synchronizes-with the lock-free
-    // atomic_load fast path in scalar_mul_generator/batch_scalar_mul_generator
-    // (ISSUE-336-MUTEX-CONTENTION) — every write to g_context must go through
-    // the atomic free functions once any read does, or the two forms race.
-    std::atomic_store_explicit(&g_context,
-        std::shared_ptr<PrecomputeContext>(std::move(ctx)), std::memory_order_release);
+    publish_context_locked(std::shared_ptr<PrecomputeContext>(std::move(ctx)));
     
 #if SECP256K1_DEBUG_GLV
     auto load_end = std::chrono::steady_clock::now();
@@ -2534,9 +2579,7 @@ static bool load_precompute_from_static_w8() {
         }
     }
     if (!validate_precompute_context(*ctx)) return false;
-    // atomic_store: see ISSUE-336-MUTEX-CONTENTION note in load_precompute_cache_locked above.
-    std::atomic_store_explicit(&g_context,
-        std::shared_ptr<PrecomputeContext>(std::move(ctx)), std::memory_order_release);
+    publish_context_locked(std::shared_ptr<PrecomputeContext>(std::move(ctx)));
     return true;
 }
 #endif // SECP256K1_CORE_BACKEND_MODE
@@ -2545,7 +2588,7 @@ static bool load_precompute_from_static_w8() {
 __attribute__((no_sanitize("memory")))
 #endif
 void ensure_built_locked() {
-    if (!g_context) {
+    if (!g_context_owner) {
 #if defined(SECP256K1_CORE_BACKEND_MODE)
         if (load_precompute_from_static_w8()) return;
         // Fallback: in-memory build (should not normally be reached)
@@ -2565,25 +2608,86 @@ void ensure_built_locked() {
                 return;
             }
             
-            // Cache load failed, use in-memory generation. atomic_store: see
-            // ISSUE-336-MUTEX-CONTENTION note on scalar_mul_generator's fast path.
-            std::atomic_store_explicit(&g_context,
-                std::shared_ptr<PrecomputeContext>(build_context(g_config)), std::memory_order_release);
-            if (!g_context || !validate_precompute_context(*g_context)) {
+            std::shared_ptr<PrecomputeContext> next(build_context(g_config));
+            if (!next || !validate_precompute_context(*next)) {
                 throw std::runtime_error("Precompute context validation failed after cache fallback rebuild");
             }
+            publish_context_locked(std::move(next));
 
             // Save to cache for next time
             save_precompute_cache_locked(cache_path);
         } else {
             // Cache disabled, just build in memory
-            std::atomic_store_explicit(&g_context,
-                std::shared_ptr<PrecomputeContext>(build_context(g_config)), std::memory_order_release);
-            if (!g_context || !validate_precompute_context(*g_context)) {
+            std::shared_ptr<PrecomputeContext> next(build_context(g_config));
+            if (!next || !validate_precompute_context(*next)) {
                 throw std::runtime_error("Precompute context validation failed");
             }
+            publish_context_locked(std::move(next));
         }
     }
+}
+
+// Apply a complete desktop configuration while g_mutex is held. Keeping the
+// copy, environment overrides and invalidation in one critical section avoids
+// racing configure_fixed_base_auto()'s cache-directory preservation with
+// configure_fixed_base() or set_cache_directory().
+void apply_fixed_base_config_locked(const FixedBaseConfig& config) {
+    g_config = config;
+
+    if (g_config.adaptive_glv && g_config.enable_glv &&
+        g_config.window_bits < g_config.glv_min_window_bits) {
+        g_config.enable_glv = false;
+    }
+
+    if (const char* env_dir = std::getenv("SECP256K1_CACHE_DIR")) {
+        if (*env_dir && std::string(env_dir).find("..") == std::string::npos) {
+            g_config.cache_dir = env_dir;
+        }
+    }
+    if (const char* env_path = std::getenv("SECP256K1_CACHE_PATH")) {
+        if (*env_path && std::string(env_path).find("..") == std::string::npos) {
+            g_config.cache_path = env_path;
+            g_config.cache_path_set = true;
+        }
+    }
+    if (const char* env_maxw = std::getenv("SECP256K1_MAX_WINDOWS")) {
+        auto const value =
+            static_cast<unsigned>(std::strtoul(env_maxw, nullptr, 10));
+        if (value > 0U) {
+            g_config.max_windows_to_load = value;
+        }
+    }
+
+    invalidate_context_locked();
+}
+
+PrecomputeContext const& acquire_context_for_current_thread() {
+#if defined(SECP256K1_PRECOMPUTE_TEST_HOOKS)
+    ++tl_acquisition_calls;
+#endif
+
+    PrecomputeContext const* const published =
+        g_published_context.load(std::memory_order_acquire);
+    if (published == nullptr || published != tl_context_owner.get()) {
+        std::lock_guard<std::mutex> const lock(g_mutex);
+        ensure_built_locked();
+        tl_context_owner = g_context_owner;
+#if defined(SECP256K1_PRECOMPUTE_TEST_HOOKS)
+        tl_context_epoch = g_published_epoch.load(std::memory_order_relaxed);
+#endif
+    }
+
+#if defined(SECP256K1_PRECOMPUTE_TEST_HOOKS)
+    if (g_test_pause_after_acquire.load(std::memory_order_acquire)) {
+        g_test_acquire_paused.store(true, std::memory_order_release);
+        while (g_test_pause_after_acquire.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+        }
+        g_test_acquire_paused.store(false, std::memory_order_release);
+    }
+#endif
+
+    return *tl_context_owner;
 }
 
 } // namespace
@@ -2737,9 +2841,15 @@ bool configure_fixed_base_auto() {
     // directory (set_cache_directory()/SECP256K1_CACHE_DIR), or the current
     // working directory when unset. Callers that want explicit settings attach
     // them via configure_fixed_base_from_file(<their path>).
-    FixedBaseConfig cfg{};                 // struct defaults: w=18, GLV off, use_cache=true
-    cfg.cache_dir = g_config.cache_dir;    // preserve a caller-set cache directory
-    configure_fixed_base(cfg);             // also honours SECP256K1_CACHE_DIR/PATH env
+    FixedBaseConfig cfg{};  // struct defaults: w=18, GLV off, use_cache=true
+#if SECP256K1_ESP32_BUILD
+    cfg.cache_dir = g_config.cache_dir;
+    configure_fixed_base(cfg);
+#else
+    std::lock_guard<std::mutex> const lock(g_mutex);
+    cfg.cache_dir = g_config.cache_dir;
+    apply_fixed_base_config_locked(cfg);
+#endif
     return true;
 }
 
@@ -3265,37 +3375,7 @@ void set_cache_directory(const std::string& dir) {
 // Desktop version with full features
 void configure_fixed_base(const FixedBaseConfig& config) {
     std::lock_guard<std::mutex> const lock(g_mutex);
-    g_config = config;
-
-    // Adaptive GLV override: if enabled and window_bits below threshold, disable GLV.
-    if (g_config.adaptive_glv && g_config.enable_glv && g_config.window_bits < g_config.glv_min_window_bits) {
-        g_config.enable_glv = false; // Effective disable due to insufficient window size
-    }
-
-    // Environment overrides for external configuration
-    // SECP256K1_CACHE_DIR  -> overrides cache directory containing cache_w{bits}[ _glv].bin
-    // SECP256K1_CACHE_PATH -> overrides exact cache file path
-    // SECP256K1_MAX_WINDOWS -> limits how many windows to load from cache (for memory control)
-    if (const char* env_dir = std::getenv("SECP256K1_CACHE_DIR")) {
-        if (*env_dir && std::string(env_dir).find("..") == std::string::npos) { // lgtm[cpp/path-injection]
-            g_config.cache_dir = env_dir;
-        }
-    }
-    if (const char* env_path = std::getenv("SECP256K1_CACHE_PATH")) {
-        if (*env_path && std::string(env_path).find("..") == std::string::npos) { // lgtm[cpp/path-injection]
-            g_config.cache_path = env_path;
-            g_config.cache_path_set = true;
-        }
-    }
-    if (const char* env_maxw = std::getenv("SECP256K1_MAX_WINDOWS")) {
-        auto const v = static_cast<unsigned>(std::strtoul(env_maxw, nullptr, 10));
-        if (v > 0U) {
-            g_config.max_windows_to_load = v;
-        }
-    }
-    // atomic_store: see ISSUE-336-MUTEX-CONTENTION note on scalar_mul_generator's
-    // fast path — this reset must be visible to the lock-free atomic_load readers.
-    std::atomic_store_explicit(&g_context, std::shared_ptr<PrecomputeContext>{}, std::memory_order_release);
+    apply_fixed_base_config_locked(config);
 }
 
 void ensure_fixed_base_ready() {
@@ -3305,15 +3385,87 @@ void ensure_fixed_base_ready() {
 
 bool fixed_base_ready() {
     std::lock_guard<std::mutex> const lock(g_mutex);
-    return static_cast<bool>(g_context);
+    return static_cast<bool>(g_context_owner);
 }
 
 void set_cache_directory(const std::string& dir) {
     std::lock_guard<std::mutex> const lock(g_mutex);
     g_config.cache_dir = dir;
-    std::atomic_store_explicit(&g_context, std::shared_ptr<PrecomputeContext>{}, std::memory_order_release);
+    invalidate_context_locked();
 }
 #endif // !SECP256K1_ESP32_BUILD
+
+bool fixed_base_context_identity_is_lock_free() noexcept {
+#if SECP256K1_ESP32_BUILD
+    return false;
+#else
+    return g_published_context.is_lock_free();
+#endif
+}
+
+bool fixed_base_context_identity_is_always_lock_free() noexcept {
+#if SECP256K1_ESP32_BUILD
+    return false;
+#else
+    return std::atomic<PrecomputeContext const*>::is_always_lock_free;
+#endif
+}
+
+#if defined(SECP256K1_PRECOMPUTE_TEST_HOOKS)
+PrecomputeContextDiagnostics precompute_context_diagnostics() {
+    PrecomputeContextDiagnostics out{};
+#if !SECP256K1_ESP32_BUILD
+    {
+        std::lock_guard<std::mutex> const lock(g_mutex);
+        PrecomputeContext const* const published =
+            g_published_context.load(std::memory_order_acquire);
+        out.published_identity =
+            reinterpret_cast<std::uintptr_t>(published);
+        out.published_window_bits =
+            g_context_owner && published == g_context_owner.get()
+                ? g_context_owner->window_bits
+                : 0U;
+        out.published_epoch =
+            g_published_epoch.load(std::memory_order_relaxed);
+    }
+    out.tls_identity =
+        reinterpret_cast<std::uintptr_t>(tl_context_owner.get());
+    out.tls_window_bits =
+        tl_context_owner ? tl_context_owner->window_bits : 0U;
+    out.tls_epoch = tl_context_epoch;
+    out.acquisition_calls = tl_acquisition_calls;
+    out.runtime_lock_free = g_published_context.is_lock_free();
+    out.always_lock_free =
+        std::atomic<PrecomputeContext const*>::is_always_lock_free;
+#endif
+    return out;
+}
+
+void precompute_test_reset_acquisition_count() {
+#if !SECP256K1_ESP32_BUILD
+    tl_acquisition_calls = 0;
+#endif
+}
+
+void precompute_test_set_pause_after_acquire(bool pause) {
+#if !SECP256K1_ESP32_BUILD
+    g_test_pause_after_acquire.store(pause, std::memory_order_release);
+    if (pause) {
+        g_test_acquire_paused.store(false, std::memory_order_release);
+    }
+#else
+    (void)pause;
+#endif
+}
+
+bool precompute_test_acquire_is_paused() {
+#if SECP256K1_ESP32_BUILD
+    return false;
+#else
+    return g_test_acquire_paused.load(std::memory_order_acquire);
+#endif
+}
+#endif
 
 ScalarDecomposition split_scalar_glv(const Scalar& scalar) {
     return split_scalar_internal(scalar);
@@ -3554,39 +3706,13 @@ Point scalar_mul_generator_glv_predecomposed(const Scalar& /*k1*/, const Scalar&
     return Point::infinity();
 }
 #else
-Point scalar_mul_generator(const Scalar& scalar) {
-    // Lock-free fast path (ISSUE-336-MUTEX-CONTENTION): once the table is
-    // built, g_mutex is never touched again by this call. Reading g_context
-    // through std::atomic_load synchronizes-with every writer below (which
-    // now uses std::atomic_store on the same object), so this is race-free
-    // without g_mutex. The overwhelmingly common case in a per-row scan
-    // workload (this function called once per row from many threads) never
-    // takes the mutex at all, eliminating the futex-syscall-driven sys-time
-    // growth that many concurrent callers previously produced. See
-    // docs/BIP352_CPU_PERFORMANCE.md for the measurement that motivated this.
-    std::shared_ptr<PrecomputeContext> ctx_ptr_fast =
-        std::atomic_load_explicit(&g_context, std::memory_order_acquire);
-    if (!ctx_ptr_fast) {
-        // Slow path: not yet built, or a concurrent reconfigure raced us to
-        // null. Build (or wait for another thread to finish building) under
-        // g_mutex exactly as before.
-        std::unique_lock<std::mutex> lock(g_mutex);
-        ensure_built_locked();
-        // Snapshot the shared_ptr under the lock so a concurrent configure_fixed_base()
-        // (which does g_context.reset()) cannot free the table while we read it after
-        // unlock() — ctx_ptr keeps it alive for this whole call (PRECOMPUTE-GCONTEXT-UAF).
-        // This is a PLAIN (non-atomic) read, not std::atomic_load: it is race-free
-        // because (a) every writer to g_context takes g_mutex before calling
-        // std::atomic_store_explicit, so no writer can run concurrently with this
-        // read while we hold the lock, and (b) a plain read can only race with a
-        // WRITE, never with another concurrent READ (incl. the lock-free
-        // atomic_load fast path above on other threads) — reading the same memory
-        // from multiple threads with no writer present is never a data race.
-        std::shared_ptr<PrecomputeContext> const ctx_ptr = g_context;
-        lock.unlock();
-        ctx_ptr_fast = ctx_ptr;
-    }
-    PrecomputeContext const& ctx = *ctx_ptr_fast;
+namespace {
+
+// Context-taking implementation shared by scalar and batch entry points. It
+// never acquires/publishes context ownership; the caller's TLS owner remains
+// alive for the complete call.
+Point scalar_mul_generator_with_context(const Scalar& scalar,
+                                        const PrecomputeContext& ctx) {
     if (!validate_precompute_context(ctx)) {
         throw std::runtime_error("Invalid precompute context");
     }
@@ -3749,17 +3875,19 @@ Point scalar_mul_generator(const Scalar& scalar) {
     return Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
 }
 
+} // namespace
+
+Point scalar_mul_generator(const Scalar& scalar) {
+    PrecomputeContext const& ctx = acquire_context_for_current_thread();
+    return scalar_mul_generator_with_context(scalar, ctx);
+}
+
 // ============================================================================
 // Missing API Implementations (Restored)
 // ============================================================================
 
 Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2, bool neg1, bool neg2) {
-    std::unique_lock<std::mutex> const lock(g_mutex);
-    ensure_built_locked();
-    // Safe to read *g_context directly: this function holds g_mutex for its whole body
-    // (no unlock), so configure_fixed_base()->g_context.reset() cannot run concurrently.
-    // Only the unlock-then-read fast paths (scalar_mul_generator/batch) need the snapshot.
-    PrecomputeContext const& ctx = *g_context;
+    PrecomputeContext const& ctx = acquire_context_for_current_thread();
 
     // Direct GLV combination using pre-split scalars.
     // Stack-allocated digit buffers: zero heap allocation.
@@ -3789,95 +3917,50 @@ Point scalar_mul_generator_glv_predecomposed(const Scalar& k1, const Scalar& k2,
 
 // ── batch_scalar_mul_generator ────────────────────────────────────────────────
 // Compute results[i] = scalars[i] × G for all i in [0, n).
-// One mutex lock + one table access warms L2/L3 for all N calls;
-// each subsequent shamir_windowed_glv hits the warm cache.
+// One context acquisition covers the whole batch. On a steady-state TLS hit
+// that acquisition is only a raw atomic identity load; a refresh takes the
+// publication mutex once. Each multiply then hits the same warm table.
 // Thread-local digit scratch avoids heap per scalar.
 void batch_scalar_mul_generator(const Scalar* scalars, Point* results, std::size_t n) {
     if (n == 0) return;
-#if defined(SECP256K1_ESP32_BUILD)
+#if SECP256K1_ESP32_BUILD
     for (std::size_t i = 0; i < n; ++i)
         results[i] = Point::generator().scalar_mul(scalars[i]);
 #else
     if (n == 1) { results[0] = scalar_mul_generator(scalars[0]); return; }
 
-    // Lock-free fast path (ISSUE-336-MUTEX-CONTENTION) — see scalar_mul_generator
-    // above for the full rationale. Callers that migrate their own per-row
-    // scalar_mul_generator() loop to per-chunk batch_scalar_mul_generator()
-    // calls (one call per worker thread instead of one per row) get this
-    // benefit automatically once the table is warm.
-    std::shared_ptr<PrecomputeContext> ctx_ptr_fast =
-        std::atomic_load_explicit(&g_context, std::memory_order_acquire);
-    if (!ctx_ptr_fast) {
-        // Lock once: verify context is ready, then release.
-        std::unique_lock<std::mutex> lock(g_mutex);
-        ensure_built_locked();
-        // Snapshot under the lock — keeps the table alive past unlock() even if another
-        // thread calls configure_fixed_base()->g_context.reset() (PRECOMPUTE-GCONTEXT-UAF).
-        // Plain read is race-free here: see scalar_mul_generator() above for why
-        // (all writers serialize on g_mutex; concurrent reads never race).
-        std::shared_ptr<PrecomputeContext> const ctx_ptr = g_context;
-        lock.unlock();
-        ctx_ptr_fast = ctx_ptr;
-    }
-    PrecomputeContext const& ctx = *ctx_ptr_fast;
-    if (!validate_precompute_context(ctx)) throw std::runtime_error("Invalid precompute context");
-
-    const std::size_t wc = ctx.window_count;
-    const unsigned    wb = ctx.window_bits;
-    const bool        use_glv = ctx.config.enable_glv;
-
-    // Thread-local digit scratch: no heap after first call.
-    static thread_local std::array<int32_t, kMaxWindowCount> tl_d1{};
-    static thread_local std::array<int32_t, kMaxWindowCount> tl_d2{};
-
-    // Inline accumulate for the non-GLV path (mirrors scalar_mul_generator).
-    auto do_accumulate = [&](const int32_t* digits,
-                              const std::vector<std::vector<AffinePointPacked>>& tables,
-                              JacobianPoint& result) {
-        for (std::size_t w = 0; w < wc; ++w) {
-            int32_t const d = digits[w];
-            if (d == 0) continue;
-            bool const neg = (d < 0);
-            auto const idx = static_cast<std::size_t>(neg ? -static_cast<std::int64_t>(d)
-                                                           :  static_cast<std::int64_t>(d));
-            const auto& entry = tables[w][idx];
-            if (entry.infinity) continue;
-            AffinePointPacked pt = entry;
-            if (neg) pt.y = negate_fe(pt.y);
-            result = jacobian_add_mixed_local(result, pt);
-        }
-    };
+    // Exactly one acquisition for the whole batch. The context-taking helper
+    // below cannot reacquire, including when OpenMP distributes elements.
+    PrecomputeContext const& ctx = acquire_context_for_current_thread();
 
 #ifdef _OPENMP
     #pragma omp parallel for schedule(static) if(n >= 64)
 #endif
     for (std::size_t i = 0; i < n; ++i) {
-        // tl_d1/tl_d2 are static thread_local — each OMP thread has its own copy.
-        JacobianPoint result{FieldElement::zero(), FieldElement::one(),
-                             FieldElement::zero(), true};
-        if (use_glv) {
-            ScalarDecomposition const dec = split_scalar_internal(scalars[i]);
-            fill_window_digits_into(dec.k1, wb, wc, tl_d1.data());
-            fill_window_digits_into(dec.k2, wb, wc, tl_d2.data());
-            if (dec.neg1) for (std::size_t w = 0; w < wc; ++w) if (tl_d1[w]) tl_d1[w] = -tl_d1[w];
-            if (dec.neg2) for (std::size_t w = 0; w < wc; ++w) if (tl_d2[w]) tl_d2[w] = -tl_d2[w];
-            result = shamir_windowed_glv(tl_d1.data(), tl_d2.data(),
-                                         ctx.base_tables, ctx.psi_tables, wc);
-        } else {
-            fill_window_digits_into(scalars[i], wb, wc, tl_d1.data());
-            do_accumulate(tl_d1.data(), ctx.base_tables, result);
-        }
-        results[i] = Point::from_jacobian_coords(result.x, result.y, result.z, result.infinity);
+        results[i] = scalar_mul_generator_with_context(scalars[i], ctx);
     }
 #endif
 }
 
 bool save_precompute_cache(const std::string& path) {
+#if SECP256K1_ESP32_BUILD
+    (void)path;
+    return false;
+#else
+    std::lock_guard<std::mutex> const lock(g_mutex);
     return save_precompute_cache_locked(path);
+#endif
 }
 
 bool load_precompute_cache(const std::string& path, unsigned max_windows) {
+#if SECP256K1_ESP32_BUILD
+    (void)path;
+    (void)max_windows;
+    return false;
+#else
+    std::lock_guard<std::mutex> const lock(g_mutex);
     return load_precompute_cache_locked(path, max_windows);
+#endif
 }
 
 Point scalar_mul_arbitrary(const Point& base, const Scalar& scalar, unsigned window_bits) {

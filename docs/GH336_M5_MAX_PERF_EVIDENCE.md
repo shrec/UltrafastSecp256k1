@@ -1,115 +1,166 @@
-# Issue 336: Apple M5 Max performance evidence
+# Issue #336 Apple M5 Max closure evidence
 
-## Status and scope
+Status: **pending owner rerun**
 
-Issue 336 remains **open**. This runner is not reporter-equivalent hardware, so no
-target-hardware performance measurement was run or inferred. All M5 Max results
-below are explicitly pending an owner run.
+No Linux result, source inspection or synthetic multiplier can close this
+physical-M5 regression. Fill this record with the exact candidate SHA and raw
+owner-run artifacts before closing the issue.
 
-The comparison is pinned to these immutable revisions:
+The candidate repairs both proven library defects: Apple's mutex-backed
+free-function `shared_ptr` atomic was removed from the per-row path, and the
+desktop batch path no longer enters the ESP fallback because of an always-true
+`#if defined(SECP256K1_ESP32_BUILD)` condition.
 
-- baseline `v3.68.0`: `a671ea2e3d355a26596d67d583ecf01252afd9d7`
-- candidate `dev`: `3fbf1cf47fbc590c1c4570744f6195b6477d0377`
+## Reporter matrix before this candidate
 
-`10,360,000` is the fixed total tweak workload for each benchmark run. It is not
-a tweaks-per-second target. The acceptance ceiling is the project's documented
-normalized current-vs-v3.68 metric: candidate/baseline must be `<= 0.36x`.
-Raw throughput is recorded separately and is not substituted for that metric.
+Craig's clean M5 Max capture on `dev` at `4556fa05` used the exact fixed replay
+below. It is historical evidence for the defective implementation, not a
+candidate result. Run 1 was warm-up and Run 2 the steady query; the resource
+rows are the unsampled `/usr/bin/time -l` envelope over both queries.
 
-## Immutable runner evidence and blocker
+| measurement | old/per-row | batch |
+|---|---:|---:|
+| Run 1 warm-up real / user / sys | 16.33 / 225.8 / 8.89 s | 18.73 / 216.0 / 44.02 s |
+| Run 2 steady real / user / sys | 16.41 / 233.9 / 8.26 s | 18.94 / 220.3 / 44.16 s |
+| peak RSS | 4.40 GB | 5.17 GB |
+| voluntary / involuntary context switches | 5,582 / 1,608,450 | 0 / 3,076,715 |
+| page reclaims / hard faults | 396,708 / 31 | 515,685 / 25 |
+| instructions retired | 7.52 T | 7.17 T |
 
-Captured on 2026-07-22 UTC:
+The attached-sampler queries took 18.8 s and 21.2 s respectively and are not
+timing baselines. The useful attribution was 8,630 versus 26,358
+`__psynch_mutexwait` leaf samples and 1,276 versus 8,717
+`__psynch_mutexdrop` leaf samples. No per-operation thread creation or material
+`mmap`/`munmap` signal appeared.
+
+## Fixed replay configuration
+
+| field | required value |
+|---|---|
+| total rows | 10,356,829 |
+| callers | 18 |
+| fixed-base window | 12 |
+| table threads | 1 |
+| GLV | false |
+| build | clean Release, non-LTO |
+| modes | per-row (`legacy`) and `batch` |
+| sampling | 2+ warm-ups, 5+ recorded steady second-query runs |
+
+The replay driver prints:
 
 ```text
-$ uname -a
-Linux parking 6.8.0-134-generic #134-Ubuntu SMP PREEMPT_DYNAMIC Fri Jun 26 18:43:11 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
-$ uname -s
-Linux
-$ uname -m
-x86_64
-$ uname -r
-6.8.0-134-generic
-$ getconf _NPROCESSORS_ONLN
-16
-$ git rev-parse HEAD
-3fbf1cf47fbc590c1c4570744f6195b6477d0377
+context_identity_is_always_lock_free=<0|1>
+runtime_is_lock_free=<0|1>
 ```
 
-Required host: reporter-equivalent Apple M5 Max, ARM64, with at least 18 usable
-threads. Actual host: Linux x86_64 with 16 logical processors. The OS,
-architecture, processor count, and lack of an 18-thread capacity are all
-disqualifying. Running the matrix here would not answer issue 336.
+The exact M5 Release binary must print `runtime_is_lock_free=1`. Preserve the
+complete benchmark stdout rather than copying only this line.
 
-## Required matrix and evidence state
+## Environment and build receipt
 
-Every row uses a clean, non-LTO build and exactly 10,360,000 total tweaks.
+- [ ] Candidate commit SHA and v3.68 baseline SHA.
+- [ ] Clean worktree status for each build.
+- [ ] `sw_vers`, `uname -a`, `uname -m`.
+- [ ] `sysctl -n machdep.cpu.brand_string`, `hw.physicalcpu`,
+      `hw.logicalcpu`.
+- [ ] Compiler, linker, CMake and Ninja versions.
+- [ ] Full configure/build commands and proof that LTO is disabled.
+- [ ] Power mode, thermal state and meaningful concurrent workload notes.
 
-| Revision | Threads | Normalized current/v3.68 | Raw throughput | wall | user | sys | peak RSS | profile |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `a671ea2e3d355a26596d67d583ecf01252afd9d7` | 1 | pending M5 Max owner run | pending | pending | pending | pending | pending | pending |
-| `3fbf1cf47fbc590c1c4570744f6195b6477d0377` | 1 | pending M5 Max owner run | pending | pending | pending | pending | pending | pending |
-| `a671ea2e3d355a26596d67d583ecf01252afd9d7` | 18 | pending M5 Max owner run | pending | pending | pending | pending | pending | pending |
-| `3fbf1cf47fbc590c1c4570744f6195b6477d0377` | 18 | pending M5 Max owner run | pending | pending | pending | pending | pending | pending |
+## Correctness receipt
 
-The normalized value is applicable to each candidate row after pairing it with
-the baseline row at the same thread count. Baseline rows supply the denominator;
-their normalized field remains pending until the paired calculation is recorded.
+- [ ] CPU database replay: 10,356,829 / 10,356,829 correct in both modes.
+- [ ] Existing Metal correctness cross-check remains 100%.
+- [ ] No crash, exception, stale-context mismatch or output divergence.
 
-## M5 Max owner-run checklist
+## Timing receipt
 
-For reproducibility, preserve the literal commands and complete output alongside
-the filled table; do not report a number without its command/output evidence.
+Use the normal uninstrumented `fastsecp256k1` library for every timing run.
+Build the private `fastsecp256k1_gh336_test_hooks` object only for focused
+cardinality/lifecycle tests; test hooks must not be present in the timed binary.
 
-- [ ] Record UTC time, `sw_vers`, `uname -a`, `uname -m`, `sysctl -n
-  machdep.cpu.brand_string`, `sysctl -n hw.physicalcpu`, and `sysctl -n
-  hw.logicalcpu`; confirm Apple M5 Max, Darwin ARM64, and 18 usable threads.
-- [ ] Record compiler identity/version and the build tool versions. Disable
-  Turbo/low-power variability where practicable and record power mode, thermal
-  state, and other active workloads.
-- [ ] Resolve `v3.68.0^{commit}` and `dev^{commit}` and verify they equal the two
-  pinned hashes above. Use detached clean worktrees (or equivalent clean source
-  trees), one per revision.
-- [ ] Configure a release build for each revision with link-time optimization
-  explicitly disabled. Save configure and build commands, configuration output,
-  compiler/linker flags, and proof that no LTO flag or LTO artifact is present.
-- [ ] For each revision, run the project's issue-336 benchmark with exactly
-  `10,360,000` total tweaks at `1` thread, then at `18` threads. Do not interpret
-  the workload as a rate. Save the exact benchmark command, stdout, and stderr.
-- [ ] Run enough warm-ups and measured repetitions under the project's documented
-  benchmark protocol. Preserve every sample and use its documented aggregation;
-  do not select the best result.
-- [ ] Wrap every measured run with `/usr/bin/time -l` and record raw throughput,
-  wall time, user time, system time, and maximum resident set size. Retain units.
-- [ ] Attribute system time: profile representative 1-thread and 18-thread runs
-  with the project's macOS profiling procedure (for example, Instruments or
-  `sample` when that is the documented procedure). Save the profile artifact and
-  report syscall/kernel hotspots and their shares; do not fold `sys` into user or
-  wall time.
-- [ ] Compute the project's documented normalized current-vs-v3.68 metric for
-  each thread count from the corresponding pinned-revision results. Record the
-  formula, source samples, aggregation, units, and calculated value. Pass only
-  when each required value is `<= 0.36x`.
-- [ ] Attach raw logs, build/configuration records, timing output, RSS evidence,
-  and profiles to issue 336, fill every pending cell above, and keep the issue
-  open until the target-host evidence demonstrates resolution.
+The replay driver prints one `measured pass` record containing wall time,
+user/sys deltas, full-prefix checksum, process peak RSS, context-switch deltas
+and page-fault deltas. Keep at least five such passes per mode. Its final
+cross-mode validation must show identical legacy/batch full-prefix checksums.
 
-## Focused follow-on defect if the ceiling is missed
+Wrap each clean mode invocation with `/usr/bin/time -l` and attach raw output,
+but treat it as a supporting whole-process envelope: it includes input
+generation, cold run, warm-ups, measured passes and cross-mode validation.
+Never assign those aggregate values to a single measured pass.
 
-If either normalized candidate/baseline value is `> 0.36x`, open a focused defect
-linked to issue 336 with this specification:
+| revision/mode | warm-ups | measured | median wall | median user | median sys | peak RSS |
+|---|---:|---:|---:|---:|---:|---:|
+| v3.68 per-row | pending | pending | pending | pending | pending | pending |
+| candidate per-row | pending | pending | pending | pending | pending | pending |
+| candidate batch | pending | pending | pending | pending | pending | pending |
 
-- title: `M5 Max non-LTO tweak benchmark exceeds 0.36x normalized ceiling`
-- environment: immutable host/OS/architecture evidence, power/thermal state,
-  compiler and build-tool versions, and both pinned revision hashes
-- reproduction: exact clean non-LTO build commands and exact 10,360,000-total-
-  tweak commands for both 1 and 18 threads
-- evidence: every repetition, raw throughput, wall/user/sys, peak RSS, normalized
-  formula and result, plus profiles that attribute system time
-- expected: documented current-vs-v3.68 normalized metric `<= 0.36x` at both 1
-  and 18 threads
-- actual: the failing value(s), absolute and percentage distance above `0.36x`,
-  and whether the regression is CPU, system-time, memory, or contention dominated
-- done: reproduce, identify the dominant hotspot, land a fix, and rerun the full
-  pinned matrix on the same M5 Max under the same protocol
+| revision/mode | median voluntary ctx | median involuntary ctx | median reclaims | median hard faults | instructions retired |
+|---|---:|---:|---:|---:|---:|
+| v3.68 per-row | pending | pending | pending | pending | pending |
+| candidate per-row | pending | pending | pending | pending | pending |
+| candidate batch | pending | pending | pending | pending | pending |
 
-Do not close issue 336 merely because the follow-on defect exists.
+Pass thresholds:
+
+- candidate per-row median wall ≤ 1.05× v3.68 per-row;
+- candidate per-row median sys ≤ 2.0× v3.68 per-row;
+- batch median sys ≤ per-row median sys plus the larger of 20% or 1.0 s;
+- batch median wall ≤ 1.05× candidate per-row.
+- candidate per-row median total context switches ≤ v3.68 per-row plus the
+  larger of 20% or 50,000;
+- batch median total context switches ≤ candidate per-row plus the larger of
+  20% or 50,000.
+
+## Publication-lock closure
+
+For both candidate modes:
+
+- [ ] Save a 15-second `sample` capture.
+- [ ] Confirm no `std::__sp_mut`, `__get_sp_mut`,
+      publication-related `__psynch_mutexwait` or `__psynch_mutexdrop` stack
+      occurs below the fixed-base entry points.
+- [ ] Save optimized Release disassembly for
+      `scalar_mul_generator` and `batch_scalar_mul_generator`.
+- [ ] Confirm the raw identity acquire is inline.
+- [ ] Confirm neither symbol calls a shared-pointer atomic, pthread mutex
+      helper or generic non-lock-free atomic helper.
+- [ ] Confirm scalar acquisition cardinality is O(rows) and batch cardinality
+      is O(batch calls), not O(elements).
+
+Example Darwin inspection commands (adjust the binary path, keep full output):
+
+```sh
+nm -nm <bench-binary> | c++filt | grep -E \
+  'scalar_mul_generator|batch_scalar_mul_generator'
+llvm-objdump --disassemble --demangle <bench-binary> > issue336.disassembly.txt
+sample <pid> 15 -file issue336.sample.txt
+```
+
+## Local candidate gates
+
+Attach the developer-side results for:
+
+- focused scalar/batch independent-oracle correctness;
+- deterministic old-owner completion and same-thread stale-TLS refresh;
+- one- and 18-reader races against configure, cache-directory change and
+  public cache load;
+- acquisition-cardinality diagnostics;
+- GCC 14 C++20 `-Werror`;
+- ASan/UBSan and supported TSan;
+- `git diff --check`.
+
+Linux review-runner receipt (2026-07-23): focused Release tests passed
+77/77 CPU checks and 14/14 audit checks; scalar and `n=67` batch counters were
+1 and 1; ASan/UBSan passed. The direct GCC TSan CPU test passed; the direct
+audit launch failed before `main` with this kernel's `unexpected memory
+mapping` runtime limitation. With ASLR disabled via `setarch x86_64 -R`, both
+focused TSan binaries passed. GCC 14 C++20 `-Werror` built the library;
+`git diff --check` passed. This receipt is not M5 performance evidence.
+
+## Closure decision
+
+Keep issue #336 open if any cell, raw artifact or threshold above is missing.
+If publication lock stacks are gone but a performance threshold still misses,
+record the new hotspot attribution and continue with a focused follow-up; do
+not convert absence of the original lock stack into a performance pass.

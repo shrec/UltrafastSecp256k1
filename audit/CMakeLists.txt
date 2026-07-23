@@ -5593,16 +5593,20 @@ target_sources(unified_audit_runner PRIVATE test_regression_secret_scalar_residu
 # PRECOMPUTE-GCONTEXT-UAF (2026-06-10)
 # advisory=false: source-scan + concurrent reconfigure/compute smoke; no shim/GPU dependency.
 # Threads -> link pthreads (Threads::Threads) for the concurrency smoke.
-add_executable(test_regression_precompute_gcontext_race_standalone
-    test_regression_precompute_gcontext_race.cpp)
-audit_target_defaults(test_regression_precompute_gcontext_race_standalone)
-target_compile_definitions(test_regression_precompute_gcontext_race_standalone PRIVATE STANDALONE_TEST)
-find_package(Threads REQUIRED)
-target_link_libraries(test_regression_precompute_gcontext_race_standalone PRIVATE Threads::Threads)
-add_test(NAME regression_precompute_gcontext_race
-    COMMAND test_regression_precompute_gcontext_race_standalone)
-set_tests_properties(regression_precompute_gcontext_race PROPERTIES TIMEOUT 60
-    LABELS "audit;regression;thread-safety;memory-safety;use-after-free;source-scan")
+if(TARGET fastsecp256k1_gh336_test_hooks)
+    add_executable(test_regression_precompute_gcontext_race_standalone
+        test_regression_precompute_gcontext_race.cpp
+        $<TARGET_OBJECTS:fastsecp256k1_gh336_test_hooks>)
+    audit_target_defaults(test_regression_precompute_gcontext_race_standalone)
+    target_compile_definitions(test_regression_precompute_gcontext_race_standalone PRIVATE
+        STANDALONE_TEST SECP256K1_PRECOMPUTE_TEST_HOOKS=1)
+    find_package(Threads REQUIRED)
+    target_link_libraries(test_regression_precompute_gcontext_race_standalone PRIVATE Threads::Threads)
+    add_test(NAME regression_precompute_gcontext_race
+        COMMAND test_regression_precompute_gcontext_race_standalone)
+    set_tests_properties(regression_precompute_gcontext_race PROPERTIES TIMEOUT 60
+        LABELS "audit;regression;thread-safety;memory-safety;use-after-free;source-scan")
+endif()
 target_sources(unified_audit_runner PRIVATE test_regression_precompute_gcontext_race.cpp)
 
 # SOUNDNESS-PROBE (GHSA-c7q2) — negative-soundness gate seed (2026-06-11)

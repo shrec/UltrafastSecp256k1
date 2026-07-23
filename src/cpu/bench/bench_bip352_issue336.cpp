@@ -3,7 +3,7 @@
 //
 // Reproduces (as closely as this hardware/OS permits) the reporter's drive
 // shape:
-//   - N tweak rows (default 10,360,000 — reporter's exact count)
+//   - N tweak rows (default 10,356,829 — reporter's exact replay count)
 //   - THREADS worker threads for the per-row scan stage (default 18)
 //   - configure_fixed_base(window_bits=WB, thread_count=TC) — default
 //     WB=12, TC=1, matching the issue text exactly
@@ -20,9 +20,8 @@
 //     Stage 2a : cached_tagged_hash (BIP0352/SharedSecret midstate)
 //     Stage 2b : Point::generator().scalar_mul(hs)        (fixed-base hash*G,
 //                per ROW call — dispatches to the free function
-//                scalar_mul_generator() in precompute.cpp, which takes
-//                g_mutex per call — this is the exact caller path this
-//                issue is about)
+//                scalar_mul_generator() in precompute.cpp, which performs one
+//                raw context-identity acquire per row)
 //     Stage 2c : pack (T_i already affine from Stage 2b's eager normalize())
 //     Stage 2d : batch_add_affine_x(B_spend, T_i)          (candidate
 //                staging — internally batch-inverts dx values; this is
@@ -31,17 +30,15 @@
 //     This is the "OLDER-API caller path" preserved exactly.
 //
 //   batch — same Stage 1/1b/2a, but Stage 2b uses batch_scalar_mul_generator()
-//     (ONE g_mutex acquisition for the whole batch instead of N) — only
+//     (ONE context acquisition for the whole batch instead of N) — only
 //     available from v4.5.0 onward, gated by ISSUE336_HAVE_BATCH_API.
 //     This is the "new-batch-API comparison" required by the issue triage
 //     (reporter's question #2).
 //
-// Every printed number in the "not yet measured" sense: this file only
-// prints wall-clock ns/op from the internal chrono timers. real/user/sys/
-// RSS/faults/ctxsw/syscalls are measured EXTERNALLY by wrapping the whole
-// process with /usr/bin/time -v and strace -c (see
-// benchmarks/github_issue_336/run_matrix.sh). No number in this file is a
-// performance CLAIM by itself — it is raw per-process evidence input.
+// Each measured steady pass prints its own wall/user/sys/resource delta.
+// This avoids treating one /usr/bin/time process envelope containing input
+// generation, cross-mode validation, warmups and many passes as a per-run
+// result. External time/sample captures remain supporting raw artifacts.
 // ============================================================================
 
 #include "secp256k1/point.hpp"
@@ -62,6 +59,14 @@
 #include <cstdlib>
 #include <string>
 #include <numeric>
+#include <atomic>
+
+#if defined(__unix__) || defined(__APPLE__)
+#include <sys/resource.h>
+#define ISSUE336_HAVE_GETRUSAGE 1
+#else
+#define ISSUE336_HAVE_GETRUSAGE 0
+#endif
 
 using CpuPoint       = secp256k1::fast::Point;
 using CpuScalar      = secp256k1::fast::Scalar;
@@ -133,7 +138,7 @@ static uint64_t extract_prefix(const uint8_t* bytes) {
     return v;
 }
 
-using Clock = std::chrono::high_resolution_clock;
+using Clock = std::chrono::steady_clock;
 static double elapsed_ns(Clock::time_point t0, Clock::time_point t1) {
     return std::chrono::duration<double, std::nano>(t1 - t0).count();
 }
@@ -142,15 +147,99 @@ static double median_ns(std::vector<double>& v) {
     return v[v.size() / 2];
 }
 
+static volatile std::uint64_t g_prefix_checksum_sink = 0;
+
+// Fold every candidate prefix and publish the result through a volatile sink.
+// Observing only the final element is insufficient anti-DCE protection for the
+// N-row pipeline.
+static std::uint64_t fold_all_prefixes(
+    const std::vector<std::uint64_t>& prefixes) {
+    std::uint64_t checksum = 0xcbf29ce484222325ULL;
+    for (std::uint64_t const prefix : prefixes) {
+        checksum ^= prefix + 0x9e3779b97f4a7c15ULL +
+                    (checksum << 6U) + (checksum >> 2U);
+        checksum = (checksum << 17U) | (checksum >> 47U);
+        checksum *= 0x100000001b3ULL;
+    }
+    std::atomic_signal_fence(std::memory_order_seq_cst);
+    g_prefix_checksum_sink = checksum;
+    std::atomic_signal_fence(std::memory_order_seq_cst);
+    return checksum;
+}
+
+struct ResourceSnapshot {
+    double user_seconds{0.0};
+    double system_seconds{0.0};
+    long peak_rss_native{0};
+    long voluntary_switches{0};
+    long involuntary_switches{0};
+    long page_reclaims{0};
+    long hard_faults{0};
+    bool available{false};
+};
+
+static ResourceSnapshot resource_snapshot() {
+    ResourceSnapshot snapshot;
+#if ISSUE336_HAVE_GETRUSAGE
+    rusage usage{};
+    if (getrusage(RUSAGE_SELF, &usage) == 0) {
+        snapshot.user_seconds =
+            static_cast<double>(usage.ru_utime.tv_sec) +
+            static_cast<double>(usage.ru_utime.tv_usec) / 1e6;
+        snapshot.system_seconds =
+            static_cast<double>(usage.ru_stime.tv_sec) +
+            static_cast<double>(usage.ru_stime.tv_usec) / 1e6;
+        snapshot.peak_rss_native = usage.ru_maxrss;
+        snapshot.voluntary_switches = usage.ru_nvcsw;
+        snapshot.involuntary_switches = usage.ru_nivcsw;
+        snapshot.page_reclaims = usage.ru_minflt;
+        snapshot.hard_faults = usage.ru_majflt;
+        snapshot.available = true;
+    }
+#endif
+    return snapshot;
+}
+
+static void print_pass_resources(
+    int pass,
+    double wall_ms,
+    std::uint64_t checksum,
+    const ResourceSnapshot& before,
+    const ResourceSnapshot& after) {
+    if (!before.available || !after.available) {
+        std::printf(
+            "  measured pass %2d: wall=%8.1fms checksum=0x%016llx "
+            "resources=unavailable\n",
+            pass,
+            wall_ms,
+            static_cast<unsigned long long>(checksum));
+        return;
+    }
+
+    std::printf(
+        "  measured pass %2d: wall=%8.1fms user=%8.3fs sys=%8.3fs "
+        "checksum=0x%016llx peak_rss_native=%ld "
+        "vol_ctx=%ld invol_ctx=%ld page_reclaims=%ld hard_faults=%ld\n",
+        pass,
+        wall_ms,
+        after.user_seconds - before.user_seconds,
+        after.system_seconds - before.system_seconds,
+        static_cast<unsigned long long>(checksum),
+        after.peak_rss_native,
+        after.voluntary_switches - before.voluntary_switches,
+        after.involuntary_switches - before.involuntary_switches,
+        after.page_reclaims - before.page_reclaims,
+        after.hard_faults - before.hard_faults);
+}
+
 struct Args {
-    std::size_t n          = 10'360'000; // reporter's exact tweak-row count
+    std::size_t n          = 10'356'829; // reporter's exact replay row count
     unsigned    threads     = 18;         // reporter's exact worker-thread count
     unsigned    window_bits = 12;         // reporter's exact configure_fixed_base
     unsigned    table_threads = 1;        // reporter's exact configure_fixed_base
-    bool        enable_glv = true;        // not stated by reporter; documented assumption
+    bool        enable_glv = false;       // Craig's application configuration
     int         passes     = 7;           // CLAUDE.md protocol minimum
-    int         warmup     = 1;           // internal warmup passes (in addition to the
-                                           // outer "warm second run" process-level warmup)
+    int         warmup     = 2;           // measured-mode warmups after cross-mode validation
     std::string mode       = "legacy";    // legacy | batch
 };
 
@@ -163,14 +252,28 @@ static Args parse_args(int argc, char** argv) {
             if (arg.rfind(pfx, 0) == 0) return arg.c_str() + pfx.size();
             return nullptr;
         };
-        if (auto v = val("n"))            a.n = std::strtoull(v, nullptr, 10);
-        else if (auto v = val("threads"))      a.threads = (unsigned)std::strtoul(v, nullptr, 10);
-        else if (auto v = val("window-bits"))  a.window_bits = (unsigned)std::strtoul(v, nullptr, 10);
-        else if (auto v = val("table-threads")) a.table_threads = (unsigned)std::strtoul(v, nullptr, 10);
-        else if (auto v = val("glv"))           a.enable_glv = std::string(v) == "1" || std::string(v) == "true";
-        else if (auto v = val("passes"))        a.passes = std::atoi(v);
-        else if (auto v = val("warmup"))        a.warmup = std::atoi(v);
-        else if (auto v = val("mode"))          a.mode = v;
+        const char* value = nullptr;
+        if ((value = val("n")) != nullptr) {
+            a.n = std::strtoull(value, nullptr, 10);
+        } else if ((value = val("threads")) != nullptr) {
+            a.threads =
+                static_cast<unsigned>(std::strtoul(value, nullptr, 10));
+        } else if ((value = val("window-bits")) != nullptr) {
+            a.window_bits =
+                static_cast<unsigned>(std::strtoul(value, nullptr, 10));
+        } else if ((value = val("table-threads")) != nullptr) {
+            a.table_threads =
+                static_cast<unsigned>(std::strtoul(value, nullptr, 10));
+        } else if ((value = val("glv")) != nullptr) {
+            a.enable_glv =
+                std::string(value) == "1" || std::string(value) == "true";
+        } else if ((value = val("passes")) != nullptr) {
+            a.passes = std::atoi(value);
+        } else if ((value = val("warmup")) != nullptr) {
+            a.warmup = std::atoi(value);
+        } else if ((value = val("mode")) != nullptr) {
+            a.mode = value;
+        }
     }
     return a;
 }
@@ -235,8 +338,8 @@ static void run_legacy_pipeline(
 
     // Stage 2b: fixed-base hash*G — PER-ROW call through Point::generator().
     // scalar_mul(), which dispatches to the free function scalar_mul_generator()
-    // in precompute.cpp. THIS is the caller path the issue is about: it takes
-    // g_mutex once per row (10.36M times across `nt` threads).
+    // in precompute.cpp. THIS is the caller path the issue is about: it performs
+    // one raw atomic identity check per row across `nt` threads.
     {
         std::vector<std::thread> pool(nt);
         std::size_t chunk = n / nt;
@@ -269,7 +372,7 @@ static void run_legacy_pipeline(
 #if defined(ISSUE336_HAVE_BATCH_API)
 // ============================================================================
 // New-batch-API pipeline (v4.5.0+ only). Stage 2b uses batch_scalar_mul_
-// generator() — ONE g_mutex acquisition for the whole N-row batch instead
+// generator() — ONE context acquisition for the whole N-row batch instead
 // of N acquisitions.
 // ============================================================================
 static void run_batch_pipeline(
@@ -331,7 +434,7 @@ static void run_batch_pipeline(
     // generator() has no internal parallelism in that configuration, so a
     // single whole-N call from one thread would serialize all compute onto
     // one core). Each thread instead calls batch_scalar_mul_generator() ONCE
-    // for its own chunk: `nt` g_mutex acquisitions total instead of N in the
+    // for its own chunk: `nt` context acquisitions total instead of N in the
     // legacy per-row path — this is the realistic caller-side migration the
     // issue asks about, not a change to the caller's threading model.
     {
@@ -379,6 +482,15 @@ static void run_batch_pipeline(
 
 int main(int argc, char** argv) {
     Args args = parse_args(argc, argv);
+    if (args.n == 0 || args.threads == 0 || args.passes <= 0 ||
+        args.warmup < 0 ||
+        (args.mode != "legacy" && args.mode != "batch")) {
+        std::fprintf(
+            stderr,
+            "invalid arguments: require n>0, threads>0, passes>0, warmup>=0 "
+            "and mode=legacy|batch\n");
+        return 2;
+    }
 
     printf("============================================================\n");
     printf("  BIP-352 issue-336 replay — mode=%s\n", args.mode.c_str());
@@ -386,6 +498,9 @@ int main(int argc, char** argv) {
     printf("  N=%zu threads=%u window_bits=%u table_threads=%u glv=%d passes=%d\n\n",
            args.n, args.threads, args.window_bits, args.table_threads,
            (int)args.enable_glv, args.passes);
+    printf("  context_identity_is_always_lock_free=%d runtime_is_lock_free=%d\n\n",
+           (int)secp256k1::fast::fixed_base_context_identity_is_always_lock_free(),
+           (int)secp256k1::fast::fixed_base_context_identity_is_lock_free());
 
     secp256k1::fast::FixedBaseConfig cfg;
     cfg.window_bits  = args.window_bits;
@@ -478,26 +593,90 @@ int main(int argc, char** argv) {
 
     // "Warm second run": run once (cold, discarded), then treat everything
     // that follows as the reporter's "second query in the same session"
-    // steady state. This matches the issue's own methodology statement.
+    // steady state. Every run's entire prefix vector is folded after the
+    // pipeline returns, outside the timed region, so all N results remain
+    // observable without charging validation work to either mode.
     auto cold_t0 = Clock::now();
     run_once();
     auto cold_t1 = Clock::now();
-    printf("cold run (discarded, matches reporter's first query): %.1f ms\n",
-           elapsed_ns(cold_t0, cold_t1) / 1e6);
+    std::uint64_t const cold_checksum = fold_all_prefixes(prefixes);
+    printf(
+        "cold run (discarded, matches reporter's first query): %.1f ms "
+        "checksum=0x%016llx\n",
+        elapsed_ns(cold_t0, cold_t1) / 1e6,
+        static_cast<unsigned long long>(cold_checksum));
 
-    for (int w = 0; w < args.warmup; ++w) run_once();
+    for (int w = 0; w < args.warmup; ++w) {
+        run_once();
+        std::uint64_t const warmup_checksum = fold_all_prefixes(prefixes);
+        if (warmup_checksum != cold_checksum) {
+            std::fprintf(
+                stderr,
+                "checksum changed during warmup: cold=0x%016llx "
+                "warmup=0x%016llx\n",
+                static_cast<unsigned long long>(cold_checksum),
+                static_cast<unsigned long long>(warmup_checksum));
+            return 3;
+        }
+    }
 
     std::vector<double> times(args.passes);
+    std::uint64_t selected_checksum = 0;
     for (int p = 0; p < args.passes; ++p) {
+        ResourceSnapshot const resources_before = resource_snapshot();
         auto t0 = Clock::now();
         run_once();
         auto t1 = Clock::now();
+        ResourceSnapshot const resources_after = resource_snapshot();
         times[p] = elapsed_ns(t0, t1);
-        printf("  warm pass %2d: %8.1f ms\n", p + 1, times[p] / 1e6);
+        std::uint64_t const pass_checksum = fold_all_prefixes(prefixes);
+        if (p == 0) {
+            selected_checksum = pass_checksum;
+        } else if (pass_checksum != selected_checksum) {
+            std::fprintf(
+                stderr,
+                "checksum changed between measured passes: "
+                "expected=0x%016llx actual=0x%016llx\n",
+                static_cast<unsigned long long>(selected_checksum),
+                static_cast<unsigned long long>(pass_checksum));
+            return 3;
+        }
+        print_pass_resources(
+            p + 1,
+            times[p] / 1e6,
+            pass_checksum,
+            resources_before,
+            resources_after);
     }
     double ns_per_op = median_ns(times) / (double)args.n;
     double mps = 1e9 / ns_per_op / 1e6;
     printf("\n  median warm pass: %.1f ns/op  (%.2f M/s)\n", ns_per_op, mps);
-    printf("  validation: 0x%016lx\n", (unsigned long)prefixes[args.n - 1]);
+
+#if defined(ISSUE336_HAVE_BATCH_API)
+    // Run the other API mode once after all timing so the selected mode's
+    // cold/warm/steady sequence is not perturbed. The comparison observes all
+    // N prefixes in each mode and is a correctness gate, not a benchmark pass.
+    std::string const selected_mode = args.mode;
+    args.mode = selected_mode == "legacy" ? "batch" : "legacy";
+    run_once();
+    std::uint64_t const comparison_checksum = fold_all_prefixes(prefixes);
+    args.mode = selected_mode;
+    printf(
+        "  cross-mode checksum: %s=0x%016llx %s=0x%016llx\n",
+        selected_mode.c_str(),
+        static_cast<unsigned long long>(selected_checksum),
+        selected_mode == "legacy" ? "batch" : "legacy",
+        static_cast<unsigned long long>(comparison_checksum));
+    if (comparison_checksum != selected_checksum) {
+        std::fprintf(stderr, "legacy/batch prefix checksum mismatch\n");
+        return 3;
+    }
+#else
+    printf(
+        "  full-prefix checksum: %s=0x%016llx "
+        "(cross-mode comparison unavailable in this source revision)\n",
+        args.mode.c_str(),
+        static_cast<unsigned long long>(selected_checksum));
+#endif
     return 0;
 }

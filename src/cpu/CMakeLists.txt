@@ -1024,6 +1024,45 @@ endif()
     endif()
 endif()
 
+# Issue #336 has deterministic acquisition/lifetime diagnostics that must not
+# alter the production library or timing benchmark. Build a private object
+# containing only an instrumented precompute.cpp. Focused tests link this
+# object before the production archive, so the archive's uninstrumented
+# precompute member is not extracted. The option stays independent of
+# BUILD_TESTING because benchmark-only configurations can enable CTest as a
+# side effect.
+option(SECP256K1_BUILD_GH336_TEST_VARIANT
+    "Build the private issue-336 instrumented regression object"
+    ON)
+if(BUILD_TESTING AND SECP256K1_BUILD_GH336_TEST_VARIANT)
+    set(SECP256K1_GH336_TEST_OBJECT
+        "${SECP256K1_LIB_NAME}_gh336_test_hooks")
+    add_library(${SECP256K1_GH336_TEST_OBJECT} OBJECT EXCLUDE_FROM_ALL
+        src/precompute.cpp)
+
+    # Mirror compile-time properties of the fully configured core target.
+    # Source-level properties (including optimized precompute.cpp flags)
+    # already apply to both targets.
+    foreach(_gh336_property
+            INCLUDE_DIRECTORIES
+            COMPILE_DEFINITIONS
+            COMPILE_OPTIONS
+            COMPILE_FEATURES
+            LINK_LIBRARIES
+            POSITION_INDEPENDENT_CODE
+            INTERPROCEDURAL_OPTIMIZATION)
+        get_target_property(_gh336_value
+            ${SECP256K1_LIB_NAME} ${_gh336_property})
+        if(DEFINED _gh336_value AND
+           NOT _gh336_value MATCHES "-NOTFOUND$")
+            set_property(TARGET ${SECP256K1_GH336_TEST_OBJECT}
+                PROPERTY ${_gh336_property} "${_gh336_value}")
+        endif()
+    endforeach()
+    target_compile_definitions(${SECP256K1_GH336_TEST_OBJECT}
+        PRIVATE SECP256K1_PRECOMPUTE_TEST_HOOKS=1)
+endif()
+
 # =============================================================================
 # Benchmarks (only build if testing is enabled)
 # =============================================================================
@@ -1222,13 +1261,18 @@ if(BUILD_TESTING)
     # correctness + concurrency coverage for scalar_mul_generator /
     # batch_scalar_mul_generator's lock-free fast path (independent of full
     # test runner, matches the test_batch_add_affine_standalone pattern).
-    add_executable(test_bip352_cpu_regression_standalone
-        tests/test_bip352_cpu_regression.cpp
-    )
-    target_link_libraries(test_bip352_cpu_regression_standalone PRIVATE ${SECP256K1_LIB_NAME})
-    target_link_libraries(test_bip352_cpu_regression_standalone PRIVATE Threads::Threads)
-    target_compile_definitions(test_bip352_cpu_regression_standalone PRIVATE STANDALONE_TEST)
-    add_test(NAME bip352_cpu_regression COMMAND test_bip352_cpu_regression_standalone)
+    if(TARGET ${SECP256K1_LIB_NAME}_gh336_test_hooks)
+        add_executable(test_bip352_cpu_regression_standalone
+            tests/test_bip352_cpu_regression.cpp
+            $<TARGET_OBJECTS:${SECP256K1_LIB_NAME}_gh336_test_hooks>
+        )
+        target_link_libraries(test_bip352_cpu_regression_standalone
+            PRIVATE ${SECP256K1_LIB_NAME})
+        target_link_libraries(test_bip352_cpu_regression_standalone PRIVATE Threads::Threads)
+        target_compile_definitions(test_bip352_cpu_regression_standalone PRIVATE
+            STANDALONE_TEST SECP256K1_PRECOMPUTE_TEST_HOOKS=1)
+        add_test(NAME bip352_cpu_regression COMMAND test_bip352_cpu_regression_standalone)
+    endif()
 
     # Standalone hash accel test
     add_executable(test_hash_accel_standalone

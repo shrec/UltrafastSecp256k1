@@ -90,6 +90,35 @@ void configure_fixed_base(const FixedBaseConfig& config);
 void ensure_fixed_base_ready();
 bool fixed_base_ready();
 
+// Capability evidence for the raw context-identity atomic used by the
+// desktop fixed-base hot path. A target-host performance closure must record
+// both values from the exact optimized binary; neither function claims that
+// unrelated atomics or shared ownership operations are lock-free.
+bool fixed_base_context_identity_is_lock_free() noexcept;
+bool fixed_base_context_identity_is_always_lock_free() noexcept;
+
+#if defined(SECP256K1_PRECOMPUTE_TEST_HOOKS)
+// Test-only observation surface for issue #336. Epoch is diagnostic only;
+// production lifetime/ABA safety depends exclusively on matching the
+// published raw identity to the current thread's shared_ptr owner.
+struct PrecomputeContextDiagnostics {
+    std::uintptr_t published_identity{0};
+    std::uintptr_t tls_identity{0};
+    std::uint64_t published_epoch{0};
+    std::uint64_t tls_epoch{0};
+    std::uint64_t acquisition_calls{0};
+    unsigned published_window_bits{0};
+    unsigned tls_window_bits{0};
+    bool runtime_lock_free{false};
+    bool always_lock_free{false};
+};
+
+PrecomputeContextDiagnostics precompute_context_diagnostics();
+void precompute_test_reset_acquisition_count();
+void precompute_test_set_pause_after_acquire(bool pause);
+bool precompute_test_acquire_is_paused();
+#endif
+
 // Set the directory the engine uses to read/write its fixed-base precompute
 // cache files (cache_w{bits}[ _glv].bin). Pass an empty string to use the
 // current working directory.
