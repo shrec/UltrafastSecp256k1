@@ -14,6 +14,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The existing stateless `ufsecp_addr_p2sh` symbol remains available and
   produces byte-identical addresses.
 
+### Credited
+
+- **[@kawacukennedy](https://github.com/kawacukennedy)** for reporting 9 verified
+  issues across GPU backends (Metal, CUDA, OpenCL), API consistency, and
+  documentation accuracy ([#343](https://github.com/shrec/UltrafastSecp256k1/issues/343),
+  [#344](https://github.com/shrec/UltrafastSecp256k1/issues/344),
+  [#345](https://github.com/shrec/UltrafastSecp256k1/issues/345),
+  [#346](https://github.com/shrec/UltrafastSecp256k1/issues/346),
+  [#347](https://github.com/shrec/UltrafastSecp256k1/issues/347),
+  [#348](https://github.com/shrec/UltrafastSecp256k1/issues/348),
+  [#349](https://github.com/shrec/UltrafastSecp256k1/issues/349),
+  [#350](https://github.com/shrec/UltrafastSecp256k1/issues/350),
+  [#352](https://github.com/shrec/UltrafastSecp256k1/issues/352)).
+
 ## [4.5.0] - 2026-07-07
 
 > **Bridge-free libbitcoin integration, public-data GPU parity, and release
