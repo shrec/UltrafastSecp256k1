@@ -112,6 +112,10 @@ add_executable(metal_secp256k1_test
     app/metal_test.mm
 )
 
+target_include_directories(metal_secp256k1_test PRIVATE
+    include
+)
+
 target_link_libraries(metal_secp256k1_test PRIVATE
     secp256k1_metal_lib
     ${METAL_FRAMEWORK}
@@ -128,6 +132,10 @@ target_compile_options(metal_secp256k1_test PRIVATE
 
 add_executable(metal_secp256k1_bench_full
     app/bench_metal.mm
+)
+
+target_include_directories(metal_secp256k1_bench_full PRIVATE
+    include
 )
 
 target_link_libraries(metal_secp256k1_bench_full PRIVATE
