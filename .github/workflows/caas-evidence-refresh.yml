@@ -101,13 +101,13 @@ jobs:
 
       - name: Build shared library (required by gates inside the bundle)
         run: |
-          cmake -S . -B build-audit -G Ninja \
+          cmake -S . -B out/ci-audit -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_CXX_COMPILER=g++-14 \
             -DBUILD_TESTING=OFF \
             -DSECP256K1_BUILD_PROTOCOL_TESTS=OFF \
             -DSECP256K1_BUILD_FUZZ_TESTS=OFF
-          cmake --build build-audit --target ufsecp_shared -j $(nproc)
+          cmake --build out/ci-audit --target ufsecp_shared -j $(nproc)
 
       - name: Build project graph
         run: python3 ci/build_project_graph.py --rebuild
