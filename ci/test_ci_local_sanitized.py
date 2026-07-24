@@ -21,6 +21,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import stat
 import subprocess
@@ -76,6 +77,23 @@ DUMP_STUB = STUB_PREAMBLE + (
 
 def _read(path) -> str:
     return Path(path).read_text()
+
+
+def assert_regular_nonexec(case, p) -> None:
+    """Assert p has the Git-portable file shape of a tracked required file.
+
+    Git records such files as mode 100644 — a regular, non-executable blob —
+    but it does NOT preserve the group/other write bits, so a fresh checkout
+    may materialize 0644 (umask 0022) or 0664 (umask 0002). We therefore
+    assert only the invariant Git can actually represent — a regular, nonempty
+    file that is readable by this process and carries no executable bits —
+    rather than an exact POSIX 0644, and we never chmod tracked files.
+    """
+    st = p.stat()
+    case.assertTrue(stat.S_ISREG(st.st_mode), f"{p} is not a regular file")
+    case.assertGreater(st.st_size, 0, f"{p} empty")
+    case.assertTrue(os.access(p, os.R_OK), f"{p} not readable")
+    case.assertEqual(st.st_mode & 0o111, 0, f"{p} must carry no executable bits")
 
 
 def write_stub(sb: Path, body: str) -> None:
@@ -135,14 +153,11 @@ def git_read(args, env_overlay=None) -> subprocess.CompletedProcess:
 class WrapperTests(unittest.TestCase):
 
     # -- 1 -------------------------------------------------------------------
-    def test_01_required_files_nonempty_0644(self):
-        """Exactly the two required files exist, are nonempty and 0644 (no chmod)."""
+    def test_01_required_files_regular_nonempty_nonexec(self):
+        """The two required files exist as regular, nonempty, readable, non-executable files (Git mode 100644, portable across checkout umasks)."""
         for p in REQUIRED:
             self.assertTrue(p.is_file(), f"{p} missing")
-            self.assertGreater(p.stat().st_size, 0, f"{p} empty")
-            self.assertEqual(
-                stat.S_IMODE(p.stat().st_mode), 0o644, f"{p} must be mode 0644"
-            )
+            assert_regular_nonexec(self, p)
         # Our own delivered files must themselves be whitespace-clean
         # (git diff --check parity), asserted here without invoking chmod.
         for p in REQUIRED:
@@ -371,8 +386,8 @@ class WrapperTests(unittest.TestCase):
     # -- 12 ------------------------------------------------------------------
     def test_12_inherited_stage_count_cannot_skip_or_loop(self):
         """Forged stage/count vars cannot skip the transition, keep a function, or loop."""
-        for p in REQUIRED:  # fixture asserts 0644 without chmod
-            self.assertEqual(stat.S_IMODE(p.stat().st_mode), 0o644)
+        for p in REQUIRED:  # fixture asserts the Git-portable file shape, no chmod
+            assert_regular_nonexec(self, p)
         with tempfile.TemporaryDirectory() as td:
             sb = make_sandbox_from(td)
             write_stub(sb, DUMP_STUB)
