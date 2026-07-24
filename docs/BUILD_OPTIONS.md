@@ -4,7 +4,7 @@
 >
 > Defaults below are the **CMake declaration defaults**. Named build profiles (see [CMakePresets.json](../CMakePresets.json) and [BUILDING.md](BUILDING.md)) override many of them for a minimal footprint per coin / use case. A `cmake_dependent_option` is only honoured when its guard condition holds (otherwise it is forced off).
 
-**82 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
+**83 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
 
 ```bash
 # Example: CPU build with the shim + MuSig2, no ZK/FROST
@@ -70,6 +70,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_BUILD_BIP352` | `ON` | BIP-352 Silent Payments (scan key ECDH + output derivation) |
 | `SECP256K1_BUILD_ECIES` | `ON` | ECIES authenticated encryption (AES-256-CTR + HMAC-SHA256) |
 | `SECP256K1_BUILD_FROST` | `ON` | FROST threshold signatures (t-of-n) |
+| `SECP256K1_BUILD_GH336_TEST_VARIANT` | `ON` | Build the private issue-336 instrumented regression object |
 | `SECP256K1_BUILD_LTC_SP` | `ON` | Litecoin Silent Payments (LTC-SP, ltcsp1... paycodes, ltc1p... outputs) |
 | `SECP256K1_BUILD_MUSIG2` | `ON` | MuSig2 multi-signatures (BIP-327) |
 | `SECP256K1_BUILD_PIPPENGER` | `ON` | Pippenger MSM + comb generator mul + batch affine (large MSM algorithms) |
