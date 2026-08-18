@@ -185,6 +185,9 @@ inline constexpr const char* fastsecp256k1_libbitcoin_target() noexcept {
 }
 
 // ─── GPU availability query (discovery only, not a verify-path switch) ──────
+// Feature-test macro: consumers key compilation on this so the same source
+// builds against older ufsecp headers that lack gpu_available().
+#define UFSECP_LBTC_HAS_GPU_AVAILABLE 1
 // True iff GPU offload is actually possible for ecdsa_verify_columns /
 // schnorr_verify_columns on this process (a GPU-host provider is linked AND a
 // working device was found). A caller that would otherwise spend a pass
