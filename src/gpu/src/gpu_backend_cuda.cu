@@ -117,10 +117,20 @@ extern __global__ void schnorr_verify_collect_kernel(
     const SchnorrSignatureGPU* __restrict__ sigs,
     uint8_t*       __restrict__ key_cells,
     int count);
+/* Declaration must match the kernel definition's __restrict__ qualifiers
+ * exactly: MSVC mangles __restrict into the symbol name (Itanium does not),
+ * so a bare declaration links on gcc/clang but fails with LNK2019 on MSVC. */
 extern __global__ void frost_verify_partial_batch_kernel(
-    const uint8_t*, const uint8_t*, const uint8_t*, const uint8_t*,
-    const uint8_t*, const uint8_t*, const uint8_t*, const uint8_t*,
-    uint8_t*, int);
+    const uint8_t* __restrict__ z_i_bytes,
+    const uint8_t* __restrict__ D_i_bytes,
+    const uint8_t* __restrict__ E_i_bytes,
+    const uint8_t* __restrict__ Y_i_bytes,
+    const uint8_t* __restrict__ rho_i_bytes,
+    const uint8_t* __restrict__ lambda_i_e_bytes,
+    const uint8_t* __restrict__ negate_R,
+    const uint8_t* __restrict__ negate_key,
+    uint8_t*       __restrict__ results,
+    int count);
 extern __global__ void ecdsa_recover_batch_kernel(
     const uint8_t* __restrict__ msg_hashes,
     const ECDSASignatureGPU* __restrict__ sigs,
