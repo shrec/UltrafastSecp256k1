@@ -167,6 +167,34 @@ GPU column verify is available when:
 - At least one GPU backend (CUDA/OpenCL/Metal) is compiled
 - A compatible GPU runtime is available at startup
 
+**Caller-visible availability query (narrow, additive exception to contract 1):**
+
+`ufsecp::lbtc::gpu_available()` (`<ufsecp/libbitcoin.hpp>`) answers exactly one
+question: is GPU offload for the columns verify path actually active on this
+process. It exists so a caller can skip *building* a batch — marshalling
+digests/points/sigs into the contiguous column layout — when no GPU is present,
+rather than paying that cost only to have the verify hook decline it anyway.
+
+This is deliberately scoped narrower than it might look:
+- It does **not** change `ecdsa_verify_columns` / `schnorr_verify_columns`
+  themselves. Both keep contract 1's "no caller-visible CPU/GPU split" in full —
+  they fall back to the CPU column path transparently regardless of whether the
+  caller checked availability first, checked it and got a stale answer, or never
+  checked at all.
+- It cannot select, force, or disable a backend. It is read-only discovery.
+- It is advisory: the device state it reports can change between this call and
+  the next batch. Safety still comes from the verify path's own fallback, not
+  from calling this first.
+
+Implementation: a second hook, `GpuColumnsAvailableHook`
+(`secp256k1/batch_verify.hpp`), installed by the SAME `EngineGpuColumnsInstaller`
+static initializer as `GpuColumnsVerifyHook` (`gpu_engine_hook.cpp`) — same
+enablement condition ("is `secp256k1_gpu_host` linked"), same retained-anchor
+mechanism, and it reuses the verify hook's cached device probe rather than
+re-probing. `secp256k1::gpu_columns_available()` is the engine-level convenience
+wrapper; `ufsecp::lbtc::gpu_available()` is the libbitcoin-direct call site.
+Covered by the same `lbtc_direct_gpu_columns_hook` smoke test.
+
 When any of these conditions is not met, the engine falls back transparently
 to the deterministic CPU column path.
 

@@ -184,6 +184,25 @@ inline constexpr const char* fastsecp256k1_libbitcoin_target() noexcept {
         digests32, xonly32, sigs64, count, out_results, max_threads);
 }
 
+// ─── GPU availability query (discovery only, not a verify-path switch) ──────
+// True iff GPU offload is actually possible for ecdsa_verify_columns /
+// schnorr_verify_columns on this process (a GPU-host provider is linked AND a
+// working device was found). A caller that would otherwise spend a pass
+// marshalling digests/points/sigs into the contiguous column layout only to
+// hand it to the verify call above -- even on a box with no GPU -- can check
+// this first and skip that marshalling path entirely when it is false.
+//
+// This does NOT gate or change ecdsa_verify_columns / schnorr_verify_columns
+// themselves: they keep the existing "no caller-visible CPU/GPU split"
+// contract and fall back to the CPU column path transparently either way,
+// regardless of what this function returns. It is advisory, and its answer
+// can go stale between this call and the next batch (a device disappearing
+// mid-process); the verify path's own fallback is what keeps that safe, not
+// this check.
+[[nodiscard]] inline bool gpu_available() noexcept {
+    return secp256k1::gpu_columns_available();
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // ECDSA Signing  (CT-backed — all secret-bearing paths use ct::* primitives)
 // ══════════════════════════════════════════════════════════════════════════════

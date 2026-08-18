@@ -45,6 +45,23 @@ GpuColumnsVerifyHook install_gpu_columns_verify_hook(GpuColumnsVerifyHook hook) 
     return g_gpu_columns_hook.exchange(hook, std::memory_order_acq_rel);
 }
 
+// -- GPU availability query hook -----------------------------------------------
+// Sibling of the hook above, for caller-visible discovery only (see
+// GpuColumnsAvailableHook in secp256k1/batch_verify.hpp for the full contract).
+// Null by default; self-installed by the same GPU-host static initializer that
+// installs g_gpu_columns_hook.
+namespace { std::atomic<GpuColumnsAvailableHook> g_gpu_available_hook{nullptr}; }
+GpuColumnsAvailableHook install_gpu_available_query_hook(GpuColumnsAvailableHook hook) noexcept {
+    return g_gpu_available_hook.exchange(hook, std::memory_order_acq_rel);
+}
+
+bool gpu_columns_available() noexcept {
+    if (GpuColumnsAvailableHook hook = g_gpu_available_hook.load(std::memory_order_acquire)) {
+        return hook() == 1;
+    }
+    return false;
+}
+
 namespace detail {
 // Single process-wide persistent worker pool, lazily created on first batch-verify _mt
 // call and reused thereafter (no per-call thread spawn).
