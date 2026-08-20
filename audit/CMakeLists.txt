@@ -4586,8 +4586,10 @@ add_test(NAME regression_ct_scalar_inverse_zero
 set_tests_properties(regression_ct_scalar_inverse_zero PROPERTIES
     TIMEOUT 60 LABELS "audit;regression;ct;scalar;inverse" SKIP_RETURN_CODE 77)
 
-# GPU key-erase regression requires ufsecp_gpu symbols; only add when GPU is built.
-if(SECP256K1_BUILD_CUDA OR SECP256K1_BUILD_OPENCL OR TARGET ufsecp_gpu_host OR TARGET secp256k1_gpu_host)
+# GPU audit modules require ufsecp_gpu symbols; only enable them when the
+# concrete provider target exists (requested-but-unavailable backends do not
+# satisfy this dependency). This definition also gates BCV-5..8 below.
+if(TARGET secp256k1_gpu_host)
     target_sources(unified_audit_runner PRIVATE test_regression_gpu_key_erase_raii.cpp)
     target_compile_definitions(unified_audit_runner PRIVATE SECP256K1_BUILD_GPU_AUDIT)
 endif()
@@ -5079,16 +5081,29 @@ endif()
 add_executable(test_regression_bip352_ct_varbase_standalone
     test_regression_bip352_ct_varbase.cpp)
 audit_target_defaults(test_regression_bip352_ct_varbase_standalone)
-if(TARGET secp256k1_gpu_host)
-    target_link_libraries(test_regression_bip352_ct_varbase_standalone PRIVATE secp256k1_gpu_host)
-    target_include_directories(test_regression_bip352_ct_varbase_standalone PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
-endif()
-target_compile_definitions(test_regression_bip352_ct_varbase_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME regression_bip352_ct_varbase COMMAND test_regression_bip352_ct_varbase_standalone)
 set_tests_properties(regression_bip352_ct_varbase PROPERTIES TIMEOUT 120
     SKIP_RETURN_CODE 77
     LABELS "audit;ct_analysis;bip352;regression")
+
+# BCV-5..8 require the real GPU C ABI provider. Keep them in a distinct
+# target so the always-built BCV-1..4 CPU regression has no GPU dependency.
+if(TARGET secp256k1_gpu_host)
+    add_executable(test_regression_bip352_ct_varbase_gpu_standalone
+        test_regression_bip352_ct_varbase.cpp)
+    audit_target_defaults(test_regression_bip352_ct_varbase_gpu_standalone)
+    target_link_libraries(test_regression_bip352_ct_varbase_gpu_standalone PRIVATE
+        secp256k1_gpu_host)
+    target_include_directories(test_regression_bip352_ct_varbase_gpu_standalone PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
+    target_compile_definitions(test_regression_bip352_ct_varbase_gpu_standalone PRIVATE
+        SECP256K1_BUILD_GPU_AUDIT)
+    add_test(NAME regression_bip352_ct_varbase_gpu
+        COMMAND test_regression_bip352_ct_varbase_gpu_standalone)
+    set_tests_properties(regression_bip352_ct_varbase_gpu PROPERTIES TIMEOUT 120
+        SKIP_RETURN_CODE 77
+        LABELS "audit;ct_analysis;bip352;gpu;regression")
+endif()
 
 # Regression: point_add_mixed_complete FE52 magnitude contract (May 2026)
 # Detects: normalize_weak X1/Y1 fix must stay in place; tests mixed-add
