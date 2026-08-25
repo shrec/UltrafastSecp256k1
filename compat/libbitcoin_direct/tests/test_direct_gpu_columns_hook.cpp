@@ -3,16 +3,20 @@
 // C ABI audit path) so the direct-GPU opt-in profile carries its own acceptance
 // smoke, visible in `ctest -N` / target help as `lbtc_direct_gpu_columns_hook`.
 //
-// It asserts the engine's GpuColumnsVerifyHook is self-installed at process
-// startup — BEFORE this test installs any double — by the GPU-host self-installer
-// (EngineGpuColumnsInstaller in secp256k1_gpu_host), which this executable retains
-// at link via the targeted `--undefined=secp256k1_gpu_columns_provider_anchor`
-// anchor. A null hook here means that provider object was dropped at link and
-// "transparent GPU column verify" silently degraded to CPU-only — exactly what
-// this smoke guards. It then runs a small valid column batch through the unified
-// engine call (GPU when a device exists, transparent CPU fallback otherwise) and
-// a tampered-row fail-closed check — all through the ONE caller-visible API, with
-// no CPU/GPU split and no caller-visible GPU status.
+// It asserts the engine's GpuColumnsVerifyHook AND its sibling
+// GpuColumnsAvailableHook (caller-visible discovery, ufsecp::lbtc::gpu_available())
+// are self-installed at process startup — BEFORE this test installs any double —
+// by the GPU-host self-installer (EngineGpuColumnsInstaller in secp256k1_gpu_host),
+// which this executable retains at link via the targeted
+// `--undefined=secp256k1_gpu_columns_provider_anchor` anchor. A null hook here
+// means that provider object was dropped at link and "transparent GPU column
+// verify" (and the availability query) silently degraded to CPU-only — exactly
+// what this smoke guards. It then runs a small valid column batch through the
+// unified engine call (GPU when a device exists, transparent CPU fallback
+// otherwise) and a tampered-row fail-closed check — all through the ONE
+// caller-visible verify API, with no CPU/GPU split and no caller-visible GPU
+// status; the availability query is a separate, narrower discovery-only check
+// (see GpuColumnsAvailableHook in secp256k1/batch_verify.hpp).
 //
 // Build: linked only in the SECP256K1_BUILD_LIBBITCOIN_GPU profile with a GPU
 // backend compiled (see compat/libbitcoin_direct/CMakeLists.txt). Returns 0 on
@@ -51,6 +55,19 @@ int main() {
     secp256k1::install_gpu_columns_verify_hook(startup_hook);  // restore immediately
     check(startup_hook != nullptr,
           "GpuColumnsVerifyHook self-installed at startup by secp256k1_gpu_host (provider TU retained)");
+
+    // (1b) Same startup assertion for the sibling availability-query hook: it
+    // installs in the SAME constructor as the verify hook above, so a non-null
+    // capture here is just as much a proof the provider TU is retained. This also
+    // exercises the ufsecp::lbtc::gpu_available() call site libbitcoin-direct
+    // callers are meant to use before marshalling a batch.
+    secp256k1::GpuColumnsAvailableHook startup_available_hook =
+        secp256k1::install_gpu_available_query_hook(nullptr);
+    secp256k1::install_gpu_available_query_hook(startup_available_hook);  // restore immediately
+    check(startup_available_hook != nullptr,
+          "GpuColumnsAvailableHook self-installed at startup by secp256k1_gpu_host (provider TU retained)");
+    check(secp256k1::gpu_columns_available() == ufsecp::lbtc::gpu_available(),
+          "secp256k1::gpu_columns_available() and ufsecp::lbtc::gpu_available() agree");
 
     // (2) Transparent accelerated path: a small valid ECDSA + Schnorr column batch
     // through the unified engine surface. With the hook installed the engine

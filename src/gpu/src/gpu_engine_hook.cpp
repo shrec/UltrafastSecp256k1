@@ -21,6 +21,15 @@
  * An operational backend error is ALWAYS a decline (-1), never invalid rows
  * (fatal-not-invalid). Each backend method owns memory-bounded chunking, so the
  * full count is safe to pass straight through.
+ *
+ * This TU also self-installs a second, narrower hook: GpuColumnsAvailableHook.
+ * It answers one question -- "is a working GPU device present on this process" --
+ * so a caller can skip marshalling a batch into column layout at all when the
+ * answer is no, instead of building the batch and letting the verify hook above
+ * decline it. It reuses the SAME cached backend probe as the verify hook (no
+ * extra device I/O) and carries none of the verify path's CPU/GPU-split
+ * guarantees -- it is pure discovery, consulted only by a caller that chooses
+ * to call it before batching, never by the verify entrypoints themselves.
  * ============================================================================ */
 
 #include "secp256k1/batch_verify.hpp"   /* GpuColumnsVerifyHook + installer */
@@ -102,12 +111,30 @@ int engine_gpu_columns_hook(int kind, const std::uint8_t* digests32,
     }
 }
 
+/* Availability query trampoline for GpuColumnsAvailableHook (see
+ * secp256k1/batch_verify.hpp). Reuses the SAME lazy-probe/cache backend as
+ * engine_gpu_columns_hook above -- this never re-probes the device, it just
+ * reports whether the earlier (or this, if first) probe found one. Advisory
+ * only: never throws, never blocks on device I/O beyond the one-time probe. */
+int engine_gpu_columns_available_hook() noexcept {
+    try {
+        std::lock_guard<std::mutex> lk(g_engine_gpu_backend_mtx);
+        return engine_gpu_backend() != nullptr ? 1 : 0;
+    } catch (...) {
+        return 0;  /* treat any probe failure as "no GPU" -- advisory, never throws */
+    }
+}
+
 /* Self-install at load time. When this TU is linked (GPU host built) the engine
  * column entrypoints acquire a non-null hook automatically; a caller may still
- * override with secp256k1::install_gpu_columns_verify_hook(). */
+ * override with secp256k1::install_gpu_columns_verify_hook(). The availability
+ * query hook installs alongside it so a caller-visible discovery check is
+ * available under the exact same enablement condition as the verify hook
+ * itself ("is this provider TU linked"). */
 struct EngineGpuColumnsInstaller {
     EngineGpuColumnsInstaller() noexcept {
         secp256k1::install_gpu_columns_verify_hook(&engine_gpu_columns_hook);
+        secp256k1::install_gpu_available_query_hook(&engine_gpu_columns_available_hook);
     }
 };
 EngineGpuColumnsInstaller g_engine_gpu_columns_installer;

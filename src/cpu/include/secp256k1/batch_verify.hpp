@@ -167,6 +167,36 @@ using GpuColumnsVerifyHook = int (*)(int kind,
 // Install (nullptr clears). Thread-safe. Returns the previous hook (save/restore).
 GpuColumnsVerifyHook install_gpu_columns_verify_hook(GpuColumnsVerifyHook hook) noexcept;
 
+// -- GPU availability query hook (caller-visible discovery, verify-path opt-out only) ---
+// Null by default (pure CPU). Self-installed alongside GpuColumnsVerifyHook, by the
+// same static initializer in the GPU-host layer (src/gpu/src/gpu_engine_hook.cpp).
+//
+// This is a SEPARATE, read-only capability query -- it does not participate in
+// verification and does not weaken the "no caller-visible CPU/GPU split" contract
+// of the verify path itself (see docs/LIBBITCOIN_INTEGRATION.md): a hook decline
+// inside *_batch_verify_*_columns is still never surfaced, and this query cannot
+// be used to select or force a backend. Its only purpose is to let a caller
+// decide, BEFORE marshalling a batch into the column layout, whether GPU offload
+// is even possible on this process -- so it can skip that marshalling step
+// entirely when it is not, rather than paying to build a batch that the verify
+// hook would only decline anyway.
+//
+// Returns 1 if a GPU backend is compiled in AND a working device was found on this
+// process, 0 otherwise. The underlying probe is performed once and cached (see
+// engine_gpu_backend() in gpu_engine_hook.cpp), so repeated queries are cheap.
+using GpuColumnsAvailableHook = int (*)() noexcept;
+
+// Install (nullptr clears). Thread-safe. Returns the previous hook (save/restore).
+GpuColumnsAvailableHook install_gpu_available_query_hook(GpuColumnsAvailableHook hook) noexcept;
+
+// Convenience: true iff a GPU-host provider is linked AND has a working device.
+// False in any CPU-only build (gpu_engine_hook.cpp not linked) and in a GPU-host
+// build where no compiled backend found a usable device. Advisory only: a caller
+// that checks this and then batches is not immune to a device becoming unavailable
+// between the check and the call -- the *_batch_verify_*_columns entrypoints still
+// fall back to the CPU column path transparently either way.
+[[nodiscard]] bool gpu_columns_available() noexcept;
+
 // -- Identify Invalid Signatures ----------------------------------------------
 
 // After a batch fails, identify which signature(s) are invalid.
