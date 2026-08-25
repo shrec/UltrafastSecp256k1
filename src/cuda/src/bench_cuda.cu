@@ -812,24 +812,37 @@ BenchResult bench_jacobian_to_affine(const BenchConfig& cfg) {
 
 // Forward-declare batch kernels (defined in secp256k1.cu, namespace secp256k1::cuda)
 namespace secp256k1 { namespace cuda {
+/* Declarations must match the kernel definitions' __restrict__ qualifiers
+ * exactly: MSVC mangles __restrict into the symbol name (Itanium does not),
+ * so bare declarations link on gcc/clang but fail with LNK2019 on MSVC. */
 extern __global__ void ecdsa_sign_batch_kernel(
-    const uint8_t*, const Scalar*, ECDSASignatureGPU*, bool*, int);
+    const uint8_t* __restrict__, const Scalar* __restrict__,
+    ECDSASignatureGPU* __restrict__, bool* __restrict__, int);
 extern __global__ void ecdsa_verify_batch_kernel(
-    const uint8_t*, const JacobianPoint*, const uint8_t*, bool*, int);
+    const uint8_t* __restrict__, const JacobianPoint* __restrict__,
+    const uint8_t* __restrict__, bool* __restrict__, int);
 extern __global__ void schnorr_sign_batch_kernel(
-    const Scalar*, const uint8_t*, const uint8_t*, SchnorrSignatureGPU*, bool*, int);
+    const Scalar* __restrict__, const uint8_t* __restrict__,
+    const uint8_t* __restrict__, SchnorrSignatureGPU* __restrict__,
+    bool* __restrict__, int);
 extern __global__ void schnorr_verify_batch_kernel(
-    const uint8_t*, const uint8_t*, const SchnorrSignatureGPU*, bool*, int);
+    const uint8_t* __restrict__, const uint8_t* __restrict__,
+    const SchnorrSignatureGPU* __restrict__, bool* __restrict__, int);
 extern __global__ void ecdsa_sign_recoverable_batch_kernel(
-    const uint8_t*, const Scalar*, RecoverableSignatureGPU*, bool*, int);
+    const uint8_t* __restrict__, const Scalar* __restrict__,
+    RecoverableSignatureGPU* __restrict__, bool* __restrict__, int);
 extern __global__ void ecdsa_recover_batch_kernel(
-    const uint8_t*, const ECDSASignatureGPU*, const int*, JacobianPoint*, bool*, int);
+    const uint8_t* __restrict__, const ECDSASignatureGPU* __restrict__,
+    const int* __restrict__, JacobianPoint* __restrict__,
+    bool* __restrict__, int);
 extern __global__ void frost_verify_partial_batch_kernel(
-    const uint8_t*, const uint8_t*, const uint8_t*, const uint8_t*,
-    const uint8_t*, const uint8_t*, const uint8_t*, const uint8_t*,
-    uint8_t*, int);
+    const uint8_t* __restrict__, const uint8_t* __restrict__,
+    const uint8_t* __restrict__, const uint8_t* __restrict__,
+    const uint8_t* __restrict__, const uint8_t* __restrict__,
+    const uint8_t* __restrict__, const uint8_t* __restrict__,
+    uint8_t* __restrict__, int);
 extern __global__ void batch_jacobian_to_compressed_kernel(
-    const JacobianPoint*, uint8_t*, int);
+    const JacobianPoint* __restrict__, uint8_t* __restrict__, int);
 }} // namespace secp256k1::cuda
 
 // Helper: generate test keys and sign messages on GPU for verify benchmarks
