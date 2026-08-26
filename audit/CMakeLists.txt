@@ -5097,7 +5097,7 @@ if(TARGET secp256k1_gpu_host)
     target_include_directories(test_regression_bip352_ct_varbase_gpu_standalone PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
     target_compile_definitions(test_regression_bip352_ct_varbase_gpu_standalone PRIVATE
-        SECP256K1_BUILD_GPU_AUDIT)
+        SECP256K1_BUILD_GPU_AUDIT STANDALONE_TEST)
     add_test(NAME regression_bip352_ct_varbase_gpu
         COMMAND test_regression_bip352_ct_varbase_gpu_standalone)
     set_tests_properties(regression_bip352_ct_varbase_gpu PROPERTIES TIMEOUT 120

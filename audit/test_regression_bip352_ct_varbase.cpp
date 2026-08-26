@@ -45,7 +45,9 @@
 
 #ifndef UNIFIED_AUDIT_RUNNER
 #include <cstdio>
+#ifndef STANDALONE_TEST
 #define STANDALONE_TEST
+#endif
 #endif
 
 #include "ufsecp256k1.h"
