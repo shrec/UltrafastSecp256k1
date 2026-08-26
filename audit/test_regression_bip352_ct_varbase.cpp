@@ -46,6 +46,9 @@
 #ifndef UNIFIED_AUDIT_RUNNER
 #include <cstdio>
 #define STANDALONE_TEST
+#ifndef ADVISORY_SKIP_CODE
+#define ADVISORY_SKIP_CODE 77
+#endif
 #endif
 
 #include "ufsecp256k1.h"
@@ -60,6 +63,7 @@
 #include <string>
 
 static int g_fail = 0;
+static bool g_gpu_available = false;
 #define ASSERT_TRUE(cond, msg)  do { if (!(cond)) { std::printf("FAIL [%s]: %s\n", __func__, msg); ++g_fail; } } while(0)
 #define ASSERT_FALSE(cond, msg) do { if ( (cond)) { std::printf("FAIL [%s]: %s\n", __func__, msg); ++g_fail; } } while(0)
 
@@ -147,24 +151,96 @@ static bool bcv_oracle_expected_prefix(
     return true;
 }
 
+/* ----------------------------------------------------------------------- */
+/* Backend-selection / operational-failure logic, factored out for direct  */
+/* mutation testing -- no real GPU device required to exercise them.       */
+/* ----------------------------------------------------------------------- */
+
+// ufsecp_gpu_backend_count() reports COMPILED backends only (gpu_registry.cpp
+// s_num_backends) -- it says nothing about whether a device exists at
+// runtime. Pick the first id for which is_available(id) != 0; -1 if none.
+// Dependency-injected via a function pointer so a mutation test can exercise
+// "compiled backend present, zero runtime-available devices" without a real
+// GPU.
+static int bcv_pick_available_backend_impl(const uint32_t* ids, uint32_t cnt,
+                                            int (*is_available)(uint32_t)) {
+    for (uint32_t i = 0; i < cnt; ++i) {
+        if (is_available(ids[i])) return static_cast<int>(ids[i]);
+    }
+    return -1;
+}
+
+static int bcv_pick_available_backend(const uint32_t* ids, uint32_t cnt) {
+    return bcv_pick_available_backend_impl(ids, cnt, ufsecp_gpu_is_available);
+}
+
+// Once a backend has been selected as runtime-available, any subsequent
+// ctx-create/dispatch failure is an operational failure and must never be
+// downgraded back to an advisory skip.
+static bool bcv_ctx_failure_is_hard(bool backend_available, bool ctx_create_ok) {
+    return backend_available && !ctx_create_ok;
+}
+
+static int bcv_mock_never_available(uint32_t) { return 0; }
+
+// Mutation: a compiled backend (nonzero ufsecp_gpu_backend_count()) with
+// zero runtime-available devices must select no backend -- driving the
+// "no runtime-available provider" advisory-skip / exit-77 path, never a
+// ctx-create attempt.
+static void test_bcv_backend_selection_mutation() {
+    uint32_t ids[1] = { UFSECP_GPU_BACKEND_CUDA };
+    int picked = bcv_pick_available_backend_impl(ids, 1, bcv_mock_never_available);
+    ASSERT_TRUE(picked == -1,
+                "mutation: compiled backend present but ufsecp_gpu_is_available() "
+                "== 0 for every id must select no backend");
+}
+
+// Mutation: once a backend is selected as runtime-available, a ctx-create
+// failure must count as a hard failure, never a silent advisory skip; the
+// "no backend available" case remains the only legitimate skip path.
+static void test_bcv_ctx_failure_hard_mutation() {
+    ASSERT_TRUE(bcv_ctx_failure_is_hard(/*backend_available=*/true, /*ctx_create_ok=*/false),
+                "mutation: available backend + ctx-create failure must be a "
+                "hard failure, not downgraded to advisory skip");
+    ASSERT_FALSE(bcv_ctx_failure_is_hard(/*backend_available=*/false, /*ctx_create_ok=*/false),
+                 "sanity: no runtime-available backend is the legitimate "
+                 "advisory-skip path, not a hard failure");
+}
+
 static void test_bcv_gpu_batch_matches_cpu_oracle() {
-    // Runtime GPU availability check (advisory module — no GPU may be present).
+    // ufsecp_gpu_backend_count() reports COMPILED backends only -- it says
+    // nothing about runtime device availability. A compiled CUDA/OpenCL/
+    // Metal build with zero devices attached must still take the advisory
+    // skip path rather than attempt ctx_create and hard-fail; select the
+    // first id for which ufsecp_gpu_is_available(id) == 1 first.
     uint32_t ids[8] = {};
     uint32_t cnt = ufsecp_gpu_backend_count(ids, 8);
     if (cnt == 0) {
-        std::printf("SKIP BCV-5..8: no GPU backend available (advisory)\n");
+        std::printf("SKIP BCV-5..8: no GPU backend compiled in (advisory)\n");
         return;
     }
+    int picked = bcv_pick_available_backend(ids, cnt);
+    if (picked < 0) {
+        std::printf("SKIP BCV-5..8: %u GPU backend(s) compiled in but none "
+                    "runtime-available (advisory)\n", cnt);
+        return;
+    }
+    g_gpu_available = true;
+
     ufsecp_gpu_ctx* gctx = nullptr;
-    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, ids[0], 0);
+    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, static_cast<uint32_t>(picked), 0);
+    ASSERT_TRUE(grc == UFSECP_OK && gctx,
+                "BCV-5: GPU ctx creation must succeed once ufsecp_gpu_is_available() "
+                "reported this backend as runtime-available -- this is an "
+                "operational failure, not an availability skip");
     if (grc != UFSECP_OK || !gctx) {
-        std::printf("SKIP BCV-5: GPU ctx creation failed (advisory)\n");
         return;
     }
 
     ufsecp_ctx* ctx = nullptr;
-    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) {
-        std::printf("SKIP BCV-5: CPU ctx creation failed (advisory)\n");
+    ufsecp_error_t crc = ufsecp_ctx_create(&ctx);
+    ASSERT_TRUE(crc == UFSECP_OK && ctx, "BCV-5: CPU ctx creation must succeed");
+    if (crc != UFSECP_OK || !ctx) {
         ufsecp_gpu_ctx_destroy(gctx);
         return;
     }
@@ -307,14 +383,29 @@ static void test_bcv_gpu_batch_matches_cpu_oracle() {
 
 int test_regression_bip352_ct_varbase_run() {
     g_fail = 0;
+    g_gpu_available = false;
+    test_bcv_backend_selection_mutation();
+    test_bcv_ctx_failure_hard_mutation();
     test_bcv_cpu_correctness();
     test_bcv_gpu_batch_matches_cpu_oracle();
 
+    if (!g_gpu_available) {
+        std::printf("  BIP-352 CT variable-base regression: no runtime-available GPU "
+                    "provider on this machine -- BCV-5..8 GPU coverage not exercised\n");
+    }
     if (g_fail == 0)
         std::printf("PASS: BIP-352 CT variable-base scalar mul regression (CRIT-02)\n");
     return g_fail;
 }
 
 #ifdef STANDALONE_TEST
-int main() { return test_regression_bip352_ct_varbase_run(); }
+int main() {
+    int rc = test_regression_bip352_ct_varbase_run();
+    // No runtime-available GPU provider on this machine: BCV-1..4 (CPU path)
+    // and the pure backend-selection/ctx-failure mutation tests still ran,
+    // but BCV-5..8 GPU coverage never executed. Report that as a CTest skip
+    // (77), not a silent PASS, so GPU coverage gaps stay visible.
+    if (rc == 0 && !g_gpu_available) return ADVISORY_SKIP_CODE;
+    return rc;
+}
 #endif

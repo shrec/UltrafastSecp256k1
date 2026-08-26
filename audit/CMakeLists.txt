@@ -5075,16 +5075,41 @@ if(TARGET secp256k1_gpu_host OR SECP256K1_BUILD_OPENCL OR SECP256K1_BUILD_CUDA)
         LABELS "audit;memory_safety;gpu;regression")
 endif()
 
-# CRIT-02: BIP-352 CT variable-base scalar mul
+# -- CRIT-02: BIP-352 scan kernel CT variable-base scalar mul regression --
+# BCV-1..4 (CPU-path correctness) always run. BCV-5..8 (GPU multispend scan
+# vs. independent CPU oracle) require ufsecp_gpu_impl.cpp's real ufsecp_gpu_*
+# C ABI symbols plus the GPU backend dispatch/fallback closure. On CPU-only
+# CI, SECP256K1_BUILD_{CUDA,OPENCL,METAL} are all off, so src/gpu/CMakeLists.txt
+# never defines the secp256k1_gpu_host target at all (see its `_num_backends
+# EQUAL 0` early return) -- and include/ufsecp/CMakeLists.txt only compiles
+# ufsecp_gpu_impl.cpp into ufsecp_static/ufsecp_shared `if(TARGET
+# secp256k1_gpu_host)`. The previous `if(TARGET secp256k1_gpu_host)` guard
+# below therefore silently linked NOTHING on CPU-only CI, leaving every
+# ufsecp_gpu_* symbol this test calls undefined at link time. Fix: raw-compile
+# ufsecp_gpu_impl.cpp (+ its own ufsecp_impl.cpp + gpu_registry.cpp +
+# gpu_backend_fallback.cpp closure) directly into this target, mirroring the
+# same pattern test_c_abi_negative_standalone already uses above -- this
+# always defines the ufsecp_gpu_* C ABI regardless of which (if any) real GPU
+# backend is compiled in, and audit_wire_real_gpu_backends() below supplies
+# the SECP256K1_HAVE_{CUDA,OPENCL,METAL} defines so gpu_registry.cpp's own
+# dispatch correctly reports which backends are actually usable. At runtime,
+# test_regression_bip352_ct_varbase.cpp treats "no runtime-available GPU
+# provider" as advisory (BCV-5..8 skipped, not failed); SKIP_RETURN_CODE 77
+# below maps that case to a CTest SKIP so it is never conflated with PASS.
 add_executable(test_regression_bip352_ct_varbase_standalone
-    test_regression_bip352_ct_varbase.cpp)
+    test_regression_bip352_ct_varbase.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
 audit_target_defaults(test_regression_bip352_ct_varbase_standalone)
-if(TARGET secp256k1_gpu_host)
-    target_link_libraries(test_regression_bip352_ct_varbase_standalone PRIVATE secp256k1_gpu_host)
-    target_include_directories(test_regression_bip352_ct_varbase_standalone PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include)
-endif()
-target_compile_definitions(test_regression_bip352_ct_varbase_standalone PRIVATE STANDALONE_TEST)
+audit_wire_real_gpu_backends(test_regression_bip352_ct_varbase_standalone)
+target_include_directories(test_regression_bip352_ct_varbase_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+)
+target_compile_definitions(test_regression_bip352_ct_varbase_standalone PRIVATE UFSECP_BUILDING)
 add_test(NAME regression_bip352_ct_varbase COMMAND test_regression_bip352_ct_varbase_standalone)
 set_tests_properties(regression_bip352_ct_varbase PROPERTIES TIMEOUT 120
     SKIP_RETURN_CODE 77
