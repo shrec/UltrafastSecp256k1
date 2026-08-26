@@ -7,6 +7,12 @@
 # MSVC rather than inferring it, and compiles the full Windows GPU host path
 # (historically never built on Windows: rpcndr.h 'small' collision, GNU-only
 # --undefined retention).
+#
+# CUDA toolkit version is pinned explicitly: the hosted-runner default toolkit
+# failed resolving CICC_PATH/cicc during CMake's CUDA compiler-id step. The
+# pinned version below is the toolkit verified to ship a working
+# nvcc/cicc/ptxas set via the Jimver/cuda-toolkit network installer on
+# windows-2022 runners.
 name: Windows CUDA
 
 on:
@@ -36,18 +42,86 @@ jobs:
 
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
 
+      - name: Build and run workflow contract regression (fail-fast)
+        shell: cmd
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          if not exist out\windows-cuda mkdir out\windows-cuda
+          cl.exe /nologo /std:c++17 /EHsc /DSTANDALONE_TEST ^
+            /Fo:out\windows-cuda\ /Fe:out\windows-cuda\test_windows_cuda_workflow_contract.exe ^
+            audit\test_windows_cuda_workflow_contract.cpp
+          if errorlevel 1 (
+            echo FAIL: workflow contract regression failed to compile
+            exit /b 1
+          )
+          out\windows-cuda\test_windows_cuda_workflow_contract.exe
+          if errorlevel 1 (
+            echo FAIL: workflow contract regression reported failures
+            exit /b 1
+          )
+
       - name: Install CUDA Toolkit (compile components only)
         uses: Jimver/cuda-toolkit@3d45d157f327c09c04b50ee6ccdea2d9d017ec76 # v0.2.35
         with:
+          cuda: '12.8.1'
           method: network
-          sub-packages: '["nvcc", "crt", "cudart", "thrust", "visual_studio_integration"]'
+          sub-packages: '["nvcc", "cudart", "thrust", "visual_studio_integration"]'
+
+      - name: Fail-fast CUDA/MSVC toolchain diagnostics
+        shell: cmd
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
+          if not defined CUDA_PATH (
+            echo FAIL: CUDA_PATH is not set
+            exit /b 1
+          )
+          echo CUDA_PATH=%CUDA_PATH%
+          if not exist "%CUDA_PATH%\bin\nvcc.exe" (
+            echo FAIL: nvcc.exe not found at %CUDA_PATH%\bin\nvcc.exe
+            exit /b 1
+          )
+          if not exist "%CUDA_PATH%\nvvm\bin\cicc.exe" (
+            echo FAIL: cicc.exe not found at %CUDA_PATH%\nvvm\bin\cicc.exe
+            exit /b 1
+          )
+          if not exist "%CUDA_PATH%\bin\ptxas.exe" (
+            echo FAIL: ptxas.exe not found at %CUDA_PATH%\bin\ptxas.exe
+            exit /b 1
+          )
+          if not exist "%CUDA_PATH%\bin\nvcc.profile" (
+            echo FAIL: nvcc.profile not found at %CUDA_PATH%\bin\nvcc.profile
+            exit /b 1
+          )
+          where cl.exe
+          if errorlevel 1 (
+            echo FAIL: cl.exe not found on PATH after vcvars64.bat
+            exit /b 1
+          )
+          "%CUDA_PATH%\bin\nvcc.exe" -V
+          if errorlevel 1 (
+            echo FAIL: nvcc.exe -V failed
+            exit /b 1
+          )
+          if not exist out\windows-cuda mkdir out\windows-cuda
+          echo __global__ void ufsecp_sm89_probe_kernel() {} > out\windows-cuda\sm89_probe.cu
+          echo int main() { return 0; } >> out\windows-cuda\sm89_probe.cu
+          "%CUDA_PATH%\bin\nvcc.exe" -ccbin "cl.exe" -arch=sm_89 -c out\windows-cuda\sm89_probe.cu -o out\windows-cuda\sm89_probe.obj
+          if errorlevel 1 (
+            echo FAIL: real sm_89 CUDA compile probe failed
+            exit /b 1
+          )
+          if not exist out\windows-cuda\sm89_probe.obj (
+            echo FAIL: sm_89 CUDA compile probe produced no object file
+            exit /b 1
+          )
+          echo PASS: CUDA_PATH, nvcc, cicc, ptxas, nvcc.profile, cl.exe and sm_89 compile probe all verified.
 
       - name: Configure (MSVC + CUDA, libbitcoin minimal-node GPU profile)
         shell: cmd
         run: |
           call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
           set "CUDACXX=%CUDA_PATH%\bin\nvcc.exe"
-          cmake -S . -B build -G Ninja ^
+          cmake -S . -B out\windows-cuda\build -G Ninja ^
             -DCMAKE_BUILD_TYPE=Release ^
             -DCMAKE_CUDA_COMPILER="%CUDA_PATH%\bin\nvcc.exe" ^
             -DSECP256K1_BUILD_LIBBITCOIN=ON ^
@@ -68,10 +142,10 @@ jobs:
         shell: cmd
         run: |
           call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvars64.bat"
-          cmake --build build --target fastsecp256k1 secp256k1_gpu_host secp256k1_cuda_lib test_windows_macro_compat test_lbtc_direct_gpu_columns_hook
+          cmake --build out\windows-cuda\build --target fastsecp256k1 secp256k1_gpu_host secp256k1_cuda_lib test_windows_macro_compat test_lbtc_direct_gpu_columns_hook
 
       - name: Test (macro fixture + hook self-install retention)
         shell: cmd
         run: >
-          ctest --test-dir build --output-on-failure
+          ctest --test-dir out\windows-cuda\build --output-on-failure
           -R "cuda_windows_macro_compat|lbtc_direct_gpu_columns_hook"
