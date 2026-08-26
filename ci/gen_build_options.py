@@ -15,6 +15,7 @@ Deterministic output (no timestamps) so --check is stable.
 """
 from __future__ import annotations
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -27,6 +28,11 @@ SKIP_PARTS = {
     "out", "_research_repos", "_libsecp256k1", "third_party", "build", ".git",
     "bitcoin-core-dev", "litecoin-core-dev", "dogecoin-core-dev", "libbitcoin-system",
     ".claude", "node_modules", "cmake-build-debug", "cmake-build-release",
+    # AIWorkHub per-task runtime worktrees (.aiworkhub/runtime/worktrees/<id>/worktree):
+    # full nested repo checkouts that other concurrent tasks create and tear
+    # down while this scan runs. See _iter_cmakelists() for why they must be
+    # pruned before descending, not just filtered after the fact.
+    ".aiworkhub",
 }
 
 # Local/scratch build-output directory NAME PATTERNS, not just the exact
@@ -114,18 +120,43 @@ def parse_options(text: str):
     return out
 
 
+def _iter_cmakelists():
+    """Yield CMakeLists.txt paths under ROOT, pruning SKIP_PARTS directories
+    (including .aiworkhub) before descending into them.
+
+    Path.rglob() has no way to prune a subtree before entering it, so it would
+    still walk into .aiworkhub/runtime/worktrees/<id>/... — per-task AIWorkHub
+    checkouts that other concurrent tasks create and tear down while this scan
+    runs. Descending into one would pollute BUILD_OPTIONS.md with duplicate
+    option() entries from a nested repo copy (non-deterministic: depends on
+    which worktrees happen to exist at scan time) and risks the walk hitting a
+    directory that vanishes mid-scan. os.walk() lets us drop skipped directory
+    names from `dirnames` in place, so pruned subtrees are never entered and
+    can never race.
+    """
+    for dirpath, dirnames, filenames in os.walk(ROOT):
+        dirnames[:] = [d for d in dirnames if not _is_skipped_part(d)]
+        if "CMakeLists.txt" in filenames:
+            yield Path(dirpath) / "CMakeLists.txt"
+
+
 def collect():
     """Return {scope_label: {name: (desc, default, kind)}} deduped by richest description."""
     best: dict[str, tuple[str, str, str, str]] = {}  # name -> (desc, default, kind, scope)
     files = []
-    for p in sorted(ROOT.rglob("CMakeLists.txt")):
+    for p in sorted(_iter_cmakelists()):
         rel = p.relative_to(ROOT)
-        if any(_is_skipped_part(part) for part in rel.parts):
+        try:
+            text = p.read_text(errors="replace")
+        except OSError:
+            # Discovered by the walk, then removed before it could be read
+            # (e.g. a nested runtime worktree torn down mid-scan) — skip
+            # rather than crash the generator.
             continue
         files.append(rel)
         rel_dir = str(rel.parent) if str(rel.parent) != "." else "."
         scope = _scope_for(rel_dir)
-        for name, desc, default, kind in parse_options(p.read_text(errors="replace")):
+        for name, desc, default, kind in parse_options(text):
             prev = best.get(name)
             # keep the declaration with the longest (richest) description
             if prev is None or len(desc) > len(prev[0]):
