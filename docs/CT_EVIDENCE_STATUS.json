@@ -115,9 +115,9 @@
       "arch_compiler": "x86-64 (gcc-14, clang-17)",
       "freshness_days": 90,
       "severity": "blocking",
-      "last_verified": "2026-05-21",
+      "last_verified": "2026-08-26",
       "status": "pass",
-      "notes": "Fixed 2-iteration CT nonce loop (hedged + deterministic)."
+      "notes": "Fixed 2-iteration CT nonce loop (hedged + deterministic). Re-verified 2026-08-26 at HEAD 40072110f2494f3d9aee4a7252686c4e64844f76: RFC 6979 official vectors 2/2 PASS and randomized pairs 200/200 PASS (0 mismatches)."
     },
     {
       "id": "CT-GPU-PUBLIC-DATA-BOUNDARY",
