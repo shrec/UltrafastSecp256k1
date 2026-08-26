@@ -684,15 +684,54 @@ jobs:
         #       ADVISORY_SKIP_CODE(77) when their runtime is absent — never
         #       return 0 (false PASS). CI-012 fix.
         #   (c) Any non-shim module that failed (passed=false AND not an
-        #       advisory-77 skip) is a real regression.
+        #       advisory-77 skip) is a real regression — hard fail.
+        #   (d) An advisory module that ran and genuinely failed (return_code
+        #       not in {0, 77}) is recorded as advisory-failed and reported,
+        #       but does not by itself hard-fail this gate — only (b) and (c)
+        #       do. CI_SHIM_GATE_REPORT_POLICY_ARTIFACT_703 fix.
+        #   (e) unified_audit_runner exits non-zero whenever ANY module
+        #       fails, advisory or not — so a non-zero exit caused ONLY by
+        #       (d) cases must not re-trigger a hard fail here; only an
+        #       unexplained non-zero exit (one (b)/(c)/(d) do not fully
+        #       account for) does. This reconciles the runner's exit code
+        #       against the JSON report without contradicting policy (d) —
+        #       a rework fix for a review-caught bug where an unconditional
+        #       runner-exit-code check hard-failed the exact advisory-only
+        #       case (d) says must not hard-fail.
         run: |
           # unified_audit_runner CLI exposes --report-dir, NOT -o. It writes
           # audit_report.json in the report dir. We rename it to keep the
           # downstream artifact name stable.
+          #
+          # CI_SHIM_GATE_REPORT_POLICY_ARTIFACT_703 fix: GitHub Actions bash
+          # steps default to `set -e` (errexit). unified_audit_runner exits
+          # non-zero whenever ANY module fails, advisory or not — under
+          # errexit that used to abort this script at the invocation line
+          # itself, before the `mv` and before the classification below ever
+          # ran. A real (non-advisory) regression still failed the step, but
+          # only by accident (the raw errexit abort), and the evidence report
+          # was never renamed/retained or classified — violating "always
+          # retain and classify a valid report". Worse, an advisory-only
+          # failure (which policy (d) says must not hard-fail this gate by
+          # itself) could also trip errexit and kill the job before the
+          # classification logic below applied that policy.
+          # Fix: disable errexit only around the runner invocation, capture
+          # its exit code explicitly, then always retain/classify the report
+          # before deciding pass/fail — see (e) above for how the captured
+          # exit code is reconciled against the JSON without contradicting
+          # policy (d).
+          set +e
           ./out/ci-shim/audit/unified_audit_runner --json-only --report-dir .
+          RUNNER_RC=$?
+          set -e
+          if [ ! -s audit_report.json ]; then
+            echo "::error::Shim gate: unified_audit_runner produced no audit_report.json (exit=$RUNNER_RC) — cannot classify results, treating as a hard failure"
+            exit 1
+          fi
           mv audit_report.json shim_audit_report.json
-          python3 - <<'PYEOF'
+          python3 - "$RUNNER_RC" <<'PYEOF'
           import json, sys
+          runner_rc = int(sys.argv[1])
           with open("shim_audit_report.json") as f:
               r = json.load(f)
           # T-02 fix: modules are nested under sections[].modules[], not a flat top-level array.
@@ -741,14 +780,54 @@ jobs:
           # advisory-stubbed (advisory=true, return_code=77) by design in this build.
           failed = [m.get("id", "?") for m in modules
                     if not m.get("passed") and not m.get("advisory")]
+
+          # (d) Documented advisory-only-failure policy (CI_SHIM_GATE_REPORT_POLICY_ARTIFACT_703):
+          # an advisory module that ran and genuinely failed (passed=false, advisory=true,
+          # return_code not in {0, 77}) is neither a skip (77) nor a false-pass (0) — it is a
+          # real failure inside an advisory-only module. Per CLAUDE.md ("Advisory modules that
+          # run and fail must land under advisory_failed ... never advisory_skipped. Silent-pass
+          # advisories are prohibited"), this must be surfaced, not silenced — but it does not by
+          # itself hard-fail this gate, since the module is explicitly advisory. Only a
+          # non-advisory failure (c) or a GPU-advisory false-pass (b) hard-fails here.
+          advisory_failed = [m.get("id", "?") for m in modules
+                              if not m.get("passed") and m.get("advisory")
+                              and m.get("return_code") not in (0, 77)]
+          if advisory_failed:
+              print(f"::warning::Advisory-only module(s) failed (recorded, not hard-failing this gate by itself): {advisory_failed}")
+
           if failed:
               print(f"::error::Shim security modules FAILED: {failed}")
               sys.exit(1)
+
+          # (e) Reconcile unified_audit_runner's own exit code against what the JSON explains.
+          # The runner exits non-zero whenever ANY module fails, including a pure (d)
+          # advisory-only failure — so a non-zero runner_rc must NOT unconditionally hard-fail
+          # here, or it would silently contradict policy (d). (This exact contradiction was a
+          # review-caught bug in an earlier version of this step: an advisory-only failure with
+          # a non-zero runner exit was hard-failed here even though (d) says it must not
+          # hard-fail by itself.) A non-zero exit is allowed to pass (with a warning) ONLY when
+          # it is fully explained by classified advisory_failed entries — by this point (b) and
+          # (c) have already exited above if either applies, so an empty advisory_failed here
+          # means the non-zero exit has no classified cause at all (e.g. a crash between
+          # modules that the JSON snapshot does not capture) and must still hard-fail to avoid
+          # masking a real regression.
+          if runner_rc != 0:
+              if advisory_failed:
+                  print(f"::warning::unified_audit_runner exited {runner_rc}, fully explained by "
+                        f"{len(advisory_failed)} advisory-only failure(s) {advisory_failed} — "
+                        f"not hard-failing per documented advisory-only policy")
+              else:
+                  print(f"::error::unified_audit_runner exited {runner_rc} but no classified cause "
+                        f"(no non-advisory failure, no GPU advisory false-pass, no advisory-only "
+                        f"failure) explains it — treating as an unexplained hard failure to avoid "
+                        f"masking a real regression")
+                  sys.exit(1)
 
           advisory_skipped_count = len([m for m in modules
                                         if m.get("advisory") is True and m.get("return_code") == 77])
           print(f"::notice::Shim gate passed — "
                 f"{advisory_skipped_count} advisory-skipped (shim stubs or GPU infrastructure absent), "
+                f"{len(advisory_failed)} advisory-failed (recorded), "
                 f"0 false-pass, 0 failed")
           PYEOF
 
@@ -823,6 +902,11 @@ jobs:
         with:
           name: gate-shim-audit-${{ github.run_id }}
           path: shim_audit_report.json
+          # CI_SHIM_GATE_REPORT_POLICY_ARTIFACT_703 fix: the report is now always
+          # produced (see "Run shim security regression modules") before this step
+          # runs, or that step already hard-failed the job. A missing artifact here
+          # would mean retention silently failed — fail loudly instead of warning.
+          if-no-files-found: error
           retention-days: 365 # Match primary CAAS evidence retention for retrospective audit correlation
 
   gpu-wasm-smoke:
