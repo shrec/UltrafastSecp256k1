@@ -114,6 +114,7 @@ add_executable(metal_secp256k1_test
 
 target_include_directories(metal_secp256k1_test PRIVATE
     include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
 )
 
 target_link_libraries(metal_secp256k1_test PRIVATE
@@ -136,6 +137,7 @@ add_executable(metal_secp256k1_bench_full
 
 target_include_directories(metal_secp256k1_bench_full PRIVATE
     include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
 )
 
 target_link_libraries(metal_secp256k1_bench_full PRIVATE

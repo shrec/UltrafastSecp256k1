@@ -102,7 +102,7 @@ int test_regression_metal_snark_readiness_run() {
         "GpuError schnorr_snark_witness_batch(");
     const std::string schnorr = extract_method(
         source, "GpuError schnorr_snark_witness_batch(",
-        "GpuError bip352_scan_batch(");
+        "GpuError bip352_scan_batch_multispend(");
 
     check(readiness_guard_precedes_dispatch(ecdsa), "MSR-2",
           "ECDSA witness generation rejects an uninitialised runtime before dispatch");
