@@ -244,6 +244,8 @@ def check_db_freshness(db_path: Path, stale_hours: float) -> Check:
         for src_file in src_dir.rglob("*"):
             if not src_file.is_file():
                 continue
+            if "__pycache__" in src_file.parts or src_file.suffix in (".pyc", ".pyo"):
+                continue
             mtime = src_file.stat().st_mtime
             if newest_src is None or mtime > newest_src[0]:
                 newest_src = (mtime, str(src_file.relative_to(LIB_ROOT)))

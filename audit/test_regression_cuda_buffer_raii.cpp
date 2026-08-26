@@ -63,6 +63,27 @@ std::string extract_method(const std::string& source,
     return source.substr(begin, end - begin);
 }
 
+// Bounds a method by its own balanced-brace body instead of the name of
+// whatever happens to follow it, so renaming/reordering a neighboring
+// method cannot silently blind this check (see CBR-8 stale-marker bug).
+std::string extract_balanced_body(const std::string& source, const char* signature) {
+    const size_t begin = source.find(signature);
+    if (begin == std::string::npos) return {};
+    const size_t brace_open = source.find('{', begin);
+    if (brace_open == std::string::npos) return {};
+
+    int depth = 0;
+    for (size_t cursor = brace_open; cursor < source.size(); ++cursor) {
+        if (source[cursor] == '{') {
+            ++depth;
+        } else if (source[cursor] == '}') {
+            --depth;
+            if (depth == 0) return source.substr(begin, cursor - begin + 1);
+        }
+    }
+    return {};
+}
+
 std::string trim(const std::string& value) {
     const size_t begin = value.find_first_not_of(" \t\r\n");
     if (begin == std::string::npos) return {};
@@ -149,8 +170,8 @@ int test_regression_cuda_buffer_raii_run() {
         source, "GpuError frost_verify_partial_batch(", "GpuError ecrecover_batch(");
     const std::string ecdsa_snark = extract_method(
         source, "GpuError snark_witness_batch(", "GpuError schnorr_snark_witness_batch(");
-    const std::string schnorr_snark = extract_method(
-        source, "GpuError schnorr_snark_witness_batch(", "GpuError bip352_scan_batch(");
+    const std::string schnorr_snark = extract_balanced_body(
+        source, "GpuError schnorr_snark_witness_batch(");
 
     check(allocations_are_guarded(ecdsa), "CBR-4",
           "ECDSA verify allocations are owned across CUDA_TRY early returns");
@@ -162,6 +183,41 @@ int test_regression_cuda_buffer_raii_run() {
           "ECDSA SNARK witness allocations are owned across CUDA_TRY early returns");
     check(allocations_are_guarded(schnorr_snark), "CBR-8",
           "Schnorr SNARK witness allocations are owned across CUDA_TRY early returns");
+
+    const std::string renamed_next_fixture =
+        "GpuError schnorr_snark_witness_batch(\n"
+        "    const uint8_t* msgs32, const uint8_t* pubkeys_x32,\n"
+        "    const uint8_t* sigs64, size_t count,\n"
+        "    uint8_t* out_flat) override\n"
+        "{\n"
+        "    CUDA_TRY(cudaMalloc(&d_msgs, count * 32));\n"
+        "    CudaBufferGuard d_msgs_guard(d_msgs);\n"
+        "    CUDA_TRY(cudaMalloc(&d_out, count * 8));\n"
+        "    CudaBufferGuard d_out_guard(d_out);\n"
+        "    return GpuError::Ok;\n"
+        "}\n"
+        "\n"
+        "GpuError totally_renamed_and_reordered_scan_batch(\n"
+        "    const uint8_t* scan_privkey32, size_t count) override\n"
+        "{\n"
+        "    CUDA_TRY(cudaMalloc(&d_scan, count * 32));\n"
+        "    CudaBufferGuard d_scan_guard(d_scan);\n"
+        "    return GpuError::Ok;\n"
+        "}\n";
+    const std::string renamed_next_body = extract_balanced_body(
+        renamed_next_fixture, "GpuError schnorr_snark_witness_batch(");
+    check(allocations_are_guarded(renamed_next_body), "CBR-9",
+          "balanced-brace extraction survives the following function being renamed and reordered");
+
+    const std::string truncated_fixture =
+        "GpuError schnorr_snark_witness_batch(\n"
+        "    const uint8_t* msgs32, size_t count, uint8_t* out_flat) override\n"
+        "{\n"
+        "    CUDA_TRY(cudaMalloc(&d_msgs, count * 32));\n";
+    check(extract_balanced_body(truncated_fixture,
+                                 "GpuError schnorr_snark_witness_batch(").empty(),
+          "CBR-10",
+          "balanced-brace extraction fails closed on a missing/malformed function body");
 
     std::printf("\n  %d passed  %d failed  (total %d)\n",
                 g_pass, g_fail, g_pass + g_fail);

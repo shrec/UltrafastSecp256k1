@@ -739,6 +739,130 @@ elseif(APPLE)
     target_link_libraries(${SECP256K1_LIB_NAME} PUBLIC ${SECURITY_FRAMEWORK}
                                                         ${COREFOUNDATION_FRAMEWORK})
 endif()
+# =============================================================================
+# Portable libatomic link closure (feature-detected, transitive to consumers)
+# =============================================================================
+# Some libstdc++/libc++ atomic operations -- an is_lock_free() query on a
+# type wider than the platform's native lock-free width, or a compare/
+# exchange on such a type -- are NOT lowered to inline lock-free
+# instructions by GCC/Clang on Linux/BSD. The compiler instead emits calls
+# to runtime helpers (__atomic_is_lock_free, __atomic_load,
+# __atomic_compare_exchange, ...) that live in libatomic. fastsecp256k1 is
+# normally consumed as a static archive, so an undefined __atomic_*
+# reference only surfaces at the FINAL link of the downstream consumer, not
+# while building fastsecp256k1 itself -- and PRIVATE linkage would not fix
+# it, because PRIVATE link dependencies of a static archive are not
+# propagated to consumers.
+#
+# MSVC's <atomic> lowers to compiler intrinsics and has no libatomic
+# equivalent; Apple's libc++/libSystem never require libatomic either.
+# Attempting find_library(atomic)/target_link_libraries on those platforms
+# is itself a regression (either the library is never found, or -- worse --
+# a stale cached path forces a nonexistent dependency onto every consumer).
+# Both are excluded up front.
+#
+# Detection resolves to exactly one of three explicit states -- no state is
+# allowed to silently fall through to "assume it's fine":
+#   1. No libatomic needed    -- wide atomics already link without it.
+#   2. libatomic needed+found -- linked PUBLIC (transitive to consumers).
+#   3. Fatal configuration    -- required support cannot be resolved. A
+#      WARNING here would leave every downstream consumer link broken with
+#      an unexplained "undefined reference to __atomic_is_lock_free".
+#
+# State 2's "found" is proven by the compiler driver itself: the second
+# check_cxx_source_compiles probe below sets CMAKE_REQUIRED_LIBRARIES to the
+# logical link item `atomic` and asks the compiler to actually compile AND
+# link the wide-atomic test program against it. A successful result from
+# that probe is authoritative evidence that `-latomic` resolves through
+# this compiler's own library search path -- CMake's generic
+# find_library(atomic) is a SEPARATE, narrower search (it only looks in
+# find_library's own path list, which on multiarch/GCC-multilib Linux
+# toolchains does not always include the directory the compiler driver
+# resolves `-latomic` from). find_library() is therefore used here only to
+# obtain a full path for diagnostics/`SECP256K1_LIBATOMIC_LIBRARY` override
+# support -- never to gate State 2 itself. Requiring find_library() to
+# succeed in addition to the compiler probe reproduced exactly the
+# regression this block exists to prevent: a real GCC 14 Linux toolchain
+# where `-latomic` links fine but find_library(atomic) returns NOTFOUND,
+# turning a working toolchain into a hard configure failure.
+if(NOT MSVC AND NOT APPLE)
+    include(CheckCXXSourceCompiles)
+    include(CMakePushCheckState)
+
+    set(_SECP256K1_ATOMIC_TEST_SOURCE "
+#include <atomic>
+#include <cstdint>
+struct SecpWideAtomicPayload { std::uint64_t lo; std::uint64_t hi; };
+int main() {
+    std::atomic<SecpWideAtomicPayload> wide{};
+    std::atomic<std::uint64_t> narrow{0};
+    bool ok = wide.is_lock_free() || narrow.is_lock_free();
+    SecpWideAtomicPayload expected{};
+    SecpWideAtomicPayload desired{1, 1};
+    ok = ok && wide.compare_exchange_strong(expected, desired);
+    return ok ? 0 : 1;
+}
+")
+
+    # cmake_push_check_state(RESET) isolates CMAKE_REQUIRED_* from whatever
+    # earlier checks in this configure run may have left set, and restores
+    # the caller's state on cmake_pop_check_state() -- so this block can
+    # never leak CMAKE_REQUIRED_LIBRARIES into checks that run after it.
+    cmake_push_check_state(RESET)
+    check_cxx_source_compiles("${_SECP256K1_ATOMIC_TEST_SOURCE}"
+        SECP256K1_ATOMICS_LINK_WITHOUT_LIBATOMIC)
+    cmake_pop_check_state()
+
+    if(SECP256K1_ATOMICS_LINK_WITHOUT_LIBATOMIC)
+        # State 1: no libatomic needed.
+        message(STATUS "Secp256k1: atomics resolve without libatomic on ${CMAKE_CXX_COMPILER_ID}")
+    else()
+        cmake_push_check_state(RESET)
+        set(CMAKE_REQUIRED_LIBRARIES atomic)
+        check_cxx_source_compiles("${_SECP256K1_ATOMIC_TEST_SOURCE}"
+            SECP256K1_ATOMICS_LINK_WITH_LIBATOMIC)
+        cmake_pop_check_state()
+
+        if(NOT SECP256K1_ATOMICS_LINK_WITH_LIBATOMIC)
+            # State 3: unresolved even with -latomic -- fatal, not a silent
+            # "assume it's fine" fallback. This is the only remaining fatal
+            # branch; a successful probe just above is now authoritative for
+            # State 2, so there is no separate "found but unlocatable" fatal
+            # case left to reach.
+            message(FATAL_ERROR
+                "Secp256k1: wide/misaligned std::atomic operations do not link "
+                "either with or without libatomic on ${CMAKE_CXX_COMPILER_ID} "
+                "(${CMAKE_CXX_COMPILER}). This toolchain cannot satisfy the "
+                "atomic support fastsecp256k1 requires.")
+        endif()
+
+        # State 2: needed and proven linkable by the compiler driver itself
+        # (the probe above just succeeded with CMAKE_REQUIRED_LIBRARIES=atomic,
+        # i.e. `-latomic` compiled AND linked a real executable). Link the
+        # same logical item PUBLIC (not PRIVATE): fastsecp256k1 is usually a
+        # static archive, and PRIVATE link dependencies of a static archive
+        # are never propagated to consumers, which would reproduce the
+        # original "lost fix" regression at the downstream consumer's link
+        # step. find_library() is attempted only to log a concrete path when
+        # available (and to honor a pre-set -DSECP256K1_LIBATOMIC_LIBRARY=
+        # override) -- its result never gates whether libatomic is linked,
+        # since the compile+link probe above already proved `-latomic`
+        # resolves through this compiler's own driver/search path.
+        find_library(SECP256K1_LIBATOMIC_LIBRARY atomic)
+        if(SECP256K1_LIBATOMIC_LIBRARY)
+            target_link_libraries(${SECP256K1_LIB_NAME} PUBLIC
+                "${SECP256K1_LIBATOMIC_LIBRARY}")
+            message(STATUS "Secp256k1: libatomic linked PUBLIC (transitive) via '${SECP256K1_LIBATOMIC_LIBRARY}' -- required for wide/misaligned atomics on ${CMAKE_CXX_COMPILER_ID}")
+        else()
+            target_link_libraries(${SECP256K1_LIB_NAME} PUBLIC atomic)
+            message(STATUS "Secp256k1: libatomic linked PUBLIC (transitive) via compiler-driver logical link item 'atomic' (find_library could not resolve a full path, but the compile+link probe above proved -latomic resolves) -- required for wide/misaligned atomics on ${CMAKE_CXX_COMPILER_ID}")
+        endif()
+    endif()
+elseif(MSVC)
+    message(STATUS "Secp256k1: libatomic detection skipped (MSVC has no libatomic; <atomic> lowers to compiler intrinsics)")
+else()
+    message(STATUS "Secp256k1: libatomic detection skipped (Apple libc++/libSystem never require libatomic)")
+endif()
 
 # Optional OpenMP support — OFF by default to preserve zero-dependency builds.
 # Enable with: cmake -DSECP256K1_ENABLE_OPENMP=ON
@@ -1394,6 +1518,19 @@ if(BUILD_TESTING)
     )
     target_link_libraries(test_edge_cases_standalone PRIVATE ${SECP256K1_LIB_NAME})
     target_compile_definitions(test_edge_cases_standalone PRIVATE STANDALONE_TEST)
+
+    # -- libatomic transitive link closure regression --------------------
+    # Intentionally links ONLY against ${SECP256K1_LIB_NAME} (never adds
+    # `atomic` directly) to prove the PUBLIC libatomic propagation above
+    # reaches downstream consumers. If that propagation regresses to
+    # PRIVATE, is dropped, or is wrongly forced on MSVC/Apple, this target
+    # fails at LINK time on the affected platform.
+    add_executable(test_atomic_link_closure_standalone
+        tests/test_atomic_link_closure.cpp
+    )
+    target_link_libraries(test_atomic_link_closure_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_atomic_link_closure_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME atomic_link_closure COMMAND test_atomic_link_closure_standalone)
     add_test(NAME edge_cases COMMAND test_edge_cases_standalone)
 
     # -- Ethereum signing layer tests (conditional) ---------------------------
@@ -1505,7 +1642,7 @@ if(BUILD_TESTING)
     if(SECP256K1_BUILD_ETHEREUM)
         list(APPEND CORE_TESTS ethereum)
     endif()
-    list(APPEND CORE_TESTS wallet zk_proofs ecies sha bip141_143_144 bip342 ffi_coverage perf_schnorr_correctness)
+    list(APPEND CORE_TESTS wallet zk_proofs ecies sha bip141_143_144 bip342 ffi_coverage perf_schnorr_correctness atomic_link_closure)
     set_tests_properties(${CORE_TESTS} PROPERTIES LABELS "core")
 
     # -- Audit infrastructure lives in audit/ ------------------------------
