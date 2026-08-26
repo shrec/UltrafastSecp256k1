@@ -409,25 +409,53 @@ def test_ci_gate_detect_push_uses_before_sha_not_base():
         check(False, "CI-GATE-BASELINE-0: ci_gate_detect module loads")
         return
 
+    _GIT_ID_ENV = {
+        "GIT_AUTHOR_EMAIL": "test@example.com",
+        "GIT_AUTHOR_NAME": "test",
+        "GIT_COMMITTER_EMAIL": "test@example.com",
+        "GIT_COMMITTER_NAME": "test",
+    }
+
     def run_git(cwd: str, *args: str) -> str:
-        r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
+        env = dict(os.environ)
+        env.update(_GIT_ID_ENV)
+        r = subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True, env=env)
         if r.returncode != 0:
             raise RuntimeError(f"git {' '.join(args)} failed: {r.stderr}")
         return r.stdout.strip()
+
+    def _assert_fsck(tmpdir: str) -> None:
+        """Run git fsck and return True - raises on failure."""
+        run_git(tmpdir, "fsck", "--full", "--no-dangling")
+        (Path(tmpdir) / ".git" / "fsck-ok").write_text("1\n")
 
     files_before_sha: set = set()
     files_base_fallback: set = set()
     try:
         with tempfile.TemporaryDirectory() as tmpdir:
-            run_git(tmpdir, "init", "-q")
-            run_git(tmpdir, "config", "user.email", "test@example.com")
-            run_git(tmpdir, "config", "user.name", "test")
+            # ── Portable .git bootstrap (no git-init / git-config chmod) ──
+            # git init internally runs `git config core.filemode …` which
+            # creates .git/config.lock and calls chmod(2).  Under overlayfs
+            # with Landlock the chmod fails with EACCES.  Create the minimal
+            # .git directory by hand so every subsequent plumbing command
+            # (add, commit, branch, checkout, rev-parse, fsck, …) works
+            # without touching config.lock.
+            dot_git = Path(tmpdir) / ".git"
+            for d in ("objects/info", "objects/pack", "refs/heads", "refs/tags"):
+                (dot_git / d).mkdir(parents=True, exist_ok=True)
+            (dot_git / "config").write_text(
+                "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n"
+                "\tbare = false\n\tlogallrefupdates = true\n"
+            )
+            (dot_git / "HEAD").write_text("ref: refs/heads/main\n")
+            (dot_git / "description").write_text("caas-git-baseline-fixture\n")
 
             # M1: shared ancestor commit (stands in for the tip of `main`).
             (Path(tmpdir) / "common.txt").write_text("m1\n", encoding="utf-8")
             run_git(tmpdir, "add", "common.txt")
             run_git(tmpdir, "commit", "-q", "-m", "M1")
-            run_git(tmpdir, "branch", "-M", "main")
+            sha_m1 = run_git(tmpdir, "rev-parse", "HEAD")
+            _assert_fsck(tmpdir)
 
             # dev diverges from main: D1 was already on dev BEFORE this push;
             # D2 is the commit introduced by the push under test.
@@ -435,11 +463,47 @@ def test_ci_gate_detect_push_uses_before_sha_not_base():
             (Path(tmpdir) / "dev_only_old.txt").write_text("d1\n", encoding="utf-8")
             run_git(tmpdir, "add", "dev_only_old.txt")
             run_git(tmpdir, "commit", "-q", "-m", "D1 (already on dev before this push)")
-            before_sha = run_git(tmpdir, "rev-parse", "HEAD")
+            sha_d1 = run_git(tmpdir, "rev-parse", "HEAD")
+            before_sha = sha_d1
+            _assert_fsck(tmpdir)
 
             (Path(tmpdir) / "dev_new.txt").write_text("d2\n", encoding="utf-8")
             run_git(tmpdir, "add", "dev_new.txt")
             run_git(tmpdir, "commit", "-q", "-m", "D2 (this push)")
+            sha_d2 = run_git(tmpdir, "rev-parse", "HEAD")
+            _assert_fsck(tmpdir)
+
+            # ── Git invariant proofs (exact, not substring-only) ──
+            check(
+                run_git(tmpdir, "show-ref", "--hash", "refs/heads/main") == sha_m1,
+                "CI-GATE-BASELINE-FS-1: show-ref main == M1",
+                f"main={run_git(tmpdir, 'show-ref', '--hash', 'refs/heads/main')!r} M1={sha_m1!r}",
+            )
+            check(
+                run_git(tmpdir, "show-ref", "--hash", "refs/heads/dev") == sha_d2,
+                "CI-GATE-BASELINE-FS-2: show-ref dev == D2",
+                f"dev={run_git(tmpdir, 'show-ref', '--hash', 'refs/heads/dev')!r} D2={sha_d2!r}",
+            )
+            check(
+                run_git(tmpdir, "symbolic-ref", "HEAD") == "refs/heads/dev",
+                "CI-GATE-BASELINE-FS-3: symbolic HEAD is dev",
+                f"HEAD={run_git(tmpdir, 'symbolic-ref', 'HEAD')!r}",
+            )
+            check(
+                run_git(tmpdir, "merge-base", "main", "dev") == sha_m1,
+                "CI-GATE-BASELINE-FS-4: merge-base main dev == M1",
+                f"merge-base={run_git(tmpdir, 'merge-base', 'main', 'dev')!r} M1={sha_m1!r}",
+            )
+            revlist = run_git(tmpdir, "rev-list", "--first-parent", "dev").split()
+            check(
+                revlist == [sha_d2, sha_d1, sha_m1],
+                "CI-GATE-BASELINE-FS-5: rev-list --first-parent dev == [D2, D1, M1]",
+                f"got {revlist}",
+            )
+            check(
+                run_git(tmpdir, "status", "--porcelain") == "",
+                "CI-GATE-BASELINE-FS-6: working tree is clean",
+            )
 
             old_root = mod.LIB_ROOT
             mod.LIB_ROOT = Path(tmpdir)
