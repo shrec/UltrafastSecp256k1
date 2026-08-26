@@ -571,6 +571,11 @@ static void test_bip352_multispend_gpu(ufsecp_ctx* cpu_ctx) {
  * or a misplaced #else from masking a guard regression. This is not a full
  * Metal `.air`/.metallib compile; it would have caught the original
  * "Undefined symbol ct_ecdsa_sign_metal" link failure from issue #335. */
+#ifdef _WIN32
+#  define popen  _popen
+#  define pclose _pclose
+#endif
+
 static bool run_cpp_capture(const std::string& cmd, std::string& out) {
     FILE* fp = popen(cmd.c_str(), "r");
     if (!fp) return false;

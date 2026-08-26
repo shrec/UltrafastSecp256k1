@@ -117,6 +117,11 @@ static std::string self_exe_path() {
 // successfully-spawned `nm` (e.g. "no symbols") still returns true here so
 // the caller can inspect output text rather than rely on exit code, which
 // varies across nm implementations for the "no symbols found" case.
+#ifdef _WIN32
+#  define popen  _popen
+#  define pclose _pclose
+#endif
+
 static std::pair<bool, std::string> run_capture(const std::string& cmd) {
     std::string full = cmd + " 2>&1";
     FILE* p = popen(full.c_str(), "r");
