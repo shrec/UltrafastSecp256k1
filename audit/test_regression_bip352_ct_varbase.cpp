@@ -45,11 +45,15 @@
 
 #ifndef UNIFIED_AUDIT_RUNNER
 #include <cstdio>
+#ifndef STANDALONE_TEST
 #define STANDALONE_TEST
+#endif
 #endif
 
 #include "ufsecp256k1.h"
+#if defined(SECP256K1_BUILD_GPU_AUDIT)
 #include "ufsecp/ufsecp_gpu.h"
+#endif
 
 #include <cstring>
 #include <cstdio>
@@ -106,6 +110,10 @@ static void test_bcv_cpu_correctness() {
 /* BCV-5..8: independent CPU-oracle byte-exact equality, limb-boundary keys */
 /* ----------------------------------------------------------------------- */
 
+#if defined(SECP256K1_BUILD_GPU_AUDIT)
+
+static bool g_gpu_advisory_skip = false;
+
 // Deterministic (not cryptographically random) byte fill -- reproducible
 // across runs/machines, matching the pattern used elsewhere in this audit
 // suite (e.g. audit/test_gpu_bip352_scan.cpp's fill_det).
@@ -153,18 +161,34 @@ static void test_bcv_gpu_batch_matches_cpu_oracle() {
     uint32_t cnt = ufsecp_gpu_backend_count(ids, 8);
     if (cnt == 0) {
         std::printf("SKIP BCV-5..8: no GPU backend available (advisory)\n");
+        g_gpu_advisory_skip = true;
         return;
     }
+
+    uint32_t backend_id = UFSECP_GPU_BACKEND_NONE;
+    for (uint32_t i = 0; i < cnt && i < 8; ++i) {
+        if (ufsecp_gpu_is_available(ids[i])) {
+            backend_id = ids[i];
+            break;
+        }
+    }
+    if (backend_id == UFSECP_GPU_BACKEND_NONE) {
+        std::printf("SKIP BCV-5..8: no GPU device available (advisory)\n");
+        g_gpu_advisory_skip = true;
+        return;
+    }
+
     ufsecp_gpu_ctx* gctx = nullptr;
-    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, ids[0], 0);
+    ufsecp_error_t grc = ufsecp_gpu_ctx_create(&gctx, backend_id, 0);
+    ASSERT_TRUE(grc == UFSECP_OK && gctx, "BCV-5: GPU ctx creation must succeed for an available device");
     if (grc != UFSECP_OK || !gctx) {
-        std::printf("SKIP BCV-5: GPU ctx creation failed (advisory)\n");
         return;
     }
 
     ufsecp_ctx* ctx = nullptr;
-    if (ufsecp_ctx_create(&ctx) != UFSECP_OK || !ctx) {
-        std::printf("SKIP BCV-5: CPU ctx creation failed (advisory)\n");
+    ufsecp_error_t crc = ufsecp_ctx_create(&ctx);
+    ASSERT_TRUE(crc == UFSECP_OK && ctx, "BCV-5: CPU oracle ctx creation must succeed");
+    if (crc != UFSECP_OK || !ctx) {
         ufsecp_gpu_ctx_destroy(gctx);
         return;
     }
@@ -245,6 +269,7 @@ static void test_bcv_gpu_batch_matches_cpu_oracle() {
     const int spend_counts[] = {1, 2, 3, MAX_SPEND};
     int cells_checked = 0;
     bool any_supported = false;
+    bool all_unsupported = true;
     for (const auto& sk_case : scan_keys) {
         uint8_t scan_pubkey33[33] = {};
         if (ufsecp_pubkey_create(ctx, sk_case.sk, scan_pubkey33) != UFSECP_OK) {
@@ -257,6 +282,7 @@ static void test_bcv_gpu_batch_matches_cpu_oracle() {
                 gctx, sk_case.sk, &spend_pk[0][0], static_cast<size_t>(n_spend),
                 tweak_pk, MAX_TWEAKS, matrix.data());
             if (rc == UFSECP_ERR_GPU_UNSUPPORTED) continue; // backend doesn't implement this op
+            all_unsupported = false;
             ASSERT_TRUE(rc == UFSECP_OK, "BCV-6: GPU multispend scan must return UFSECP_OK");
             if (rc != UFSECP_OK) continue;
             any_supported = true;
@@ -296,20 +322,29 @@ static void test_bcv_gpu_batch_matches_cpu_oracle() {
                     "oracle cells checked\n",
                     static_cast<int>(scan_keys.size()), cells_checked);
         ASSERT_TRUE(cells_checked > 0, "BCV-6b: at least one oracle cell must have been checked");
-    } else {
+    } else if (all_unsupported) {
         std::printf("SKIP BCV-5..8: bip352_scan_batch_multispend unsupported on every "
                     "available GPU backend (advisory)\n");
+        g_gpu_advisory_skip = true;
     }
 
     ufsecp_ctx_destroy(ctx);
     ufsecp_gpu_ctx_destroy(gctx);
 }
+#endif
 
 int test_regression_bip352_ct_varbase_run() {
     g_fail = 0;
     test_bcv_cpu_correctness();
+#if defined(SECP256K1_BUILD_GPU_AUDIT)
+    g_gpu_advisory_skip = false;
     test_bcv_gpu_batch_matches_cpu_oracle();
+#endif
 
+#if defined(SECP256K1_BUILD_GPU_AUDIT) && defined(STANDALONE_TEST)
+    if (g_fail == 0 && g_gpu_advisory_skip)
+        return 77;
+#endif
     if (g_fail == 0)
         std::printf("PASS: BIP-352 CT variable-base scalar mul regression (CRIT-02)\n");
     return g_fail;
