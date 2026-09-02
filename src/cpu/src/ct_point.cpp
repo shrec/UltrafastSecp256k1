@@ -178,6 +178,106 @@ inline JacFE52 jac_add_ge_var_zr(const JacFE52& a,
     return {x3, y3, z3};
 }
 
+#if defined(REPSEARCH_COZ_TABLE) && REPSEARCH_COZ_TABLE == 1
+// --- co-Z table construction (EXPERIMENT ONLY) -------------------------------
+// experiments/representation_search. Not compiled in a default build; selected
+// by -DREPSEARCH_COZ_TABLE=1. Same transformation already applied to
+// build_glv52_table_zr in point.cpp, here on the ct:: track's table.
+//
+// jac_add_ge_var_zr above spends four of its eleven heavy operations bridging
+// two different Z values -- z1sq, bx*z1sq, z1cu, by*z1cu. If both operands
+// already share a Z, that bridge does not exist: 5M+2S instead of 8M+3S.
+//
+// Verified before it was written: the Python model in
+// experiments/representation_search/repsearch/tablebuild.py builds the table
+// both ways and checks they denote the same points against repeated affine
+// addition, over table sizes 2..32 and 8 curve points.
+
+// DBLU: double a Jacobian point AND hand back P re-expressed on the new Z.
+// The co-Z copy of P is free: D = 4*X*Y^2 and 8*Y^4 are exactly X and Y scaled
+// by (2Y)^2 and (2Y)^3, and the doubling computes both already. Only the new Z
+// picks up a factor Z, so Z_new = 2*Y*Z. 2M+5S.
+inline void jac52_dblu_ct(const FE52& x, const FE52& y, const FE52& zin,
+                          FE52& out_dx, FE52& out_dy,
+                          FE52& out_px, FE52& out_py,
+                          FE52& out_z) noexcept {
+    FE52 const A = x.square();
+    FE52 const B = y.square();
+    FE52 const C = B.square();
+
+    FE52 t = x + B;
+    t = t.square();
+    t.add_assign(A.negate(1));
+    t.add_assign(C.negate(1));
+    FE52 D = t; D.add_assign(t);            // D = 4XB = X on the new Z
+
+    FE52 E = A; E.mul_int_assign(3);
+    FE52 const F = E.square();
+
+    FE52 twoD = D; twoD.add_assign(D);
+    FE52 X2 = F; X2.add_assign(twoD.negate(20));
+
+    FE52 dmx = D; dmx.add_assign(X2.negate(22));
+    FE52 Y2 = E * dmx;
+    FE52 eightC = C; eightC.mul_int_assign(8);   // 8Y^4 = Y on the new Z
+    Y2.add_assign(eightC.negate(8));
+
+    FE52 Z = y; Z.add_assign(y);
+    Z.mul_assign(zin);                       // Z_new = 2*Y*Z
+
+    // One normalize per table build, so every magnitude downstream starts clean.
+    X2.normalize_weak(); Y2.normalize_weak();
+    D.normalize_weak();  eightC.normalize_weak(); Z.normalize_weak();
+
+    out_dx = X2; out_dy = Y2;      // 2P
+    out_px = D;  out_py = eightC;  // P, on the same Z
+    out_z  = Z;
+}
+
+// ZADDU: (P, Q) sharing Z -> (P+Q, P) both on the new Z, plus the Z-ratio.
+//
+// OPERAND ORDER IS LOAD-BEARING: this returns its FIRST operand on the new Z.
+// The caller's accumulator is replaced by the sum anyway, so the operand that
+// must survive is the constant 2P -- pass it FIRST. The other order still
+// produces a correct table and costs 3M+1S per step to rescale, which no
+// correctness test would catch.
+//
+// x1/y1 are always magnitude 1 here: from the normalized DBLU on the first
+// iteration, and from B = x1*A (a multiply output) on every one after, so
+// negate(1) is exact rather than merely safe.
+inline bool jac52_zaddu_ct(FE52& x1, FE52& y1,
+                           const FE52& x2, const FE52& y2,
+                           FE52& z,
+                           FE52& sum_x, FE52& sum_y, FE52& zr_out) noexcept {
+    FE52 dx = x2; dx.add_assign(x1.negate(1));
+    if (dx.normalizes_to_zero_var()) return false;   // X1 == X2: ZADDU undefined
+    FE52 dy = y2; dy.add_assign(y1.negate(1));
+
+    FE52 const A = dx.square();
+    FE52 const B = x1 * A;                 // X1 on the new Z
+    FE52 const C = x2 * A;
+    FE52 const D = dy.square();
+
+    FE52 x3 = D;
+    x3.add_assign(B.negate(1));
+    x3.add_assign(C.negate(1));            // X3 = D - B - C, mag 5
+
+    FE52 cb = C; cb.add_assign(B.negate(1));
+    FE52 const y1cb = y1 * cb;             // Y1 on the new Z
+
+    FE52 bx3 = B; bx3.add_assign(x3.negate(5));
+    FE52 y3 = dy * bx3;
+    y3.add_assign(y1cb.negate(1));         // Y3 = dy(B - X3) - Y1cb, mag 3
+
+    zr_out = dx;                           // Z_new / Z_old
+    z.mul_assign(dx);
+
+    sum_x = x3; sum_y = y3;
+    x1 = B; y1 = y1cb;                     // P on the new Z
+    return true;
+}
+#endif  // REPSEARCH_COZ_TABLE
+
 // --- FE52 Field Inversion ---------------------------------------------------
 // Delegates to FieldElement52::inverse() which uses the optimal Fermat
 // addition chain (253S + 14M).  When SECP256K1_HYBRID_4X64_ACTIVE is
@@ -1565,6 +1665,34 @@ CTScalarMulTables build_scalar_mul_tables(const Point& p) noexcept {
     constexpr unsigned GROUP_SIZE = 5;
     constexpr unsigned TABLE_SIZE = 1u << (GROUP_SIZE - 1);
 
+    JacFE52 iso[TABLE_SIZE];
+    FE52 zr[TABLE_SIZE];
+
+#if defined(REPSEARCH_COZ_TABLE) && REPSEARCH_COZ_TABLE == 1
+    // ---- co-Z chain (EXPERIMENT ONLY) -----------------------------------
+    // Same table, same shared-global-Z contract, same backward sweep below.
+    // The accumulator and the constant 2P are kept on ONE Z, so the four heavy
+    // operations jac_add_ge_var_zr spends bridging two Z values never happen,
+    // and the iso-curve mapping (C, C^2, C^3 plus two multiplies) is not needed
+    // at all -- the chain works on the curve directly.
+    FE52 dX, dY, aX, aY, chainZ;
+    jac52_dblu_ct(p.X52(), p.Y52(), p.Z52(), dX, dY, aX, aY, chainZ);
+
+    iso[0] = { aX, aY, chainZ };
+    zr[0] = FE52::one();   // never read by the sweep
+
+    for (std::size_t i = 1; i < TABLE_SIZE; ++i) {
+        FE52 sx, sy;
+        // (d, acc): d FIRST, so ZADDU hands it back on the new Z for free.
+        if (!jac52_zaddu_ct(dX, dY, aX, aY, chainZ, sx, sy, zr[i])) return out;
+        aX = sx;
+        aY = sy;
+        iso[i] = { aX, aY, chainZ };
+    }
+
+    // No isomorphism to undo: the shared Z is the Z the chain ended on.
+    out.global_z = chainZ;
+#else
     Point p2 = p;
     p2.dbl_inplace();
     FE52 const C  = p2.Z52();
@@ -1573,13 +1701,12 @@ CTScalarMulTables build_scalar_mul_tables(const Point& p) noexcept {
     FE52 const d_x = p2.X52();
     FE52 const d_y = p2.Y52();
 
-    JacFE52 iso[TABLE_SIZE];
     iso[0] = { p.X52() * C2, p.Y52() * C3, p.Z52() };
-    FE52 zr[TABLE_SIZE];
     for (std::size_t i = 1; i < TABLE_SIZE; ++i)
         iso[i] = jac_add_ge_var_zr(iso[i - 1], d_x, d_y, &zr[i]);
 
     out.global_z = iso[TABLE_SIZE - 1].z * C;
+#endif  // REPSEARCH_COZ_TABLE
     const FE52& beta = get_beta_fe52();
 
     out.pre_a[TABLE_SIZE - 1].x = iso[TABLE_SIZE - 1].x;
