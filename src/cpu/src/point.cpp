@@ -1392,7 +1392,16 @@ static void derive_phi52_table(
     for (int i = 0; i < table_size; i++) {
         tbl_phiP[i].x = tbl_P[i].x * kBeta52_pt;
         if (flip_phi) {
-            // negate(1) gives magnitude 1 — normalize_weak() is redundant.
+            // negate(1) yields magnitude 2, NOT 1 -- an earlier comment here
+            // claimed 1, which is false and is exactly the kind of wrong
+            // magnitude claim that leads to a silent underflow elsewhere
+            // (see GitHub #396, #397). The normalize_weak is nonetheless
+            // redundant, for the real reason: every consumer of tbl_phiP[i].y
+            // is either a multiply (which accepts any magnitude inside the
+            // accumulator bound and returns magnitude 1) or a
+            // conditional_negate_assign at magnitude 1, which is an exact
+            // involution of this negate. No negate() call site downstream
+            // declares a magnitude this value could exceed.
             tbl_phiP[i].y = tbl_P[i].y.negate(1);
         } else {
             tbl_phiP[i].y = tbl_P[i].y;
@@ -3578,11 +3587,19 @@ void Point::batch_scalar_mul_fixed_k(const KPlan& plan,
                 if (d1 != 0) {
                     const size_t idx = static_cast<size_t>(
                         (d1 > 0 ? d1 - 1 : -d1 - 1) / 2);
+                    // Signed-digit add without materialising the entry. The
+                    // manual form copied two 40-byte FE52s, negated, and then
+                    // normalize_weak'd on every negative digit -- about 21.5 of
+                    // the ~129 wNAF positions per GLV half. add_mixed52_neg_inplace
+                    // folds the sign into the add itself and takes the table
+                    // entries by const reference, so the copies go too. This is
+                    // the same shape multiscalar.cpp already uses, which this
+                    // function's own comment says it was adapted from.
                     for (size_t i = 0; i < chunk_n; ++i) {
-                        FE52 lx = s_tbl_P_x[i * table_size + idx];
-                        FE52 ly = s_tbl_P_y[i * table_size + idx];
-                        if (d1 < 0) { ly.negate_assign(1); ly.normalize_weak(); }
-                        s_acc[i].add_mixed52_inplace(lx, ly);
+                        const FE52& lx = s_tbl_P_x[i * table_size + idx];
+                        const FE52& ly = s_tbl_P_y[i * table_size + idx];
+                        if (d1 > 0) s_acc[i].add_mixed52_inplace(lx, ly);
+                        else        s_acc[i].add_mixed52_neg_inplace(lx, ly);
                     }
                 }
             }
@@ -3594,10 +3611,10 @@ void Point::batch_scalar_mul_fixed_k(const KPlan& plan,
                     const size_t idx = static_cast<size_t>(
                         (d2 > 0 ? d2 - 1 : -d2 - 1) / 2);
                     for (size_t i = 0; i < chunk_n; ++i) {
-                        FE52 lx = s_tbl_phi_x[i * table_size + idx];
-                        FE52 ly = s_tbl_phi_y[i * table_size + idx];
-                        if (d2 < 0) { ly.negate_assign(1); ly.normalize_weak(); }
-                        s_acc[i].add_mixed52_inplace(lx, ly);
+                        const FE52& lx = s_tbl_phi_x[i * table_size + idx];
+                        const FE52& ly = s_tbl_phi_y[i * table_size + idx];
+                        if (d2 > 0) s_acc[i].add_mixed52_inplace(lx, ly);
+                        else        s_acc[i].add_mixed52_neg_inplace(lx, ly);
                     }
                 }
             }
@@ -3811,9 +3828,12 @@ void Point::batch_scan_run_lockstep(const PointScanCacheHandle& cache,
                 for (std::size_t i = 0; i < chunk_n; ++i) {
                     const std::size_t ci = base_ci + i;
                     if (SECP256K1_LIKELY(impl->valid[ci])) {
-                        AffinePoint52 pt = impl->tbl_P[ci * static_cast<std::size_t>(ts) + idx];
-                        pt.y.negate_assign(1); pt.y.normalize_weak();
-                        jac52_add_mixed_inplace(acc[i], pt);
+                        // jac52_add_mixed_neg_inplace folds the sign into the
+                        // addition, so the 80-byte AffinePoint52 copy, the
+                        // negate and the normalize_weak all disappear. It was
+                        // written for exactly this and had no caller until now.
+                        jac52_add_mixed_neg_inplace(
+                            acc[i], impl->tbl_P[ci * static_cast<std::size_t>(ts) + idx]);
                     }
                 }
             }
@@ -3833,9 +3853,8 @@ void Point::batch_scan_run_lockstep(const PointScanCacheHandle& cache,
                 for (std::size_t i = 0; i < chunk_n; ++i) {
                     const std::size_t ci = base_ci + i;
                     if (SECP256K1_LIKELY(impl->valid[ci])) {
-                        AffinePoint52 pt = impl->tbl_phiP[ci * static_cast<std::size_t>(ts) + idx];
-                        pt.y.negate_assign(1); pt.y.normalize_weak();
-                        jac52_add_mixed_inplace(acc[i], pt);
+                        jac52_add_mixed_neg_inplace(
+                            acc[i], impl->tbl_phiP[ci * static_cast<std::size_t>(ts) + idx]);
                     }
                 }
             }
