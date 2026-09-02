@@ -1419,6 +1419,37 @@ static CTJacobianPoint scalar_mul_jac_fe52_z1(const FE52& px, const FE52& py,
 
     // Double the input point using CTJacobianPoint path (no on-curve assert).
     // point_dbl_n_core operates on CTJacobianPoint — safe for isomorphic-curve points.
+    JacFE52 iso[TABLE_SIZE];
+    FE52 zr[TABLE_SIZE];
+    FE52 global_z;
+
+#if defined(REPSEARCH_COZ_TABLE) && REPSEARCH_COZ_TABLE == 1
+    // ---- co-Z chain (EXPERIMENT ONLY) -----------------------------------
+    // Fourth and last site. This one enters with Z == 1, so DBLU's Z_new
+    // reduces to 2*Y and the multiply by the incoming Z is by one -- kept
+    // generic rather than specialised, because the saving is a single multiply
+    // once per call and a second code path is not worth it.
+    {
+        FE52 dX, dY, aX, aY, chainZ;
+        jac52_dblu_ct(px, py, FE52::one(), dX, dY, aX, aY, chainZ);
+
+        iso[0] = { aX, aY, chainZ };
+        zr[0] = FE52::one();
+
+        for (std::size_t i = 1; i < TABLE_SIZE; ++i) {
+            FE52 sx, sy;
+            if (!jac52_zaddu_ct(dX, dY, aX, aY, chainZ, sx, sy, zr[i])) {
+                // Degenerate X1 == X2 is impossible for a chain of odd multiples
+                // of a valid point; return infinity rather than a wrong point.
+                return CTJacobianPoint::make_infinity();
+            }
+            aX = sx;
+            aY = sy;
+            iso[i] = { aX, aY, chainZ };
+        }
+        global_z = chainZ;
+    }
+#else
     CTJacobianPoint p2_ct{px, py, FE52::one(), 0};
     point_dbl_n_core(&p2_ct, 1);   // 2P in Jacobian (bypasses SECP_ASSERT_ON_CURVE)
     FE52 const C  = p2_ct.z;
@@ -1427,14 +1458,13 @@ static CTJacobianPoint scalar_mul_jac_fe52_z1(const FE52& px, const FE52& py,
     FE52 const d_x = p2_ct.x;
     FE52 const d_y = p2_ct.y;
 
-    JacFE52 iso[TABLE_SIZE];
     iso[0] = { px * C2, py * C3, FE52::one() };   // P in iso coords (Z_P=1)
 
-    FE52 zr[TABLE_SIZE];
     for (std::size_t i = 1; i < TABLE_SIZE; ++i)
         iso[i] = jac_add_ge_var_zr(iso[i - 1], d_x, d_y, &zr[i]);
 
-    FE52 const global_z = iso[TABLE_SIZE - 1].z * C;
+    global_z = iso[TABLE_SIZE - 1].z * C;
+#endif  // REPSEARCH_COZ_TABLE
     const FE52& beta = get_beta_fe52();
 
     pre_a[TABLE_SIZE - 1].x = iso[TABLE_SIZE - 1].x;
@@ -1516,6 +1546,41 @@ static CTJacobianPoint scalar_mul_jac(const Point& p, const Scalar& k) noexcept 
     CTAffinePoint pre_a[TABLE_SIZE];
     CTAffinePoint pre_a_lam[TABLE_SIZE];
 
+    JacFE52 iso[TABLE_SIZE];
+    FE52 zr[TABLE_SIZE];
+    FE52 global_z;
+
+#if defined(REPSEARCH_COZ_TABLE) && REPSEARCH_COZ_TABLE == 1
+    // ---- co-Z chain (EXPERIMENT ONLY) -----------------------------------
+    // Third of the four sites. Same shared-global-Z contract and the same
+    // backward sweep below; the accumulator and the constant 2P are kept on one
+    // Z, so the four heavy operations jac_add_ge_var_zr spends bridging two Z
+    // values never happen, and the iso-curve mapping is not needed at all.
+    // 177 -> 112 heavy field ops on the table build, -36.7%.
+    {
+        FE52 dX, dY, aX, aY, chainZ;
+        jac52_dblu_ct(p.X52(), p.Y52(), p.Z52(), dX, dY, aX, aY, chainZ);
+
+        iso[0] = { aX, aY, chainZ };
+        zr[0] = FE52::one();   // never read by the sweep
+
+        for (std::size_t i = 1; i < TABLE_SIZE; ++i) {
+            FE52 sx, sy;
+            // (d, acc): d FIRST, so ZADDU hands it back on the new Z for free.
+            if (!jac52_zaddu_ct(dX, dY, aX, aY, chainZ, sx, sy, zr[i])) {
+                // X1 == X2 -- ZADDU is undefined. Cannot happen for a chain of
+                // odd multiples of a valid point, but fail closed rather than
+                // return a wrong point: this function has no validity channel,
+                // so use the same infinity return its own guard above uses.
+                return CTJacobianPoint::make_infinity();
+            }
+            aX = sx;
+            aY = sy;
+            iso[i] = { aX, aY, chainZ };
+        }
+        global_z = chainZ;   // no isomorphism to undo
+    }
+#else
     Point p2 = p;
     p2.dbl_inplace();
     FE52 const C  = p2.Z52();
@@ -1524,14 +1589,13 @@ static CTJacobianPoint scalar_mul_jac(const Point& p, const Scalar& k) noexcept 
     FE52 const d_x = p2.X52();
     FE52 const d_y = p2.Y52();
 
-    JacFE52 iso[TABLE_SIZE];
     iso[0] = { p.X52() * C2, p.Y52() * C3, p.Z52() };
 
-    FE52 zr[TABLE_SIZE];
     for (std::size_t i = 1; i < TABLE_SIZE; ++i)
         iso[i] = jac_add_ge_var_zr(iso[i - 1], d_x, d_y, &zr[i]);
 
-    FE52 const global_z = iso[TABLE_SIZE - 1].z * C;
+    global_z = iso[TABLE_SIZE - 1].z * C;
+#endif  // REPSEARCH_COZ_TABLE
     const FE52& beta = get_beta_fe52();
 
     pre_a[TABLE_SIZE - 1].x = iso[TABLE_SIZE - 1].x;
