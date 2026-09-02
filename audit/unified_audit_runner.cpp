@@ -335,6 +335,7 @@ int test_exploit_batch_schnorr_run();
 int test_exploit_batch_schnorr_forge_run();
 int test_exploit_batch_soundness_run();
 int test_exploit_batch_weight_seed_binding_run();
+int test_regression_single_affine_materialisation_run();
 int test_exploit_batch_verify_correctness_run();
 int test_exploit_batch_verify_poison_run();
 int test_exploit_bip143_sighash_run();
@@ -1032,6 +1033,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_batch_schnorr_forge",    "Schnorr Batch Forge Detection",               "exploit_poc", test_exploit_batch_schnorr_forge_run, false },
     { "exploit_batch_soundness",        "Batch Signature Verification Soundness",      "exploit_poc", test_exploit_batch_soundness_run, false },
     { "exploit_batch_weight_seed_binding", "Schnorr Batch Weight/Seed Binding",        "exploit_poc", test_exploit_batch_weight_seed_binding_run, false },
+    { "regression_single_affine_materialisation", "Single Affine Materialisation Per Point", "math_invariants", test_regression_single_affine_materialisation_run, false },
     { "exploit_batch_verify_correct",   "Schnorr Batch Verify Correctness",            "exploit_poc", test_exploit_batch_verify_correctness_run, false },
     { "exploit_batch_verify_poison",    "Batch Verification Poisoning",                "exploit_poc", test_exploit_batch_verify_poison_run, false },
     { "exploit_bip143_sighash",         "BIP-143 SegWit v0 Signature Hash",            "exploit_poc", test_exploit_bip143_sighash_run, false },

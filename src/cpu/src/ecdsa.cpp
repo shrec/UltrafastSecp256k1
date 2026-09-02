@@ -164,6 +164,9 @@ static constexpr std::uint32_t SHA256_IV[8] = {
     0x510e527fu, 0x9b05688cu, 0x1f83d9abu, 0x5be0cd19u
 };
 
+// -- RFC 6979 step c key: K0 = 0x00 * 32 --------------------------------------
+static constexpr std::uint8_t ZERO_KEY32[32] = {};
+
 // -- Serialize 8xuint32 state -> 32 bytes (big-endian) -------------------------
 static inline void state_to_bytes(const std::uint32_t st[8], std::uint8_t out[32]) {
     for (int i = 0; i < 8; i++) {
@@ -209,6 +212,26 @@ struct HMAC_Ctx {
         detail::sha256_compress_dispatch(pad, outer_mid);
         // Erase stack buffer: it held key XOR ipad/opad derivations (secret material).
         detail::secure_erase(pad, sizeof(pad));
+    }
+
+    // Every RFC 6979 derivation keys its first HMAC with K0 = 0x00 * 32 (step c).
+    // For an all-zero key the two pads reduce to the fixed byte patterns
+    // 0x36 * 64 and 0x5c * 64, so both midstates are input-independent and only
+    // need compressing once per process instead of once per signature.
+    // The shared copy is produced by init_key32 itself rather than transcribed
+    // from a table, so it is bit-identical to the per-call computation it
+    // replaces. The key is public, so nothing secret is held in static storage.
+    void init_zero_key32(const std::uint8_t key[32]) noexcept {
+        assert(std::memcmp(key, ZERO_KEY32, 32) == 0 &&
+               "init_zero_key32: key must be RFC 6979's all-zero K0");
+        (void)key;
+        static const HMAC_Ctx zero_key_mid = [] {
+            HMAC_Ctx c{};
+            c.init_key32(ZERO_KEY32);
+            return c;
+        }();
+        std::memcpy(inner_mid, zero_key_mid.inner_mid, 32);
+        std::memcpy(outer_mid, zero_key_mid.outer_mid, 32);
     }
 
     // HMAC for short messages (msg_len <= 55): 1 inner compress + 1 outer
@@ -350,7 +373,7 @@ Scalar rfc6979_nonce(const Scalar& private_key,
 
     // Steps d+e: K1 = HMAC(K0, V||0x00||x||h1), V = HMAC(K1, V)
     HMAC_Ctx hmac;
-    hmac.init_key32(K);
+    hmac.init_zero_key32(K);
 
     std::memcpy(buf97, V, 32);
     buf97[32] = 0x00;
@@ -445,7 +468,7 @@ Scalar rfc6979_nonce_hedged(const Scalar& private_key,
     alignas(16) uint8_t buf129[129];
 
     HMAC_Ctx hmac;
-    hmac.init_key32(K);
+    hmac.init_zero_key32(K);
 
     // Step d: K = HMAC(K0, V || 0x00 || x || h1 || aux_rand)
     std::memcpy(buf129, V, 32);
@@ -562,7 +585,7 @@ Scalar rfc6979_nonce_libsecp_compat(const Scalar& private_key,
     };
 
     HMAC_Ctx hmac;
-    hmac.init_key32(K);
+    hmac.init_zero_key32(K);
 
     // Step d: K = HMAC(K0, V || 0x00 || keydata)
     fill_buf(0x00);

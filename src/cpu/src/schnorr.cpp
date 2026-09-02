@@ -396,9 +396,10 @@ bool SchnorrSignature::parse_strict(const std::array<uint8_t, 64>& data,
 std::array<uint8_t, 32> schnorr_pubkey(const Scalar& private_key) {
     SECP_ASSERT_SCALAR_VALID(private_key);
     auto P = ct::generator_mul(private_key);
-    auto [px, p_y_odd] = P.x_bytes_and_parity();
-    (void)p_y_odd;
-    return px;
+    // BIP-340 x-only encoding drops the Y parity, so the affine-Y recovery that
+    // x_bytes_and_parity() performs is unused here. x_only_bytes() yields the
+    // identical X bytes without it (same Z inverse, same X, one normalize).
+    return P.x_only_bytes();
 }
 
 // -- SchnorrKeypair Creation --------------------------------------------------
@@ -438,12 +439,14 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     // Step 1: t = d XOR tagged_hash("BIP0340/aux", aux_rand)
     auto t_hash = cached_tagged_hash(g_aux_midstate, aux_rand.data(), 32);
     auto d_bytes = kp.d.to_bytes();
-    uint8_t t[32];
-    for (std::size_t i = 0; i < 32; ++i) t[i] = d_bytes[i] ^ t_hash[i];
 
     // Step 2: k' = tagged_hash("BIP0340/nonce", t || pubkey_x || msg)
+    // t is XOR'd straight into nonce_input[0..31]: it was read exactly once, by
+    // the memcpy that used to sit here, and the nonce_input erasure below already
+    // covers those bytes — a separate t[32] would only add a secret-bearing stack
+    // buffer to erase. Fixed 32-iteration loop, no secret-dependent index.
     uint8_t nonce_input[96];
-    std::memcpy(nonce_input, t, 32);
+    for (std::size_t i = 0; i < 32; ++i) nonce_input[i] = d_bytes[i] ^ t_hash[i];
     std::memcpy(nonce_input + 32, kp.px.data(), 32);
     std::memcpy(nonce_input + 64, msg.data(), 32);
     auto rand_hash = cached_tagged_hash(g_nonce_midstate, nonce_input, 96);
@@ -454,7 +457,6 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
         // Zeroize all secret-derived data before early return (~2^-128 probability).
         detail::secure_erase(d_bytes.data(), d_bytes.size());
         detail::secure_erase(t_hash.data(), t_hash.size());
-        detail::secure_erase(t, sizeof(t));
         detail::secure_erase(nonce_input, sizeof(nonce_input));
         detail::secure_erase(rand_hash.data(), rand_hash.size());
         detail::secure_erase(&k_prime, sizeof(k_prime));
@@ -486,7 +488,8 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     // Erase all secret-derived stack buffers (matches ct::schnorr_sign cleanup)
     detail::secure_erase(d_bytes.data(), d_bytes.size());
     detail::secure_erase(t_hash.data(), t_hash.size());
-    detail::secure_erase(t, sizeof(t));
+    // nonce_input[0..31] holds t (d XOR t_hash) — erasing the 96-byte buffer
+    // covers it; there is no separate t[32] to scrub.
     detail::secure_erase(nonce_input, sizeof(nonce_input));
     detail::secure_erase(rand_hash.data(), rand_hash.size());
     detail::secure_erase(challenge_input, sizeof(challenge_input));

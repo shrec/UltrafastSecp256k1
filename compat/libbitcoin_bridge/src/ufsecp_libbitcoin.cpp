@@ -1784,25 +1784,56 @@ int ufsecp_lbtc_match_silent_prefixes(const uint8_t scan_privkey32[32],
         const FieldElement spend_y = fe_from_le(spend_pubkey64 + 32);
         const auto midstate = secp256k1::detail::make_tag_midstate("BIP0352/SharedSecret");
 
-        // Phase 1 (per-row): output_point = hash * G in Jacobian form, where
+        // Phase 1 (per-row): shared = scan_privkey * tweak_point, serialized in one batch.
+        // scalar_mul_with_plan leaves its result lazy-affine (Z != 1), so a per-row
+        // to_compressed() runs one inversion each; batch_to_compressed serializes the
+        // whole column with a single inversion and emits the same 33 bytes per point
+        // (infinity -> 33 zero bytes, exactly as to_compressed()).
+        std::vector<std::array<uint8_t, 33>> compressed(count);
+        {
+            std::vector<Point> shared;
+            shared.reserve(count);
+            for (size_t i = 0; i < count; ++i) {
+                const uint8_t* td = tweaks + i * 64u;
+                const FieldElement ty = fe_from_le(td + 32);
+                // y == 0 is not a point on secp256k1: it would be 2-torsion, and the
+                // group order is an odd prime. But `tweaks` is caller-supplied and
+                // from_affine does not check, so an all-zero (padded, absent, or
+                // garbage) row arrives as (x, 0) and doubles to Z == 0 with the
+                // infinity flag clear -- which the batch inversion below cannot
+                // represent and would turn into a thrown exception for the WHOLE
+                // call. Substituting infinity keeps this row's 33 zero bytes and
+                // leaves the other rows' results intact, which is exactly what the
+                // per-row to_compressed() this batch replaced used to do.
+                if (ty.is_zero()) {
+                    shared.push_back(Point::infinity());
+                    continue;
+                }
+                Point tweak_point = Point::from_affine(fe_from_le(td), ty);
+                shared.push_back(tweak_point.scalar_mul_with_plan(kplan));   // k*P
+            }
+            Point::batch_to_compressed(shared.data(), count, compressed.data());
+        }
+
+        // Phase 2 (per-row): output_point = hash * G in Jacobian form, where
         //   hash = TaggedHash("BIP0352/SharedSecret", compress(scan_privkey * tweak) || be32(0)).
+        // scalar_mul_jacobian is scalar_mul without the closing normalize(): Phase 3
+        // already converts Z with one shared inversion, so the per-row normalize()
+        // was inverting a Z the batch re-derives anyway.
+        const Point gen = Point::generator();
         std::vector<FieldElement> jac_x(count), jac_y(count), jac_z(count);
         for (size_t i = 0; i < count; ++i) {
-            const uint8_t* td = tweaks + i * 64u;
-            Point tweak_point = Point::from_affine(fe_from_le(td), fe_from_le(td + 32));
-            Point shared = tweak_point.scalar_mul_with_plan(kplan);   // k*P
-            auto compressed = shared.to_compressed();                 // 33 bytes
             uint8_t serialized[37];
-            std::memcpy(serialized, compressed.data(), 33);
+            std::memcpy(serialized, compressed[i].data(), 33);
             std::memset(serialized + 33, 0, 4);                       // output index k = 0
             auto hash = secp256k1::detail::cached_tagged_hash(midstate, serialized, 37);
-            Point output = Point::generator().scalar_mul(Scalar::from_bytes(hash.data()));
+            Point output = gen.scalar_mul_jacobian(Scalar::from_bytes(hash.data()));
             jac_x[i] = output.X();
             jac_y[i] = output.Y();
             jac_z[i] = output.z();
         }
 
-        // Phase 2: Montgomery batch Z-inversion (1 inverse + 3(N-1) muls), Jacobian -> affine.
+        // Phase 3: Montgomery batch Z-inversion (1 inverse + 3(N-1) muls), Jacobian -> affine.
         std::vector<FieldElement> scratch;
         secp256k1::fast::fe_batch_inverse(jac_z.data(), count, scratch);  // jac_z[i] := 1/Z[i]
         std::vector<secp256k1::fast::AffinePointCompact> offsets(count);
@@ -1813,12 +1844,12 @@ int ufsecp_lbtc_match_silent_prefixes(const uint8_t scan_privkey32[32],
             offsets[i].y = jac_y[i] * zinv3;
         }
 
-        // Phase 3: batch (spend_pubkey + output_point[i]) -> affine x-coordinates.
+        // Phase 4: batch (spend_pubkey + output_point[i]) -> affine x-coordinates.
         std::vector<FieldElement> final_x(count);
         secp256k1::fast::batch_add_affine_x(spend_x, spend_y, offsets.data(),
                                             final_x.data(), count, scratch);
 
-        // Phase 4: prefix = big-endian top 8 bytes of the output x  (== ExtractUpper64).
+        // Phase 5: prefix = big-endian top 8 bytes of the output x  (== ExtractUpper64).
         int n_match = 0;
         for (size_t i = 0; i < count; ++i) {
             const auto xb = final_x[i].to_bytes();   // big-endian, 32 bytes
