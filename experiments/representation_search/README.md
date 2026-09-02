@@ -310,6 +310,73 @@ outcome.** The value delivered is a calibrated cost model, a magnitude checker,
 an equivalence oracle, and a measured refutation of the formula alternatives --
 not a speedup.
 
+## x86-64: CLOSED
+
+Every axis has a verdict. Two wins; everything else refuted or below what this
+machine can resolve. Recorded in full as knowledge-base entry
+`X86-REPRESENTATION-SEARCH-EXHAUSTED`.
+
+### Confirmed wins
+
+| change | measured | where |
+|---|---|---|
+| **co-Z coordinate change**, all 4 live sites | `dual_scalar_mul_gen_point` **−7.19%**, `ecdsa_verify` **−1.96%**, 0 regressions | verify + `ct::scalar_mul` + BIP-324 |
+| **CT SafeGCD inverse**, both call sites | `ElligatorSwift XDH` **−8.23%**, `Session handshake` **−4.35%** | ECDH, BIP-352 scan |
+
+Both are macro-guarded; the default build is byte-identical.
+
+The inverse result is worth stating precisely because it is the cleanest
+prediction the cost model made: the primitive measured 3847.5 ns (Fermat, CT)
+against 1555.0 ns (`ct::field_inv`, CT SafeGCD). 2292.5 ns saved on a 29 122.7 ns
+XDH predicts **7.87%**; measured **8.23%**. And `ecdh_compute` did *not* move
+(+0.18%) — correctly, because it does not go through `ecmult_const_xonly`.
+
+### One real bug
+
+`WINDOW_G` was a duplicated literal that had to match `kDualMulWindowG`.
+Changing the table width alone **segfaulted at window 12** and returned **five
+silently wrong `dual_mul` results at window 13**. Fixed, `static_assert`ed,
+behaviour pinned by the new audit module `regression_table_build_invariants`,
+filed as #399.
+
+### Refuted or below the noise floor — do not re-chase
+
+| axis | verdict |
+|---|---|
+| Point formulas at fixed coordinates | **local optimum** — 5894 generated programs, best −0.34% |
+| M-for-S trades | worthless, S/M = 0.874 |
+| co-Z Montgomery ladder | 4110 heavy ops vs 1690 — **2.43× more work** |
+| Fermat addition chain | **proven minimal**, `l(223) = 11` by exhaustive search |
+| Limb-level Karatsuba | multiplies are 13.6% of the kernel; 3 fewer ≈ 1.3%, against ~20 added ALU ops |
+| Limb schedule, more columns | `wide_mul` measured **+9.45% slower** |
+| `optimize("O2")` on the kernels | byte-identical to `O3` |
+| Removing `noinline` | microbenchmark says −7.20%; it is a single-call-site artefact. Prior controlled A/B: 0.2% slower under LTO. `noinline` is an I-cache win worth **+12%** end-to-end |
+| Scalar reduction mod n (int128) | already the Solinas `N_C` fold |
+| `add2_assign` / duplicated-negate CSE | GCC already emits identical assembly |
+| wNAF digit sign folding | 0–0.16% of a verify |
+| **AVX2 vectorisation** | **refuted at the multiply port**: 25 limb-products per field multiply in *both* 5×52-scalar and 10×26-AVX2 — the lane count is exactly cancelled by the limb-count growth |
+| Strauss vs Pippenger | **already optimal** at every `n` the engine reaches |
+| GLV decomposition | 84.92 ns = **0.34%** of a verify even if deleted outright |
+| `sqrt` / `jacobi` | one jacobi per *cold* `lift_x` only; the 1024-slot cache makes it **0.0%** of `schnorr_verify` |
+| Redundant `normalize_weak` | 0.60% of a BIP-352 scan, **exactly 0.00%** of verify and ConnectBlock |
+
+### Still open on x86
+
+The dual-mul G-table window width — 15 (default, **1280 KB of a 2048 KB L2**)
+against 13 and 12. All three builds exist and pass `test_ecc_properties`. The
+decision needs **ConnectBlock on a quiet frequency-locked machine**, not
+`bench_unified`: an isolated benchmark calls the function repeatedly with nothing
+competing, keeps the whole table resident, and therefore systematically flatters
+the large window.
+
+### The transferable result
+
+Searching **within** a fixed representation found nothing — 5894 rewrites moved
+0.34%. **Changing** the representation found 7–8%. And the operation-count model
+predicted direction correctly only *after* it was calibrated against measured
+per-operation costs; before that it was wrong by up to 13× (it put
+`madd-2007-bl` at +1.4%; measured +18.6%).
+
 ## Running it
 
 ```bash
