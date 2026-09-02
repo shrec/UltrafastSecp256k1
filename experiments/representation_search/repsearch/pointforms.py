@@ -283,3 +283,58 @@ MIXED_ADD: Dict[str, callable] = {
     "madd_prod_no_signfold": madd_prod_no_signfold,
     "madd_prod_s2_reassoc": madd_prod_s2_reassoc,
 }
+
+
+# ==========================================================================
+# Co-Z addition (Meloni) -- a coordinate-representation change, not a formula
+# tweak.  Both operands share ONE Z, so every Z-normalisation term vanishes.
+# ==========================================================================
+
+def zaddu() -> SLP:
+    """ZADDU: (X1,Y1,Z) + (X2,Y2,Z) -> P+Q, and P re-expressed with the new Z.
+
+    Meloni, "New point addition formulae for ECC applications" (2007).
+
+    5M+2S = 7 heavy operations, against 8M+3S = 11 for jac52_add_mixed.  The
+    saving is not an M-for-S trade -- it is FOUR FEWER heavy operations, which
+    is a different order of thing entirely on an engine where S/M measured 0.874
+    and an M-for-S swap buys 12.6% of one operation.
+
+    The catch, and it is the whole reason this is a representation change rather
+    than a drop-in: both inputs must already share a Z.  That is exactly the
+    situation when building a table of odd multiples, because ZADDU hands back
+    the updated P alongside P+Q, both on the new Z.  So a chain of them needs no
+    normalisation between steps at all.
+
+        A = (X2-X1)^2      B = X1*A        C = X2*A
+        D = (Y2-Y1)^2      X3 = D - B - C
+        Y3 = (Y2-Y1)*(B-X3) - Y1*(C-B)
+        Z3 = Z*(X2-X1)
+        P' = (B, Y1*(C-B), Z3)          <- the same point P, on the new Z
+    """
+    b = Builder("X1", "Y1", "X2", "Y2", "Z")
+    dx = b.sub("X2", "X1")
+    dy = b.sub("Y2", "Y1")
+    A = b.sqr(dx)
+    B = b.mul("X1", A)
+    C = b.mul("X2", A)
+    D = b.sqr(dy)
+    x3 = b.sub(b.sub(D, B), C)
+    cb = b.sub(C, B)
+    y1cb = b.mul("Y1", cb)
+    y3 = b.sub(b.mul(dy, b.sub(B, x3)), y1cb)
+    z3 = b.mul("Z", dx)
+    return b.build("zaddu", {"X": x3, "Y": y3, "Z": z3,
+                             "Xp": B, "Yp": y1cb, "Zp": z3},
+                   "Meloni co-Z addition, 5M+2S; also returns P on the new Z")
+
+
+def zaddu_sum_only() -> SLP:
+    """ZADDU with the co-Z output of P dropped, for a like-for-like op count."""
+    s = zaddu()
+    return SLP(s.name + "_sum_only", s.inputs, s.instrs,
+               {"X": s.outputs["X"], "Y": s.outputs["Y"], "Z": s.outputs["Z"]},
+               s.note + " (sum only)")
+
+
+CO_Z = {"zaddu": zaddu, "zaddu_sum_only": zaddu_sum_only}

@@ -81,6 +81,31 @@ static inline void madd_handwritten(const FE& X1, const FE& Y1, const FE& Z1,
     out_x = px; out_y = py; out_z = pz;
 }
 
+// zaddu -- Meloni co-Z addition, 5M+2S; also returns P on the new Z
+static inline void zaddu_gen(const FE& X1, const FE& Y1, const FE& X2, const FE& Y2, const FE& Z, FE& out_X, FE& out_Xp, FE& out_Y, FE& out_Yp, FE& out_Z, FE& out_Zp) noexcept {
+    FE t1 = X2 + X1.negate(7);  // mag 15
+    FE t2 = Y2 + Y1.negate(4);  // mag 9
+    FE s3 = t1.square();
+    FE m4 = X1 * s3;
+    FE m5 = X2 * s3;
+    FE s6 = t2.square();
+    FE t7 = s6 + m4.negate(1);  // mag 3
+    FE t8 = t7 + m5.negate(1);  // mag 5
+    FE t9 = m5 + m4.negate(1);  // mag 3
+    FE m10 = Y1 * t9;
+    FE t11 = m4 + t8.negate(5);  // mag 7
+    FE m12 = t2 * t11;
+    FE t13 = m12 + m10.negate(1);  // mag 3
+    FE m14 = Z * t1;
+    out_X = t8;
+    out_Xp = m4;
+    out_Y = t13;
+    out_Yp = m10;
+    out_Z = m14;
+    out_Zp = m14;
+}
+
+
 // --- generated variants ----------------------------------------------------
 
 // dbl_production -- in_tree: jac52_double_coords, libsecp gej_double a=0
@@ -780,6 +805,43 @@ int main(int argc, char** argv) {
 
     report("point doubling (dependent chain)", DBL_VARIANTS, nd, dsamp);
     report("mixed addition (dependent chain)", MADD_VARIANTS, nm, msamp);
+
+    // ---- co-Z addition ---------------------------------------------------
+    // Not a drop-in replacement for the mixed add: ZADDU requires both operands
+    // to already share a Z.  That is exactly the situation in an odd-multiples
+    // table build, because it returns the updated P alongside P+Q on the new Z,
+    // so a chain of them needs no normalisation between steps.  Timed the same
+    // way -- a dependent chain -- and reported against the mixed add it would
+    // replace ON THAT PATH ONLY.
+    {
+        std::vector<double> zs;
+        for (int pass = 0; pass < passes; ++pass) {
+            double best = 1e30;
+            for (const auto& p : pts) {
+                FE x1 = p.x, y1 = p.y, zz = p.z;
+                FE x2 = pts[(&p - &pts[0] + 1) % pts.size()].x;
+                FE y2 = pts[(&p - &pts[0] + 1) % pts.size()].y;
+                double t0 = now_ns();
+                for (int i = 0; i < chain; ++i) {
+                    FE ox, oy, oz, oxp, oyp, ozp;
+                    zaddu_gen(x1, y1, x2, y2, zz, ox, oxp, oy, oyp, oz, ozp);
+                    x1 = oxp; y1 = oyp; x2 = ox; y2 = oy; zz = oz;
+                }
+                double dt = (now_ns() - t0) / double(chain);
+                checksum = checksum * 1000003ULL + fold(x1) + 31ULL * fold(y1);
+                if (dt < best) best = dt;
+            }
+            zs.push_back(best);
+        }
+        Stat z = robust(zs, 4);
+        Stat m = robust(msamp[1], 4);   // madd_production_generated
+        std::printf("== co-Z addition (table-build path only) ==\n");
+        std::printf("  %-34s %9.3f %9.3f %9.3f\n", "zaddu (5M+2S)", z.med, z.lo, z.hi);
+        std::printf("  %-34s %9.3f %9.3f %9.3f\n", "madd_production (8M+3S)", m.med, m.lo, m.hi);
+        std::printf("  %-34s %+8.2f%%\n\n", "delta on that path",
+                    (z.med - m.med) / m.med * 100.0);
+    }
+
 
     std::printf("checksum %016llx  (printed so no variant can be optimised away)\n",
                 (unsigned long long)checksum);
