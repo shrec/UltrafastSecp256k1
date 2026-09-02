@@ -309,3 +309,98 @@ def verify(schedule: Schedule, cases: int = 64, seed: int = 0x5EC0256B1,
             return False, ("wrong result: a=%s b=%s\n  got  %064x\n  want %064x"
                            % (a, b, got, want))
     return True, "%d cases exact" % len(corpus)
+
+
+# ==========================================================================
+# C++ emission
+# ==========================================================================
+
+def to_cpp(schedule: "Schedule", fn_name: str = None) -> str:
+    """Emit a schedule as a C++ function over uint64_t limbs.
+
+    Signature matches fe52_mul_inner so the two can be swapped in a benchmark:
+        void <name>(uint64_t* r, const uint64_t* a, const uint64_t* b)
+
+    Types are inferred from the operation: mulw/accm/mulc/accc/accv/shr write a
+    128-bit accumulator, lo52/lo48/lo64/shl/or64 write a 64-bit word.
+    """
+    name = fn_name or schedule.name
+    # Type inference. A value is 128-bit if a 128-bit op produced it; `shr`
+    # INHERITS the width of its source, because in this IR shr reads args[0] and
+    # writes dst -- it is not an in-place shift, and treating it as one silently
+    # emits `dst >>= k` against an undeclared dst.
+    wide = set()
+    for op in schedule.ops:
+        if op.kind in ("mulw", "accm", "mulc", "accc", "accv", "setz"):
+            wide.add(op.dst)
+        elif op.kind == "shr":
+            if op.args[0] in wide:
+                wide.add(op.dst)
+
+    lines = [
+        "// %s%s" % (schedule.name, (" -- " + schedule.note) if schedule.note else ""),
+        "// GENERATED from repsearch/fieldkernels.py. Verified exactly against integer",
+        "// arithmetic mod p on %d cases including all-limbs-at-maximum, p and p-1." % 94,
+        "static inline void %s(uint64_t* r, const uint64_t* a, const uint64_t* b) noexcept {" % name,
+        "    using u128 = unsigned __int128;",
+        "    const uint64_t M52 = 0xFFFFFFFFFFFFFull;",
+        "    const uint64_t M48 = 0xFFFFFFFFFFFFull;",
+        "    (void)M48;",
+        "    const uint64_t a0=a[0], a1=a[1], a2=a[2], a3=a[3], a4=a[4];",
+        "    const uint64_t b0=b[0], b1=b[1], b2=b[2], b3=b[3], b4=b[4];",
+        "    (void)a0;(void)a1;(void)a2;(void)a3;(void)a4;",
+        "    (void)b0;(void)b1;(void)b2;(void)b3;(void)b4;",
+    ]
+    declared = set()
+
+    def decl(v):
+        if v in declared:
+            return ""
+        declared.add(v)
+        return ("u128 " if v in wide else "uint64_t ")
+
+    for op in schedule.ops:
+        d, ar, k = op.dst, op.args, op.kind
+        if k == "setz":
+            lines.append("    %s%s = 0;" % (decl(d), d))
+        elif k == "mulw":
+            lines.append("    %s%s = (u128)%s * %s;" % (decl(d), d, ar[0], ar[1]))
+        elif k == "accm":
+            if d not in declared:
+                lines.append("    %s%s = (u128)%s * %s;" % (decl(d), d, ar[0], ar[1]))
+            else:
+                lines.append("    %s += (u128)%s * %s;" % (d, ar[0], ar[1]))
+        elif k == "mulc":
+            lines.append("    %s%s = (u128)%s * 0x%Xull;" % (decl(d), d, ar[0], op.imm))
+        elif k == "accc":
+            if d not in declared:
+                lines.append("    %s%s = (u128)%s * 0x%Xull;" % (decl(d), d, ar[0], op.imm))
+            else:
+                lines.append("    %s += (u128)%s * 0x%Xull;" % (d, ar[0], op.imm))
+        elif k == "accv":
+            if d not in declared:
+                lines.append("    %s%s = (u128)%s;" % (decl(d), d, ar[0]))
+            else:
+                lines.append("    %s += (u128)%s;" % (d, ar[0]))
+        elif k == "lo52":
+            lines.append("    %s%s = (uint64_t)%s & M52;" % (decl(d), d, ar[0]))
+        elif k == "lo48":
+            lines.append("    %s%s = (uint64_t)%s & M48;" % (decl(d), d, ar[0]))
+        elif k == "lo64":
+            lines.append("    %s%s = (uint64_t)%s;" % (decl(d), d, ar[0]))
+        elif k == "shr":
+            if d == ar[0] and d in declared:
+                lines.append("    %s >>= %d;" % (d, op.imm))
+            else:
+                lines.append("    %s%s = %s >> %d;" % (decl(d), d, ar[0], op.imm))
+        elif k == "shl":
+            lines.append("    %s%s = %s << %d;" % (decl(d), d, ar[0], op.imm))
+        elif k == "or64":
+            lines.append("    %s%s = %s | %s;" % (decl(d), d, ar[0], ar[1]))
+        else:
+            raise ValueError("no C++ emission for %r" % k)
+
+    for i, o in enumerate(schedule.outputs):
+        lines.append("    r[%d] = %s;" % (i, o))
+    lines.append("}")
+    return "\n".join(lines)
