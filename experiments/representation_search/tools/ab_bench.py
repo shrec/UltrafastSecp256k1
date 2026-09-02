@@ -63,6 +63,9 @@ def _flatten_json(doc) -> dict:
     return out
 
 
+EXTRA_ARGS: list = []
+
+
 def run_once(binary: str, core: int | None, timeout: int, scratch: str, tag: str) -> dict:
     """One invocation.  bench_unified already averages 11 internal passes with
     IQR trimming, so this returns one stabilised sample per metric."""
@@ -72,7 +75,7 @@ def run_once(binary: str, core: int | None, timeout: int, scratch: str, tag: str
         cmd += ["taskset", "-c", str(core)]
     if shutil.which("nice"):
         cmd += ["nice", "-n", "-20"]
-    cmd += [binary, "--json", json_path]
+    cmd += [binary] + EXTRA_ARGS + ["--json", json_path]
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
 
     if os.path.exists(json_path):
@@ -131,9 +134,13 @@ def main() -> int:
     ap.add_argument("--core", type=int, default=0)
     ap.add_argument("--timeout", type=int, default=1800)
     ap.add_argument("--out", default="")
+    ap.add_argument("--bench-args", default="",
+                    help="extra arguments passed through to the benchmark binary")
     ap.add_argument("--only", default="",
                     help="comma-separated substrings; report only matching rows")
     args = ap.parse_args()
+    global EXTRA_ARGS
+    EXTRA_ARGS = args.bench_args.split() if args.bench_args else []
 
     for path in (args.baseline, args.candidate):
         if not os.access(path, os.X_OK):
@@ -142,6 +149,16 @@ def main() -> int:
 
     scratch = os.path.join(os.path.dirname(os.path.abspath(args.out or ".")), "bench_raw")
     os.makedirs(scratch, exist_ok=True)
+
+    # ---- discarded warm-up round ----------------------------------------
+    # Every arm's FIRST invocation is 30-70% slower than its steady state: cold
+    # page cache, cold branch predictors, and a frequency ramp under a scaling
+    # governor. Left in the sample it inflates that arm's max and makes every
+    # range overlap, which reads as "inconclusive" for a reason that has nothing
+    # to do with the change under test. Run one of each arm and throw it away.
+    print("  warm-up (discarded)", flush=True)
+    run_once(args.baseline, args.core, args.timeout, scratch, "warmup_A")
+    run_once(args.candidate, args.core, args.timeout, scratch, "warmup_B")
 
     base_runs, cand_runs = [], []
     order = []
