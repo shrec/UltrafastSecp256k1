@@ -189,6 +189,24 @@ using namespace fe52_constants;
 // As a non-inlined static function compiled at O2, the __int128 arithmetic
 // produces correct results on GCC-13 and Clang in both Debug and coverage
 // builds where -O0 would otherwise cause wrong results.
+// Instruction mix, disassembled from a -O3 -march=native GCC 14.2 build
+// (experiments/representation_search). 228 instructions:
+//     31  multiplies        13.6%
+//     29  carry chain       12.7%   (adcx/adox/adc/sbb)
+//     32  plain add/sub/lea 14.0%
+//     17  shifts             7.5%
+//     19  and/or/xor         8.3%
+//     98  mov/push/pop      43.0%   (mov alone is 80, plus 6 push / 6 pop)
+// 31 MULX at one per cycle is a 31-cycle floor; the measured 12.43 ns
+// throughput is about 58 cycles at 4.7 GHz, so the kernel is NOT
+// multiply-bound -- the remaining ~27 cycles are the serial carry/fold chain.
+//
+// The optimize("O2") below costs NOTHING on x86-64: rebuilt with
+// optimize("O3") the two kernels are BYTE-IDENTICAL -- same 228/164
+// instructions, same 31/21 multiplies, same 98/70 movs, same 12 spills. The
+// attribute is doing exactly what its comment says (keeping Debug and coverage
+// off O0) and is not capping Release performance. Checked so nobody re-raises
+// it; do not "fix" this without re-measuring.
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((optimize("O2"), noinline))
 static
@@ -1396,7 +1414,10 @@ void fe52_mul_inner_var(std::uint64_t* SECP256K1_RESTRICT r,
 // Uses a[i]*a[j] == a[j]*a[i] symmetry to halve cross-product count.
 // Cross-products computed once and doubled via (a[i]*2) trick.
 
-// Same noinline + optimize("O2") guard as fe52_mul_inner (see above).
+// Same noinline + optimize("O2") guard as fe52_mul_inner (see above), including
+// the finding that O3 emits byte-identical code. Disassembled at
+// -O3 -march=native: 164 instructions, 21 multiplies (12.8%), 70 mov/push/pop
+// (42.7%) -- the same data-movement-dominated shape.
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((optimize("O2"), noinline))
 static
