@@ -4218,8 +4218,30 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
 // Initialized once on first use. NOT inside the function to allow sharing.
 #if defined(SECP256K1_FE52_COMPUTE) && !defined(SECP256K1_USE_4X64_POINT_OPS)
 namespace {
+    // EXPERIMENT (experiments/representation_search): the window width is a pure
+    // representation parameter -- table size traded against additions per scalar --
+    // and it has a cache dimension no operation count contains. Overridable so the
+    // trade can be measured instead of assumed; the default is unchanged at 15.
+    //
+    //   window  entries   KB/table   KB for G+H   ~additions/scalar
+    //     11       512       40         80             24
+    //     12      1024       80        160             22
+    //     13      2048      160        320             20
+    //     14      4096      320        640             19
+    //     15      8192      640       1280             18   <- current default
+    //
+    // Raptor Cove L2 is 2048 KB per P-core, so the default spends 62.5% of L2 on
+    // these two tables. Note the measurement hazard: an isolated benchmark calls
+    // dual_scalar_mul_gen_point repeatedly with nothing else competing, which keeps
+    // the whole table resident and systematically FLATTERS the large window. A real
+    // workload (ConnectBlock, batch verify) interleaves other data that evicts it.
+    // So ConnectBlock is the metric that matters here, not the micro one.
+#if defined(REPSEARCH_DUALMUL_WINDOW_G)
+    constexpr unsigned kDualMulWindowG    = REPSEARCH_DUALMUL_WINDOW_G;
+#else
     constexpr unsigned kDualMulWindowG    = 15;
-    constexpr int kDualMulGTableSize      = (1 << (kDualMulWindowG - 2)); // 8192
+#endif
+    constexpr int kDualMulGTableSize      = (1 << (kDualMulWindowG - 2)); // 8192 at w=15
     constexpr unsigned kDualMulWindowP    = 5;
     constexpr int kDualMulPTableSize      = (1 << (kDualMulWindowP - 2)); // 8
 
@@ -4312,7 +4334,15 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     GLVDecomposition const decomp_b = glv_decompose(b);
 
     // -- Window widths: w=15 for G (precomputed), w=6 for P (per-call) ---
-    constexpr unsigned WINDOW_G = 15;             // -> 2^13 = 8192 entries per G/H table
+    // WINDOW_G MUST equal kDualMulWindowG: that constant sizes the static tbl_G /
+    // tbl_H arrays, and this one drives both the wNAF recoding width and the table
+    // indexing. They were separately written literals, so changing one alone
+    // indexed past the end of the table -- a segfault, not a test failure. Derived
+    // from the single source now, matching what dual_scalar_mul_gen_prebuilt below
+    // already did correctly.
+    constexpr unsigned WINDOW_G = kDualMulWindowG;  // -> 2^(w-2) entries per G/H table
+    static_assert(WINDOW_G == kDualMulWindowG,
+                  "WINDOW_G must match the width the static G/H tables were sized for");
     constexpr unsigned WINDOW_P = kDualMulWindowP; // -> 2^4 = 16 entries per P/psiP table
     [[maybe_unused]] constexpr int G_TABLE_SIZE = (1 << (WINDOW_G - 2));  // 8192
     constexpr int P_TABLE_SIZE = kDualMulPTableSize;      // 16
