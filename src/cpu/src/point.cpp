@@ -4,6 +4,10 @@
 #endif
 #include "secp256k1/glv.hpp"
 #include "secp256k1/ct/point.hpp"
+#if defined(REPSEARCH_CT_SAFEGCD_INV) && REPSEARCH_CT_SAFEGCD_INV == 1
+// EXPERIMENT ONLY: ct::field_inv, the ct:: track's constant-time SafeGCD inverse.
+#include "secp256k1/ct/field.hpp"
+#endif
 #if defined(__SIZEOF_INT128__) && !defined(__EMSCRIPTEN__)
 #include "secp256k1/field_52.hpp"
 #endif
@@ -3505,7 +3509,33 @@ void Point::batch_scalar_mul_fixed_k(const KPlan& plan,
                         pts[chunk_start + i].scalar_mul_with_plan(plan);
                 continue;
             }
+#if defined(REPSEARCH_CT_SAFEGCD_INV) && REPSEARCH_CT_SAFEGCD_INV == 1
+            // EXPERIMENT ONLY. The default build uses the #else line, unchanged.
+            //
+            // This is the ONE FieldElement52::inverse() call on the fast:: track.
+            // It is deliberately the CONSTANT-TIME Fermat chain, not the
+            // variable-time inverse_safegcd(), because the value being inverted
+            // is the Montgomery prefix product of Z-coordinates derived from the
+            // KPlan's scalar -- and the callers pass a SECRET one:
+            //   src/bch/src/bch_scan.cpp        KPlan::from_scalar(scan_privkey)
+            //   src/cpu/src/sp_scan_batch_impl.hpp   BIP-352 silent payments
+            //   src/cpu/src/address.cpp
+            // CLAUDE.md lists the BIP-352 scan key under CT-mandatory. Nothing in
+            // the code says any of this; recorded as KB
+            // BATCH-SCALAR-MUL-FIXED-K-CT-STATUS.
+            //
+            // ct::field_inv is ALSO constant-time -- Bernstein-Yang SafeGCD,
+            // 10 x 59 = 590 branchless divsteps, a port of libsecp256k1's
+            // secp256k1_modinv64 (the CT variant). Measured 1555.0 ns against the
+            // Fermat chain's 3847.5 ns, 2.47x, same timing guarantee.
+            //
+            // Amortisation caveat: Montgomery's trick means this is ONE inversion
+            // for the whole batch, so ~2.3 us is a small share of a scan. The
+            // ECDH site in ct_point.cpp is where this swap actually pays.
+            FE52 inv = FE52::from_fe(ct::field_inv(s_prefix[total - 1].to_fe()));
+#else
             FE52 inv = s_prefix[total - 1].inverse();
+#endif
             for (size_t k = total; k-- > 0; ) {
                 if (s_tables[k].is_infinity()) {
                     s_tbl_P_x[k] = FE52::zero();
