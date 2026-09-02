@@ -488,6 +488,44 @@ SECP256K1_HOT_FUNCTION
 // Core doubling on raw FE52 references (zero struct-copy overhead)
 // In-place variant: reads and writes through same x/y/z references.
 static inline void jac52_double_coords(FieldElement52& x, FieldElement52& y, FieldElement52& z) noexcept {
+#if defined(REPSEARCH_DBL_VARIANT) && REPSEARCH_DBL_VARIANT == 1
+    // ---- representation-search candidate: dbl_prod_alt_sign --------------
+    // EXPERIMENT ONLY (experiments/representation_search). Never enabled in a
+    // default build; selected by -DREPSEARCH_DBL_VARIANT=1.
+    //
+    // Same 3M+4S as production, same result. The difference is sign placement:
+    // production carries T = -S*X negated through the whole temporary chain;
+    // this keeps U = +S*X positive and pushes both negations onto the X3 and
+    // Y3 subtractions, which are off the critical path.
+    //
+    // Proven exactly equivalent to the reference group law over 96 cases
+    // (24 curve points x 4 randomized Z) -- see tests/test_point_equivalence.py.
+    // Model (NOT a measurement): weighted 7.060 vs 7.140, critical depth
+    // 3.170 vs 3.250, live values 7 vs 6. Outputs X mag 4, Y mag 3, Z mag 1,
+    // inside the X<=8 / Y<=4 declared at the negate() call sites below.
+    FieldElement52 s = y.square();           // S = Y^2, mag 1
+    FieldElement52 l = x.square();           // mag 1
+    l.mul_int_assign(3);                     // mag 3
+    l.half_assign();                         // L = (3/2)X^2, mag 2
+
+    z.mul_assign(y);                         // Z3 = Z*Y, mag 1  (y still Y1)
+
+    y = s * x;                               // U = X*S, mag 1   (x still X1)
+
+    FieldElement52 two_u = y;                // mag 1
+    two_u.add_assign(y);                     // 2U, mag 2
+
+    x = l.square();                          // L^2, mag 1
+    x.add_assign(two_u.negate(2));           // X3 = L^2 - 2U, mag 4
+
+    s.square_inplace();                      // S^2, mag 1
+
+    FieldElement52 t = y;                    // U, mag 1
+    t.add_assign(x.negate(4));               // U - X3, mag 6
+    t.mul_assign(l);                         // L*(U - X3), mag 1
+    t.add_assign(s.negate(1));               // Y3, mag 3
+    y = t;
+#else
     // S = Y1^2 (1S) -- computed before y is reused
     FieldElement52 s = y.square();         // mag 1
 
@@ -518,6 +556,7 @@ static inline void jac52_double_coords(FieldElement52& x, FieldElement52& y, Fie
     y.mul_assign(l);                         // mag 1  (y = L*(T+X3))
     y.add_assign(s);                         // mag 2
     y.negate_assign(2);                      // mag 3
+#endif  // REPSEARCH_DBL_VARIANT
 }
 
 // Split I/O variant: reads from const in_*, writes to separate out_*.
