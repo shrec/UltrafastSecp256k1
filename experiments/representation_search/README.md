@@ -206,6 +206,110 @@ mixed add produced the correct X and the negated Y. It looked right, it had the
 right operation count, and it was wrong. The corpus caught it deterministically
 on the first case.
 
+## MEASURED results
+
+Machine: x86-64, GCC 14.2.0, `-O3 -march=native -DNDEBUG`, `powersave` governor,
+shared/loaded machine. Estimator: minimum over passes (contention only adds
+time), reported as best-of-5 independent runs. Raw output in
+`out/representation-search-cpu/`.
+
+### FE52 operation costs (measured directly, not fitted)
+
+An earlier attempt fitted these by least squares over the formula timings. The
+fit was excellent -- max error 1.65% -- and the coefficients were nonsense
+(`sqr` at 0.10x `mul`, `half` at 1.37x `mul`), because the design matrix is
+collinear: M and S counts move together across the formulas. A good fit does not
+make a collinear coefficient identifiable. These are measured one operation at a
+time instead.
+
+| operation | latency ns | rel. mul | note |
+|---|---:|---:|---|
+| `mul` | 21.52 | 1.000 | dependent chain |
+| `sqr` | 18.81 | **0.874** | dependent chain |
+| `half` | 2.09 | 0.097 | |
+| `neg` | 0.71 | 0.033 | |
+| `sub` (= `add` + `negate`) | 0.72 | 0.033 | FE52 exposes **no** `operator-` |
+| `mul_int(3)` | 0.48 | 0.022 | upper bound, includes the reset copy |
+| `add` | 0.36 | 0.017 | |
+| `add` + `normalize_weak` | 4.69 | 0.218 | |
+
+### Instruction-level parallelism — the number that governs formula cost
+
+| independent chains | mul ns/op | sqr ns/op | speedup |
+|---:|---:|---:|---:|
+| 1 | 21.62 | 19.10 | 1.00x |
+| 2 | 12.50 | 10.75 | **1.73x** |
+| 3 | 12.45 | 10.15 | 1.74x |
+| 4 | 12.45 | 10.11 | 1.74x |
+| 8 | 12.36 | 10.05 | 1.75x |
+
+**ILP saturates at two field multiplies in flight and goes no further.** This is
+the single most important constant for formula design on this engine, and no
+operation count contains it. A formula's cost sits between a latency bound
+(21.5 ns per heavy op on the critical path) and a throughput bound (12.4 ns per
+heavy op when two are independent) -- a factor of 1.74 that representation
+changes move you along.
+
+Sanity check on `dbl_production` (3M+4S): throughput bound
+`3 x 12.43 + 4 x 10.11 = 77.7 ns`; measured **78.77 ns**. The production
+doubling is essentially throughput-bound, i.e. already scheduled well enough to
+keep the multiplier busy.
+
+### Point formulas, measured side by side in ONE binary
+
+All variants in one translation unit, one input set, rotating order, warm-up
+before timing, checksum printed so nothing can be optimised away. Every variant
+is checked projectively against the production body at runtime before any timing
+happens. Compared against `*_generated`, so the code-generation style is held
+constant and only the formula varies.
+
+| doubling | ns | vs production formula |
+|---|---:|---:|
+| `dbl_production_generated` | **78.77** | — |
+| `dbl_prod_mul_by_3_as_add` | 79.20 | +0.54% |
+| `dbl_production_search2` (auto) | 79.22 | +0.57% |
+| `dbl_production_search0` (auto) | 79.44 | +0.85% |
+| `dbl_prod_alt_sign` | 79.70 | +1.17% |
+| `dbl_handwritten` (in-place, production style) | 83.94 | **+6.56%** |
+| `dbl_2009_l` (2M+5S) | 84.30 | **+7.02%** |
+| `dbl_2007_bl` (1M+7S) | 88.44 | **+12.27%** |
+
+| mixed addition | ns | vs production formula |
+|---|---:|---:|
+| `madd_production_search0` (auto) | 122.95 | -0.34% |
+| `madd_prod_s2_reassoc` | 123.02 | -0.28% |
+| `madd_production_generated` | **123.37** | — |
+| `madd_handwritten` (in-place, production style) | 126.37 | **+2.43%** |
+| `madd_prod_no_signfold` | 126.94 | +2.89% |
+| `madd_2007_bl` (7M+4S) | 146.34 | **+18.62%** |
+| `madd_2007_bl_zmul` (8M+3S) | 148.17 | **+20.10%** |
+
+### What the measurements establish
+
+**1. No representation beats the production formulas.** The best the automatic
+search found is `madd_production_search0` at -0.34%, which is inside the noise.
+Across ~5900 generated programs, the production point formulas are at a local
+optimum.
+
+**2. The published M-for-S alternatives are 7% to 20% slower, and the operation
+count predicted ~1%.** The op-count model was wrong by up to 13x on
+`madd_2007_bl` (predicted +1.4%, measured +18.6%). Trading a multiply for a
+square buys 12.6% of one operation on this engine (S/M = 0.874) and costs far
+more than that in dependency structure and cheap-op traffic.
+
+**3. The hand-written in-place style is SLOWER than plain SSA/by-value code**:
++6.56% on doubling, +2.43% on mixed addition, for the identical formula. The
+in-place variants exist to avoid "the 128-byte return value copy"; on GCC 14.2
+with `-O3 -march=native` that trade is currently negative. This is the only
+result here that points at a real engine speedup, and it needs validating at the
+actual call sites before any claim is made -- this harness passes results through
+out-parameters, which is not how `jac52_double_inplace` is invoked.
+
+**4. Negative results are the bulk of the yield, and that was the expected
+outcome.** The value delivered is a calibrated cost model, a magnitude checker,
+an equivalence oracle, and a measured refutation of the formula alternatives --
+not a speedup.
+
 ## Running it
 
 ```bash

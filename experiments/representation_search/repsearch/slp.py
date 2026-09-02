@@ -266,7 +266,7 @@ class SLP:
         for ins in self.instrs:
             a = ins.args
             if ins.kind == "const":
-                lines.append("    const %s %s = %s::from_uint(%d);" % (fe, ins.dst, fe, ins.imm))
+                lines.append("    const %s %s = fe_small(%d);" % (fe, ins.dst, ins.imm))
             elif ins.kind == "add":
                 lines.append("    %s %s = %s; %s.add_assign(%s);" % (fe, ins.dst, a[0], ins.dst, a[1]))
             elif ins.kind == "sub":
