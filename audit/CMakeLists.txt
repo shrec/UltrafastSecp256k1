@@ -5739,6 +5739,18 @@ set_tests_properties(regression_abi_invalid_reject PROPERTIES TIMEOUT 30
     LABELS "audit;regression;memory-safety;valid-invalid;abi;reject")
 target_sources(unified_audit_runner PRIVATE test_regression_abi_invalid_reject.cpp)
 
+# Odd-multiple table build invariants — window-constant agreement + shared-Z
+# contract (representation-search, 2026-09-02)
+add_executable(test_regression_table_build_invariants_standalone
+    test_regression_table_build_invariants.cpp)
+audit_target_defaults(test_regression_table_build_invariants_standalone)
+target_compile_definitions(test_regression_table_build_invariants_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_table_build_invariants
+    COMMAND test_regression_table_build_invariants_standalone)
+set_tests_properties(regression_table_build_invariants PROPERTIES TIMEOUT 60
+    LABELS "audit;regression;math-invariants;table-build;window;shared-z")
+target_sources(unified_audit_runner PRIVATE test_regression_table_build_invariants.cpp)
+
 # EXTERNAL-ANCHOR KAT — NIST SHA-512 + official BIP-341 vectors (common-mode defence, 2026-06-11)
 add_executable(test_external_anchor_kat_standalone
     test_external_anchor_kat.cpp)

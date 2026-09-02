@@ -4,7 +4,7 @@
 > or prove we missed something — start here. We want you to find real bugs more
 > than we want to look clean.
 
-**Current assurance state**: 275 exploit PoCs modules + 183 non-exploit modules = 458 total
+**Current assurance state**: 275 exploit PoCs modules + 184 non-exploit modules = 459 total
 (via `audit/unified_audit_runner`), 11 fuzzer harnesses, dudect
 + Valgrind CT evidence, full Wycheproof vector coverage. None of this means the library is bug-free.
 It means we tried hard. Now you try.

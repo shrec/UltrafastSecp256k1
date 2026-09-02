@@ -1,5 +1,32 @@
 # Audit Changelog
 
+## 2026-09-02 — Odd-multiple table build invariants (`regression_table_build_invariants`)
+
+- Added `audit/test_regression_table_build_invariants.cpp` (section
+  `math_invariants`, blocking), wired into `unified_audit_runner.cpp` and
+  `audit/CMakeLists.txt` with a standalone CTest target.
+- Asserts two invariants that no existing gate covered, both surfaced by the CPU
+  representation-search work in `experiments/representation_search/`:
+  - **Window-constant agreement.** `dual_scalar_mul_gen_point` recodes its wNAF
+    digits at `WINDOW_G` while `tbl_G` / `tbl_H` are sized from a separate
+    constant, `kDualMulWindowG`. Those were independently-written literals.
+    Setting the table constant alone indexed past the end of the table: a
+    segfault at window 12, and at window 13 no crash at all — five silently
+    wrong `dual_mul(a*G + b*P)` results out of 89 ECC property checks. Fixed by
+    deriving one from the other with a `static_assert`; this module asserts the
+    behaviour rather than the syntax, so it still fires if the two are ever
+    unlinked again.
+  - **Shared-Z table contract.** Windowed tables store pseudo-affine entries on
+    one implied global Z, built with zero field inversions. A build that lands
+    on a wrong Z is wrong in *every* entry by the same factor, so checking a
+    single entry proves nothing. This module walks all 16 odd multiples on both
+    the `fast::` and `ct::` tracks and cross-checks the two tracks against each
+    other.
+- Comparisons are on the canonical serialised point, not on internal
+  coordinates, so the checks survive a change of coordinate or table
+  representation — which is precisely what they exist to guard.
+- Also filed as GitHub #399.
+
 ## 2026-07-22 — Roadmap evidence reconciliation (`ROADMAP_FINAL_005`)
 
 - Preserved the proven G-1..G-10, G-9b, and P21 closures and reconciled the
