@@ -60,11 +60,15 @@ def test_no_magnitude_overflow(name):
     assert not hard, hard
 
 
-def test_production_formulas_are_magnitude_closed():
-    """The in-tree formulas must be iterable without an inserted normalize.
+def test_production_formulas_stay_inside_declared_magnitudes():
+    """Production outputs must stay inside the magnitudes point.cpp DECLARES.
 
-    This is the property that makes production's extra multiply worth paying
-    for; if it ever stops holding, the formula choice needs revisiting.
+    point.cpp hardcodes p.x.negate(8) and p.y.negate(4).  negate(m) computes
+    (m+1)*p - a limbwise; if the true magnitude of `a` exceeds m the subtraction
+    underflows and returns a valid-looking field element with the wrong value --
+    silently.  This is an interoperability constraint, NOT a normalization cost:
+    every formula here reaches a magnitude fixed point and none ever requires an
+    inserted normalize (see tools/magnitude_fixpoint.py).
     """
     for fn in (pointforms.dbl_production, pointforms.madd_production):
         slp = fn()
@@ -74,10 +78,12 @@ def test_production_formulas_are_magnitude_closed():
         assert outs["Z"] <= JAC_BUDGET["Z"], (slp.name, outs)
 
 
-def test_legacy_4x64_formulas_are_not_magnitude_closed():
-    """Documents WHY the legacy formulas were superseded: they leave the budget.
+def test_m_for_s_trade_formulas_exceed_declared_magnitudes():
+    """The M-for-S trade formulas are NOT drop-in safe.
 
-    This is the quantitative rejection of the 'just use 2M+5S' hypothesis.
+    dbl_2009_l / dbl_2007_bl / mdbl_2007_bl settle at X=22, Y=10, far above the
+    X<=8 / Y<=4 that point.cpp declares at its negate() call sites.  Swapping
+    one in without also updating those arguments is a silent wrong answer.
     """
     outs = pointforms.dbl_2009_l().output_magnitudes(JAC_BUDGET)
     assert outs["X"] > JAC_BUDGET["X"], outs

@@ -109,7 +109,7 @@ deterministic pseudorandom curve points, several **randomized nonzero Z**
 representatives per point (so no formula can pass by accidentally ignoring Z),
 and explicit degenerate probes (`P = Q`, `P = -Q`, `Y = 0`, `Z = 0`).
 
-## The magnitude model — why operation counts are not the verdict
+## The magnitude model — what it does and does not decide
 
 FE52 carries explicit magnitude bookkeeping. `repsearch/slp.py` propagates it:
 
@@ -117,16 +117,27 @@ FE52 carries explicit magnitude bookkeeping. `repsearch/slp.py` propagates it:
 negate(m)        -> m + 1        (computes (m+1)·p − a)
 a − b            -> m_a + m_b + 1   (FE52 has no native subtract)
 a + b            -> m_a + m_b
-mul_int(k)       -> m·k          requires m·k < 4096
+mul_int(k)       -> m·k          requires k ≤ 32 and m·k < 4096
 half             -> (m >> 1) + 1
 mul / sqr        -> 1            requires 5·m_a·m_b < ~3.3e6
 ```
 
-A formula is **magnitude-closed** when its outputs fit back inside the engine's
-Jacobian budget (`X ≤ 7`, `Y ≤ 4`, `Z ≤ 1`, read from `point.cpp`'s own
-annotations). A closed formula can be iterated in a scalar-multiplication loop
-with **no inserted normalize**. A formula that is not closed pays normalization
-cost that no published M/S count reveals.
+**It does not decide cost.** `tools/magnitude_fixpoint.py` feeds each formula's
+outputs back into its own inputs and iterates. *Every* candidate reaches a
+magnitude fixed point within 3 iterations, because `mul`/`sqr` reset the
+magnitude to 1. None of them ever requires an inserted `normalize`. FE52's
+12 bits of headroom are simply large enough that these formulas never approach
+the bound. An earlier draft of this document claimed the opposite; that claim
+was wrong and is withdrawn.
+
+**It does decide interoperability, and getting it wrong is silent.**
+`point.cpp` hardcodes the declared magnitude at each `negate()` call site —
+`p.x.negate(8)` and `p.y.negate(4)`. `negate(m)` computes `(m+1)·p − a`
+limbwise; if the true magnitude of `a` exceeds `m`, the subtraction
+**underflows** and yields a valid-looking field element with the wrong value.
+No assertion, no crash. `tools/interop_check.py` reports which formulas are
+drop-in safe. Z is never negated in these formulas — only multiplied — so it is
+bounded by the accumulator, not by a declared magnitude.
 
 ## Results so far — point layer
 
