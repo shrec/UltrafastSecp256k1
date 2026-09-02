@@ -37,10 +37,12 @@
 #include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <array>
 
 #include "secp256k1/point.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/ct/point.hpp"
+#include "secp256k1/schnorr.hpp"
 
 using secp256k1::fast::Point;
 using secp256k1::fast::Scalar;
@@ -178,6 +180,39 @@ int test_regression_table_build_invariants_run() {
         }
         check(agree == kCases, "fast::scalar_mul == ct::scalar_mul on random inputs");
         printf("  %d/%d cases agree\n", agree, kCases);
+    }
+
+    // ---- (4) x-only pubkey parse: on-curve accept, off-curve reject ----
+    // Pins the behaviour of lift_x_from_limbs (schnorr.cpp) after the redundant
+    // Jacobi pre-check was removed. The sqrt+verify that remains is the
+    // authoritative quadratic-residue test; this asserts it still accepts every
+    // real key and still rejects an x with no y on the curve. Off-curve x now
+    // costs a sqrt rather than a Jacobi -- slower on that path, and matching
+    // libsecp256k1's secp256k1_ge_set_xo_var and this engine's own recovery.cpp.
+    printf("\n--- (4) x-only pubkey parse: on-curve accept, off-curve reject ---\n");
+    {
+        int accepted = 0, total = 0;
+        for (int i = 0; i < 24; ++i) {
+            const Point P = G.scalar_mul(random_scalar());
+            const auto xb = P.x_only_bytes();
+            secp256k1::SchnorrXonlyPubkey pk;
+            ++total;
+            if (secp256k1::schnorr_xonly_pubkey_parse(pk, xb)) ++accepted;
+        }
+        check(accepted == total, "x-only parse accepts every on-curve x");
+        printf("  %d/%d on-curve x values accepted\n", accepted, total);
+
+        // x = 5 has no y on secp256k1 (5^3 + 7 = 132 is a non-residue mod p);
+        // x = 1 does. Both are far below 2^33 -- exactly the range the removed
+        // jacobi_var was documented to misclassify, so these are the cases that
+        // most need pinning now that the sqrt+verify stands alone.
+        std::array<std::uint8_t, 32> x5{}; x5[31] = 5;
+        std::array<std::uint8_t, 32> x1{}; x1[31] = 1;
+        secp256k1::SchnorrXonlyPubkey p5, p1;
+        check(!secp256k1::schnorr_xonly_pubkey_parse(p5, x5),
+              "x-only parse rejects x = 5 (no y on the curve)");
+        check(secp256k1::schnorr_xonly_pubkey_parse(p1, x1),
+              "x-only parse accepts x = 1 (on the curve)");
     }
 
     printf("\n[regression_table_build_invariants] %d/%d checks passed\n",

@@ -68,16 +68,32 @@ static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
     FE52 const x3 = px52.square() * px52;
     FE52 const y2 = x3 + kSeven52;
 
-    // Fast QR rejection via Jacobi (~900 ns) before sqrt (~3.8 µs).
-    // Jacobi is correct for 256-bit inputs (= normalized field elements close to p).
-    // Signature R.x and pubkey x-values are 256-bit, so this is safe.
-    if (y2.jacobi_var() != 1) return Point::infinity();
-
-    // sqrt + verify (defense-in-depth: jacobi_var has a known bug for inputs < 2^33
-    // where it may return an incorrect QR result. Secp256k1 field values from valid
-    // signatures/pubkeys are never this small (x >= 1 for any real key), but the
-    // sqrt+verify confirms correctness unconditionally. SEC-008: no code fix needed;
-    // the defense already catches any jacobi_var misclassification.)
+    // sqrt + verify. This is the AUTHORITATIVE quadratic-residue test and it runs
+    // unconditionally, so a Jacobi pre-check in front of it decides nothing on any
+    // on-curve x -- which is every honest pubkey and every honest signature R.x.
+    // It could only short-circuit an OFF-curve x, and it was paying ~730 ns on
+    // every cold lift_x to do so.
+    //
+    // Removed 2026-09-02 (representation search). Three reasons, in order:
+    //   1. It was the lone holdout. recovery.cpp carries the byte-identical block
+    //      with the comment "skip Jacobi pre-check", and none of the other eleven
+    //      decompression sites pre-check either (batch_verify, taproot, ct_point,
+    //      ecdsa, shim_pubkey, address, pedersen, zk, ecies, bip32, shim_musig).
+    //      libsecp256k1's secp256k1_ge_set_xo_var does not either -- it calls
+    //      fe_sqrt and uses the return value, exactly as this does now.
+    //   2. Its own comment documented jacobi_var as having "a known bug for inputs
+    //      < 2^33 where it may return an incorrect QR result", with this sqrt+verify
+    //      named as the defense. Deleting the pre-check removes a documented
+    //      misclassification source and leaves the defense.
+    //   3. The saving is real but small and MUST NOT be claimed as a speedup: ~730 ns
+    //      per lift_x CACHE MISS only. bench_unified will not move at all (its 64-key
+    //      warm pool always hits the 1024-slot lift_x cache); an uncached single
+    //      Schnorr verify is about 2.9%, ConnectBlockAllSchnorr well under 1%. This
+    //      lands under CLAUDE.md performance rule 5 -- removal of known algorithmic
+    //      waste, magnitude not overclaimed -- not as a measured win.
+    //
+    // ellswift.cpp KEEPS its fe_jacobi_is_qr, and correctly: there the Jacobi
+    // AVOIDS a sqrt on a non-residue rather than preceding one that runs anyway.
     FE52 y52 = y2.sqrt();
     FE52 check = y52.square();
     check.negate_assign(1);
