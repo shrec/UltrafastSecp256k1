@@ -4,7 +4,7 @@
 > or prove we missed something — start here. We want you to find real bugs more
 > than we want to look clean.
 
-**Current assurance state**: 275 exploit PoCs modules + 184 non-exploit modules = 459 total
+**Current assurance state**: 276 exploit PoCs modules + 184 non-exploit modules = 460 total
 (via `audit/unified_audit_runner`), 11 fuzzer harnesses, dudect
 + Valgrind CT evidence, full Wycheproof vector coverage. None of this means the library is bug-free.
 It means we tried hard. Now you try.
@@ -346,6 +346,73 @@ this machine's GPU: `Result: 37 passed, 0 failed, 0 inconclusive/advisory-skip`.
 the real dispatch path" are different claims — a generic probe of the fault
 injector alone proves the injector works, not that the code path under test
 propagates the failure the way production traffic would reach it.
+
+---
+
+### Attack 12 — Batch Verification Randomiser: Weight/Seed Binding (GitHub issue #400)
+
+**Target**: `src/cpu/src/batch_verify.cpp`, `src/cpu/include/secp256k1/sha256.hpp`
+**Entry**: `schnorr_batch_verify` (both the `SchnorrBatchEntry` and
+`SchnorrBatchCachedEntry` overloads), batch sizes `n > 96`
+
+Randomised batch verification replaces N individual checks with one aggregate:
+
+    sum_i a_i * ( s_i*G - R_i - e_i*P_i )  ==  O
+
+Write `D_i = s_i*G - R_i - e_i*P_i` for entry i's error; `D_i = O` exactly when
+entry i is valid. The Bellare–Garay–Rabin small-exponents proof requires the
+weights `a_i` to be drawn **after, and independently of, the signatures**. The
+moment an attacker learns the `a_i` before choosing the entries, the check is
+defeated by linear algebra, not cryptanalysis: pick any `t_0 != 0`, set
+`t_1 = -(a_0/a_1)·t_0`, and offset `s_0 += t_0`, `s_1 += t_1`. Then
+`D_0 = t_0*G`, `D_1 = t_1*G`, and `a_0*D_0 + a_1*D_1 = O`. The batch passes
+with two signatures that both fail individual verification. Cost: one modular
+inversion. No key, no grinding, no discrete log.
+
+**How this engine lost that property.** Weights are derived as
+`a_i = SHA256(batch_seed || i_le32)`, where `batch_seed` binds every signature
+in the batch and is XORed with 32 fresh CSPRNG bytes per call — exactly to keep
+the `a_i` unpredictable. A performance change (`ca0dde78`) replaced the
+per-weight SHA-256 context copy with a captured `SHA256::Midstate`. A midstate
+carries only `state_` and `total_`, so it is well defined **only on a 64-byte
+block boundary**. The seed is 32 bytes: nothing had been compressed and all 32
+bytes were still in `buf_`. The capture dropped them while `total_` kept
+counting them, and every weight collapsed to a constant of the index alone —
+the same values in every batch on every machine. The CSPRNG XOR was still
+computed, and then thrown away.
+
+**What to try on any batch-verification implementation:**
+
+1. **Does a weight actually depend on the seed?** Hash the same index under two
+   different seeds and compare. This is one line and it is the whole bug.
+2. **Are weights stable across runs?** Run the same batch twice in one process
+   and once in a fresh process. A randomiser worth its name gives different
+   weights every call; identical weights mean the CSPRNG never reached them.
+3. **Build the cross-cancellation pair.** If step 1 or 2 shows fixed weights,
+   compute `t_1 = -(a_0/a_1)·t_0` and submit the batch. Acceptance is the
+   proof.
+4. **Check the batch-size threshold.** This engine runs individual verification
+   for `n <= kSchnorrBatchIndividualCutoff` (96) and only then switches to the
+   randomised MSM. A PoC below the cutoff proves nothing — it never derives a
+   weight. Any batch implementation with a small-N fast path has the same blind
+   spot, and it is where a test suite is most likely to be looking.
+5. **Audit every incremental-hash shortcut for its block-boundary
+   precondition.** Midstate/`memcpy`-of-context/`clone()` optimisations are
+   correct only where the absorbed length is a multiple of the block size.
+   Off-boundary, they silently hash different data — no crash, no wrong length,
+   just a different and now attacker-predictable digest.
+
+**General lesson — and the one that matters most here.** The module that was
+supposed to cover this, `audit/test_batch_randomness.cpp`, passed unchanged
+throughout. It *reimplements* the weight function instead of calling it, so it
+was testing its own model, not the engine; and every batch it builds is far
+below the 96-entry cutoff, so it never reaches the code it claims to audit. A
+mirror test cannot detect divergence from the thing it mirrors. Where a
+security property is observable through the public API — and "does the batch
+reject this forgery?" is — assert it **through the public API**.
+
+See `audit/test_exploit_batch_weight_seed_binding.cpp` for the full PoC; it is
+verified to fail against pre-fix code (6/8) and pass after (8/8).
 
 ---
 

@@ -9,8 +9,8 @@
 |------|---------|
 | Audit checks per run | ~1,000,000+ |
 | Nightly random checks | ~1,300,000+ |
-| Audit modules | 458 across 9 failure classes |
-| Exploit PoC tests | 275 exploit-PoC modules, 200+ attack vectors |
+| Audit modules | 460 across 9 failure classes |
+| Exploit PoC tests | 276 exploit-PoC modules, 200+ attack vectors |
 | Platforms | X64, ARM64, RISC-V, macOS, Windows, iOS, Android, WASM, ROCm (16 configurations) |
 | Fuzz inputs | seed corpus: ~530K entries (runtime corpus grows dynamically) |
 | CI workflows | 58 GitHub Actions workflows |
@@ -34,7 +34,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 
 **Version**: v4.1.0
 **Audit Runner**: `unified_audit_runner`
-**Verdict**: **CAAS Self-Audit Verdict: AUDIT-READY (self-generated continuous audit; no external third-party security audit has been completed)** -- 459 modules, 9 failure classes
+**Verdict**: **CAAS Self-Audit Verdict: AUDIT-READY (self-generated continuous audit; no external third-party security audit has been completed)** -- 460 modules, 9 failure classes
 **Total Checks**: ~1,000,000+ (audit) + 1.3M+ (nightly differential)
 **CT Verification**: Three-tier -- ct-verif (LLVM IR) + Valgrind CT + dudect (available as `workflow_dispatch` GitHub Actions + local dudect; triggered manually, **not** on every commit push -- matches README "Constant-time verification pipelines" row)
 
@@ -46,7 +46,7 @@ This system continuously verifies correctness across math, protocol, constant-ti
 |----------------------|---------------------------------------------|
 | Audit Sections       | 8                                           |
 | Audit Modules        | 184 (non-exploit modules) |
-| **Exploit PoC Tests** | **275 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
+| **Exploit PoC Tests** | **276 tests across 20+ attack categories** (`audit/test_exploit_*.cpp`) |
 | Audit assertions     | ~1,000,000+ (parser fuzz 530K, CT deep 120K, field Fp 264K, ZK ~1.5K, ...) |
 | Nightly differential | ~1,300,000+ additional random checks (daily) |
 | CI Workflows         | 58 GitHub Actions workflows                 |

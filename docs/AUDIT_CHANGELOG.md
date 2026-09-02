@@ -1,5 +1,55 @@
 # Audit Changelog
 
+## 2026-09-02 — Schnorr batch weight lost its seed (`exploit_batch_weight_seed_binding`)
+
+- **Soundness defect, found and fixed.** `schnorr_batch_verify` accepted batches
+  containing individually-invalid signatures. Reproduced end to end: a batch of
+  97 signatures, two of which fail `schnorr_verify` on their own, verified
+  `true`.
+- **Root cause.** `batch_verify.cpp` derived its randomiser as
+  `a_i = SHA256(batch_seed || i)` by capturing a `SHA256::Midstate` from a
+  context that had absorbed the 32-byte seed. A `Midstate` carries only
+  `state_` and `total_`, so it is well defined *only* on a 64-byte block
+  boundary. At 32 bytes nothing had been compressed and all 32 seed bytes were
+  still sitting in `buf_`; the capture discarded them while `total_` kept
+  counting them. Every weight collapsed to a public constant of the index
+  alone — identical in every batch, on every machine.
+- **Consequence.** The 32 CSPRNG bytes XORed into the seed (P2-SEC-002, added
+  precisely to make weights unpredictable) became a no-op. With the `a_i`
+  known in advance, defeating the aggregate check costs one modular inversion:
+  offset `s_0` by any `t_0` and `s_1` by `t_1 = -(a_0/a_1)·t_0`, and the two
+  errors `a_0·t_0·G` and `a_1·t_1·G` cancel in the sum. No key, no grinding,
+  no discrete log.
+- **Reachability.** The randomised MSM path runs only for
+  `n > kSchnorrBatchIndividualCutoff` (96); at or below that the implementation
+  verifies signatures one at a time and derives no weight. Both public
+  overloads — `SchnorrBatchEntry` and `SchnorrBatchCachedEntry` — were affected.
+- **Introduced by** `ca0dde78` ("perf: C-5 SHA256 midstate"), a pure
+  performance change whose own comment asserted the false precondition
+  "buf_[64] is always zero-filled in a midstate context".
+- **Fix.** `batch_weight()` now hashes a 36-byte `seed || index_le32` buffer
+  built once and reused across the loop. One SHA-256 compression, no context
+  object and no copy at all — less work than either the 104-byte context copy
+  it replaced or the broken 40-byte midstate.
+- **Root-cause hardening.** `SHA256::capture_midstate()` now documents the
+  block-boundary precondition and asserts it. Rebuilding the pre-fix
+  `batch_verify.cpp` against the new header aborts on that assert.
+- **Tests.** Added `audit/test_exploit_batch_weight_seed_binding.cpp` (section
+  `exploit_poc`, blocking), fully wired with a standalone CTest target. It
+  reconstructs the broken weights from the SHA-256 definition rather than from
+  the engine, builds the cross-cancellation forgery, and requires both
+  overloads to reject it; it also pins the *legitimate* 64-byte-boundary
+  midstate round-trip so the fix cannot regress the tagged-hash use. Verified
+  to fail (6/8) against pre-fix code and pass (8/8) after.
+- **Also corrected `audit/test_batch_randomness.cpp`,** which passed unchanged
+  through the entire broken window. It reimplements the weight function instead
+  of calling it, and its model had drifted from the engine in two ways: it kept
+  an `a_0 = 1` short-circuit the engine had removed as unsound, and it omits
+  the per-call CSPRNG XOR. Its `a_0 == 1` assertions are inverted to the
+  current contract, and the file now states in its header that it models the
+  spec and that the engine-side property lives in the new PoC.
+- Filed as GitHub #400.
+
 ## 2026-09-02 — Odd-multiple table build invariants (`regression_table_build_invariants`)
 
 - Added `audit/test_regression_table_build_invariants.cpp` (section

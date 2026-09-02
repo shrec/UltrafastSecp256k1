@@ -283,19 +283,27 @@ bool verify_opaque_bounded(std::size_t count, std::uint8_t* out_results,
 // All weights are derived from SHA256(batch_seed || i_le32) for every index
 // including index 0. Fixing a_0 = 1 deviates from the batch-verify soundness
 // proof which requires all weights to be uniform random.
-// Compact midstate variant: avoids copying the full SHA256 object (104 bytes)
-// per call. SHA256::Midstate holds only the 8×uint32 state + 64-bit counter
-// (40 bytes). buf_[64] is always zero-filled in a midstate context.
-Scalar batch_weight(const SHA256::Midstate& midstate, uint32_t index) {
-    uint8_t index_bytes[4];
-    index_bytes[0] = static_cast<uint8_t>(index & 0xFF);
-    index_bytes[1] = static_cast<uint8_t>((index >> 8) & 0xFF);
-    index_bytes[2] = static_cast<uint8_t>((index >> 16) & 0xFF);
-    index_bytes[3] = static_cast<uint8_t>((index >> 24) & 0xFF);
+// seed_and_index holds the 32-byte batch seed in [0,32); this writes the
+// little-endian index into [32,36) and hashes all 36 bytes. 36 message bytes +
+// the 0x80 terminator + the 8-byte length fit one 64-byte block, so this is a
+// SINGLE SHA-256 compression with no context object and no copy at all --
+// cheaper than either a 104-byte SHA256 copy or a 40-byte midstate copy.
+//
+// DO NOT reintroduce SHA256::Midstate here. A Midstate carries only state_ and
+// total_, so it is well defined ONLY at a 64-byte block boundary. The batch seed
+// is 32 bytes: a context that has absorbed it has compressed nothing and still
+// holds all 32 bytes in buf_. Capturing a midstate there silently DISCARDS the
+// seed, which makes every weight a public constant of the index alone -- the
+// CSPRNG randomisation below becomes a no-op and two forged entries can be
+// offset to cancel each other in the batch sum. That regression shipped in
+// ca0dde78 and is pinned by audit/test_exploit_batch_weight_seed_binding.cpp.
+Scalar batch_weight(uint8_t (&seed_and_index)[36], uint32_t index) {
+    seed_and_index[32] = static_cast<uint8_t>(index & 0xFF);
+    seed_and_index[33] = static_cast<uint8_t>((index >> 8) & 0xFF);
+    seed_and_index[34] = static_cast<uint8_t>((index >> 16) & 0xFF);
+    seed_and_index[35] = static_cast<uint8_t>((index >> 24) & 0xFF);
 
-    SHA256 ctx = SHA256::from_midstate(midstate);  // 40-byte copy, not 104
-    ctx.update(index_bytes, sizeof(index_bytes));
-    auto h = ctx.finalize();
+    auto h = SHA256::hash(seed_and_index, sizeof(seed_and_index));
     Scalar w = Scalar::from_bytes(h);
     // SEC-007: SHA256 output equal to the curve order n reduces to 0 mod n.
     // A zero weight would silently exclude this signature from the batch check,
@@ -393,10 +401,11 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
     }
     detail::secure_erase(csprng_rand, sizeof(csprng_rand));
 
-    SHA256 batch_weight_base;
-    batch_weight_base.update(batch_seed.data(), batch_seed.size());
-    // Capture compact midstate once (40 bytes) — avoids 104-byte SHA256 copy per weight call.
-    SHA256::Midstate const bw_mid = batch_weight_base.capture_midstate();
+    // Weight input buffer, built once and reused: bytes [0,32) are the seed and
+    // never change, bytes [32,36) are overwritten with each index. See
+    // batch_weight() for why this is NOT a captured SHA256::Midstate.
+    uint8_t bw_buf[36];
+    std::memcpy(bw_buf, batch_seed.data(), batch_seed.size());
 
     std::size_t const msm_n = 2 * n;
     auto& scratch = schnorr_batch_scratch(msm_n);
@@ -406,7 +415,7 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
     Scalar g_coeff = Scalar::zero();
 
     for (std::size_t i = 0; i < n; ++i) {
-        Scalar const weight = batch_weight(bw_mid, static_cast<uint32_t>(i));
+        Scalar const weight = batch_weight(bw_buf, static_cast<uint32_t>(i));
 
         auto [r_ok, R_pt] = lift_x(entries[i].signature.r);
         if (!r_ok) return false;
