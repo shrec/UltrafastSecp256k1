@@ -1648,7 +1648,34 @@ FieldElement ecmult_const_xonly(const FieldElement& xn_fe, const FieldElement& x
     FE52 const rz2   = R.z.square();
     FE52       denom = rz2 * g;
     denom = denom * xd;             // R.z² * g * xd
+#if defined(REPSEARCH_CT_SAFEGCD_INV) && REPSEARCH_CT_SAFEGCD_INV == 1
+    // EXPERIMENT ONLY (experiments/representation_search); default build uses
+    // the line in the #else branch, unchanged.
+    //
+    // Both of these are CONSTANT-TIME. FieldElement52::inverse() is the Fermat
+    // chain: 255 squarings + 15 multiplies, a fixed operation sequence.
+    // ct::field_inv is the ct:: track's Bernstein-Yang SafeGCD: 10 x 59 = 590
+    // BRANCHLESS divsteps, a port of libsecp256k1's secp256k1_modinv64 (the CT
+    // variant, not the _var one). Same timing guarantee, different algorithm.
+    //
+    // MEASURED on this machine (i5-14400F, GCC 14.2.0, -O3 -march=native, 64
+    // random elements, 11 passes, minimum taken, P-core pinned; all paths
+    // verified to return true inverses first):
+    //     FieldElement52::inverse()   Fermat, CT      3847.5 ns
+    //     ct::field_inv()             SafeGCD, CT     1555.0 ns   2.47x
+    //     FE52::inverse_safegcd()     VARIABLE-TIME   1189.4 ns   (NOT usable
+    //                                                 here -- q is secret)
+    // The 1555 ns figure INCLUDES the FE52 <-> 4x64 conversions below.
+    //
+    // The Fermat chain is therefore not the price of constant time; it is
+    // simply the slower of the two constant-time inverses this repository
+    // already contains. See issue #398 and KB FE52-INVERSE-CT-DOMINATED.
+    //
+    // This inverse is NOT amortised: one per ECDH, so the full ~2.3 us lands.
+    FE52 const denom_inv = FE52::from_fe(ct::field_inv(denom.to_fe()));
+#else
     FE52 const denom_inv = denom.inverse();
+#endif
     FE52 const x52   = R.x * denom_inv;
 
     return x52.to_fe();
