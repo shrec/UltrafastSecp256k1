@@ -1158,6 +1158,120 @@ static inline JacobianPoint52 jac52_negate(const JacobianPoint52& p) {
 // -- GLV + Shamir helpers (shared by scalar_mul_glv52 / scalar_mul_with_plan_glv52 /
 //    dual_scalar_mul_gen_point) -----------------------------------------------
 
+#if defined(REPSEARCH_COZ_TABLE) && REPSEARCH_COZ_TABLE == 1
+// ---------------------------------------------------------------------------
+// EXPERIMENT ONLY (experiments/representation_search). Default build does not
+// compile this; selected by -DREPSEARCH_COZ_TABLE=1.
+//
+// Co-Z (Meloni) table construction. Both operands share one Z, so the four
+// heavy operations a mixed add spends reconciling two different Z values --
+// zz = Z1^2, X2*zz, Y2*zz, *Z1 -- do not exist. 7 heavy operations per entry
+// instead of 11.
+//
+// Verified before it was written: experiments/representation_search models both
+// constructions exactly and checks they denote the same points against repeated
+// affine addition, over table sizes 2..32 and 8 curve points
+// (tests/test_table_build.py). Measured on the addition alone: -34.7%.
+// ---------------------------------------------------------------------------
+
+// DBLU: double an affine point AND hand back P re-expressed on the new Z.
+// The co-Z copy of P is FREE: the doubling already computes both values it
+// needs, D = 4*X*B is X on the new Z and 8C is Y on the new Z.
+// Cost 1M+5S. Outputs are normalized so the chain starts from magnitude 1 and
+// the setup contributes no magnitude growth at all (one normalize per table).
+// Takes a JACOBIAN P, not an affine one: the caller's P has a general Z. The
+// co-Z outputs are unaffected -- D = 4*X*Y^2 and 8*Y^4 are X and Y scaled by
+// (2Y)^2 and (2Y)^3 regardless of Z -- only the new Z picks up a factor Z,
+// so Z_new = 2*Y*Z costs one extra multiply. Total 2M+5S against the 11 heavy
+// operations the current setup spends (double + C^2 + C^3 + two iso muls).
+SECP256K1_NOINLINE
+static void jac52_dblu(const FieldElement52& x, const FieldElement52& y,
+                       const FieldElement52& zin,
+                       FieldElement52& out_dx, FieldElement52& out_dy,
+                       FieldElement52& out_px, FieldElement52& out_py,
+                       FieldElement52& out_z) noexcept {
+    FieldElement52 const A = x.square();                   // X^2
+    FieldElement52 const B = y.square();                   // Y^2
+    FieldElement52 const C = B.square();                   // Y^4
+
+    FieldElement52 t = x + B;
+    t = t.square();
+    t.add_assign(A.negate(1));
+    t.add_assign(C.negate(1));                             // (X+B)^2 - A - C = 2XB
+    FieldElement52 D = t; D.add_assign(t);                 // D = 4XB = X on new Z
+
+    FieldElement52 E = A; E.mul_int_assign(3);             // 3X^2
+    FieldElement52 const F = E.square();
+
+    FieldElement52 twoD = D; twoD.add_assign(D);
+    FieldElement52 X2 = F; X2.add_assign(twoD.negate(20)); // X(2P) = F - 2D
+
+    FieldElement52 dmx = D; dmx.add_assign(X2.negate(22));
+    FieldElement52 Y2 = E * dmx;
+    FieldElement52 eightC = C; eightC.mul_int_assign(8);   // 8Y^4 = Y on new Z
+    Y2.add_assign(eightC.negate(8));                       // Y(2P) = E(D-X2) - 8C
+
+    FieldElement52 Z = y; Z.add_assign(y);                 // 2Y
+    Z.mul_assign(zin);                                     // Z_new = 2*Y*Z
+
+    // One normalize per table build: cheap here, and it lets every magnitude
+    // downstream be reasoned about from a clean magnitude-1 start.
+    X2.normalize_weak(); Y2.normalize_weak();
+    D.normalize_weak();  eightC.normalize_weak(); Z.normalize_weak();
+
+    out_dx = X2; out_dy = Y2;      // 2P
+    out_px = D;  out_py = eightC;  // P, on the same Z
+    out_z  = Z;
+}
+
+// ZADDU: (P, Q) sharing Z -> (P+Q, P) both on the new Z, plus the z-ratio.
+//
+// OPERAND ORDER IS LOAD-BEARING. This returns its FIRST operand on the new Z.
+// The caller's accumulator is replaced by the sum anyway, so the operand that
+// must survive is the constant 2P -- pass it FIRST. Passing them the other way
+// still produces a correct table, just one that needs a 3M+1S rescale every
+// step, which eats almost the entire saving and no correctness test would
+// notice. See tests/test_table_build.py::test_operand_order_is_load_bearing.
+//
+// Returns false when X1 == X2, which ZADDU cannot represent (the caller then
+// falls back exactly as the z-ratio path does).
+SECP256K1_NOINLINE
+static bool jac52_zaddu_zr(FieldElement52& x1, FieldElement52& y1,
+                           const FieldElement52& x2, const FieldElement52& y2,
+                           FieldElement52& z,
+                           FieldElement52& sum_x, FieldElement52& sum_y,
+                           FieldElement52& zr_out) noexcept {
+    FieldElement52 dx = x2; dx.add_assign(x1.negate(8));       // X2 - X1
+    if (SECP256K1_UNLIKELY(dx.normalizes_to_zero_var())) {
+        return false;
+    }
+    FieldElement52 dy = y2; dy.add_assign(y1.negate(8));       // Y2 - Y1
+
+    FieldElement52 const A = dx.square();
+    FieldElement52 const B = x1 * A;                            // X1 on new Z
+    FieldElement52 const C = x2 * A;
+    FieldElement52 const D = dy.square();
+
+    FieldElement52 x3 = D;
+    x3.add_assign(B.negate(1));
+    x3.add_assign(C.negate(1));                                 // X3 = D - B - C
+
+    FieldElement52 cb = C; cb.add_assign(B.negate(1));          // C - B
+    FieldElement52 const y1cb = y1 * cb;                        // Y1 on new Z
+
+    FieldElement52 bx3 = B; bx3.add_assign(x3.negate(5));       // B - X3
+    FieldElement52 y3 = dy * bx3;
+    y3.add_assign(y1cb.negate(1));                              // Y3 = dy(B-X3) - Y1cb
+
+    zr_out = dx;                                                // Z_new / Z_old
+    z.mul_assign(dx);                                           // Z3 = Z * dx
+
+    sum_x = x3; sum_y = y3;
+    x1 = B; y1 = y1cb;                                          // P on the new Z
+    return true;
+}
+#endif  // REPSEARCH_COZ_TABLE
+
 // Builds odd-multiple table [1P, 3P, ..., (2T-1)P] in FE52 using the z-ratio
 // technique (zero field inversions).  All table entries share an implied
 // Z = globalz on the secp256k1 curve.
@@ -1168,6 +1282,40 @@ static bool build_glv52_table_zr(
     int table_size,
     FieldElement52& globalz)
 {
+#if defined(REPSEARCH_COZ_TABLE) && REPSEARCH_COZ_TABLE == 1
+    // ---- co-Z construction (EXPERIMENT ONLY) ----------------------------
+    // Same table, same shared-Z contract, same backward sweep. The difference
+    // is that the accumulator and the constant 2P are kept on ONE Z, so the
+    // four heavy operations a mixed add spends bridging two Z values never
+    // happen: 7 heavy operations per entry instead of 11.
+    constexpr int kMaxZr = 32;
+    assert(table_size <= kMaxZr);
+    FieldElement52 zr[kMaxZr];
+
+    FieldElement52 dX, dY, aX, aY, chainZ;
+    jac52_dblu(P52.x, P52.y, P52.z, dX, dY, aX, aY, chainZ);
+
+    tbl[0].x = aX;
+    tbl[0].y = aY;
+    zr[0] = FieldElement52::one();   // never read by the sweep; set for clarity
+
+    for (int i = 1; i < table_size; i++) {
+        FieldElement52 sx, sy;
+        // (d, acc): d FIRST, so ZADDU hands it back on the new Z for free.
+        if (SECP256K1_UNLIKELY(!jac52_zaddu_zr(dX, dY, aX, aY, chainZ,
+                                               sx, sy, zr[i]))) {
+            return false;
+        }
+        aX = sx;
+        aY = sy;
+        tbl[i].x = aX;
+        tbl[i].y = aY;
+    }
+
+    // No isomorphism to undo: the chain worked on the curve directly, so the
+    // shared Z is simply the Z the chain ended on.
+    globalz = chainZ;
+#else
     // d = 2*P (Jacobian)
     JacobianPoint52 const d = jac52_double(P52);
     FieldElement52 const C  = d.z;
@@ -1200,6 +1348,7 @@ static bool build_glv52_table_zr(
 
     // globalz = final_Z * C (maps from iso curve back to secp256k1)
     globalz = ai.z * C;
+#endif  // REPSEARCH_COZ_TABLE
 
     // Backward sweep: rescale table entries so all share implied Z = Z_last.
     // zs accumulates the product zr[n-1] * ... * zr[i+1] = Z_last / Z_i.
