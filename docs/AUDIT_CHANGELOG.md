@@ -1,5 +1,97 @@
 # Audit Changelog
 
+## 2026-09-03 — The three places we were behind libsecp256k1
+
+The 2026-09-03 comparison against libsecp256k1 v0.8.0 left three operations
+losing. All three were taken apart; two were real and are fixed, one turned out
+not to be a deficit at all.
+
+### scalar from_bytes: 0.71× → 1.06×, now ahead
+
+11.41 ns against libsecp's ~8.1. **Not** a semantic difference — both reduce
+mod n, neither rejects; the shipped code simply ran the same 4-limb subtract
+chain twice, once inside `sub_impl()` for the value and once inside `ge()` only
+to learn whether the borrow came out, then selected between two 4-limb results.
+
+Two changes, measured as isolated variants on the same inputs before either was
+applied to the tree:
+
+| variant | ns |
+|---|---:|
+| shipped, two subtract chains | 18.68 |
+| one chain, borrow reused as the test | 14.63 |
+| **complement-add, specialised overflow test** | **7.82** |
+| libsecp `scalar_set_b32` | 8.10 |
+
+`order_overflow()` replaces the generic `ge(x, ORDER)` borrow chain. `ge` walks
+four `sbb` instructions, each waiting on the carry the last one wrote; the
+specialised form exploits `ORDER[3] == 0xFFFF...FF` — a limb no value can
+exceed — so the comparison collapses to independent tests the machine issues in
+parallel. Still branchless, so the constant-time property `from_bytes` needed
+for nonce-derived inputs is unchanged. It replaces `ge(x, ORDER)` at all nine
+call sites, not just this one.
+
+The reduction itself now adds 2^256 − n and lets the carry fall off the top
+limb instead of subtracting n. Same single conditional reduction, but the
+complement has two limbs at zero-or-one, so half the adds fold away at compile
+time.
+
+In-tree, raw call against raw call: **11.41 ns → 7.66 ns**, against libsecp's
+8.05 — this operation is now 1.05× ahead rather than 0.71× behind.
+
+### field inverse (variable-time): 0.86× → 0.94×
+
+The gap was algorithmic and specific. Both libraries run Bernstein–Yang
+safegcd; the difference was inside the 62-divstep inner loop.
+
+Ours cancelled **one** bit of `g` per pass — add `f` to make `g` even, shift
+once, let the next `ctz` find the single new zero. libsecp solves for the
+multiple `w` of `f` that zeroes up to **six** low bits at once (`f` is odd so it
+is invertible mod 2^k; `f*f−2` is the third Hensel lift of `f⁻¹` mod 2^6, making
+`f*g*(f*f−2)` equal to `−g/f` mod 2^6), then lets the next `ctz` skip all of
+them in bulk. `limit` bounds `w` by the iterations remaining and by `delta+1`,
+past which the swap branch is the correct move instead.
+
+Two further changes in the same path:
+
+- The trailing `for (i = len; i < 5; ++i) { f.v[i] = 0; g.v[i] = 0; }` in
+  `safegcd_update_fg` was removed. Every consumer is bounded by `len`, so it was
+  pure work; libsecp does not clear them either.
+- libsecp's `if (g.v[0] == 0)` guard on the outer zero scan was **re-tested**,
+  because the faster divstep makes the outer loop a larger share of the total
+  and could have flipped the trade recorded earlier. It did not: 4 interleaved
+  rounds, guarded 1524.3–1526.8 ns against unguarded 1510.0–1511.5 ns,
+  non-overlapping. The unguarded form stays, and the note in the source now
+  carries both measurements.
+
+Raw call against raw call, no byte conversions on either side:
+**1650.8 ns → 1509.5 ns**, against libsecp's 1411.8. A 6% gap remains and is not
+yet explained.
+
+### point add (mixed J+A): there was no 5% deficit
+
+bench_unified reported 227.2 ns against libsecp's 216.4. Measured raw against
+raw — our `add_mixed52_inplace` writing into a destination against
+`secp256k1_gej_add_ge_var` writing through its pointer, both rotating over the
+same operand pool — it is **213.6 ns against 211.5 ns, 0.99×**.
+
+The reported gap is the shape of the bench row, not the kernel: our row goes
+through `Point::add`'s coordinate-shape dispatch (`z_one_` checks and a runtime
+`fe52_is_one_raw`) while libsecp's calls the mixed-add kernel directly, because
+in libsecp the caller has already decided which formula applies. Operation
+counts are identical — 8M + 3S, three negates, seven adds on both sides.
+
+No change made. The row in the comparison table was corrected instead.
+
+**Test:** `audit/test_regression_scalar_reduce_and_safegcd_divstep.cpp`
+(17 checks). The reduction is recomputed independently in base 256 on the raw
+bytes — no limbs, no complement, no shared helper — at n−2…n+2, 2^256−1, all 256
+single-bit values and 4000 random inputs with half forced above n. The inverse is
+checked by `a · a⁻¹ == 1` on the same boundary set plus inputs built with long
+zero runs in either half, where the bulk-skip and the multi-bit cancellation
+interact, and cross-checked on a sample against Fermat's `a^(p−2)` by plain
+square-and-multiply — an algorithm sharing no code with safegcd.
+
 ## 2026-09-03 — Point self-assignment removed at 54 sites
 
 The same change as the FE52 wave, applied to `Point`: `X = X.add(Y)` writes the

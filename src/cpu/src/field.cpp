@@ -2646,11 +2646,12 @@ __attribute__((always_inline))
 static inline int64_t safegcd_divsteps_62_var(int64_t delta, uint64_t f0, uint64_t g0,
                                         SafeGCD_Trans& t) {
     uint64_t u = 1, v = 0, q = 0, r = 1;
-    uint64_t f = f0, g = g0;
-    int i = 62;
+    uint64_t f = f0, g = g0, m = 0;
+    uint32_t w = 0;
+    int i = 62, limit = 0;
 
     for (;;) {
-        // Skip zero-bits of g in bulk (each = one "g is even" divstep)
+        // Skip zero-bits of g in bulk (each = one "g is even" divstep).
         int const zeros = safegcd_ctz64(g | ((uint64_t)1 << i));
         g >>= zeros;
         u <<= zeros;
@@ -2659,21 +2660,51 @@ static inline int64_t safegcd_divsteps_62_var(int64_t delta, uint64_t f0, uint64
         i -= zeros;
         if (i == 0) break;
 
-        // g is odd, f is odd.  Check delta for swap decision.
+        // g is odd, f is odd. delta decides whether to swap.
+        //
+        // What follows used to be the textbook single divstep: add f to g so g
+        // becomes even, shift once, and let the next ctz find the one new zero
+        // bit. That cancels exactly ONE bit of g per pass through this loop.
+        //
+        // Instead, solve for the multiple w of f that zeroes several low bits
+        // of g at once. f is odd, so f is invertible mod 2^k and such a w
+        // always exists; the next ctz then skips all of those bits in bulk.
+        // f*f-2 is the third Hensel lift of f's inverse mod 2^6, so
+        // f*g*(f*f-2) is -g/f mod 2^6 -- six bits per pass instead of one.
+        //
+        // Two things bound w. It may not cancel more bits than the iterations
+        // remaining (i), and it may not cancel more than delta+1, because
+        // delta's sign flips at that point and the swap branch would be the
+        // correct move instead. limit carries both, and m masks w to it.
+        //
+        // The non-swap branch uses the cheaper 4-bit lift: delta tends to sit
+        // near zero there, so limit usually caps the win below 6 anyway and the
+        // shorter formula is the better trade.
+        //
+        // This is the variable-time-only half of Bernstein-Yang safegcd. It is
+        // data-dependent by construction and must never be reached with secret
+        // input; the constant-time inverse has its own divstep loop.
         if (delta > 0) {
-            // Swap-case:  delta -> 1-delta  (set to -delta now, +1 after the shift below)
             delta = -delta;
             uint64_t tmp = 0;
             tmp = f; f = g; g = (uint64_t)(-(int64_t)tmp);
             tmp = u; u = q; q = (uint64_t)(-(int64_t)tmp);
             tmp = v; v = r; r = (uint64_t)(-(int64_t)tmp);
+
+            limit = ((int)(1 - delta) > i) ? i : (int)(1 - delta);
+            m = (~(uint64_t)0 >> (64 - limit)) & 63U;         // up to 6 bits
+            w = (uint32_t)((f * g * (f * f - 2)) & m);
+        } else {
+            limit = ((int)(1 - delta) > i) ? i : (int)(1 - delta);
+            m = (~(uint64_t)0 >> (64 - limit)) & 15U;         // up to 4 bits
+            w = (uint32_t)(f + (((f + 1) & 4) << 1));
+            w = (uint32_t)(((uint64_t)(0u - w) * g) & m);
         }
-        // g += f  ->  g becomes even  (odd + odd = even)
-        g += f;  q += u;  r += v;
-        // One shift iteration
-        g >>= 1;  u <<= 1;  v <<= 1;
-        ++delta;  --i;
-        if (i == 0) break;
+        g += f * w;
+        q += u * w;
+        r += v * w;
+        // No shift here: the ctz at the top of the next pass consumes every
+        // bit this just zeroed, which is the whole point.
     }
 
     t.u = (int64_t)u;  t.v = (int64_t)v;
@@ -2704,8 +2735,10 @@ static inline void safegcd_update_fg(SafeGCD_Int& f, SafeGCD_Int& g,
     }
     f.v[len - 1] = (int64_t)cf;
     g.v[len - 1] = (int64_t)cg;
-
-    for (int i = len; i < 5; ++i) { f.v[i] = 0; g.v[i] = 0; }
+    // Limbs at or above len are deliberately left stale. Every consumer is
+    // bounded by len -- this function, safegcd_reduce_len, the outer zero scan
+    // and safegcd_normalize -- so clearing them was pure work. libsecp's
+    // update_fg_62_var does not clear them either.
 }
 
 // -- Apply transition matrix to (d, e) mod p --
@@ -2872,6 +2905,12 @@ static FieldElement fe_inverse_safegcd_impl(const FieldElement& x) {
         // The branch mispredicts once per inverse, while the unconditional OR
         // over at most five limbs is branch-free and fully pipelined. Do not
         // "optimise" this into the guarded form again.
+        //
+        // Re-tested 2026-09-03 after the divstep inner loop went from cancelling
+        // one bit of g per pass to six, which makes the outer loop a larger share
+        // of the total and could have flipped the trade. It did not: 4 interleaved
+        // rounds, guarded 1524.3-1526.8 ns against unguarded 1510.0-1511.5 ns,
+        // non-overlapping. Still slower.
         {
             int64_t cond = 0;
             for (int j = 0; j < len; ++j) cond |= g.v[j];
