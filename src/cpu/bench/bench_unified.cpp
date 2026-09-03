@@ -2368,7 +2368,15 @@ int main(int argc, char** argv) {
         bench::DoNotOptimize(gej_out); ++idx;
     }, N_KEYGEN);
 
-    secp256k1_context_destroy(ls_ctx);
+    // ls_ctx is NOT destroyed here: the ConnectBlock section further down still
+    // signs and creates keypairs with it. Destroying it here was a use-after-free
+    // spanning 16 call sites. libsecp256k1 through v0.7 happened to survive it --
+    // the freed block still held a usable context -- so the ConnectBlock numbers
+    // were produced by reading freed memory and merely looked correct. v0.8.0
+    // added secp256k1_hash_ctx::fn_sha256_compression, an indirect call through a
+    // field of that context, and the freed memory reads back as NULL, so the same
+    // undefined behaviour now segfaults inside secp256k1_sha256_write. The
+    // destroy moved to the end of main, after the last use.
 
     print_header("libsecp256k1 (bitcoin-core)");
     print_row("field_mul",                        ls_fe_mul);
@@ -3832,6 +3840,8 @@ int main(int argc, char** argv) {
             printf("  [!] Failed to write JSON report to: %s\n", opts.json_path);
         }
     }
+
+    secp256k1_context_destroy(ls_ctx);   // after the LAST use, not before it
 
     return 0;
 }
