@@ -4,7 +4,7 @@
 > This document is a frozen snapshot from **2026-02-11** (v3.9.0, commit `cc20253`, Clang 19).
 > The compiler, module counts (641,194 checks / 8 suites), and commit SHA are all historical.
 > For the **current state** see [`docs/AUDIT_COVERAGE.md`](AUDIT_COVERAGE.md) (live, auto-synced).
-> For current benchmark data see [`docs/bench_unified_2026-05-30_gcc14_x86-64.json`](bench_unified_2026-05-30_gcc14_x86-64.json).
+> For current benchmark data see [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](bench_unified_2026-09-03_gcc14_x86-64.json).
 
 > **Note (2026-03-04):** This report was generated against v3.9.0 (commit `cc20253`).
 > The test suite has been significantly restructured since then (31 CTest targets

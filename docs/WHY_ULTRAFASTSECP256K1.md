@@ -196,9 +196,9 @@ Every benchmark number in this project is:
 
 **GPU throughput:** not yet measured under canonical protocol — see "GPU Profile" section above. Out of scope for Bitcoin Core evaluation.
 
-**Canonical x86-64 numbers (i5-14400F, GCC 14.2.0, 2026-05-30):**
+**Canonical x86-64 numbers (i5-14400F, GCC 14.2.0, 2026-09-03):**
 
-Source: [`docs/bench_unified_2026-05-30_gcc14_x86-64.json`](bench_unified_2026-05-30_gcc14_x86-64.json)
+Source: [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](bench_unified_2026-09-03_gcc14_x86-64.json)
 
 | Operation | Latency | Note |
 |-----------|---------|------|

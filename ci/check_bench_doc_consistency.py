@@ -232,15 +232,35 @@ BANNED: list[tuple[str, str, str | None]] = [
 # ---------------------------------------------------------------------------
 # Required references — canonical artifact must be cited in primary docs
 # ---------------------------------------------------------------------------
+# The pattern is derived from canonical_numbers.json rather than written out
+# here. It used to be a literal `bench_unified_2026-05-\d{2}_...`, which meant
+# that publishing any artifact from a different MONTH failed this gate for the
+# one reason a gate should never fire: the docs had been correctly updated to
+# point at the new canonical file. Keying on the canonical name makes the gate
+# say what it means -- "the primary docs cite whatever artifact is canonical".
+def _canonical_artifact_pattern() -> str:
+    try:
+        import json as _json
+        with open(REPO_ROOT / "docs" / "canonical_numbers.json", encoding="utf-8") as fh:
+            name = _json.load(fh).get("_canonical_bench_artifact", "")
+        leaf = name.rsplit("/", 1)[-1]
+        if leaf:
+            return re.escape(leaf)
+    except Exception:
+        pass
+    return r"bench_unified_\d{4}-\d{2}-\d{2}_gcc\d+_x86-64\.json"
+
+_CANON_ARTIFACT_RE = _canonical_artifact_pattern()
+
 REQUIRED_REFS: list[tuple[str, str, str]] = [
     (
         "docs/BITCOIN_CORE_PR_DESCRIPTION.md",
-        r"bench_unified_2026-05-\d{2}_gcc14_x86-64\.json",
+        _CANON_ARTIFACT_RE,
         "PR description must cite the canonical bench_unified artifact",
     ),
     (
         "docs/BITCOIN_CORE_BACKEND_EVIDENCE.md",
-        r"bench_unified_2026-05-\d{2}_gcc14_x86-64\.json",
+        _CANON_ARTIFACT_RE,
         "Evidence doc must cite the canonical bench_unified artifact",
     ),
     (
