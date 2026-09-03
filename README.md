@@ -95,7 +95,7 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 → [`docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md) — evidence package  
 → [`docs/DER_PARITY_MATRIX.md`](docs/DER_PARITY_MATRIX.md) — DER/parser parity
 
-**CT signing (CT-vs-CT, production-equivalent, GCC 14.2.0, 2026-05-30):** **~1.33× ECDSA · ~1.26× Schnorr** vs libsecp256k1 (turbo lock CONFIRMED: intel_pstate/no_turbo=1, governor=performance, taskset -c 0 nice -20). Canonical data: [`docs/bench_unified_2026-05-30_gcc14_x86-64.json`](docs/bench_unified_2026-05-30_gcc14_x86-64.json). Full compiler breakdown: [docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
+**CT signing (CT-vs-CT, production-equivalent, GCC 14.2.0, 2026-09-03):** **~1.34× ECDSA · ~1.27× Schnorr** vs libsecp256k1 (turbo lock CONFIRMED: intel_pstate/no_turbo=1, governor=performance, taskset -c 0 nice -20). Canonical data: [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](docs/bench_unified_2026-09-03_gcc14_x86-64.json). Full compiler breakdown: [docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
 
 > **ConnectBlock (primary block-validation workload):** within ±1.5% of libsecp256k1 depending on build configuration.
 > - With Release+LTO (GCC 14.2.0, **required for any positive result — without LTO the result is negative**): **+0.9–1.5%** across ConnectBlock aggregate profiles (AllEcdsa, AllSchnorr, Mixed)
@@ -307,7 +307,7 @@ Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.
 
 > All performance claims in this README link to that document. Do not rely on inline numbers without checking the corresponding benchmark entry for hardware, batch size, and measurement conditions.
 >
-> Canonical raw data (GCC 14.2.0, 2026-05-30): [`docs/bench_unified_2026-05-30_gcc14_x86-64.json`](docs/bench_unified_2026-05-30_gcc14_x86-64.json)
+> Canonical raw data (GCC 14.2.0, 2026-09-03): [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](docs/bench_unified_2026-09-03_gcc14_x86-64.json)
 
 ## Why UltrafastSecp256k1? — Detail
 
@@ -868,7 +868,7 @@ Full CPU signature support and GPU public-data batch verification:
 
 ### CPU Signature Benchmarks
 
-Current release-grade CPU signature numbers are kept in benchmark artifacts, not duplicated here. Use [`docs/bench_unified_2026-05-30_gcc14_x86-64.json`](docs/bench_unified_2026-05-30_gcc14_x86-64.json) for the canonical GCC 14.2.0 run and [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for methodology, hardware notes, and historical comparisons.
+Current release-grade CPU signature numbers are kept in benchmark artifacts, not duplicated here. Use [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](docs/bench_unified_2026-09-03_gcc14_x86-64.json) for the canonical GCC 14.2.0 run and [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for methodology, hardware notes, and historical comparisons.
 
 ---
 
@@ -885,7 +885,7 @@ The `ct::` namespace provides constant-time operations for secret-key material -
 | ECDSA sign (end-to-end) | 22,063 ns | 21,945 ns | **0.99× (CT faster)** |
 | Schnorr sign (end-to-end) | 17,980 ns | 17,804 ns | **0.99× (CT faster)** |
 
-*GCC 14.2.0, Intel i5-14400F, turbo disabled, CPU-pinned. Source: [`docs/bench_unified_2026-05-30_gcc14_x86-64.json`](docs/bench_unified_2026-05-30_gcc14_x86-64.json)*
+*GCC 14.2.0, Intel i5-14400F, turbo disabled, CPU-pinned. Source: [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](docs/bench_unified_2026-09-03_gcc14_x86-64.json)*
 
 **CT layer provides:** `ct::field_mul`, `ct::field_inv`, `ct::scalar_mul`, `ct::point_add_complete`, `ct::point_dbl`
 
@@ -1291,7 +1291,7 @@ Two security profiles are **always active** -- no flag-based selection:
 ### CT / Hardened Profile (`ct::` namespace)
 
 - Constant-time arithmetic -- no secret-dependent branches or memory access
-- ~1.1–1.9× performance penalty vs FAST for primitive operations (see CT overhead table in docs/BENCHMARKS.md; release-grade measurement: `docs/bench_unified_2026-05-30_gcc14_x86-64.json`, CT overhead table, GCC 14.2.0)
+- ~1.1–1.9× performance penalty vs FAST for primitive operations (see CT overhead table in docs/BENCHMARKS.md; release-grade measurement: `docs/bench_unified_2026-09-03_gcc14_x86-64.json`, CT overhead table, GCC 14.2.0)
 - Use for: signing, private key handling, nonce generation, ECDH
 
 **Choose the appropriate profile for your use case.** Using FAST with secret data is a security vulnerability.
