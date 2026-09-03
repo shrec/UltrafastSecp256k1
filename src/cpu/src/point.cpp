@@ -718,12 +718,19 @@ static void jac52_add_mixed_inplace(JacobianPoint52& p, const AffinePoint52& q) 
     s2.mul_assign(p.z);                                       // S2 = Y2 * Z1^3
 
     // H = U2 - X1
-    FieldElement52 const negX1 = p.x.negate(8);     // mag 9 (jac52_add x max: 7)
-    FieldElement52 const h = u2 + negX1;                      // mag 6
+    // Magnitudes through this block, since they were annotated wrong before:
+    // u2 is a product, so magnitude 1. p.x is at most 8 here, and negate(m)
+    // yields m+1, so negX1 is 9 and their sum is 10 -- not the 6 that used to
+    // be written here. Nothing downstream cares: normalize_weak absorbs any
+    // magnitude up to ~4000 (see field_52_impl.hpp), so the real margin is two
+    // orders of magnitude, and the old annotation understated it rather than
+    // hiding a violation.
+    FieldElement52 const negX1 = p.x.negate(8);               // mag 9
+    FieldElement52 const h = u2 + negX1;                      // mag 10
 
     // Variable-time zero check (prob ~2^-256)
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
-        FieldElement52 const negY1 = p.y.negate(4);           // GEJ_Y_MAG_MAX=4
+        FieldElement52 const negY1 = p.y.negate(4);           // mag 5 (p.y <= GEJ_Y_MAG_MAX = 4)
         FieldElement52 const diff = s2 + negY1;
         if (diff.normalizes_to_zero_var()) {
             jac52_double_inplace(p);
@@ -898,11 +905,14 @@ static inline void jac52_add_mixed_to(
     FieldElement52 s2 = q_y * zz;
     s2.mul_assign(in_z);
 
-    FieldElement52 const negX1 = in_x.negate(8);     // mag 9 (jac52_add x max: 7)
-    FieldElement52 const h = u2 + negX1;                      // mag 6
+    // Magnitudes: u2 is a product (1), in_x is at most 8 and negate(m) yields
+    // m+1, so negX1 is 9 and h is 10 -- see the note in
+    // jac52_add_mixed_inplace. normalize_weak absorbs up to ~4000.
+    FieldElement52 const negX1 = in_x.negate(8);              // mag 9
+    FieldElement52 const h = u2 + negX1;                      // mag 10
 
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
-        FieldElement52 const negY1 = in_y.negate(4);          // GEJ_Y_MAG_MAX=4
+        FieldElement52 const negY1 = in_y.negate(4);          // mag 5 (in_y <= GEJ_Y_MAG_MAX = 4)
         FieldElement52 const diff = s2 + negY1;
         if (diff.normalizes_to_zero_var()) {
             jac52_double_to(in_x, in_y, in_z, out_x, out_y, out_z);
@@ -958,11 +968,18 @@ static void jac52_add_mixed_inplace_zr(JacobianPoint52& p,
     FieldElement52 s2 = q.y * zz;
     s2.mul_assign(p.z);
 
-    FieldElement52 const negX1 = p.x.negate(8);     // mag 9 (jac52_add x max: 7)
-    FieldElement52 const h = u2 + negX1;                      // mag 6
+    // Magnitudes through this block, since they were annotated wrong before:
+    // u2 is a product, so magnitude 1. p.x is at most 8 here, and negate(m)
+    // yields m+1, so negX1 is 9 and their sum is 10 -- not the 6 that used to
+    // be written here. Nothing downstream cares: normalize_weak absorbs any
+    // magnitude up to ~4000 (see field_52_impl.hpp), so the real margin is two
+    // orders of magnitude, and the old annotation understated it rather than
+    // hiding a violation.
+    FieldElement52 const negX1 = p.x.negate(8);               // mag 9
+    FieldElement52 const h = u2 + negX1;                      // mag 10
 
     if (SECP256K1_UNLIKELY(h.normalizes_to_zero_var())) {
-        FieldElement52 const negY1 = p.y.negate(4);           // GEJ_Y_MAG_MAX=4
+        FieldElement52 const negY1 = p.y.negate(4);           // mag 5 (p.y <= GEJ_Y_MAG_MAX = 4)
         FieldElement52 const diff = s2 + negY1;
         if (diff.normalizes_to_zero_var()) {
             jac52_double_inplace(p);

@@ -1,5 +1,54 @@
 # Audit Changelog
 
+## 2026-09-03 — Two documentation defects closed (#397, #398)
+
+Both were filed against comments that say something the code does not do. Both
+are corrected with numbers rather than deleted, so the next reader sees what was
+wrong as well as what is right.
+
+### #398 — the FE52 inverse comparison was inverted
+
+`field_52.hpp` documented `FieldElement52::inverse()` as "~1.6us — faster than
+binary GCD (~3us) or SafeGCD (~3-5us in 4x64)". Measured on the same inputs and
+machine:
+
+| | ns |
+|---|---:|
+| `inverse()` — Fermat addition chain | 6295.7 |
+| `inverse_safegcd()` — Bernstein–Yang | 1189.2 |
+
+**5.3× slower, not faster**, and both quoted figures were wrong — 1.6 µs is
+roughly the SafeGCD number, not the Fermat one.
+
+Worse than a wrong number, the comment gave the wrong *reason* to pick it. The
+Fermat chain is kept because a fixed addition chain executes the same 269
+operations for every input and is therefore **constant-time**;
+`inverse_safegcd()` is the variable-time route, since its divstep loop skips
+trailing zeros in bulk and its iteration count depends on the value. The comment
+now says which to use where.
+
+### #397 — the magnitude annotations understated the real magnitudes
+
+`jac52_add_mixed_inplace` and its `_to` twin annotated `H` as magnitude 6. `u2`
+is a product so magnitude 1, `p.x` is at most 8, and `negate(m)` yields `m+1`,
+so `negX1` is 9 and their sum is **10**. `negY1` was annotated with its input
+bound (`GEJ_Y_MAG_MAX = 4`) rather than its result, which is 5.
+
+**Not a correctness bug, and the corrected numbers show why**: `normalize_weak`
+absorbs any magnitude up to ~4000, so the real margin is two orders of
+magnitude. The old annotation understated it rather than hiding a violation —
+which is exactly why it was worth fixing: an annotation that is wrong in the
+safe direction still misleads the next person reasoning about the bound.
+
+Comments only. Three add-mixed variants and three negate annotations corrected;
+`regression_inplace_point_ops` 18/18, `regression_pippenger_window_bands`
+262/262 and `regression_scalar_reduce_and_safegcd_divstep` 20/20 unchanged.
+
+**#396 stays open.** `FieldElement52` still carries no magnitude information and
+there is still no VERIFY-style mode that tracks it, so a magnitude violation is
+still silent and undetectable. Correcting the annotations does not close that —
+it is the reason the annotations could drift in the first place.
+
 ## 2026-09-03 — Constant hoisting: closed, with a number
 
 The open question was which values the engine computes at runtime that could be
