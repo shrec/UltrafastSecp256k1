@@ -69,8 +69,11 @@ static void glv_mul_comba_64(const std::uint64_t a[4], const std::uint64_t b[4],
     r[7] = c0;
 }
 
-// Template version: b[] constants known at compile time -> compiler can
-// constant-fold multiplies and optimize register allocation.
+// Template version: b[] is a compile-time constant. No multiply here has two
+// compile-time operands -- a[] is always the runtime scalar -- so nothing is
+// constant-folded. What the template buys is that each b limb is an immediate
+// rather than a load, which frees registers and removes the loads from the
+// dependency chain.
 template<std::uint64_t B0, std::uint64_t B1, std::uint64_t B2, std::uint64_t B3>
 static std::array<std::uint64_t, 4> mul_shift_384_const(
     const std::array<std::uint64_t, 4>& a) {

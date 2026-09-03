@@ -150,7 +150,9 @@ bool ECDSASignature::is_low_s_ct() const {
 // -- RFC 6979 Deterministic Nonce ---------------------------------------------
 // Optimized RFC 6979 using HMAC-SHA256 with precomputed ipad/opad midstates.
 // Calls sha256_compress_dispatch() directly -- no SHA256 object overhead,
-// no per-byte finalize() padding. Saves ~4 compress calls via midstate reuse.
+// no per-byte finalize() padding. Keying a midstate once and reusing it removes
+// the two ipad/opad compressions that each HMAC would otherwise repeat; the
+// saving is two compressions per init_key32 call, not a fixed count per nonce.
 
 namespace {
 
@@ -242,7 +244,7 @@ struct HMAC_Ctx {
         // (which is unsigned), producing ~0ULL and smashing the stack.
         // This is a hard precondition violation — assert in debug, guard in release.
         assert(msg_len <= 55 && "compute_short: msg_len must not exceed 55");
-        if (msg_len > 55) return;  // release-mode safeguard against size_t wrap
+        if (msg_len > 55) { std::memset(out, 0, 32); return; }  // fail closed, see note below
 
         std::uint32_t st[8];
         alignas(16) std::uint8_t block[64];
@@ -272,12 +274,21 @@ struct HMAC_Ctx {
         state_to_bytes(st, out);
     }
 
-    // HMAC for medium messages (55 < msg_len <= 119): 2 inner compress + 1 outer
-    // Precondition: msg_len in (64, 119] so that rem = msg_len-64 is in [1,55].
-    // If violated, 55-rem wraps as size_t (unsigned), producing a huge memset count.
+    // HMAC for messages of (64, 119] bytes: 2 inner compress + 1 outer.
+    //
+    // The supported range is (64, 119], NOT (55, 119]: rem = msg_len - 64 must land
+    // in [1, 55], so msg_len == 64 would make rem 0 and msg_len <= 64 would wrap it
+    // as size_t and turn `55 - rem` into a huge memset count.
+    //
+    // The three helpers therefore cover [0,55], (64,119] and [128,183], leaving two
+    // gaps at [56,64] and [120,127]. Neither is reachable: every call site passes a
+    // fixed 32, 33, 97, 113, 129 or 145. The guards below nevertheless ZERO the
+    // output before returning, so a future caller that lands in a gap gets a
+    // deterministic all-zero HMAC -- which parse_bytes_strict_nonzero rejects --
+    // rather than whatever was on the caller's stack.
     void compute_two_block(const std::uint8_t* msg, std::size_t msg_len,
                            std::uint8_t out[32]) const noexcept {
-        if (msg_len <= 64 || msg_len > 119) return;  // precondition guard
+        if (msg_len <= 64 || msg_len > 119) { std::memset(out, 0, 32); return; }
 
         std::uint32_t st[8];
         alignas(16) std::uint8_t block[64];
@@ -317,7 +328,7 @@ struct HMAC_Ctx {
         // SEC-004: precondition guard — msg_len < 128 causes size_t underflow in
         // rem = msg_len - 128, producing a ~0-byte memset (catastrophic corruption).
         // Also guard the upper bound so 55 - rem cannot wrap. Matches compute_two_block.
-        if (msg_len < 128 || msg_len > 183) return;
+        if (msg_len < 128 || msg_len > 183) { std::memset(out, 0, 32); return; }
         std::uint32_t st[8];
         alignas(16) std::uint8_t block[64];
 

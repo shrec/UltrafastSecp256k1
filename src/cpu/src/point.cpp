@@ -51,7 +51,7 @@ namespace {
 // For W=15 on a 128-bit scalar: ~9 non-zero digits out of ~129 positions.
 // Old code: 128+ iterations of 4-limb shift + multi-word arithmetic per bit.
 // New code: ~129 iterations of 1 bit-test + ~9 word-extractions total.
-// Saves ~800-1200ns per verify (4 wNAF computations).
+// Saving per verify: not measured -- benchmark required.
 template<typename T>
 static void compute_wnaf_into(const Scalar& scalar, unsigned window_width,
                                T* out, std::size_t out_capacity,
@@ -1560,10 +1560,10 @@ static Point scalar_mul_glv52(const Point& base, const Scalar& scalar) {
     compute_wnaf_into(decomp.k2, glv_window,
                       wnaf2_buf.data(), wnaf2_buf.size(), wnaf2_len);
 
-    // Trim trailing zeros -- GLV half-scalars are ~128 bits but wNAF
-    // always outputs 256+ positions. This halves the doubling count.
-    // compute_wnaf_into already sets out_len = last_set_bit + 1, excluding
-    // trailing zeros. The trim loops below are no-ops; removed (A-13).
+    // No trailing-zero trim: compute_wnaf_into sets out_len = last_set_bit + 1
+    // and every digit it stores is odd, so out[out_len-1] is never zero and a
+    // trim loop cannot iterate. The loops that used to sit here were removed
+    // (A-13); the same reasoning removed the ones in dual_scalar_mul_gen_point.
 
     // -- Precompute odd multiples [1P, 3P, 5P, ..., 15P] in 5x52 ------
     std::array<AffinePoint52, glv_table_size> tbl_P;
@@ -2643,9 +2643,10 @@ Point Point::scalar_mul(const Scalar& scalar) const {
     constexpr unsigned glv_window = 5;
     constexpr int glv_table_size = (1 << (glv_window - 2));  // 8
 
-    // Note: compute_wnaf_into always processes full 256-bit Scalar even
-    // though GLV half-scalars are ~128 bits, so buffer must be 260.
-    // GLV half-scalars bounded by ~2^128; max wNAF output = 128+window = 133.
+    // GLV half-scalars are bounded by ~2^128, so max wNAF output is
+    // 128 + window = 133 positions. (compute_wnaf_into now stops at the scalar's
+    // top set bit rather than always walking 256 positions; the buffer bound is
+    // set by the OUTPUT length either way.)
     // 140 gives safety margin (was 260 — 2× over-provisioned saves 480B stack).
     // No {} init: compute_wnaf_into() memsets before writing (avoids double-zero).
     std::array<int32_t, 140> wnaf1_buf, wnaf2_buf;
@@ -3015,10 +3016,9 @@ static Point scalar_mul_with_plan_glv52(const Point& base, const KPlan& plan) {
     const int32_t* wnaf1_ptr = plan.wnaf1.data();
     const int32_t* wnaf2_ptr = plan.wnaf2.data();
 
-    // Trim trailing zeros -- GLV half-scalars are ~128 bits but wNAF
-    // always outputs 256+ positions.  This halves the doubling count.
-    while (wnaf1_len > 0 && wnaf1_ptr[wnaf1_len - 1] == 0) --wnaf1_len;
-    while (wnaf2_len > 0 && wnaf2_ptr[wnaf2_len - 1] == 0) --wnaf2_len;
+    // No trailing-zero trim: compute_wnaf_into sets out_len = last_set_bit + 1
+    // and every digit it stores is odd, so wnaf[len-1] is never zero and a trim
+    // loop cannot iterate. Same reasoning as dual_scalar_mul_gen_point.
 
     // -- Precompute odd multiples [1P, 3P, ..., (2T-1)P] in 5x52 -----
     std::array<AffinePoint52, kMaxGlvTableSize> tbl_P;
@@ -3069,8 +3069,9 @@ static void scalar_mul_with_plan_glv52_4x(
     std::size_t wnaf2_len = plan.wnaf2_len;
     const int32_t* wnaf1_ptr = plan.wnaf1.data();
     const int32_t* wnaf2_ptr = plan.wnaf2.data();
-    while (wnaf1_len > 0 && wnaf1_ptr[wnaf1_len - 1] == 0) --wnaf1_len;
-    while (wnaf2_len > 0 && wnaf2_ptr[wnaf2_len - 1] == 0) --wnaf2_len;
+    // No trailing-zero trim: compute_wnaf_into sets out_len = last_set_bit + 1
+    // and every digit it stores is odd, so wnaf[len-1] is never zero and a trim
+    // loop cannot iterate. Same reasoning as dual_scalar_mul_gen_point.
 
     const bool flip_phi = (plan.neg1 != plan.neg2);
 
@@ -3145,8 +3146,8 @@ std::array<std::uint8_t, 33> Point::to_compressed() const {
     // Fast path: Z == 1, coordinates are already affine
     if (z_one_) {
 #if defined(SECP256K1_FAST_52BIT)
-        // z_one_ guarantees FE52 is pre-normalized by make_affine_inplace:
-        // skip fe52_normalize_inline (saves ~5 ns per field element).
+        // z_one_ guarantees FE52 is pre-normalized by make_affine_inplace, so
+        // fe52_normalize_inline is skipped. Saving: not measured.
         out[0] = (y_.n[0] & 1) ? 0x03 : 0x02;
         x_.store_b32_prenorm(out.data() + 1);
 #else
@@ -3190,8 +3191,8 @@ std::array<std::uint8_t, 65> Point::to_uncompressed() const {
     // Fast path: Z == 1, coordinates are already affine
     if (z_one_) {
 #if defined(SECP256K1_FAST_52BIT)
-        // z_one_ guarantees FE52 is pre-normalized by make_affine_inplace:
-        // skip fe52_normalize_inline (saves ~10 ns for two field elements).
+        // z_one_ guarantees FE52 is pre-normalized by make_affine_inplace, so
+        // fe52_normalize_inline is skipped for both x and y. Saving: not measured.
         out[0] = 0x04;
         x_.store_b32_prenorm(out.data() + 1);
         y_.store_b32_prenorm(out.data() + 33);
@@ -3329,7 +3330,9 @@ void Point::normalize() {
 }
 
 // -- Fast x-only: 32-byte x-coordinate (no Y recovery) -----------------------
-// Saves one multiply vs x_bytes_and_parity() by skipping Z^(-3)*Y.
+// Skips the Y recovery that x_bytes_and_parity() performs: that costs a further
+// multiply for z_inv^3, a multiply for y_ * z_inv^3, and a normalize of the
+// result -- two multiplies and one normalize, not one multiply.
 std::array<uint8_t, 32> Point::x_only_bytes() const {
     if (infinity_) return {};
     // Fast path: Z == 1
@@ -3448,8 +3451,9 @@ void Point::batch_scalar_mul_fixed_k(const KPlan& plan,
     size_t wnaf2_len = plan.wnaf2_len;
     const int32_t* wnaf1 = plan.wnaf1.data();
     const int32_t* wnaf2 = plan.wnaf2.data();
-    while (wnaf1_len > 0 && wnaf1[wnaf1_len - 1] == 0) --wnaf1_len;
-    while (wnaf2_len > 0 && wnaf2[wnaf2_len - 1] == 0) --wnaf2_len;
+    // No trailing-zero trim: compute_wnaf_into sets out_len = last_set_bit + 1
+    // and every digit it stores is odd, so wnaf[len-1] is never zero and a trim
+    // loop cannot iterate. Same reasoning as dual_scalar_mul_gen_point.
     const size_t max_len = (wnaf1_len > wnaf2_len) ? wnaf1_len : wnaf2_len;
 
     // Process in chunks to keep the working set in L2/L3 (~1 MB target).
@@ -3743,8 +3747,9 @@ void Point::batch_scan_run(const PointScanCacheHandle& cache,
     std::size_t wnaf2_len = plan.wnaf2_len;
     const int32_t* wnaf1_ptr = plan.wnaf1.data();
     const int32_t* wnaf2_ptr = plan.wnaf2.data();
-    while (wnaf1_len > 0 && wnaf1_ptr[wnaf1_len - 1] == 0) --wnaf1_len;
-    while (wnaf2_len > 0 && wnaf2_ptr[wnaf2_len - 1] == 0) --wnaf2_len;
+    // No trailing-zero trim: compute_wnaf_into sets out_len = last_set_bit + 1
+    // and every digit it stores is odd, so wnaf[len-1] is never zero and a trim
+    // loop cannot iterate. Same reasoning as dual_scalar_mul_gen_point.
 
     for (size_t i = 0; i < n; ++i) {
         const size_t ci = cache_offset + i;
@@ -3795,8 +3800,9 @@ void Point::batch_scan_run_lockstep(const PointScanCacheHandle& cache,
     std::size_t wnaf2_len = plan.wnaf2_len;
     const int32_t* wnaf1_ptr = plan.wnaf1.data();
     const int32_t* wnaf2_ptr = plan.wnaf2.data();
-    while (wnaf1_len > 0 && wnaf1_ptr[wnaf1_len - 1] == 0) --wnaf1_len;
-    while (wnaf2_len > 0 && wnaf2_ptr[wnaf2_len - 1] == 0) --wnaf2_len;
+    // No trailing-zero trim: compute_wnaf_into sets out_len = last_set_bit + 1
+    // and every digit it stores is odd, so wnaf[len-1] is never zero and a trim
+    // loop cannot iterate. Same reasoning as dual_scalar_mul_gen_point.
     const std::size_t max_len = (wnaf1_len > wnaf2_len) ? wnaf1_len : wnaf2_len;
 
     const JacobianPoint52 inf52 = {
@@ -4180,7 +4186,9 @@ void Point::batch_to_compressed(const Point* points, size_t n,
 
 // -- Batch x_only_bytes: extract N x-coordinates with ONE inversion -----------
 // Uses batch_z_inv for the Montgomery trick, then computes only x = X*Z^(-2)
-// (skips the Y*Z^(-3) multiply that batch_normalize does -- ~33% fewer muls).
+// (skips the Y * Z^-3 step that batch_normalize performs). batch_normalize does
+// 1 square + 3 multiplies per point and this does 1 square + 1 multiply, so it is
+// half the multiplies, not a third fewer.
 void Point::batch_x_only_bytes(const Point* points, size_t n,
                                std::array<uint8_t, 32>* out) {
     if (n == 0) return;

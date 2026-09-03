@@ -1,5 +1,55 @@
 # Audit Changelog
 
+## 2026-09-03 — Comment accuracy sweep, HMAC guards fail closed, five more dead trim loops
+
+Thirty-one stale or wrong comments were collected during the representation
+sweep. Five were removed by the GLV rewrite itself and several by the earlier
+inversion wave; the remaining fourteen are fixed here. Two of them turned out not
+to be comment problems at all.
+
+**HMAC length guards now fail closed.** `ecdsa.cpp`'s three HMAC helpers cover
+`[0,55]`, `(64,119]` and `[128,183]`, leaving gaps at `[56,64]` and `[120,127]`
+where every one of them returns *without writing* `out[32]`. Verified unreachable
+— every call site passes a fixed 32, 33, 97, 113, 129 or 145 — so this was never
+a live defect. The guards nevertheless now `memset(out, 0, 32)` before returning,
+so a future caller landing in a gap gets a deterministic all-zero HMAC, which
+`parse_bytes_strict_nonzero` rejects, instead of whatever was on its stack. The
+header comment claimed the supported range was `(55, 119]`; it is `(64, 119]`,
+because `rem = msg_len - 64` must land in `[1,55]`. RFC 6979 output is unchanged,
+asserted byte-for-byte by `test_regression_single_affine_materialisation`.
+
+**Ten more dead wNAF trim loops.** The sweep named three sites and the previous
+wave removed them. Checking the comment that annotated a fourth showed the same
+loops alive in five more functions — `scalar_mul_with_plan_glv52`,
+`scalar_mul_with_plan_glv52_4x`, `batch_scalar_mul_fixed_k`, `batch_scan_run`
+and `batch_scan_run_lockstep`, the last three on the BIP-352 scan path. All feed
+from the same `compute_wnaf_into`, so the same invariant holds: `out_len =
+last_set_bit + 1` with the final digit odd, hence `wnaf[len-1]` is never zero and
+the loop cannot iterate. All ten removed, each replaced by the invariant rather
+than by silence.
+
+**The twelve remaining comment fixes**, every one checked against the current code
+rather than against the sweep's description of it:
+
+| where | what was wrong |
+|---|---|
+| `hash_accel.hpp` | three unmeasured speedup multipliers on tiers 2–4 |
+| `ecmult_gen_comb.hpp` | table sizes computed from a 64 B entry; `CombAffinePoint` is 72 B, so all three were 12.5% low |
+| `ct_point.cpp` header | described a 64×16 table that no longer exists; it is 11 blocks × 32 entries with `COMB_BITS` exactly 256 |
+| `ct_point.cpp` | "80 bytes" vs "88 bytes" in the same file — both right: 80 is the scan's read span, 88 the stride |
+| `ct_point.cpp` | an unmeasured `~278 ns`, and a saving stated as "~5M per call" where both formulas are 7M+5S |
+| `ct_scalar.cpp` | line 690 said the position is public while line 695 justified the masked scan as constant-time in the position |
+| `point.cpp` ×7 | unmeasured nanosecond figures; "saves one multiply" (it is two plus a normalize); "~33% fewer muls" (it is half); the same skipped operation costed at 5 ns in one place and 10 ns in another |
+| `glv.cpp` | claimed compile-time constant folding, but no multiply there has two compile-time operands — the win is immediates instead of loads |
+
+Where a number could not be traced to an artifact it is now "not measured —
+benchmark required", as the repository requires.
+
+**Validation.** CaaS `unified_audit_runner`: 411/461 modules passed, ALL PASSED,
+0 failures. `ci/run_fast_gates.sh`: 5 failures, all pre-existing at HEAD (7).
+Regression modules: scalar_decomposition_and_comb 10/10,
+single_affine_materialisation 17/17, table_build_invariants 10/10.
+
 ## 2026-09-03 — Scalar decomposition, comb geometry, wNAF scan, field-kernel inlining
 
 Four independent rewrites landed together, plus the inlining policy change. Every

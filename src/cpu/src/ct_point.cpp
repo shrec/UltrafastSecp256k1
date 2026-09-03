@@ -25,10 +25,11 @@
 //   Strauss interleaving: 32 windows x (4 dbl + 2 mixed_add).
 //   Total: 128 doublings + 64 mixed_complete additions.
 //
-// CT generator multiplication (OPTIMIZED):
-//   Uses precomputed table of 64x16 affine G-multiples.
-//   Runtime: 64 mixed Jacobian+Affine additions + 64 CT lookups(16).
-//   NO doublings needed.
+// CT generator multiplication (comb):
+//   COMB_BLOCKS=11 blocks x 2^(COMB_TEETH-1)=32 entries = 352 affine points,
+//   with COMB_SPACING=4, so COMB_BITS = 10*6*4 + 4*4 = 256 exactly.
+//   Runtime: 44 CT lookups (32 entries each) + 44 mixed additions + 3 doublings.
+//   The doublings are between spacing steps, not per block.
 // ============================================================================
 
 #include "secp256k1/config.hpp"  // SECP256K1_FAST_52BIT, SECP256K1_INLINE
@@ -2026,7 +2027,13 @@ inline std::uint64_t extract_comb_digit(const Scalar& v,
 // pattern is 32,32,...,32,8 per outer iteration regardless of the secret.
 //
 // AVX2 path: same XOR/AND blending technique as table_lookup_core.
-// Each CTAffinePoint is 80 bytes (x.n[5] + y.n[5] = 10 × 8 bytes).
+// The scan READS 80 bytes per entry (x.n[5] + y.n[5] = 10 x 8) but STRIDES 88,
+// which is sizeof(CTAffinePoint) including the trailing `infinity` word the comb
+// never uses. Both numbers are correct and they are not the same number; the
+// table-size comments elsewhere in this file use the 88 B stride.
+// Measured: padding the stride to 120 and 152 B moved ct::generator_mul by
+// +0.10%, so the scan is compute-bound, not traffic-bound, and shrinking the
+// entry would buy nothing (knowledge base CT-COMB-NOT-MEMORY-BOUND).
 // Layout fits in 2.5 ymm256 registers: r0 (x.n[0..3]), r1 (x.n[4], y.n[0..2]),
 // r2_128 (y.n[3..4], 16 bytes).
 template <unsigned TEETH>
@@ -2231,8 +2238,13 @@ Point generator_mul(const Scalar& k) noexcept {
     // multiples, never infinity). For a uniformly random scalar the probability
     // that R equals a table entry (which would cause the incomplete formula to
     // misbehave) is ~2^-128 — same reasoning as scalar_mul_prebuilt_fast.
-    // Using the incomplete mixed-add (7M+3S) instead of the complete unified
-    // formula (12M+2S) saves ~5M per call × ~43 additions.
+    // Using the incomplete mixed-add instead of the complete unified formula
+    // trades a smaller operation count for a formula that is only valid because
+    // of the argument above. Counting from the code rather than from memory:
+    // add_affine_fast_ct is 7M+5S and point_add_mixed_complete is 7M+5S as well
+    // (both are labelled that way in bench_unified), so the saving is in the
+    // unified formula's extra selects, not in five multiplications. There are
+    // 44 additions per generator_mul, not ~43.
     // Block 1 still sees Z1 == 1 (R was loaded straight from the table above),
     // so it uses the Z1==1 specialisation.  The peel is on the block index,
     // which is a public loop counter.
@@ -3544,7 +3556,7 @@ Point generator_mul_blinded(const Scalar& k) noexcept {
     // (k + r)*G - r*G = k*G, but attacker observes multiplication over (k+r)
     const Scalar blinded = scalar_add(k, bl.r);
     const Point  R       = generator_mul(blinded);
-    // Subtract r*G: add precomputed -r*G (affine mixed add, ~278 ns)
+    // Subtract r*G: add precomputed -r*G (one mixed complete addition)
     CTJacobianPoint R_jac    = CTJacobianPoint::from_point(R);
     CTJacobianPoint R_result = point_add_mixed_complete(R_jac, bl.neg_r_G);
     Point result = R_result.to_point();
