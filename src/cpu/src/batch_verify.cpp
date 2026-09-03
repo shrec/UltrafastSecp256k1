@@ -106,13 +106,27 @@ using fast::FieldElement;
 
 namespace {
 
-// Crossover (x86-64 FE52, bench_unified POOL=64 repeated entries):
-// MSM path uses Pippenger(2N pts) + lift_x_cached (thread-local, hits on
-// repeated pubkeys) and wins for N>=128 in bench_unified.
-// lift_x_cached inside schnorr_verify(raw) is faster than a fresh pubkey_cache
-// linear scan in the individual path when data is warm across bench passes.
-// Empirically measured optimal cutoff: 96 (individual wins below this).
-constexpr std::size_t kSchnorrBatchIndividualCutoff = 96;
+// Below this many signatures, verifying one at a time beats building the MSM.
+//
+// The cutoff is a function of how fast the MSM is, so it moved when the MSM
+// did: msm() now routes to GLV Pippenger, which is 15-22% faster than what it
+// replaced across the whole batch range. Re-measured after that change,
+// microseconds per signature, both paths in the same binary:
+//
+//     N   individual   MSM path
+//    32       36.97       39.97   individual
+//    36       36.56       37.56   individual
+//    40       37.18       36.71   MSM
+//    48       38.16       35.63   MSM
+//    56       38.00       34.13   MSM
+//    64       37.97       33.27   MSM
+//
+// The crossover is at N ~= 38. It was 96, set when the MSM was slower; leaving
+// it there would have kept every batch from 39 to 96 signatures on the path
+// that is now up to 15% slower for them.
+//
+// Note this is signatures, not MSM points: the MSM built here has n = 2N.
+constexpr std::size_t kSchnorrBatchIndividualCutoff = 38;
 constexpr std::size_t kOpaqueBatchChunk = 4096;
 constexpr std::size_t kOpaqueBatchMinRowsPerThread = 128;
 constexpr std::size_t kOpaqueBatchStealFloor = 64;

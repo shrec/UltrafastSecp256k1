@@ -1,12 +1,12 @@
 {
-  "timestamp": "2026-07-24T02:35:46.814791+00:00",
-  "autonomy_score": 100,
-  "autonomy_ready": true,
+  "timestamp": "2026-09-03T10:45:59.166110+00:00",
+  "autonomy_score": 90,
+  "autonomy_ready": false,
   "advisory_skip_all": false,
   "gates_total": 8,
-  "gates_passing": 8,
+  "gates_passing": 7,
   "gates_skipped": 0,
-  "overall_pass": true,
+  "overall_pass": false,
   "gates": [
     {
       "gate": "formal_invariants",
@@ -28,9 +28,9 @@
       "gate": "audit_sla",
       "weight": 10,
       "status": "ran",
-      "passing": true,
-      "score": 10,
-      "returncode": 0
+      "passing": false,
+      "score": 0,
+      "returncode": 1
     },
     {
       "gate": "supply_chain",

@@ -66,6 +66,13 @@ unsigned pippenger_optimal_window(std::size_t n);
 
 // -- Unified MSM (auto-selects best algorithm) --------------------------------
 // Automatically picks Strauss for very small MSMs and Pippenger from n >= 48.
+// GLV variant: decomposes every scalar into two ~128-bit halves and runs the
+// same bucket engine over 2n points with half the windows. Same result as
+// pippenger_msm, different cost profile -- see the note in pippenger.cpp.
+fast::Point pippenger_msm_glv(const fast::Scalar* scalars,
+                              const fast::Point* points,
+                              std::size_t n);
+
 fast::Point msm(const fast::Scalar* scalars,
                 const fast::Point* points,
                 std::size_t n);

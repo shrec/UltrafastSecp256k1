@@ -1,5 +1,182 @@
 # Audit Changelog
 
+## 2026-09-03 — P1: signed-digit Pippenger was wrong for non-affine input
+
+`pippenger_msm` returned a well-formed WRONG point for any input set whose
+points carry a Z, whenever the window landed on the signed-digit path (c >= 7).
+Under the old window table that is every MSM from n = 512 up. Present on HEAD
+before this branch; found while extending window coverage.
+
+**Root cause.** The unsigned scatter has always branched on `all_affine` and
+kept a general Jacobian loop for the other case. The signed scatter had no such
+branch — it went straight to
+
+```cpp
+buckets[abs_d] = Point::from_affine52(points[i].X52(), points[i].Y52());
+buckets[abs_d].add_mixed52_inplace(points[i].X52(), points[i].Y52());
+```
+
+Both of those assume z = 1. For a Jacobian point the affine x is X/Z², so
+dropping Z does not fail loudly — it substitutes a different point on the curve
+and the MSM finishes normally with the wrong answer.
+
+**Reproduction** (points built as `pt[i] = P; P = P.add(G);`, i.e. left
+Jacobian — the shape both existing MSM tests already used):
+
+| n | window | input shape | vs naive sum |
+|---|---|---|---|
+| 256 | c=5/6 unsigned | Jacobian | ok |
+| 512 | c=7 signed | Jacobian | **WRONG** |
+| 800 | c=8 signed | Jacobian | **WRONG** |
+| 512, 800 | signed | affine | ok |
+
+**Why it survived.** The suite's two MSM tests run at n = 64 and n = 256. The
+old window table put both on the unsigned path, so nothing ever reached the
+signed scatter with a Jacobian point. Raising the bands to c = 7 for n >= 105
+made the existing tests fail immediately — which is how it was found.
+
+**This also corrects a note in the tree.** `use_signed`'s `c >= 7` bound carried
+a comment saying the signed path "has a defect that only shows at c = 6, not
+root-caused". There is no c = 6 defect. The defect is this one, and c = 6 was
+simply the first window someone tried to enable signed digits for — using a
+Jacobian input set. The bound stays at 7 for the measured reason (c = 6 is
+slower, never faster), not for a correctness reason that does not exist.
+
+**Fix.** The signed scatter now splits on `all_affine` exactly as the unsigned
+one does: the mixed-add loop for affine inputs, a full Jacobian loop otherwise.
+No change to the affine path, which is what every in-tree caller feeds.
+
+**Test:** covered by `audit/test_regression_pippenger_window_bands.cpp`, which
+runs every band size in BOTH input shapes and keeps an explicit
+Jacobian-plus-small-scalars case — the exact shape that exposes it. A check that
+only ever normalises its points cannot see this class of bug, which is why the
+first version of that test did not.
+
+## 2026-09-03 — GLV Pippenger for MSM (−19.8% on Schnorr batch verify)
+
+`schnorr_batch_verify(N)` builds an MSM over n = 2N points. Four things in that
+path were re-measured and all four moved.
+
+### 1. GLV inside Pippenger
+
+`pippenger_msm` paid the full 256 bits per scalar. `multi_scalar_mul` (Strauss)
+had used GLV for a long time; Pippenger had not. The bucket engine is now
+`pippenger_core(scalars, points, n, c, scalar_bits)` — generic in the scalar
+length — and `pippenger_msm_glv` feeds it 2n points with ~128-bit halves.
+
+The MSM doubles in width and halves in depth, so the FILL term is unchanged:
+2n points over half the windows is the same number of bucket writes. The
+AGGREGATION term is `windows × 2^c` and does not depend on n at all, so halving
+the windows halves it outright. That is the entire gain, and it is why it is
+largest at moderate n where aggregation is the biggest share of the work.
+
+Microseconds per MSM, three implementations, same inputs, same process, affine
+input points as every caller feeds:
+
+| n | Strauss | Pippenger | GLV Pippenger | best previous → GLV |
+|---|---:|---:|---:|---:|
+| 48 | 814.9 | 1192.3 | 899.2 | +10.3% (Strauss wins) |
+| 56 | 950.7 | 1306.3 | 974.4 | +2.5% (Strauss wins) |
+| 64 | 1084.1 | 1406.2 | 1051.7 | **−3.0%** |
+| 96 | 1651.2 | 1787.4 | 1344.2 | **−18.6%** |
+| 128 | 2209.2 | 2081.7 | 1626.2 | **−21.9%** |
+| 200 | 3476.3 | 2750.1 | 2261.0 | **−17.8%** |
+| 512 | 9031.0 | 5383.7 | 4811.7 | **−10.6%** |
+| 1024 | 18989.2 | 9511.7 | 8756.1 | **−7.9%** |
+| 2048 | 40659.4 | 17233.5 | 16166.7 | **−6.2%** |
+
+Window count is now `floor(scalar_bits / c) + 1` on the signed path, and the +1
+is not slack: the top window starts at `floor(scalar_bits/c)·c`, so the widest
+value it can hold is `2^(scalar_bits mod c) − 1`, always below the `2^(c−1)`
+half point. No carry can leave it, for any `scalar_bits`. When c divides the
+length exactly, that window is the one that catches the carry BUG-01 dropped.
+
+### 2. Window bands: c = 6 is not optimal at any size
+
+`use_signed` turns on at `c >= 7`. Signed digits halve the bucket count, so
+`c = 7` has 2^6 = 64 effective buckets — the **same** count as `c = 6` unsigned
+— but needs 256/7 + 1 = 37 windows instead of ceil(256/6) = 43. Same work per
+window, 14% fewer windows. The old bands predate the signed-digit path and never
+credited `c = 7` with the halving it gets for free. The band 80..384 was `c = 6`,
+which is exactly where batch verification lands.
+
+Same file linked with the window forced, so the only difference is `c`:
+
+| n | c=5 | c=6 | c=7 | c=8 |
+|---|---:|---:|---:|---:|
+| 128 | 2350.8 | 2574.2 | **2293.4** | 2811.6 |
+| 200 | 3199.8 | 3378.4 | **3018.3** | 3510.1 |
+| 384 | 5293.8 | 5226.4 | **4724.5** | 5169.6 |
+| 768 | 9643.5 | 8963.7 | **8240.8** | 8316.8 |
+
+`pippenger_glv_window` is a separate table: both inputs to the cost model
+changed (twice the points, half the windows), so the old bands do not transfer.
+Its bands sit higher at equal m for the same reason — a wider window costs half
+what it used to.
+
+### 3. `msm()` crossover 48 → 60
+
+GLV Pippenger overtakes Strauss at n ≈ 60, not 48. Below that the setup — n
+decompositions, n endomorphisms, 2n point copies — is not yet amortised.
+
+### 4. `schnorr_batch_verify` individual cutoff 96 → 38
+
+The cutoff is a function of how fast the MSM is, so it moved when the MSM did.
+Both paths measured in the same binary, µs per signature:
+
+| N | individual | MSM path | |
+|---|---:|---:|---|
+| 32 | 36.97 | 39.97 | individual |
+| 36 | 36.56 | 37.56 | individual |
+| 40 | 37.18 | 36.71 | MSM |
+| 48 | 38.16 | 35.63 | MSM |
+| 64 | 37.97 | 33.27 | MSM |
+
+Leaving it at 96 would have kept every batch from 39 to 96 signatures on the
+path that is now up to 15% slower for them.
+
+### End to end
+
+`schnorr_batch_verify`, µs per signature, HEAD vs this branch, three rotated
+runs per arm, cpu0 pinned, performance governor, turbo off, `nice -20`. Every
+row below has **non-overlapping ranges**:
+
+| batch | MSM n | HEAD | branch | |
+|---|---:|---:|---:|---:|
+| N=24 | 48 | 36.702–36.797 | 36.107–36.415 | −0.8…−1.9% |
+| N=40 | 80 | 37.136–37.341 | 35.995–36.134 | −2.7…−3.6% |
+| N=48 | 96 | 37.444–37.624 | 34.766–34.897 | −6.8…−7.6% |
+| N=56 | 112 | 37.872–38.051 | 34.548–34.721 | −8.3…−9.2% |
+| N=64 | 128 | 38.052–38.362 | 34.588–35.103 | −7.7…−9.8% |
+| N=80 | 160 | 38.328–38.483 | 32.799–32.916 | −14.1…−14.8% |
+| N=100 | 200 | 40.306–40.574 | 32.545–32.701 | **−18.9…−19.8%** |
+| N=128 | 256 | 37.486–37.630 | 31.130–31.386 | −16.3…−17.3% |
+| N=192 | 384 | 35.491–35.738 | 30.710–30.767 | −13.3…−14.1% |
+| N=256 | 512 | 33.370–33.442 | 30.981–31.025 | −7.0…−7.4% |
+| N=512 | 1024 | 33.713–34.079 | 32.254–32.344 | −4.1…−5.4% |
+
+N ≤ 16 is unchanged: those batches verify one signature at a time and never
+reach the MSM.
+
+Embedded targets keep the old routing. GLV Pippenger holds 2n points and 2n
+half-scalars in thread_local scratch — more than plain Pippenger, not less — and
+that budget has not been measured on the device, so ESP32 does not inherit a
+desktop measurement.
+
+`pippenger_msm` keeps its own fallback at n < 48 deliberately: the audit suite
+calls it directly at n = 64, 100 and 128 to exercise the bucket path, and raising
+that threshold would silently route those tests to Strauss.
+
+**Test:** `audit/test_regression_pippenger_window_bands.cpp` (180 checks). Pins
+both window tables at every band edge plus their monotonicity, and cross-checks
+`pippenger_msm`, `pippenger_msm_glv` and `msm()` against `multi_scalar_mul` — an
+independent algorithm — plus a naive sum of `scalar_mul` where affordable, at all
+17 sizes the bands moved. The 128..896 band switched from the unsigned bucket
+path to the signed-digit one, so the carry-forcing inputs (all scalars n−1, all
+2^255, alternating) run at those sizes specifically. The GLV section covers small
+and degenerate n, infinity points mid-set, and n−1 scalars where the 129-bit
+window bound is tightest.
+
 ## 2026-09-03 — Copy elimination on the constant-time path (-8.9% on ct::generator_mul)
 
 Four lines. `R.z = R.z * global_z` became `R.z.mul_assign(global_z)` at the four
