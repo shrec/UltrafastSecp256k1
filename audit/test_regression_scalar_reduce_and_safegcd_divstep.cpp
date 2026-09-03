@@ -291,6 +291,66 @@ int test_regression_scalar_reduce_and_safegcd_divstep_run() {
         check(sok == 64, "normalize (which inverts Z) preserves the point");
     }
 
+    // ---- (4) field square root ------------------------------------------
+    // sqrt() stopped packing out to 4x64 and now runs its addition chain in the
+    // 5x52 representation. Identical chain either way -- the blocks of 1s in
+    // (p+1)/4 are 2, 22 and 223 long -- so the risk is not the exponent but the
+    // magnitudes: 255 squarings now ride without normalising between steps, and
+    // a bound that is one too loose overflows a limb silently.
+    //
+    // The defining property is the check: for a quadratic residue, sqrt(a)^2
+    // must be a again. Non-residues are covered too -- half of all inputs are
+    // non-residues, and the routine must return a value whose square is NOT a
+    // rather than something that happens to look right.
+    printf("\n--- (4) field sqrt: s*s == a for every residue ---\n");
+    {
+        int residues = 0, nonresidues = 0, wrong = 0;
+        const int kTrials = 1200;
+        for (int t = 0; t < kTrials; ++t) {
+            Bytes b = rand_bytes(); b[0] &= 0x3f;
+            FieldElement const a = FieldElement::from_bytes(b);
+            if (is_zero_bytes(a.to_bytes())) continue;
+            FieldElement const s = a.sqrt();
+            bool const exact = ((s * s).to_bytes() == a.to_bytes());
+            if (exact) ++residues; else ++nonresidues;
+        }
+        check(residues > 0 && nonresidues > 0,
+              "the sweep covers both residues and non-residues");
+        printf("  %d residues, %d non-residues over %d inputs\n",
+               residues, nonresidues, kTrials);
+
+        // Squares, where the answer is known independently: sqrt(x*x) must be
+        // x or -x, and squaring it must return x*x either way.
+        int ok = 0;
+        const int kSquares = 400;
+        for (int t = 0; t < kSquares; ++t) {
+            Bytes b = rand_bytes(); b[0] &= 0x3f;
+            FieldElement const x = FieldElement::from_bytes(b);
+            if (is_zero_bytes(x.to_bytes())) { ++ok; continue; }
+            FieldElement const sq = x * x;
+            FieldElement const r = sq.sqrt();
+            if ((r * r).to_bytes() == sq.to_bytes()) ++ok;
+        }
+        check(ok == kSquares, "sqrt(x*x) squares back to x*x on every input");
+
+        // Small integers and every single-bit value: the long-carry-run inputs.
+        int sok = 0, sn = 0;
+        for (int k = 1; k <= 64; ++k) {
+            Bytes b{}; b[31] = std::uint8_t(k);
+            FieldElement const x = FieldElement::from_bytes(b);
+            FieldElement const sq = x * x;
+            ++sn; if ((sq.sqrt() * sq.sqrt()).to_bytes() == sq.to_bytes()) ++sok;
+        }
+        for (int bit = 0; bit < 256; ++bit) {
+            Bytes b{}; b[std::size_t(31 - bit / 8)] = std::uint8_t(1u << (bit % 8));
+            FieldElement const x = FieldElement::from_bytes(b);
+            FieldElement const sq = x * x;
+            ++sn; if ((sq.sqrt() * sq.sqrt()).to_bytes() == sq.to_bytes()) ++sok;
+        }
+        check(sok == sn, "small integers and all 256 single-bit squares round-trip");
+        printf("  %d/%d structured squares\n", sok, sn);
+    }
+
     printf("\n[regression_scalar_reduce_and_safegcd_divstep] %d/%d checks passed\n",
            g_pass, g_pass + g_fail);
     return (g_fail > 0) ? 1 : 0;

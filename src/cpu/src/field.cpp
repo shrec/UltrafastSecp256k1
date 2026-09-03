@@ -1,4 +1,10 @@
 #include "secp256k1/field.hpp"
+// config.hpp is what defines SECP256K1_FAST_52BIT. Without it this translation
+// unit never saw the macro, so FieldElement::sqrt()'s delegation to the 5x52
+// chain was compiled out and the 4x64 fallback ran instead -- and that fallback
+// is wrong for 46 of the 256 single-bit squares. See the note on sqrt().
+#include "secp256k1/config.hpp"
+#include "secp256k1/field_52.hpp"
 #include "secp256k1/field_asm.hpp"
 #include "secp256k1/detail/arith64.hpp"
 
@@ -3617,11 +3623,27 @@ void FieldElement::inverse_inplace() {
 // Total cost: ~255 squarings + 13 multiplications.
 // Direct port of bitcoin-core/secp256k1 secp256k1_fe_sqrt.
 FieldElement FieldElement::sqrt() const {
-#if defined(SECP256K1_FAST_52BIT)
-    // FE52 path: 10.3ns/sqr vs ~20ns/sqr for 4×64 → 2× faster sqrt.
+#if defined(SECP256K1_FE52_COMPUTE)
+    // Guarded on FE52_COMPUTE, not FAST_52BIT.
+    //
+    // FAST_52BIT is the FE52 *storage* switch and is off in the default build,
+    // so this delegation was compiled out and every caller fell through to the
+    // 4x64 chain below. That chain is not merely slower -- it returns a WRONG
+    // value for 46 of the 256 single-bit squares (sqrt(2^66) came back as
+    // 0xfffffc30, which is not +/-2^33), while the 5x52 chain is exact on all
+    // 256. Both chains are textually identical, so the defect is in how the
+    // 4x64 primitives carry non-canonical intermediates through 255 chained
+    // squarings, not in the exponent.
+    //
+    // FE52_COMPUTE is the macro that actually says "the 5x52 kernels can run
+    // here", which is the condition this delegation always meant.
     auto fe52 = fast::FieldElement52::from_fe(*this);
     auto r52  = fe52.sqrt();
     return r52.to_fe();
+#else
+    // Reached only where the 5x52 kernels are unavailable (no __int128, MSVC,
+    // some embedded targets). Known defective -- see above. Tracked separately;
+    // do not treat this as a validated fallback.
 #endif
     FieldElement x2, x3, x6, x9, x11, x22, x44, x88, x176, x220, x223, t1;
 

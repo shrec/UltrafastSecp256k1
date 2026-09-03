@@ -1,5 +1,71 @@
 # Audit Changelog
 
+## 2026-09-03 — P1: FieldElement::sqrt() was wrong for ~18% of inputs (issue #402)
+
+Found while checking whether anything else lags libsecp256k1. `FieldElement::sqrt()`
+returns a value that is **not** a square root for a large class of inputs: over the
+256 single-bit squares (`x = 2^k`, input `x²`, correct answer `±x`), **46 of 256 are
+wrong**. `FieldElement52::sqrt()` is exact on all 256.
+
+```
+x = 2^33      x*x = 2^66      sqrt() -> 0x…fffffc30      (not ±2^33)
+```
+
+**Root cause, two things compounding.** `FieldElement::sqrt()` was written to
+delegate to the 5×52 chain, guarded on `SECP256K1_FAST_52BIT` — which is the FE52
+*storage* switch and is **off** in the default build. `field.cpp` also never
+included `config.hpp`, so it saw neither that macro nor `SECP256K1_FE52_COMPUTE`,
+the one that actually means "the 5×52 kernels can run here". The delegation was
+therefore compiled out and every caller fell through to the 4×64 chain — which is
+itself defective. Both chains are textually identical (blocks of 1s in `(p+1)/4`
+are 2, 22 and 223 long, same as libsecp), and `square()`, `square_inplace()` and
+`operator*` each agree with `x*x` on 21 024 checks, so the defect is in how the
+4×64 primitives carry non-canonical intermediates through 255 chained squarings.
+
+**Affected callers:** `zk.cpp:70`, `adaptor.cpp:240`, `address.cpp:761`,
+`pedersen.cpp:22`, `ellswift.cpp:106/124/268`. Impact is per-caller: where the
+caller re-validates `y² == x³ + 7` a wrong root is rejected, so the effect is a
+false negative; callers that do not re-validate propagate an off-curve `y`. The
+BIP-340 hot paths call `sqrt()` on `FieldElement52` values and are unaffected,
+which is why the KAT suites stayed green.
+
+**Fix.** Guard on `SECP256K1_FE52_COMPUTE` and include `config.hpp`. 46/256 → 0/256,
+and it is also faster: 5452.8 ns against the 4×64 route's 6267.5 ns. The 4×64 chain
+remains for targets without the 5×52 kernels and is now marked in-source as known
+defective rather than a validated fallback; that path still needs its own fix.
+
+## 2026-09-03 — Field square root: −13%, and two operations that had no comparison row
+
+Follow-up to the deficit sweep. Two hot operations were never compared against
+libsecp at all, because `libsecp_provider.c` had no wrapper for either.
+
+### field sqrt: 0.85× → 0.98×
+
+`lift_x` runs it twice per Schnorr batch entry, so it is a large share of the
+per-signature overhead batch verification cannot amortise — and it had no row.
+
+`FieldElement52::sqrt()` packed out of 5×52 into 4×64 and ran the chain with
+`field_sqr_full_asm`, which normalises on every step. The 5×52 route stays in
+representation and lets the magnitude ride. Identical chain either way — 255
+squarings and 13 multiplications, the same chain libsecp uses — so the
+normalisation bookkeeping over 255 squarings is the entire difference:
+
+| | ns |
+|---|---:|
+| 4×64 route (was shipped) | 6267.5 |
+| 5×52 route (now shipped) | **5452.8** |
+| libsecp `fe_sqrt` | 5330.9 |
+
+Verified identical on the same 64 inputs before switching. The 4×64 route is kept
+behind `SECP256K1_HYBRID_4X64_SQRT`, off by default.
+
+### GLV lambda split: 2.34× ahead
+
+`glv_decompose` 94.3 ns against libsecp's `scalar_split_lambda` at 221.0 ns. No
+change needed — recorded because it had never been measured against anything.
+
+Both wrappers are now in `libsecp_provider.c`, so future runs carry the rows.
+
 ## 2026-09-03 — The three places we were behind libsecp256k1
 
 The 2026-09-03 comparison against libsecp256k1 v0.8.0 left three operations

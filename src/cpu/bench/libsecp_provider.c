@@ -38,6 +38,18 @@ void libsecp_fe_inv_var(unsigned char out32[32], const unsigned char in32[32]) {
     secp256k1_fe_get_b32(out32, &r);
 }
 
+/* Square root and lambda split: no wrapper existed for either, so neither had a
+   comparison row. Both sit on hot paths -- lift_x runs twice per Schnorr batch
+   entry, and the lambda split runs once per scalar in every GLV multiply. */
+int libsecp_fe_sqrt_var(void *r, const void *a) {
+    return secp256k1_fe_sqrt((secp256k1_fe *)r, (const secp256k1_fe *)a);
+}
+
+void libsecp_scalar_split_lambda(void *r1, void *r2, const void *k) {
+    secp256k1_scalar_split_lambda((secp256k1_scalar *)r1, (secp256k1_scalar *)r2,
+                                  (const secp256k1_scalar *)k);
+}
+
 void libsecp_fe_inv_var_raw(void *r, const void *a) {
     secp256k1_fe_inv_var((secp256k1_fe *)r, (const secp256k1_fe *)a);
 }
