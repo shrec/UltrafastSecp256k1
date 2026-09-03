@@ -125,7 +125,7 @@ static std::pair<Point, bool> lift_x_even(const std::array<uint8_t, 32>& x_bytes
 
     // Force even y (BIP-341 convention): LSB of limbs()[0] == parity bit
     if (y.limbs()[0] & 1) {
-        y = y.negate();
+        y.negate_assign();
     }
 
     return {Point::from_affine(px_fe, y), true};

@@ -578,7 +578,7 @@ inline void pubkey_serialize(const std::uint8_t pub33[33],
     for (std::size_t i = 1; i < count; ++i) {
         secp256k1::fast::Point P;
         if (!detail::decompress(pub33s[i], P)) return false;
-        sum = sum.add(P);
+        sum.add_inplace(P);
         if (sum.is_infinity()) return false;
     }
     const auto compressed = sum.to_compressed();
@@ -598,7 +598,7 @@ inline void pubkey_serialize(const std::uint8_t pub33[33],
     for (std::size_t i = 1; i < count; ++i) {
         secp256k1::fast::Point P;
         if (!detail::decompress(pub33s_concat + i * stride, P)) return false;
-        sum = sum.add(P);
+        sum.add_inplace(P);
         if (sum.is_infinity()) return false;
     }
     const auto compressed = sum.to_compressed();

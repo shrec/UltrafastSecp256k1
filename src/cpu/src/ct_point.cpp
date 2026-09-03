@@ -517,7 +517,7 @@ void table_lookup_core(CTAffinePoint* out,
     if constexpr (NORMALIZE_Y) {
         neg_y.normalize_weak();
     }
-    neg_y = neg_y.negate(1);
+    neg_y.negate_assign(1);
     fe52_cmov(&out->y, neg_y, neg_mask);
 
     out->infinity = 0;
@@ -564,7 +564,7 @@ void table_lookup_core(CTAffinePoint* out,
     if constexpr (NORMALIZE_Y) {
         neg_y.normalize_weak();
     }
-    neg_y = neg_y.negate(1);
+    neg_y.negate_assign(1);
     fe52_cmov(&out->y, neg_y, neg_mask);
 
     out->infinity = 0;
@@ -777,7 +777,7 @@ CTJacobianPoint point_dbl(const CTJacobianPoint& p) noexcept {
     s = s.square();                        // S' = S^2        [1S]  M=1
     t = t + x3;                             // T' = X3+T          M=4
     FE52 y3 = (t * l) + s;                 // Y3 = L*T'+S'  [1M]  M=2
-    y3 = y3.negate(2);                     // Y3 = -(...)         M=3
+    y3.negate_assign(2);                     // Y3 = -(...)         M=3
 
     // If P is infinity, result is infinity
     CTJacobianPoint const inf = CTJacobianPoint::make_infinity();
@@ -2101,7 +2101,7 @@ void comb_lookup(CTAffinePoint* out,
 
     // Conditional Y-negate (scalar -- runs once per lookup)
     FE52 neg_y = out->y;
-    neg_y = neg_y.negate(1);
+    neg_y.negate_assign(1);
     fe52_cmov(&out->y, neg_y, neg_mask);
 
     out->infinity = 0;
@@ -2142,7 +2142,7 @@ void build_comb_block(CTAffinePoint* dst, const Point* bases,
         for (unsigned j = 0; j < TEETH - 1; ++j) {
             FE52 const py = ((idx >> j) & 1) ? aff_y[j] : aff_y[j].negate(1);
             Point const pj = Point::from_affine52(aff_x[j], py);
-            entry = entry.add(pj);
+            entry.add_inplace(pj);
         }
         entries_jac[idx] = entry;
     }
@@ -3330,7 +3330,7 @@ void build_comb_block(CTAffinePoint* dst, const Point* bases,
         for (unsigned j = 0; j < TEETH - 1; ++j) {
             FE52 py = ((idx >> j) & 1) ? aff_y[j] : field_neg(aff_y[j]);
             Point pj = Point::from_affine(aff_x[j], py);
-            entry = entry.add(pj);
+            entry.add_inplace(pj);
         }
         entries_jac[idx] = entry;
     }
@@ -3534,7 +3534,7 @@ void set_blinding(const Scalar& r, const Point& r_G) noexcept {
     // Store -r*G as affine point for efficient mixed addition
     CTAffinePoint aff = CTAffinePoint::from_point(r_G);
     // Negate y: -r*G = (x, -y)
-    aff.y = aff.y.negate(1);
+    aff.y.negate_assign(1);
     aff.y.normalize_weak();
     bl.neg_r_G = aff;
     bl.active  = true;

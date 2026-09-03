@@ -601,7 +601,7 @@ ufsecp_error_t ufsecp_pubkey_combine(ufsecp_ctx* ctx,
         if (pi.is_infinity()) {
             return ctx_set_err(ctx, UFSECP_ERR_BAD_PUBKEY, "invalid pubkey in array");
         }
-        acc = acc.add(pi);
+        acc.add_inplace(pi);
     }
     if (acc.is_infinity()) {
         return ctx_set_err(ctx, UFSECP_ERR_ARITH, "combined pubkey is infinity");

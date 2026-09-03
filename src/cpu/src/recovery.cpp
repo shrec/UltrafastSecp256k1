@@ -44,7 +44,7 @@ static std::pair<Point, bool> lift_x(const FieldElement& x_fe, int parity) {
     y_norm.normalize();
     bool const y_is_odd = (y_norm.n[0] & 1u) != 0;
     if ((parity != 0) != y_is_odd) {
-        y52 = y52.negate(1);
+        y52.negate_assign(1);
         y52.normalize_weak();
     }
 

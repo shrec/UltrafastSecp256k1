@@ -37,7 +37,7 @@ static Point decompress(const unsigned char compressed[33]) {
     auto y = y2.sqrt();
     if (!(y.square() == y2)) return Point::infinity();
     bool y_odd = (y.limbs()[0] & 1) != 0;
-    if (y_odd != (compressed[0] == 0x03)) y = y.negate();
+    if (y_odd != (compressed[0] == 0x03)) y.negate_assign();
     return Point::from_affine(x, y);
 }
 
@@ -52,7 +52,7 @@ static bool decompress_to_xy(const unsigned char compressed[33],
     auto y  = y2.sqrt();
     if (!(y.square() == y2)) return false;
     bool y_odd = (y.limbs()[0] & 1) != 0;
-    if (y_odd != (compressed[0] == 0x03)) y = y.negate();
+    if (y_odd != (compressed[0] == 0x03)) y.negate_assign();
     auto xb = x.to_bytes(); std::memcpy(out_x32, xb.data(), 32);
     auto yb = y.to_bytes(); std::memcpy(out_y32, yb.data(), 32);
     return true;
@@ -469,7 +469,7 @@ int secp256k1_musig_pubkey_xonly_tweak_add(
     bool const g_neg = e->ctx.Q_negated;
     Point A2 = e->ctx.Q.add(tG);
     if (A2.is_infinity()) return 0;
-    if (g_neg) e->ctx.gacc = e->ctx.gacc.negate();                  // gacc = g*gacc
+    if (g_neg) e->ctx.gacc.negate_inplace();                  // gacc = g*gacc
     e->ctx.tacc = (g_neg ? e->ctx.tacc.negate() : e->ctx.tacc) + t; // tacc = t + g*tacc
     bool a_odd = !A2.has_even_y();
     e->ctx.Q = a_odd ? A2.negate() : A2;
@@ -608,8 +608,8 @@ int secp256k1_musig_nonce_agg(
         for (size_t i = 0; i < n_pubnonces; ++i) {
             if (!pubnonces[i]) return 0;
             auto [r1, r2] = pn_unpack_points(pubnonces[i]);
-            agg.R1 = agg.R1.add(r1);
-            agg.R2 = agg.R2.add(r2);
+            agg.R1.add_inplace(r1);
+            agg.R2.add_inplace(r2);
         }
     } else {
         std::vector<std::pair<Point, Point>> pts;

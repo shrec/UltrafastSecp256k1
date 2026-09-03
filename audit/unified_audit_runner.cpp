@@ -338,6 +338,7 @@ int test_exploit_batch_weight_seed_binding_run();
 int test_regression_single_affine_materialisation_run();
 int test_regression_scalar_decomposition_and_comb_run();
 int test_regression_pippenger_window_bands_run();
+int test_regression_inplace_point_ops_run();
 int test_exploit_batch_verify_correctness_run();
 int test_exploit_batch_verify_poison_run();
 int test_exploit_bip143_sighash_run();
@@ -1038,6 +1039,7 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_single_affine_materialisation", "Single Affine Materialisation Per Point", "math_invariants", test_regression_single_affine_materialisation_run, false },
     { "regression_scalar_decomposition_and_comb", "GLV Decomposition, Comb Geometry, wNAF Scan", "math_invariants", test_regression_scalar_decomposition_and_comb_run, false },
     { "regression_pippenger_window_bands", "Pippenger Window Bands + Strauss Crossover", "math_invariants", test_regression_pippenger_window_bands_run, false },
+    { "regression_inplace_point_ops", "In-Place Point Ops Match Returning Twins", "math_invariants", test_regression_inplace_point_ops_run, false },
     { "exploit_batch_verify_correct",   "Schnorr Batch Verify Correctness",            "exploit_poc", test_exploit_batch_verify_correctness_run, false },
     { "exploit_batch_verify_poison",    "Batch Verification Poisoning",                "exploit_poc", test_exploit_batch_verify_poison_run, false },
     { "exploit_bip143_sighash",         "BIP-143 SegWit v0 Signature Hash",            "exploit_poc", test_exploit_bip143_sighash_run, false },

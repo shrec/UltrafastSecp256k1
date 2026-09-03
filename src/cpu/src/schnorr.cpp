@@ -105,7 +105,7 @@ static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
     y_norm.normalize();
     if (y_norm.n[0] & 1) {
         // Negate: y = p - y
-        y52 = y52.negate(1);
+        y52.negate_assign(1);
         y52.normalize_weak();
     }
 

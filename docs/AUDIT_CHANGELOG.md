@@ -1,5 +1,62 @@
 # Audit Changelog
 
+## 2026-09-03 — Point self-assignment removed at 54 sites
+
+The same change as the FE52 wave, applied to `Point`: `X = X.add(Y)` writes the
+result to a temporary and then copies it back over `X`. For a `FieldElement52`
+local that is free — SROA scalarises five limbs into registers and the copy
+becomes register renaming. A `Point` is three FE52 plus flags, and at every site
+below the target is either an array element, a struct member reached through a
+pointer, or a local too wide to keep in registers. None of those are
+scalarisable, so the copy is a real round trip through memory.
+
+| pattern | sites |
+|---|---:|
+| `X = X.add(Y)` → `X.add_inplace(Y)` | 30 |
+| `X = X.add(Y.negate())` → `X.sub_inplace(Y)` | 2 |
+| `X = X.dbl()` → `X.dbl_inplace()` | 2 |
+| `X = X.negate()` → `X.negate_inplace()` / `X.negate_assign(m)` | 22 |
+
+Across `zk.cpp` (10), `musig2.cpp` (4), `frost.cpp` (3), `ct_point.cpp` (7),
+`pedersen.cpp` (2), `precompute.cpp` (2), `point.cpp`, `address.cpp`,
+`selftest.cpp`, `sp_scan_batch_impl.cpp`, `impl/ufsecp_taproot.cpp`, and the
+shim (`shim_musig`, `shim_pubkey`, `shim_extrakeys`, `shim_ellswift`,
+`libbitcoin.hpp`).
+
+`negate(m)` and `negate_assign(m)` carry identical signatures and defaults on
+both `FieldElement` and `FieldElement52`, so the substitution is exact.
+
+**No magnitude claimed, and that is the measured result, not a hedge.** Unlike
+the FE52 wave — worth 8.87% on `ct::generator_mul` because `R.z` is rescaled on
+all 44 comb iterations — every site here sits next to a scalar multiplication or
+a hash costing three orders of magnitude more than the copy it removes.
+Measured anyway, ns/op, 3 rotated runs per arm, cpu0 pinned, turbo off:
+
+| operation | before | after | |
+|---|---:|---:|---:|
+| `Point::add` (J+A mixed) | 356.9–357.6 | 357.7–357.9 | +0.02% |
+| `Point::dbl` | 126.0–126.1 | 125.9–126.0 | −0.19% |
+| `dual_mul` | 33618.8–33639.1 | 33656.3–33738.6 | +0.05% |
+| `scalar_mul` | 30240.7–30311.8 | 30270.7–30368.3 | overlap |
+| `ecdsa_verify` | 35522.0–35588.3 | 35639.9–35704.6 | +0.14% |
+| `schnorr_verify` | 35541.8–35638.7 | 35600.1–35675.4 | overlap |
+| `ct::generator_mul` | 12838.8–12856.9 | 12837.1–12883.7 | overlap |
+| `ct::ecdsa_sign` | 19045.7–19116.3 | 19016.7–19063.7 | overlap |
+
+Three rows separate by 0.02–0.14%, which is binary-layout drift, not the change:
+none of those three paths contains a rewritten site. The change is kept because
+it removes real memory traffic and reads better, not because it is faster here.
+
+**Test:** `audit/test_regression_inplace_point_ops.cpp` (18 checks). The rewrite
+is only safe if the in-place form is exactly the returning form, and the two are
+separate implementations — nothing asserted their equivalence before. Pins all
+225 ordered pairs from a pool spanning both coordinate shapes, plus the cases a
+generic-only implementation gets wrong on their own (an infinity operand,
+P + (-P), P + P routed through add(), affine/Jacobian mixes) and the
+`negate_assign` default-magnitude parity the FieldElement half depends on.
+
+CaaS 415/462 ALL PASSED, 0 failures — unchanged.
+
 ## 2026-09-03 — P1: signed-digit Pippenger was wrong for non-affine input
 
 `pippenger_msm` returned a well-formed WRONG point for any input set whose

@@ -1403,6 +1403,12 @@ target_compile_definitions(test_regression_pippenger_window_bands_standalone PRI
 add_test(NAME regression_pippenger_window_bands COMMAND test_regression_pippenger_window_bands_standalone)
 set_tests_properties(regression_pippenger_window_bands PROPERTIES TIMEOUT 300 LABELS "audit;regression;msm;pippenger;batch_verify")
 
+add_executable(test_regression_inplace_point_ops_standalone test_regression_inplace_point_ops.cpp)
+audit_target_defaults(test_regression_inplace_point_ops_standalone)
+target_compile_definitions(test_regression_inplace_point_ops_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_inplace_point_ops COMMAND test_regression_inplace_point_ops_standalone)
+set_tests_properties(regression_inplace_point_ops PROPERTIES TIMEOUT 120 LABELS "audit;regression;group_law;inplace")
+
 add_executable(test_regression_single_affine_materialisation_standalone test_regression_single_affine_materialisation.cpp)
 audit_target_defaults(test_regression_single_affine_materialisation_standalone)
 target_compile_definitions(test_regression_single_affine_materialisation_standalone PRIVATE STANDALONE_TEST)
@@ -3942,6 +3948,7 @@ add_executable(unified_audit_runner
     test_regression_single_affine_materialisation.cpp
     test_regression_scalar_decomposition_and_comb.cpp
     test_regression_pippenger_window_bands.cpp
+    test_regression_inplace_point_ops.cpp
     test_exploit_batch_verify_correctness.cpp
     test_exploit_batch_verify_poison.cpp
     test_exploit_bip143_sighash.cpp

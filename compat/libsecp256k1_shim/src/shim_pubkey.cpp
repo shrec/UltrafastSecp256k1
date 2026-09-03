@@ -179,7 +179,7 @@ int secp256k1_ec_pubkey_parse(
         // Select y with correct parity
         bool y_is_odd = (y.limbs()[0] & 1u) != 0u;
         bool want_odd = (prefix == 0x03);
-        if (y_is_odd != want_odd) y = y.negate();
+        if (y_is_odd != want_odd) y.negate_assign();
 
         auto pt = Point::from_affine(x, y);
         point_to_pubkey_data(pt, pubkey->data);
@@ -407,7 +407,7 @@ int secp256k1_ec_pubkey_combine(
     for (size_t i = 1; i < n; ++i) {
         auto P = pubkey_data_to_point_checked(ins[i]->data);
         if (P.is_infinity()) { std::memset(out->data, 0, sizeof(out->data)); return 0; }
-        acc = acc.add(P);
+        acc.add_inplace(P);
     }
     if (acc.is_infinity()) { std::memset(out->data, 0, sizeof(out->data)); return 0; }
     point_to_pubkey_data(acc, out->data);

@@ -62,7 +62,7 @@ Point decompress_point(const std::array<uint8_t, 33>& compressed) {
     bool const y_odd = (y.limbs()[0] & 1) != 0;
     bool const want_odd = (compressed[0] == 0x03);
     if (y_odd != want_odd) {
-        y = y.negate();
+        y.negate_assign();
     }
 
     return Point::from_affine(x, y);
@@ -319,8 +319,8 @@ MuSig2AggNonce musig2_nonce_agg(const std::vector<MuSig2PubNonce>& pub_nonces) {
             agg.R2 = Point::infinity();
             return agg;
         }
-        agg.R1 = agg.R1.add(r1);
-        agg.R2 = agg.R2.add(r2);
+        agg.R1.add_inplace(r1);
+        agg.R2.add_inplace(r2);
     }
 
     return agg;
@@ -339,8 +339,8 @@ MuSig2AggNonce musig2_nonce_agg_points(
             agg.R2 = Point::infinity();
             return agg;
         }
-        agg.R1 = agg.R1.add(r1);
-        agg.R2 = agg.R2.add(r2);
+        agg.R1.add_inplace(r1);
+        agg.R2.add_inplace(r2);
     }
     return agg;
 }
@@ -403,7 +403,7 @@ MuSig2Session musig2_start_sign_session(
     auto const [r_x, r_y_odd] = session.R.x_bytes_and_parity();
     session.R_negated = r_y_odd;
     if (session.R_negated) {
-        session.R = session.R.negate();
+        session.R.negate_inplace();
     }
 
     // e = tagged_hash("BIP0340/challenge", R.x || Q_x || msg)
@@ -570,7 +570,7 @@ bool musig2_partial_verify(
     // Effective nonce: R_i = R1_i + b * R2_i
     auto R_eff = R1_i.add(R2_i.scalar_mul(session.b));
     if (session.R_negated) {
-        R_eff = R_eff.negate();
+        R_eff.negate_inplace();
     }
 
     // Key contribution: e * a_i * P_i

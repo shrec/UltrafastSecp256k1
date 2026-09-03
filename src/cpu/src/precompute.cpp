@@ -1391,7 +1391,7 @@ std::unique_ptr<PrecomputeContext> build_context(const FixedBaseConfig& config) 
         window_bases[window] = base;
         if (window + 1 < ctx->window_count) {
             for (unsigned rep = 0; rep < ctx->window_bits; ++rep) {
-                base = base.dbl();
+                base.dbl_inplace();
             }
         }
     }
@@ -1468,7 +1468,7 @@ std::unique_ptr<PrecomputeContext> build_context(const FixedBaseConfig& config) 
 
         if (window + 1 < ctx->window_count) {
             for (unsigned rep = 0; rep < ctx->window_bits; ++rep) {
-                base = base.dbl();
+                base.dbl_inplace();
             }
         }
     }
