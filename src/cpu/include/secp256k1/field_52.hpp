@@ -177,7 +177,23 @@ struct alignas(8) FieldElement52 {
 
     // -- Inverse (Fermat) ---------------------------------------------
     // a^(p-2) mod p. 255 squarings + 14 multiplications in native FE52.
-    // ~1.6us -- faster than binary GCD (~3us) or SafeGCD (~3-5us in 4x64).
+    //
+    // This is the SLOW inverse, and deliberately so. Measured on the same
+    // inputs and machine (i5-14400F, GCC 14.2, turbo off, cpu0):
+    //
+    //     inverse()          6295.7 ns     Fermat addition chain
+    //     inverse_safegcd()  1189.2 ns     Bernstein-Yang divsteps
+    //
+    // 5.3x slower, not faster. An earlier comment here had the comparison
+    // inverted and both figures wrong; it is corrected rather than deleted so
+    // the next reader does not repeat the swap.
+    //
+    // The reason to keep it is not speed: a fixed addition chain executes the
+    // same 269 operations for every input, so it is CONSTANT-TIME.
+    // inverse_safegcd() is the variable-time route -- its divstep loop skips
+    // trailing zeros in bulk and its iteration count depends on the value. Use
+    // inverse_safegcd() wherever the input is public; use this one, or the
+    // ct:: primitives, wherever it is not.
     FieldElement52 inverse() const noexcept;
 
     // -- Square Root --------------------------------------------------
