@@ -1,5 +1,82 @@
 # Audit Changelog
 
+## 2026-09-03 — Why verify sits at parity, and one thing that did move
+
+Question asked: break through `ecdsa_verify` / `schnorr_verify` at 1.00× and the
+`point add (mixed J+A)` row at 0.96×. Both were taken apart. One moved; the other
+is at a floor, and the reason is worth recording so it is not chased again.
+
+### The verify budget
+
+`ecdsa_verify` is 93% one `ecmult`. Measured by zeroing one scalar at a time,
+which removes that side's additions while leaving the doubling chain in place:
+
+| | ns | share |
+|---|---:|---:|
+| 128 doublings | 15 030 | 44% |
+| P-side additions | 10 646 | 31% |
+| G-side additions | 5 487 | 16% |
+| per-call P table build | 1 571 | 5% |
+| GLV, wNAF recode, setup | ~1 350 | 4% |
+| **full ecmult** | **33 891** | |
+
+### The doubling count is a floor, and it is a mathematical one
+
+44% is 128 doublings, set by the 128-bit half-scalars the 2-dimensional GLV
+split produces. A 3-dimensional split over `{1, λ, λ²}` would give ~85-bit
+components — `n^(1/3)` is `2^85.3` — and cut the chain by a third.
+
+It does not exist. LLL-reducing the lattice `{(x,y,z) : x + yλ + zλ² ≡ 0 (mod n)}`
+returns `(1, 1, 1)` as its shortest vector, because `λ³ = 1` and `λ ≠ 1` force
+`1 + λ + λ² ≡ 0`. The lattice collapses along that vector back to the
+2-dimensional one already in use, and the other two reduced basis vectors come
+back at 2^127. **secp256k1 admits no 3-dimensional GLV**, and 128 doublings is
+the floor for this curve — the same floor libsecp256k1 is at.
+
+Our doubling is already 1.09–1.14× faster than theirs, so the 44% is not where
+this is lost.
+
+### The window widths were already right
+
+`WINDOW_G = 15` and `WINDOW_P = 5` match libsecp exactly. Swept G anyway, since
+the G+H tables are 1280 KB and the source note warns the micro-benchmark flatters
+a large window:
+
+| WINDOW_G | G+H tables | ecmult | vs 15 |
+|---:|---:|---:|---:|
+| 12 | 160 KB | 35 369.7 | +4.23% |
+| 13 | 320 KB | 34 533.1 | +1.76% |
+| 14 | 640 KB | 34 057.7 | +0.36% |
+| **15** | 1280 KB | **33 934.7** | — |
+
+Monotone. 15 stays.
+
+### What did move: Point::add, 225.5 → 220.7 ns
+
+`Point::add`'s two mixed paths default-constructed the result — writing zero,
+one, zero and two flags, fifteen 64-bit stores — and then handed those fields to
+`jac52_add_mixed_to`, which writes all four of them on every one of its exits.
+The zero-fill was dead. A private uninitialised constructor removes it.
+
+The row is still 0.96× against libsecp's `gej_add_ge_var`, and the remaining gap
+is the API shape rather than the arithmetic: `Point::add` decides the coordinate
+shape at runtime (`z_one_` checks, a `fe52_is_one_raw` probe), where libsecp's
+caller has already chosen the formula. The equivalent of libsecp's function is
+`add_mixed52_inplace`, which measures **213.9 against 212.0 — 0.99×** — and is
+already public for callers that know their operands are affine.
+
+### The one lever left, and why it was not pulled
+
+The per-call P-table build is 1571 ns, 5% of the ecmult, and
+`dual_scalar_mul_gen_prebuilt` plus `build_schnorr_verify_tables` already exist
+to skip it for a caller that keeps the table. Wiring a pubkey-keyed cache into
+`ecdsa_verify` would take that 5% straight off the benchmark, because
+`bench_unified` rotates a pool of 64 keys and every lookup would hit. A block of
+real transactions mostly does not repeat pubkeys, so the same cache would miss
+and cost. That is a benchmark artifact, not a speedup, and it is not being taken.
+
+CaaS 417/464 ALL PASSED, 0 failures.
+
 ## 2026-09-03 — P1: FieldElement::sqrt() was wrong for ~18% of inputs (issue #402)
 
 Found while checking whether anything else lags libsecp256k1. `FieldElement::sqrt()`

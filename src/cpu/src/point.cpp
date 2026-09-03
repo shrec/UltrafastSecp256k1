@@ -1896,7 +1896,7 @@ Point Point::add(const Point& other) const {
     // Mixed-add fast path: other is affine (z=1) -> 8M+3S instead of 12M+5S
     // NRVO: write directly to result Point's members, zero intermediate copies.
     if (!other.infinity_ && (other.z_one_ || fe52_is_one_raw(other.z_))) {
-        Point r;
+        Point r{Uninitialised{}};   // every field below is written before use
         r.z_one_ = false;
         r.is_generator_ = false;
         jac52_add_mixed_to(x_, y_, z_, infinity_,
@@ -1906,7 +1906,7 @@ Point Point::add(const Point& other) const {
     }
     // Symmetric: this is affine, other is Jacobian -> swap roles
     if (!infinity_ && (z_one_ || fe52_is_one_raw(z_))) {
-        Point r;
+        Point r{Uninitialised{}};   // every field below is written before use
         r.z_one_ = false;
         r.is_generator_ = false;
         jac52_add_mixed_to(other.x_, other.y_, other.z_, other.infinity_,
