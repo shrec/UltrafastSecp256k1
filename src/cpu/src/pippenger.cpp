@@ -94,6 +94,21 @@ Point pippenger_msm(const Scalar* scalars,
     // (which starts at 0 and ends at 0 or 1, always < half → no further carry).
     // For c that don't divide 256 (c=7,9,...), 256/c + 1 == ceil(256/c) already
     // (floor(256/c) + 1 = ceil(256/c) when 256%c != 0), so no extra work is done.
+    // The `>= 7` here is a CORRECTNESS bound, not a tuning threshold.
+    //
+    // Lowering it to 6 was tried, because c = 6 is what a Schnorr batch of up to
+    // 192 signatures uses (its MSM has n = 2*192 = 384 points) and the arithmetic
+    // is attractive: the aggregation would drop from 5504 additions per MSM to
+    // 2752, against 16512 cheap carry operations. Measured instead of assumed,
+    // and pippenger_msm then DISAGREED with a naive sum of scalar_mul at
+    // n = 100, 256 and 384 -- while c = 7 and c = 8 stayed exact on the same
+    // sweep. The signed-digit path has a defect that only shows at c = 6; it has
+    // not been root-caused, so the bound stays where it is proven.
+    //
+    // Do not raise the batch sizes that reach this, or lower this constant,
+    // without re-running that cross-check. The comment further down calling the
+    // signed path "provided for future optimization" understates this: enabling
+    // it below 7 is a wrong answer, not a slower one.
     bool const use_signed = (c >= 7);
     unsigned const num_windows = use_signed
         ? (256 / c) + 1                // +1 absorbs last-window carry for exact divisors
@@ -370,8 +385,10 @@ Point pippenger_msm(const Scalar* scalars,
 // This halves the number of buckets (2^(c-1) instead of 2^c) at the cost
 // of a carry propagation pass. Very effective for large n.
 //
-// Not yet enabled by default -- the unsigned version above is simpler and
-// already very fast. This is provided for future optimization.
+// Enabled for c >= 7 only, and that bound is CORRECTNESS, not taste: at c = 6
+// pippenger_msm disagrees with a naive sum of scalar_mul (checked at n = 100,
+// 256 and 384; c = 7 and c = 8 are exact on the same sweep). See the note at the
+// use_signed definition above before changing it.
 
 // -- Vector convenience -------------------------------------------------------
 Point pippenger_msm(const std::vector<Scalar>& scalars,
