@@ -14,6 +14,7 @@
 
 #include "secp256k1/pippenger.hpp"
 #include "secp256k1/multiscalar.hpp"
+#include "secp256k1/glv.hpp"
 #include "secp256k1/config.hpp"
 #include <algorithm>
 #include <cstring>
@@ -25,22 +26,46 @@ using fast::Scalar;
 using fast::Point;
 
 // -- Optimal Window Width -----------------------------------------------------
-// Empirical CPU heuristic after affine fast-path + touched-bucket optimizations.
-// Measured crossover bands on current x86-64 path:
-//   n=48..72   -> c=5
-//   n=80..384  -> c=6
-//   n=512      -> c=7
-//   n=1024     -> c=8
-// Larger bands stay conservative and can be retuned again with hardware data.
+// The bands below were re-measured on x86-64 (i5-14400F, GCC 14.2, performance
+// governor, turbo off, pinned to cpu0, nice -20) by linking the SAME
+// pippenger.cpp with the window forced to a fixed c and timing the identical
+// input set, so the only difference between the numbers is c. Every timing was
+// gated on pippenger_msm agreeing with multi_scalar_mul -- an independent
+// implementation -- so a window cannot be reported fast because it is wrong.
+//
+// Microseconds per MSM, forced window (lower is better):
+//
+//     n     c=5      c=6      c=7      c=8      c=9
+//    128  2327.5   2588.3   2344.8   2804.3   3836.6
+//    200  3169.8   3381.6   3107.1   3508.9   4475.4
+//    384  5287.0   5251.2   4810.4   5162.2   6139.4
+//    768  9659.1   9038.5   8307.4   8294.6   9293.0
+//   1024 12814.6  11667.7  10648.0  10354.3  11377.1
+//
+// The result that changed the table: **c = 6 is not optimal at any size.** It
+// was previously selected for the whole 80..384 band, which is exactly the band
+// schnorr_batch_verify lands in (N signatures build an MSM over n = 2N points,
+// so a 100-signature batch is n = 200). c = 6 loses to c = 7 by 8% there.
+//
+// The reason is that use_signed turns on at c >= 7. Signed digits halve the
+// bucket count, so c = 7 signed has 2^6 = 64 effective buckets -- the SAME
+// count as c = 6 unsigned -- but needs only 256/7 + 1 = 37 windows instead of
+// ceil(256/6) = 43. Same work per window, 14% fewer windows. The old bands
+// predate the signed-digit path and never charged c = 7 for the halving it
+// gets for free.
+//
+// c = 5 stays for the small band, where the 2^c aggregation term still
+// dominates; it is only reachable through a direct pippenger_msm call, since
+// msm() routes everything below kStraussCrossover to Strauss.
+// Bands above 2048 are unmeasured and stay as they were.
 
 unsigned pippenger_optimal_window(std::size_t n) {
     if (n <= 1)    return 1;
     if (n <= 4)    return 2;
     if (n <= 8)    return 3;
     if (n <= 16)   return 4;
-    if (n <= 72)   return 5;
-    if (n <= 384)  return 6;
-    if (n <= 768)  return 7;
+    if (n <= 104)  return 5;
+    if (n <= 896)  return 7;
     if (n <= 2048) return 8;
     if (n <= 8192) return 9;
     if (n <= 32768) return 10;
@@ -70,20 +95,31 @@ static inline uint32_t extract_digit(const Scalar& s, unsigned bit_offset, unsig
 }
 
 // -- Pippenger Core -----------------------------------------------------------
-Point pippenger_msm(const Scalar* scalars,
-                    const Point* points,
-                    std::size_t n) {
-    // Trivial cases
-    if (n == 0) return Point::infinity();
-    if (n == 1) return points[0].scalar_mul(scalars[0]);
+namespace {
 
-    // For small n, fall back to Strauss (lower constant factor).
-    // Empirical crossover on the current CPU path is around n ~= 48.
-    if (n < 48) {
-        return multi_scalar_mul(scalars, points, n);
-    }
-
-    unsigned const c = pippenger_optimal_window(n);
+// -- Bucket engine ------------------------------------------------------------
+// The window/bucket machinery, with the two things the callers differ in lifted
+// out: the window width `c`, and `scalar_bits` -- an upper bound on the bit
+// length of every scalar in `scalars`.
+//
+// `scalar_bits` exists because the GLV entry point below feeds this the same
+// machinery over HALF-length scalars. Everything here is generic in the bit
+// length; only the window count and the digit-extraction bound ever looked at
+// 256, and both now read the parameter.
+//
+// Window count. For the signed path the count is floor(scalar_bits / c) + 1,
+// and the +1 is not slack -- it is what makes the last window unable to carry.
+// The top window starts at bit (W-1)*c = floor(scalar_bits/c)*c, so the widest
+// value it can hold is 2^(scalar_bits mod c) - 1, and scalar_bits mod c <= c-1
+// means that value is always below the 2^(c-1) half point. No carry can leave
+// it, for ANY scalar_bits. When c divides scalar_bits exactly the +1 window is
+// the one that catches the carry out of the last real window (BUG-01); when it
+// does not, floor+1 == ceil and the +1 costs nothing.
+Point pippenger_core(const Scalar* scalars,
+                     const Point* points,
+                     std::size_t n,
+                     unsigned c,
+                     unsigned scalar_bits) {
     std::size_t const num_buckets_unsigned = static_cast<std::size_t>(1) << c; // 2^c
     // BUG-01 fix (signed-digit carry overflow — last-window carry lost):
     // When c exactly divides 256 (e.g. c=8: 256/8=32 windows, top byte [0,255]),
@@ -94,10 +130,27 @@ Point pippenger_msm(const Scalar* scalars,
     // (which starts at 0 and ends at 0 or 1, always < half → no further carry).
     // For c that don't divide 256 (c=7,9,...), 256/c + 1 == ceil(256/c) already
     // (floor(256/c) + 1 = ceil(256/c) when 256%c != 0), so no extra work is done.
+    // The `>= 7` here is a PERFORMANCE bound. It was previously documented as a
+    // correctness bound, on the evidence that lowering it to 6 made pippenger_msm
+    // disagree with a naive sum of scalar_mul at n = 100, 256 and 384 while
+    // c = 7 and c = 8 stayed exact. That evidence was real; the conclusion was
+    // not. There is no c = 6 defect.
+    //
+    // The actual defect was in the signed SCATTER, which read X and Y and handed
+    // them to from_affine52 / add_mixed52_inplace with no all_affine guard --
+    // so it was wrong for every non-affine input set at every c that reached it.
+    // The sweep that "found a c = 6 defect" used Jacobian points, and c = 6 was
+    // simply the first window anyone tried to route through the signed path.
+    // Fixed 2026-09-03; see the all_affine split in the scatter below.
+    //
+    // The bound stays at 7 because c = 6 is slower, not because it is wrong:
+    // c = 6 is the widest window that still runs the UNSIGNED bucket path, so it
+    // pays ceil(256/6) = 43 windows for the same 64 effective buckets that
+    // c = 7 signed gets in 256/7 + 1 = 37. It lost at every size measured.
     bool const use_signed = (c >= 7);
     unsigned const num_windows = use_signed
-        ? (256 / c) + 1                // +1 absorbs last-window carry for exact divisors
-        : (256 + c - 1) / c;           // ceil(256/c) for unsigned path
+        ? (scalar_bits / c) + 1        // +1 absorbs last-window carry; see note above
+        : (scalar_bits + c - 1) / c;   // ceil(scalar_bits/c) for unsigned path
     // eff_buckets: 2^c unsigned, or 2^(c-1) signed — set after signed-digit init
     std::size_t num_buckets = num_buckets_unsigned;
     std::size_t const tls_alloc_size = num_buckets_unsigned + (use_signed ? std::size_t{1} : std::size_t{0});
@@ -139,11 +192,13 @@ Point pippenger_msm(const Scalar* scalars,
     for (std::size_t i = 0; i < n; ++i) {
         for (unsigned w = 0; w < num_windows; ++w) {
             unsigned const bit_off = w * c;
-            // Extra carry-overflow window (bit_off >= 256): scalar bits above 255 are
-            // always 0 — carry propagation will set these to 0 or 1, never > half.
+            // Extra carry-overflow window (bit_off >= scalar_bits): every scalar bit
+            // at or above scalar_bits is 0 — carry propagation will set these to 0
+            // or 1, never above half.
             digits[static_cast<std::size_t>(w) * n + i] =
-                (bit_off < 256) ? static_cast<std::uint16_t>(extract_digit(scalars[i], bit_off, c))
-                                : 0;
+                (bit_off < scalar_bits)
+                    ? static_cast<std::uint16_t>(extract_digit(scalars[i], bit_off, c))
+                    : 0;
         }
     }
     // Signed-digit conversion for c >= 7: halves bucket count from 2^c to 2^(c-1).
@@ -218,8 +273,27 @@ Point pippenger_msm(const Scalar* scalars,
         constexpr std::size_t PREFETCH_DIST = 8;
         const std::uint16_t* const wrow  = digits  + static_cast<std::size_t>(w) * n;
         const std::int16_t*  const swrow = sdigits ? sdigits + static_cast<std::size_t>(w) * n : nullptr;
-        if (use_signed) {
-            // Signed scatter: bucket[|d|] += (d>0 ? P : -P)
+        if (use_signed && all_affine) {
+            // Signed scatter, affine inputs: bucket[|d|] += (d>0 ? P : -P)
+            //
+            // The all_affine guard is NOT optional and was missing here until
+            // 2026-09-03. This loop reads X() and Y() and hands them to
+            // from_affine52 / add_mixed52_inplace, both of which assume z = 1.
+            // For a Jacobian input the true affine x is X/Z^2, so dropping Z
+            // does not fail -- it silently substitutes a different point, and
+            // the MSM returns a well-formed wrong answer.
+            //
+            // The unsigned scatter below has always had this split. The signed
+            // one did not, so pippenger_msm was wrong for every non-affine
+            // input set at c >= 7, i.e. from n = 512 up under the old window
+            // table. It was never caught because both MSM tests in the suite
+            // ran at n = 64 and n = 256, which the old table put on c = 5 and
+            // c = 6 -- the unsigned path.
+            //
+            // It also explains the note that said "the signed path has a defect
+            // that only shows at c = 6". It shows at every c that reaches this
+            // branch; c = 6 was simply the first window someone tried to enable
+            // it for, using a Jacobian input set.
             for (std::size_t i = 0; i < n; ++i) {
                 if (SECP256K1_LIKELY(i + PREFETCH_DIST < n)) {
 #ifdef __GNUC__
@@ -257,6 +331,40 @@ Point pippenger_msm(const Scalar* scalars,
                     buckets[abs_d].add_inplace(points[i]);
                 }
 #endif
+                used[abs_d] = 2;
+            }
+        } else if (use_signed) {
+            // Signed scatter, general inputs: same digits, full Jacobian adds.
+            // Slower per point, but it is the only correct thing to do when the
+            // caller's points carry a Z. Note used[] is still set to 1 on first
+            // touch; the aggregation below only reads that as "affine" under an
+            // all_affine guard, which is false here.
+            for (std::size_t i = 0; i < n; ++i) {
+                if (SECP256K1_LIKELY(i + PREFETCH_DIST < n)) {
+#ifdef __GNUC__
+                    __builtin_prefetch(&points[i + PREFETCH_DIST], 0, 1);
+#endif
+                }
+                std::int16_t const sd = swrow[i];
+                if (SECP256K1_UNLIKELY(sd == 0) || SECP256K1_UNLIKELY(points[i].is_infinity())) continue;
+                bool const is_neg = sd < 0;
+                std::size_t const abs_d = is_neg ? static_cast<std::size_t>(-sd)
+                                                  : static_cast<std::size_t>(sd);
+                if (!used[abs_d]) {
+                    used[abs_d] = 1;
+                    touched[touched_count++] = abs_d;
+                    max_touched_digit = std::max(max_touched_digit, abs_d);
+                    buckets[abs_d] = points[i];
+                    if (is_neg) buckets[abs_d].negate_inplace();
+                    continue;
+                }
+                if (is_neg) {
+                    Point neg = points[i];
+                    neg.negate_inplace();
+                    buckets[abs_d].add_inplace(neg);
+                } else {
+                    buckets[abs_d].add_inplace(points[i]);
+                }
                 used[abs_d] = 2;
             }
         } else if (all_affine) {
@@ -365,13 +473,138 @@ Point pippenger_msm(const Scalar* scalars,
     return result;
 }
 
+} // namespace
+
+// -- Public entry point -------------------------------------------------------
+Point pippenger_msm(const Scalar* scalars,
+                    const Point* points,
+                    std::size_t n) {
+    // Trivial cases
+    if (n == 0) return Point::infinity();
+    if (n == 1) return points[0].scalar_mul(scalars[0]);
+
+    // For small n, fall back to Strauss (lower constant factor). This threshold
+    // is deliberately NOT msm()'s kStraussCrossover: the audit suite calls
+    // pippenger_msm directly at n = 64, 100 and 128 to exercise the bucket path,
+    // and raising it here would route those tests to Strauss and stop testing
+    // Pippenger at all. See the note on kStraussCrossover.
+    if (n < 48) {
+        return multi_scalar_mul(scalars, points, n);
+    }
+
+    return pippenger_core(scalars, points, n, pippenger_optimal_window(n), 256);
+}
+
+// -- GLV Pippenger ------------------------------------------------------------
+// pippenger_core is generic in the scalar length, and GLV is the cheapest way
+// to halve it: k*P = k1*Q1 + k2*Q2 with |k1|, |k2| < 2^128, where Q1 = ±P and
+// Q2 = ±phi(P). The MSM doubles in width (2n points) but the scalars halve, so
+// the FILL term is unchanged -- 2n points over half the windows is the same
+// number of bucket writes -- while the AGGREGATION term, which is
+// windows * 2^c and does not depend on n at all, is cut in half with it.
+//
+// That is the whole gain, and it is why GLV pays off most where aggregation is
+// the largest share of the work, i.e. at moderate n. It is not free: n scalar
+// decompositions, n endomorphisms and 2n point copies are paid up front.
+namespace {
+
+// phi(x, y, z) = (beta*x, y, z). z is untouched, so an affine input stays
+// affine and keeps pippenger_core's all_affine mixed-add fast path -- which
+// matters, because every caller that reaches here feeds affine points.
+//
+// fast::apply_endomorphism does the same thing but goes through x_raw(), which
+// on the 5x52 build converts out of and back into the internal representation
+// for a single multiply. This stays in FE52 throughout.
+Point endomorphism_inplace_repr(const Point& P) {
+#if defined(SECP256K1_FAST_52BIT)
+    if (P.is_infinity()) return P;
+    static const fast::FieldElement52 beta52 =
+        fast::FieldElement52::from_fe(fast::FieldElement::from_bytes(fast::glv_constants::BETA));
+    fast::FieldElement52 bx = P.X52();
+    bx.mul_assign(beta52);
+    return P.is_normalized() ? Point::from_affine52(bx, P.Y52())
+                             : Point::from_jacobian52(bx, P.Y52(), P.Z52(), false);
+#else
+    return fast::apply_endomorphism(P);
+#endif
+}
+
+// Window width for the GLV shape: m = 2n points, 129-bit scalars. Separate
+// from pippenger_optimal_window because both inputs to the cost model changed
+// -- twice the points, half the windows -- so the old bands do not transfer.
+// Re-measured the same way as those: same file, window forced, affine inputs.
+// Microseconds per MSM, forced window, affine inputs, same conditions as the
+// non-GLV table above (lower is better):
+//
+//     m     c=5      c=6      c=7      c=8      c=9
+//    128  1093.8   1212.0   1062.4   1292.9   1764.4
+//    512  3245.3   3099.8   2816.0   2915.0   3345.9
+//   1024  6197.2   5531.6   5071.4   4833.8   5281.8
+//   2048 11902.5  10519.4   9549.9   8929.4   8925.8
+//   4096 23341.8  20267.6  18743.4  16614.0  16195.2
+//
+// The bands sit higher than the non-GLV ones at equal m because the scalars are
+// half as long: the aggregation term is windows * 2^c and windows have halved,
+// so a wider window costs half what it used to and pays for itself sooner.
+// c = 6 is dominated here too, for the same reason as above -- it is the widest
+// window that still runs the unsigned bucket path.
+// m > 4096 is unmeasured; c = 9 is the largest window with data behind it.
+unsigned pippenger_glv_window(std::size_t m) {
+    if (m <= 16)    return 4;
+    if (m <= 96)    return 5;
+    if (m <= 640)   return 7;
+    if (m <= 2048)  return 8;
+    return 9;
+}
+
+} // namespace
+
+Point pippenger_msm_glv(const Scalar* scalars,
+                        const Point* points,
+                        std::size_t n) {
+    if (n == 0) return Point::infinity();
+    if (n == 1) return points[0].scalar_mul(scalars[0]);
+
+    std::size_t const m = 2 * n;
+
+    // thread_local, like every other scratch buffer in this file: an MSM in a
+    // verification loop must not allocate.
+    static thread_local std::vector<Scalar> tl_half;
+    static thread_local std::vector<Point>  tl_pts;
+    if (tl_half.size() < m) tl_half.resize(m);
+    if (tl_pts.size()  < m) tl_pts.resize(m);
+    Scalar* const half = tl_half.data();
+    Point*  const pts  = tl_pts.data();
+
+    // k1 stream at [0, n), k2 stream at [n, 2n) -- same split multi_scalar_mul
+    // uses, so the two are directly comparable when one is checked against the
+    // other.
+    for (std::size_t i = 0; i < n; ++i) {
+        fast::GLVDecomposition const d = fast::glv_decompose(scalars[i]);
+        half[i]     = d.k1;
+        half[n + i] = d.k2;
+        pts[i]      = d.k1_neg ? points[i].negate() : points[i];
+        Point const e = endomorphism_inplace_repr(points[i]);
+        pts[n + i]  = d.k2_neg ? e.negate() : e;
+    }
+
+    // 129, not 128: the decomposition bound is |k1|, |k2| < 2^128 and one bit
+    // of margin costs nothing here. floor(129/c) + 1 == floor(128/c) + 1 for
+    // every c in [4, 9], so the window count is identical either way -- the
+    // margin only widens the digit-extraction bound.
+    return pippenger_core(half, pts, m, pippenger_glv_window(m), 129);
+}
+
 // -- Signed-digit Pippenger (halved bucket count) -----------------------------
 // Uses signed digits [-2^(c-1), ..., -1, 0, 1, ..., 2^(c-1)]
 // This halves the number of buckets (2^(c-1) instead of 2^c) at the cost
 // of a carry propagation pass. Very effective for large n.
 //
-// Not yet enabled by default -- the unsigned version above is simpler and
-// already very fast. This is provided for future optimization.
+// Enabled for c >= 7 because c = 6 is the widest window that still runs the
+// unsigned bucket path, and it loses: same effective bucket count as c = 7
+// signed, 14% more windows. The earlier reading of the same evidence -- that
+// c = 6 was a correctness bound -- was wrong; see the note at the use_signed
+// definition, and the all_affine split in the signed scatter that it points to.
 
 // -- Vector convenience -------------------------------------------------------
 Point pippenger_msm(const std::vector<Scalar>& scalars,
@@ -382,16 +615,57 @@ Point pippenger_msm(const std::vector<Scalar>& scalars,
 }
 
 // -- Unified MSM (auto-select) ------------------------------------------------
-// Strauss for very small MSMs, Pippenger from n >= 48.
-// Current crossover on the optimized CPU path is ~48 points.
-// N=64 Schnorr batch -> 128 points in MSM -> Pippenger path.
+// Strauss below the crossover, GLV Pippenger at or above it.
+//
+// Three implementations, same inputs, same process; affine input points, as
+// every caller feeds. Microseconds per MSM:
+//
+//      n   Strauss   Pippenger   GLV Pippenger   best previous -> GLV
+//     48     814.9      1192.3           899.2        +10.3%  (Strauss wins)
+//     56     950.7      1306.3           974.4         +2.5%  (Strauss wins)
+//     64    1084.1      1406.2          1051.7         -3.0%
+//     96    1651.2      1787.4          1344.2        -18.6%
+//    128    2209.2      2081.7          1626.2        -21.9%
+//    200    3476.3      2750.1          2261.0        -17.8%
+//    512    9031.0      5383.7          4811.7        -10.6%
+//   1024   18989.2      9511.7          8756.1         -7.9%
+//   2048   40659.4     17233.5         16166.7         -6.2%
+//
+// The crossover sits at n ~= 60. Below it the GLV setup -- n decompositions,
+// n endomorphisms, 2n point copies -- is not yet amortised over enough bucket
+// work; above it the halved aggregation term wins and keeps winning.
+//
+// This is the routing schnorr_batch_verify uses (N signatures -> n = 2N
+// points), so the whole batch-verification range from ~30 signatures upward
+// runs through the last column.
+//
+// pippenger_msm keeps its OWN fallback at n < 48 on purpose: the audit suite
+// calls it directly to exercise the bucket path at n = 64, 100 and 128, and
+// raising its internal threshold would silently route those tests to Strauss
+// and stop testing Pippenger at all.
+//
+// Embedded targets keep the old routing. GLV Pippenger holds 2n points and
+// 2n half-scalars in thread_local scratch -- more than plain Pippenger, not
+// less -- and Strauss holds n GLV wNAF streams plus n tables. Neither budget
+// has been measured on the device, so the ESP32 path stays where it was
+// instead of inheriting a desktop measurement.
+#if defined(SECP256K1_ESP32)
+constexpr std::size_t kStraussCrossover = 48;
+#else
+constexpr std::size_t kStraussCrossover = 60;
+#endif
+
 Point msm(const Scalar* scalars,
           const Point* points,
           std::size_t n) {
-    if (n < 48) {
+    if (n < kStraussCrossover) {
         return multi_scalar_mul(scalars, points, n);
     }
+#if defined(SECP256K1_ESP32)
     return pippenger_msm(scalars, points, n);
+#else
+    return pippenger_msm_glv(scalars, points, n);
+#endif
 }
 
 Point msm(const std::vector<Scalar>& scalars,

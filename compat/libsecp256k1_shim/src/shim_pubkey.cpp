@@ -10,6 +10,9 @@
 #include <array>
 #include <vector>
 #include <numeric>
+#include <cstdint>
+#include <chrono>     // SHIM-014: thread-local cache salt fallback
+#include <random>     // SHIM-014: std::random_device for cache salt
 
 #include "secp256k1/field.hpp"
 #include "secp256k1/scalar.hpp"
@@ -38,8 +41,11 @@ using secp256k1_shim_internal::pubkey_data_to_point_checked;
 // Public data only — pubkeys are public, no secret material, no constant-time
 // concern (mirrors the verify-side ShimSchnorrCache in shim_schnorr.cpp). Only
 // SUCCESSFUL parses are cached; invalid inputs fall through and re-validate.
-// Unique-pubkey workloads pay only a ~64-byte slot write per miss (negligible
-// vs the sqrt saved on hits) — never a regression. The Schnorr x-only path
+// A miss costs the fingerprint, the slot compare and the slot write; put()
+// stores fp(8) + inlen(1) + the 33- or 65-byte input + the 64 data bytes +
+// valid(1), i.e. 107 or 139 bytes of a 144-byte slot, touching three 64-byte
+// lines. Whether that trades against the sqrt saved on hits for a workload of
+// mostly unique pubkeys has not been measured here. The Schnorr x-only path
 // already caches its lift_x; this brings the ECDSA path to the same footing.
 namespace {
 struct ShimPubkeyParseCache {
@@ -53,11 +59,54 @@ struct ShimPubkeyParseCache {
     };
     Slot slots[SLOTS]{};
 
-    // FNV-1a over (input bytes, length). Public data → no per-thread salt needed:
-    // a slot collision only forces a cache miss (re-validate), never a leak.
+    // SHIM-014: same per-thread salt as ShimSchnorrCache (shim_schnorr.cpp).
+    // Public data, so this is not a confidentiality measure — it is availability:
+    // with an unsalted mapping an attacker who picks the pubkey bytes can aim a
+    // key at a victim's slot and evict it on every call, so the victim never
+    // gets a hit. A per-thread salt makes the slot mapping unpredictable.
+    static std::uint64_t thread_salt() noexcept {
+        static thread_local std::uint64_t salt = []() noexcept {
+            std::uint64_t seed = 0;
+            try {
+                std::random_device rd;
+                seed = (static_cast<std::uint64_t>(rd()) << 32) ^ rd();
+            } catch (...) {
+                seed = 0;
+            }
+            if (seed == 0) {
+                auto now = std::chrono::steady_clock::now().time_since_epoch().count();
+                seed = static_cast<std::uint64_t>(now)
+                     ^ (reinterpret_cast<std::uintptr_t>(&seed) * 0x9E3779B97F4A7C15ULL);
+            }
+            return seed | 1ULL;
+        }();
+        return salt;
+    }
+
+    // FNV-1a over the leading input words and the length. The fingerprint is a
+    // slot filter only — get() still requires inlen == n and a full memcmp — so
+    // folding the leading 8 (compressed) or 16 (uncompressed) bytes instead of
+    // all 33/65 cannot change which inputs hit. It replaces a 34- or 66-multiply
+    // serial dependency chain, paid on every parse (hit and miss alike), with
+    // two or three multiplies. Byte 0 (the 02/03/04/06/07 prefix) is inside the
+    // first word and the FNV multiply is a bijection mod 2^64, so 02||X and
+    // 03||X always land on different fingerprints; n is folded in as before.
     static std::uint64_t hash(const unsigned char* in, std::size_t n, std::size_t& idx) noexcept {
-        std::uint64_t h = 14695981039346656037ULL;
-        for (std::size_t i = 0; i < n; ++i) h = (h ^ in[i]) * 1099511628211ULL;
+        std::uint64_t h = 14695981039346656037ULL ^ thread_salt(), w;
+        // std::memcpy compiles to the same MOV on every supported toolchain
+        // (GCC/Clang/MSVC); __builtin_memcpy is GCC/Clang-only and breaks the
+        // MSVC build with C3861 (identifier not found).
+        if (n >= 16) {                       // 65-byte uncompressed / hybrid
+            std::memcpy(&w, in, 8);
+            h = (h ^ w) * 1099511628211ULL;
+            std::memcpy(&w, in + 8, 8);
+            h = (h ^ w) * 1099511628211ULL;
+        } else if (n >= 8) {                 // 33-byte compressed
+            std::memcpy(&w, in, 8);
+            h = (h ^ w) * 1099511628211ULL;
+        } else {                             // unreachable: parse gates on 33/65
+            for (std::size_t i = 0; i < n; ++i) h = (h ^ in[i]) * 1099511628211ULL;
+        }
         h = (h ^ n) * 1099511628211ULL;
         idx = static_cast<std::size_t>(h & (SLOTS - 1));
         return h | 1ULL;  // nonzero fingerprint
@@ -130,7 +179,7 @@ int secp256k1_ec_pubkey_parse(
         // Select y with correct parity
         bool y_is_odd = (y.limbs()[0] & 1u) != 0u;
         bool want_odd = (prefix == 0x03);
-        if (y_is_odd != want_odd) y = y.negate();
+        if (y_is_odd != want_odd) y.negate_assign();
 
         auto pt = Point::from_affine(x, y);
         point_to_pubkey_data(pt, pubkey->data);
@@ -358,7 +407,7 @@ int secp256k1_ec_pubkey_combine(
     for (size_t i = 1; i < n; ++i) {
         auto P = pubkey_data_to_point_checked(ins[i]->data);
         if (P.is_infinity()) { std::memset(out->data, 0, sizeof(out->data)); return 0; }
-        acc = acc.add(P);
+        acc.add_inplace(P);
     }
     if (acc.is_infinity()) { std::memset(out->data, 0, sizeof(out->data)); return 0; }
     point_to_pubkey_data(acc, out->data);

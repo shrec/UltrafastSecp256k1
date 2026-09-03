@@ -125,7 +125,7 @@ static std::pair<Point, bool> lift_x_even(const std::array<uint8_t, 32>& x_bytes
 
     // Force even y (BIP-341 convention): LSB of limbs()[0] == parity bit
     if (y.limbs()[0] & 1) {
-        y = y.negate();
+        y.negate_assign();
     }
 
     return {Point::from_affine(px_fe, y), true};
@@ -154,12 +154,10 @@ std::pair<std::array<uint8_t, 32>, int> taproot_output_key(
     auto Q = P.add(tG);
     if (Q.is_infinity()) return {{}, 0};
 
-    // Output x-only key
-    auto q_x = Q.x().to_bytes();
-
-    // Parity: check if Q.y is odd
-    auto Q_uncomp = Q.to_uncompressed();
-    int const parity = (Q_uncomp[64] & 1) != 0 ? 1 : 0;
+    // Output x-only key + y-parity. x() followed by to_uncompressed() would
+    // invert the same Z twice; x_bytes_and_parity() yields both from one inversion.
+    auto [q_x, q_y_odd] = Q.x_bytes_and_parity();
+    int const parity = q_y_odd ? 1 : 0;
 
     return {q_x, parity};
 }
@@ -186,8 +184,9 @@ Scalar taproot_tweak_privkey(
     auto d = ct::scalar_cneg(private_key, neg_mask);
 
     // t = H_TapTweak(P.x || merkle_root)
-    auto px = P.x().to_bytes();
-    auto t_bytes = taproot_tweak_hash(px, merkle_root, merkle_root_len);
+    // px_bytes above is already P's affine x from the same inversion that
+    // produced p_y_odd -- do not re-derive it with a second P.x().
+    auto t_bytes = taproot_tweak_hash(px_bytes, merkle_root, merkle_root_len);
     Scalar t;
     if (!Scalar::parse_bytes_strict(t_bytes, t)) {
         detail::secure_erase(&d, sizeof(d));

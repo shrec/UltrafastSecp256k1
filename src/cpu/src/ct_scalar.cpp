@@ -687,7 +687,13 @@ ECDSASignature ct_normalize_low_s(const ECDSASignature& sig) noexcept {
 // --- Bit Access --------------------------------------------------------------
 
 std::uint64_t scalar_bit(const Scalar& a, std::size_t index) noexcept {
-    // CT w.r.t. scalar value (the secret). Position is public (loop counter).
+    // CT w.r.t. the scalar VALUE, which is the secret. The position is public in
+    // every current caller (it is a loop counter), so the masked 4-limb scan below
+    // is not protecting the index -- it is protecting the value, by making the
+    // limb that is read independent of nothing at all and the RESULT independent
+    // of which limb held the bit. A caller with a secret index would also be
+    // safe, which is why the scan is written this way; ct::scalar_window below
+    // takes the cheaper route for the comb, where the index is provably public.
     // index / 64 = limb, index % 64 = bit within limb
     std::size_t const limb_idx = index >> 6;
     std::size_t const bit_idx  = index & 63;

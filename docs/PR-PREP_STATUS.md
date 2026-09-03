@@ -125,7 +125,7 @@ for the PR body author:
 
 * **In scope:** `bitcoin-core` deployment profile only. Reference
   `docs/SHIM_FOOTPRINT_COMPARISON.md`, `docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`,
-  `docs/bench_unified_2026-05-30_gcc14_x86-64.json`, and
+  `docs/bench_unified_2026-09-03_gcc14_x86-64.json`, and
   `docs/BITCOIN_CORE_BENCH_RESULTS.json`.
 * **Out of scope (do not mention in PR body):** Litecoin / Dogecoin / BCH /
   Wallet profiles, GPU backends (CUDA/OpenCL/Metal), CAAS framework, the

@@ -253,10 +253,23 @@ FieldElement52 FieldElement52::inverse() const noexcept {
 // ===========================================================================
 // (p+1)/4 for secp256k1 shares the x223 chain with inverse; final stage differs.
 //
-// When SECP256K1_HYBRID_4X64_ACTIVE: same boundary-conversion strategy.
-// Saves ~600ns per sqrt call (used in Schnorr lift_x).
 
-#if defined(SECP256K1_HYBRID_4X64_ACTIVE)
+// The 4x64 route is kept, but OFF: define SECP256K1_HYBRID_4X64_SQRT to get it.
+//
+// Both bodies below run the identical addition chain -- the blocks of 1s in
+// (p+1)/4 are 2, 22 and 223 long, so 255 squarings and 13 multiplications
+// either way, the same chain libsecp uses. The difference is where the
+// squarings happen. The 4x64 route packs out of the 5x52 representation and
+// uses field_sqr_full_asm, which normalises on every step; the FE52 route stays
+// in 5x52 and lets the magnitude ride, normalising only where the bound
+// requires it. Over 255 squarings that bookkeeping is the whole difference:
+//
+//   4x64 route  6267.5 ns      FE52 route  5609.4 ns      libsecp  5330.9 ns
+//
+// Verified identical on the same 64 inputs before switching. This is on the
+// Schnorr path -- lift_x runs it twice per batch entry -- so the 10.5% is worth
+// having. Do not flip this back without re-running that comparison.
+#if defined(SECP256K1_HYBRID_4X64_SQRT)
 
 FieldElement52 FieldElement52::sqrt() const noexcept {
     alignas(32) std::uint64_t a[4], x2[4], x3[4], x6[4], x9[4], x11[4];
@@ -389,7 +402,7 @@ FieldElement52 FieldElement52::sqrt() const noexcept {
     return t;
 }
 
-#endif // SECP256K1_HYBRID_4X64_ACTIVE (sqrt)
+#endif // SECP256K1_HYBRID_4X64_SQRT (sqrt)
 
 // --- MSVC cl fallback: 5x52 variable-time inverse via the 4x64 path ----------
 // fe52_inverse_safegcd_var (field.cpp) is compiled only under __SIZEOF_INT128__: its

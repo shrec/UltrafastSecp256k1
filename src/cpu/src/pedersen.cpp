@@ -119,10 +119,10 @@ bool pedersen_verify_sum(const PedersenCommitment* commitments_pos,
     Point sum = Point::infinity();
 
     for (std::size_t i = 0; i < n_pos; ++i) {
-        sum = sum.add(commitments_pos[i].point);
+        sum.add_inplace(commitments_pos[i].point);
     }
     for (std::size_t i = 0; i < n_neg; ++i) {
-        sum = sum.add(commitments_neg[i].point.negate());
+        sum.sub_inplace(commitments_neg[i].point);
     }
 
     return sum.is_infinity();

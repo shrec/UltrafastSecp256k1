@@ -262,7 +262,7 @@ fast::Point ExtendedKey::public_key() const {
     bool const y_is_odd = (y.limbs()[0] & 1) != 0;
     bool const need_odd = (pub_prefix == 0x03);
     if (y_is_odd != need_odd) {
-        y = y.negate();
+        y.negate_assign();
     }
     return Point::from_affine(x, y);
 }

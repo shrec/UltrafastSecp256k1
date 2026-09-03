@@ -21,9 +21,14 @@ std::array<std::uint8_t, 32> ecdh_compute(
     // SEC-005: reject off-curve pubkeys (invalid-curve attack defense).
     if (public_key.is_infinity()) return {};
     {
-        auto px = public_key.x(), py = public_key.y();
-        auto rhs = px * px * px + FieldElement::from_uint64(7);
-        if (!(py * py == rhs)) return {};
+        // x() and y() each invert Z, so a Jacobian pubkey pays two inversions
+        // for one curve check. Normalize a local copy once and read both
+        // coordinates off the affine result.
+        Point affine = public_key;
+        affine.normalize();
+        auto px = affine.x(), py = affine.y();
+        auto rhs = px.square() * px + FieldElement::from_uint64(7);
+        if (!(py.square() == rhs)) return {};
     }
 
     auto shared_point = ct::scalar_mul(public_key, private_key);
@@ -50,9 +55,14 @@ std::array<std::uint8_t, 32> ecdh_compute_xonly(
     // SEC-005: reject off-curve pubkeys (invalid-curve attack defense).
     if (public_key.is_infinity()) return {};
     {
-        auto px = public_key.x(), py = public_key.y();
-        auto rhs = px * px * px + FieldElement::from_uint64(7);
-        if (!(py * py == rhs)) return {};
+        // x() and y() each invert Z, so a Jacobian pubkey pays two inversions
+        // for one curve check. Normalize a local copy once and read both
+        // coordinates off the affine result.
+        Point affine = public_key;
+        affine.normalize();
+        auto px = affine.x(), py = affine.y();
+        auto rhs = px.square() * px + FieldElement::from_uint64(7);
+        if (!(py.square() == rhs)) return {};
     }
 
     auto shared_point = ct::scalar_mul(public_key, private_key);
@@ -78,9 +88,14 @@ std::array<std::uint8_t, 32> ecdh_compute_raw(
     // SEC-005: reject off-curve pubkeys (invalid-curve attack defense).
     if (public_key.is_infinity()) return {};
     {
-        auto px = public_key.x(), py = public_key.y();
-        auto rhs = px * px * px + FieldElement::from_uint64(7);
-        if (!(py * py == rhs)) return {};
+        // x() and y() each invert Z, so a Jacobian pubkey pays two inversions
+        // for one curve check. Normalize a local copy once and read both
+        // coordinates off the affine result.
+        Point affine = public_key;
+        affine.normalize();
+        auto px = affine.x(), py = affine.y();
+        auto rhs = px.square() * px + FieldElement::from_uint64(7);
+        if (!(py.square() == rhs)) return {};
     }
 
     auto shared_point = ct::scalar_mul(public_key, private_key);

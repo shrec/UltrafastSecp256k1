@@ -188,13 +188,13 @@ Full data: `docs/BITCOIN_CORE_BENCH_RESULTS.json` (commit `48e7c02f`, 2026-05-12
 ### CT Signing — Compiler Results (Material Disclosure)
 
 CT signing performance on GCC 14.2.0 (Linux default for Bitcoin Core CI),
-from `docs/bench_unified_2026-05-30_gcc14_x86-64.json`
+from `docs/bench_unified_2026-09-03_gcc14_x86-64.json`
 (Intel i5-14400F, turbo lock CONFIRMED: intel_pstate/no_turbo=1, governor=performance,
 core pinned (taskset -c 0 nice -20), 500 warmup, 11 passes, IQR trimming):
 
 | Compiler | CT ECDSA sign | CT Schnorr sign | Canonical artifact |
 |----------|:---:|:---:|---|
-| **GCC 14.2.0** (Linux default) | **1.33× faster** (+33%) | **1.26× faster** (+26%) | `docs/bench_unified_2026-05-30_gcc14_x86-64.json` |
+| **GCC 14.2.0** (Linux default) | **1.34× faster** (+34%) | **1.27× faster** (+27%) | `docs/bench_unified_2026-09-03_gcc14_x86-64.json` |
 | Clang 19 (archived, 2026-03-24) | 1.33× faster (+33%) | ~1.09× faster | `docs/BENCHMARKS.md §archived` — not a current controlled run |
 
 > **Two benchmark sets, two different measurements:**

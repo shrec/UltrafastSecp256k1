@@ -161,11 +161,11 @@ Benchmarks are collected on:
 
 ## Reference Numbers
 
-Current baseline: see [`docs/bench_unified_2026-05-30_gcc14_x86-64.json`](bench_unified_2026-05-30_gcc14_x86-64.json)
+Current baseline: see [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](bench_unified_2026-09-03_gcc14_x86-64.json)
 for canonical measurements (GCC 14.2.0, Release+LTO, Intel i5-14400F, turbo off,
 taskset -c 0, nice -20, 11 passes IQR).
 
-Key values (GCC 14.2.0, Release+LTO, from `bench_unified_2026-05-30_gcc14_x86-64.json`):
+Key values (GCC 14.2.0, Release+LTO, from `bench_unified_2026-09-03_gcc14_x86-64.json`):
 
 | Operation | Time | Notes |
 |-----------|------|-------|

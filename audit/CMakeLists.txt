@@ -1391,6 +1391,42 @@ target_compile_definitions(test_exploit_batch_schnorr_forge_standalone PRIVATE S
 add_test(NAME exploit_batch_schnorr_forge COMMAND test_exploit_batch_schnorr_forge_standalone)
 set_tests_properties(exploit_batch_schnorr_forge PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr;batch")
 
+add_executable(test_regression_scalar_decomposition_and_comb_standalone test_regression_scalar_decomposition_and_comb.cpp)
+audit_target_defaults(test_regression_scalar_decomposition_and_comb_standalone)
+target_compile_definitions(test_regression_scalar_decomposition_and_comb_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_scalar_decomposition_and_comb COMMAND test_regression_scalar_decomposition_and_comb_standalone)
+set_tests_properties(regression_scalar_decomposition_and_comb PROPERTIES TIMEOUT 300 LABELS "audit;regression;glv;comb;wnaf")
+
+add_executable(test_regression_pippenger_window_bands_standalone test_regression_pippenger_window_bands.cpp)
+audit_target_defaults(test_regression_pippenger_window_bands_standalone)
+target_compile_definitions(test_regression_pippenger_window_bands_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_pippenger_window_bands COMMAND test_regression_pippenger_window_bands_standalone)
+set_tests_properties(regression_pippenger_window_bands PROPERTIES TIMEOUT 300 LABELS "audit;regression;msm;pippenger;batch_verify")
+
+add_executable(test_regression_inplace_point_ops_standalone test_regression_inplace_point_ops.cpp)
+audit_target_defaults(test_regression_inplace_point_ops_standalone)
+target_compile_definitions(test_regression_inplace_point_ops_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_inplace_point_ops COMMAND test_regression_inplace_point_ops_standalone)
+set_tests_properties(regression_inplace_point_ops PROPERTIES TIMEOUT 120 LABELS "audit;regression;group_law;inplace")
+
+add_executable(test_regression_scalar_reduce_and_safegcd_divstep_standalone test_regression_scalar_reduce_and_safegcd_divstep.cpp)
+audit_target_defaults(test_regression_scalar_reduce_and_safegcd_divstep_standalone)
+target_compile_definitions(test_regression_scalar_reduce_and_safegcd_divstep_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_scalar_reduce_and_safegcd_divstep COMMAND test_regression_scalar_reduce_and_safegcd_divstep_standalone)
+set_tests_properties(regression_scalar_reduce_and_safegcd_divstep PROPERTIES TIMEOUT 300 LABELS "audit;regression;scalar;field;safegcd")
+
+add_executable(test_regression_single_affine_materialisation_standalone test_regression_single_affine_materialisation.cpp)
+audit_target_defaults(test_regression_single_affine_materialisation_standalone)
+target_compile_definitions(test_regression_single_affine_materialisation_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_single_affine_materialisation COMMAND test_regression_single_affine_materialisation_standalone)
+set_tests_properties(regression_single_affine_materialisation PROPERTIES TIMEOUT 120 LABELS "audit;regression;point;taproot;ecdh")
+
+add_executable(test_exploit_batch_weight_seed_binding_standalone test_exploit_batch_weight_seed_binding.cpp)
+audit_target_defaults(test_exploit_batch_weight_seed_binding_standalone)
+target_compile_definitions(test_exploit_batch_weight_seed_binding_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_batch_weight_seed_binding COMMAND test_exploit_batch_weight_seed_binding_standalone)
+set_tests_properties(exploit_batch_weight_seed_binding PROPERTIES TIMEOUT 120 LABELS "audit;exploit;schnorr;batch")
+
 if(SECP256K1_BUILD_WALLET)
 # -- PoC: BIP-32 hardened derivation edge cases — isolation and xpub guard
 add_executable(test_exploit_bip32_ckd_hardened_standalone test_exploit_bip32_ckd_hardened.cpp)
@@ -3914,6 +3950,12 @@ add_executable(unified_audit_runner
     test_exploit_batch_schnorr.cpp
     test_exploit_batch_schnorr_forge.cpp
     test_exploit_batch_soundness.cpp
+    test_exploit_batch_weight_seed_binding.cpp
+    test_regression_single_affine_materialisation.cpp
+    test_regression_scalar_decomposition_and_comb.cpp
+    test_regression_pippenger_window_bands.cpp
+    test_regression_inplace_point_ops.cpp
+    test_regression_scalar_reduce_and_safegcd_divstep.cpp
     test_exploit_batch_verify_correctness.cpp
     test_exploit_batch_verify_poison.cpp
     test_exploit_bip143_sighash.cpp
@@ -4746,7 +4788,7 @@ set_tests_properties(
     exploit_point_serialization exploit_ecdsa_rfc6979_kat
     exploit_scalar_systematic
     exploit_ecdsa_malleability exploit_glv_kat exploit_aead_integrity
-    exploit_batch_schnorr_forge
+    exploit_batch_schnorr_forge exploit_batch_weight_seed_binding
     exploit_ct_fast_equivalence
     exploit_binding_invalid_curve exploit_musig2_parallel_session_cross
     exploit_musig2_byzantine_multiparty
@@ -5738,6 +5780,18 @@ add_test(NAME regression_abi_invalid_reject
 set_tests_properties(regression_abi_invalid_reject PROPERTIES TIMEOUT 30
     LABELS "audit;regression;memory-safety;valid-invalid;abi;reject")
 target_sources(unified_audit_runner PRIVATE test_regression_abi_invalid_reject.cpp)
+
+# Odd-multiple table build invariants — window-constant agreement + shared-Z
+# contract (representation-search, 2026-09-02)
+add_executable(test_regression_table_build_invariants_standalone
+    test_regression_table_build_invariants.cpp)
+audit_target_defaults(test_regression_table_build_invariants_standalone)
+target_compile_definitions(test_regression_table_build_invariants_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_table_build_invariants
+    COMMAND test_regression_table_build_invariants_standalone)
+set_tests_properties(regression_table_build_invariants PROPERTIES TIMEOUT 60
+    LABELS "audit;regression;math-invariants;table-build;window;shared-z")
+target_sources(unified_audit_runner PRIVATE test_regression_table_build_invariants.cpp)
 
 # EXTERNAL-ANCHOR KAT — NIST SHA-512 + official BIP-341 vectors (common-mode defence, 2026-06-11)
 add_executable(test_external_anchor_kat_standalone

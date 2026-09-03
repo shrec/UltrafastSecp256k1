@@ -76,10 +76,21 @@ static void check_present(const std::string& contents, const std::string& filena
 // ============================================================================
 // MA-1: point.cpp wNAF trim loop integrity
 // ============================================================================
-// The correct code has: while (len_a_hi > 0 && wnaf_a_hi[len_a_hi - 1] == 0)
-// The mutated code had: while (len_a_hi >= 0 && wnaf_a_hi[len_a_hi - 1] == 0)
-//                                    ^^
-// The >= 0 mutation causes wnaf_a_hi[-1] OOB read when len_a_hi reaches 0.
+// A mutation run once rewrote  while (len_a_hi > 0 && wnaf_a_hi[len_a_hi-1]==0)
+// as  while (len_a_hi >= 0 && ...),  which reads wnaf_a_hi[-1] once len_a_hi
+// reaches 0. MA-1a is the guard against that artifact being left behind.
+//
+// The trim loops themselves are now GONE from point.cpp: compute_wnaf_into sets
+// out_len = last_set_bit + 1 and every digit it stores is odd, so wnaf[len-1] is
+// never zero and the loops could not iterate. Deleting them removes the mutation
+// target entirely -- but MA-1a is an ABSENCE check, and an absence check passes
+// vacuously if the file is unreadable, truncated, or renamed. MA-1b is the
+// canary that keeps it honest, so it now pins something that still exists: the
+// wNAF call sites the trim loops used to follow. Together the two say "the wNAF
+// recoding sites are present, and none of them is followed by a >= 0 trim loop".
+//
+// If a trim loop is ever reintroduced it must use > 0; MA-1a still fires on the
+// >= 0 form whether or not the loops come back.
 static void test_point_wnaf_trim() {
     std::printf("[MA-1] point.cpp wNAF trim loop integrity\n");
 
@@ -97,10 +108,11 @@ static void test_point_wnaf_trim() {
     check_absent(contents, "src/cpu/src/point.cpp", bad_trim,
                  "MA-1a: no wNAF trim loop uses >= 0 (OOB guard)");
 
-    // GOOD: len_a_hi > 0 pattern must be present
-    std::regex good_trim(R"(while\s*\(\s*len_a_hi\s*>\s*0)");
-    check_present(contents, "src/cpu/src/point.cpp", good_trim,
-                  "MA-1b: wNAF trim loop uses > 0 (correct pattern present)");
+    // CANARY: the wNAF recoding call sites must be present, so that MA-1a
+    // cannot pass merely because the file was not read.
+    std::regex wnaf_sites(R"(compute_wnaf_into\s*\()");
+    check_present(contents, "src/cpu/src/point.cpp", wnaf_sites,
+                  "MA-1b: wNAF recoding call sites present (MA-1a not vacuous)");
 }
 
 // ============================================================================

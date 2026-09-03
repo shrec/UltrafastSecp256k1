@@ -622,7 +622,7 @@ static bool test_sequential_increment_property(bool verbose) {
         // Q <- Q + G
         Q.next_inplace();
         left = Q.scalar_mul(K);
-        right = right.add(KG);
+        right.add_inplace(KG);
         if (!points_equal(left, right)) { ok = false; break; }
     }
     if (verbose) SELFTEST_PRINT(ok ? "    PASS\n" : "    FAIL\n");

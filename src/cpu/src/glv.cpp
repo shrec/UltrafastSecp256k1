@@ -69,8 +69,11 @@ static void glv_mul_comba_64(const std::uint64_t a[4], const std::uint64_t b[4],
     r[7] = c0;
 }
 
-// Template version: b[] constants known at compile time -> compiler can
-// constant-fold multiplies and optimize register allocation.
+// Template version: b[] is a compile-time constant. No multiply here has two
+// compile-time operands -- a[] is always the runtime scalar -- so nothing is
+// constant-folded. What the template buys is that each b limb is an immediate
+// rather than a load, which frees registers and removes the loads from the
+// dependency chain.
 template<std::uint64_t B0, std::uint64_t B1, std::uint64_t B2, std::uint64_t B3>
 static std::array<std::uint64_t, 4> mul_shift_384_const(
     const std::array<std::uint64_t, 4>& a) {
@@ -245,27 +248,64 @@ static std::uint64_t glv_sub4(const std::uint64_t a[4], const std::uint64_t b[4]
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
 
-// NC = 2^256 - n (129 bits, 3 limbs). Used for fast modular reduction.
-static constexpr std::uint64_t kNC[3] = {
-    0x402DA1732FC9BEBFULL, 0x4551231950B75FC4ULL, 0x0000000000000001ULL
-};
-
 // minus_b1 as raw limbs (128-bit: only 2 limbs non-zero)
 static constexpr std::uint64_t kMB1[2] = {
     0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL
 };
 
-// minus_b2 as raw limbs (256-bit)
+// minus_b2 as raw limbs (256-bit). Kept only to pin kB2 below at compile time:
+// the decomposition uses b2 itself, never n - b2.
 static constexpr std::uint64_t kMB2[4] = {
     0xD765CDA83DB1562CULL, 0x8A280AC50774346DULL,
     0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
 };
 
-// lambda as raw limbs (256-bit)
-static constexpr std::uint64_t kLambdaLimbs[4] = {
-    0xDF02967C1B23BD72ULL, 0x122E22EA20816678ULL,
-    0xA5261C028812645AULL, 0x5363AD4CC05C30E0ULL
+// b2 = n - minus_b2, the raw lattice basis element (126 bits, 2 limbs).
+// b2 also equals the lattice element a1 exactly, so this one constant serves
+// both the k2 and the k1 product below.
+static constexpr std::uint64_t kB2[2] = {
+    0xE86C90E49284EB15ULL, 0x3086D221A7D46BCDULL
 };
+
+// a2 - 2^128, the low part of the lattice element a2 (125 bits, 2 limbs).
+// a2 = 2^128 + kA2LO, so the 2^128 term costs a limb placement, not a multiply.
+static constexpr std::uint64_t kA2LO[2] = {
+    0x57C1108D9D44CFD8ULL, 0x14CA50F7A8E2F3F6ULL
+};
+
+// kB2 == n - kMB2, checked limb by limb at compile time so a mistyped constant
+// cannot become a silent wrong decomposition. Limb 0 borrows, limb 1 absorbs
+// the borrow without generating one, limbs 2 and 3 cancel exactly.
+static_assert(kN[0] < kMB2[0], "n - minus_b2: limb 0 must borrow");
+static_assert(kB2[0] == kN[0] - kMB2[0], "kB2 limb 0 != (n - minus_b2) limb 0");
+static_assert(kN[1] - 1ULL >= kMB2[1], "n - minus_b2: limb 1 must not borrow");
+static_assert(kB2[1] == kN[1] - kMB2[1] - 1ULL, "kB2 limb 1 != (n - minus_b2) limb 1");
+static_assert(kN[2] == kMB2[2] && kN[3] == kMB2[3], "n - minus_b2 must fit 2 limbs");
+
+// Add b to a (4-limb). Returns carry out (0 or 1).
+static std::uint64_t glv_add4(const std::uint64_t a[4], const std::uint64_t b[4],
+                              std::uint64_t r[4]) {
+    std::uint64_t carry = 0;
+    for (int i = 0; i < 4; ++i) {
+        std::uint64_t const s = a[i] + b[i];
+        std::uint64_t const c1_ = (s < a[i]) ? 1ULL : 0ULL;
+        std::uint64_t const t = s + carry;
+        carry = c1_ + ((t < s) ? 1ULL : 0ULL);
+        r[i] = t;
+    }
+    return carry;
+}
+
+// r = a - b (mod n). Requires a < n and b < n, which every caller below
+// establishes from the proven operand widths. On borrow the true value is
+// a - b + 2^256, so folding n back in mod 2^256 (dropping the carry out)
+// yields a - b + n, which is in [0, n).
+static void glv_sub_mod_n(const std::uint64_t a[4], const std::uint64_t b[4],
+                          std::uint64_t r[4]) {
+    if (glv_sub4(a, b, r) != 0) {
+        (void)glv_add4(r, kN, r);
+    }
+}
 
 // 128-bit x 128-bit -> 256-bit Comba multiply (4 macs)
 static void glv_mul_2x2(const std::uint64_t a[2], const std::uint64_t b[2],
@@ -281,104 +321,6 @@ static void glv_mul_2x2(const std::uint64_t a[2], const std::uint64_t b[2],
     GLV_MULADD(1, 1);
     GLV_EXTRACT(r[2]);
     r[3] = c0;
-}
-
-// 128-bit x 256-bit -> 384-bit Comba multiply (8 macs)
-static void glv_mul_2x4(const std::uint64_t a[2], const std::uint64_t b[4],
-                         std::uint64_t r[6]) {
-    using u128 = unsigned __int128;
-    std::uint64_t c0 = 0, c1 = 0;
-    std::uint32_t c2 = 0;
-
-    // Column 0: a[0]*b[0]
-    GLV_MULADD(0, 0);
-    GLV_EXTRACT(r[0]);
-    // Column 1: a[0]*b[1] + a[1]*b[0]
-    GLV_MULADD(0, 1); GLV_MULADD(1, 0);
-    GLV_EXTRACT(r[1]);
-    // Column 2: a[0]*b[2] + a[1]*b[1]
-    GLV_MULADD(0, 2); GLV_MULADD(1, 1);
-    GLV_EXTRACT(r[2]);
-    // Column 3: a[0]*b[3] + a[1]*b[2]
-    GLV_MULADD(0, 3); GLV_MULADD(1, 2);
-    GLV_EXTRACT(r[3]);
-    // Column 4: a[1]*b[3]
-    GLV_MULADD(1, 3);
-    GLV_EXTRACT(r[4]);
-    // Column 5: carry
-    r[5] = c0;
-}
-
-// Reduce a wide value (up to 7 limbs) modulo n.
-// Uses 2^256 = NC (mod n) trick for fast reduction.
-// Result written to out[4], guaranteed < n.
-static void glv_reduce_mod_n(const std::uint64_t* w, int wlen,
-                              std::uint64_t out[4]) {
-    using u128 = unsigned __int128;
-
-    std::uint64_t r[5] = {};
-
-    if (wlen <= 4) {
-        // Already fits in 256 bits -- just conditional subtract
-        for (int i = 0; i < wlen; ++i) r[i] = w[i];
-    } else {
-        // Split: value = w_high * 2^256 + w_low
-        // w_high = w[4..wlen-1] (up to 3 limbs for wlen<=7)
-        // Compute w_high * NC (schoolbook, high_len x 3)
-        int const high_len = wlen - 4;
-        std::uint64_t hprod[7] = {};
-        for (int i = 0; i < high_len; ++i) {
-            u128 carry = 0;
-            for (int j = 0; j < 3; ++j) {
-                carry += (u128)w[4 + i] * kNC[j] + hprod[i + j];
-                hprod[i + j] = (std::uint64_t)carry;
-                carry >>= 64;
-            }
-            hprod[i + 3] = (std::uint64_t)carry;
-        }
-
-        // Add w_low (first 4 limbs) to hprod
-        u128 carry = 0;
-        for (int i = 0; i < 4; ++i) {
-            carry += (u128)hprod[i] + w[i];
-            r[i] = (std::uint64_t)carry;
-            carry >>= 64;
-        }
-        // Propagate carry into upper part
-        int const hprod_top = high_len + 2; // max index with data
-        for (int i = 4; i <= hprod_top; ++i) {
-            carry += hprod[i];
-            if (i < 5) {
-                r[i] = (std::uint64_t)carry;
-            }
-            carry >>= 64;
-        }
-        // If r[4] > 0, we may need one more NC round (rare)
-        if (r[4] > 0) {
-            // r[4] is small (at most ~4). Apply: r = r[4]*NC + r[0..3]
-            std::uint64_t extra[4] = {};
-            u128 ec = 0;
-            for (int j = 0; j < 3; ++j) {
-                ec += (u128)r[4] * kNC[j] + r[j];
-                extra[j] = (std::uint64_t)ec;
-                ec >>= 64;
-            }
-            extra[3] = r[3] + (std::uint64_t)ec;
-            r[0] = extra[0]; r[1] = extra[1];
-            r[2] = extra[2]; r[3] = extra[3];
-            r[4] = 0;
-        }
-    }
-
-    // Final: r >= n -> subtract n (at most 2 times for practical inputs, unrolled)
-    if (glv_ge_n(r, kN)) {
-        glv_sub4(r, kN, r);
-        if (glv_ge_n(r, kN)) {
-            glv_sub4(r, kN, r);
-        }
-    }
-
-    for (int i = 0; i < 4; ++i) out[i] = r[i];
 }
 
 #if defined(__GNUC__) && !defined(__clang__)
@@ -408,38 +350,36 @@ GLVDecomposition glv_decompose(const Scalar& k) {
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpedantic"
 #endif
-    // ---- Fast path: exploit known limb sizes (3.4x fewer multiply-accumulates) ----
+    // ---- Fast path: raw lattice basis (a1, a2, b1, b2) on known limb sizes ----
     // c1, c2 are at most 128-bit (only limbs[0..1] non-zero from mul_shift_384).
-    // c1*mb1: 2x2 = 4 macs (vs 16 for full Scalar::operator* schoolbook)
-    // c2*mb2: 2x4 = 8 macs
-    // Reduction via NC-trick: ~6 macs (vs 20 for Barrett)
-    // Total: ~32 macs vs ~108 for 3x full Scalar multiply+Barrett.
+    //
+    // The derived constant minus_b2 = n - b2 is a full 256-bit value, but b2
+    // itself is only 126 bits, so working with the raw basis keeps every product
+    // at 128x128 = 4 macs and inside 4 limbs:
+    //     k2 = c1*mb1 + c2*mb2  ==  c1*mb1 - c2*b2       (mod n)
+    // and the exact lattice relations a1 + b1*lambda == 0, a2 + b2*lambda == 0
+    // (mod n) give lambda*k2 == c1*a1 + c2*a2, so k1 needs no lambda multiply
+    // and no dependency on k2 at all:
+    //     k1 = k - c1*a1 - c2*a2                          (mod n)
+    // with a1 == b2 and a2 == 2^128 + a2_lo, so the 2^128 term is limb
+    // placement rather than a multiply.
+    //
+    // OPERAND WIDTHS, worst case over every 4-limb k (c1 and c2 are monotone in
+    // k, so the maxima are attained at the largest k; checked there, including
+    // an unreduced k = 2^256-1):
+    //     c1 <= 126 bits, c2 <= 128 bits
+    //     c1*mb1 254 bits, c2*b2 254 bits, c1*a1 + c2*a2_lo 253 bits (no carry
+    //     out of limb 3), c2<<128 256 bits
+    // All four are < n, i.e. already reduced. That is why no wide mod-n
+    // reduction appears below and only the modular subtracts can borrow.
 
-    // c2*mb2: 128-bit x 256-bit -> 384-bit (6 limbs)
-    std::uint64_t wide[7] = {};
-    glv_mul_2x4(c2_limbs.data(), kMB2, wide); // fills [0..5]
-
-    // c1*mb1: 128-bit x 128-bit -> 256-bit (4 limbs), add to wide
+    // k2 = c1*mb1 - c2*b2 (mod n): two 2x2 products, both < n.
     std::uint64_t p1[4];
+    std::uint64_t p2[4];
     glv_mul_2x2(c1_limbs.data(), kMB1, p1);
-    {
-        using u128 = unsigned __int128;
-        u128 carry = 0;
-        for (int i = 0; i < 4; ++i) {
-            carry += (u128)wide[i] + p1[i];
-            wide[i] = (std::uint64_t)carry;
-            carry >>= 64;
-        }
-        for (int i = 4; i < 7 && carry; ++i) {
-            carry += wide[i];
-            wide[i] = (std::uint64_t)carry;
-            carry >>= 64;
-        }
-    }
-
-    // Reduce wide (up to 7 limbs) mod n -> k2
+    glv_mul_2x2(c2_limbs.data(), kB2, p2);
     std::uint64_t k2_raw[4];
-    glv_reduce_mod_n(wide, 7, k2_raw);
+    glv_sub_mod_n(p1, p2, k2_raw);
 
     // k2 sign handling: pick shorter representation.
     // ROUND3-1: half-order compare on raw limbs (avoids two scalar_bitlen + one Scalar sub).
@@ -455,32 +395,38 @@ GLVDecomposition glv_decompose(const Scalar& k) {
     Scalar const k2_abs = Scalar::from_limbs(
         {k2_abs_raw[0], k2_abs_raw[1], k2_abs_raw[2], k2_abs_raw[3]});
 
-    // k1 = k - lambda * k2_signed (mod n), where k2_signed = k2_raw always.
-    // Exploit: k2_abs is ~128-bit -> lambda*k2_abs is 2x4 multiply (8 macs).
-    // Then adjust sign: lambda*k2_mod = k2_is_neg ? -lambda*k2_abs : lambda*k2_abs
-    auto const& k2a = k2_abs.limbs();
+    // k1 = k - c1*a1 - c2*a2 (mod n), with a1 == b2 and a2 == 2^128 + a2_lo.
+    // This is lambda*k2 rewritten through the lattice relations, so it is an
+    // exact identity and not a second approximation: it does not depend on
+    // k2's reduction, sign test or negation above, and needs neither the
+    // 256-bit lambda constant nor a mod-n reduction.
+    std::uint64_t t1[4];
+    std::uint64_t t2[4];
+    glv_mul_2x2(c1_limbs.data(), kB2,   t1); // c1*a1
+    glv_mul_2x2(c2_limbs.data(), kA2LO, t2); // c2*(a2 - 2^128)
 
-    std::uint64_t lk2[6] = {};
-    if (k2a[2] == 0 && k2a[3] == 0) {
-        // Fast: 2x4 multiply (k2_abs is 128-bit, as expected by GLV)
-        glv_mul_2x4(k2a.data(), kLambdaLimbs, lk2);
-    } else {
-        // Fallback: full 4x4 (unlikely edge case)
-        std::uint64_t lk8[8];
-        glv_mul_comba_64(k2a.data(), kLambdaLimbs, lk8);
-        for (int i = 0; i < 6; ++i) lk2[i] = lk8[i];
+    std::uint64_t t[4];
+    {
+        using u128 = unsigned __int128;
+        u128 carry = 0;
+        for (int i = 0; i < 4; ++i) {
+            carry += (u128)t1[i] + t2[i];
+            t[i] = (std::uint64_t)carry;
+            carry >>= 64;
+        }
+        // Sum is 253 bits at worst, so the carry out of limb 3 is always zero.
     }
 
-    std::uint64_t lk2_mod[4];
-    glv_reduce_mod_n(lk2, 6, lk2_mod);
-    Scalar const lambda_k2_abs = Scalar::from_limbs(
-        {lk2_mod[0], lk2_mod[1], lk2_mod[2], lk2_mod[3]});
+    // c2 * 2^128: c2 occupies limbs [0..1] only, so this is limb placement.
+    const std::uint64_t t_hi[4] = {0, 0, c2_limbs[0], c2_limbs[1]};
 
-    // k1 = k - lambda*k2_mod
-    //     = k2_is_neg ? (k + lambda*k2_abs) : (k - lambda*k2_abs)
-    Scalar const k1_mod = k2_is_neg
-        ? (k + lambda_k2_abs)
-        : (k - lambda_k2_abs);
+    // k, t and t_hi are all < n, so two modular subtracts suffice.
+    std::uint64_t k1_part[4];
+    std::uint64_t k1_raw_limbs[4];
+    glv_sub_mod_n(k_arr.data(), t, k1_part);
+    glv_sub_mod_n(k1_part, t_hi, k1_raw_limbs);
+    Scalar const k1_mod = Scalar::from_limbs(
+        {k1_raw_limbs[0], k1_raw_limbs[1], k1_raw_limbs[2], k1_raw_limbs[3]});
 
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop

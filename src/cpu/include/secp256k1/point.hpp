@@ -86,6 +86,17 @@ struct KPlan {
 };
 
 class Point {
+    // Leaves x_, y_, z_ UNINITIALIZED. Only for a destination that is written in
+    // full immediately afterwards -- the mixed-add paths in Point::add(), where
+    // jac52_add_mixed_to writes x, y, z and infinity on every one of its exits.
+    //
+    // The default constructor writes zero, one, zero and two flags: fifteen
+    // 64-bit stores that the very next call overwrites. On a 226 ns operation
+    // that is not free, and Point::add is the public entry point every caller
+    // outside the engine uses.
+    struct Uninitialised {};
+    explicit Point(Uninitialised) noexcept {}
+
 public:
     Point();
 

@@ -145,7 +145,7 @@ int secp256k1_xonly_pubkey_from_pubkey(
         std::array<uint8_t, 32> yb{};
         std::memcpy(yb.data(), pubkey->data + 32, 32);
         auto y = FieldElement::from_bytes(yb);
-        y = y.negate();
+        y.negate_assign();
         auto yn = y.to_bytes();
         std::memcpy(xonly_pubkey->data + 32, yn.data(), 32);
     }
@@ -289,7 +289,7 @@ int secp256k1_keypair_xonly_pub(
             if (pk_parity) *pk_parity = 0;
             return 0;
         }
-        y = y.negate();
+        y.negate_assign();
         auto yn = y.to_bytes();
         std::memcpy(pubkey->data + 32, yn.data(), 32);
     }

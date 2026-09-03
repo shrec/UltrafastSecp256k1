@@ -612,9 +612,12 @@ std::array<std::uint8_t, 32> ellswift_xdh(
 std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey) {
     // CT: privkey is secret — use constant-time generator mul to avoid timing leaks.
     auto pub = ct::generator_mul(privkey);
-    // x_bytes_and_parity(): one field inverse instead of separate x()+y() calls.
-    auto [x_bytes, y_odd] = pub.x_bytes_and_parity();
-    auto x = FieldElement::from_bytes(x_bytes);
+    // normalize(): one field inverse for both coordinates, same as
+    // x_bytes_and_parity(). x()/y() are then limb reads on the affine point, so
+    // the 32-byte serialise + FieldElement::from_bytes parse of x is not needed.
+    pub.normalize();
+    auto x = pub.x();
+    bool const y_odd = (pub.y().limbs()[0] & 1) != 0;
     auto privkey_bytes = privkey.to_bytes();
 
     // Deterministic variant: no caller-supplied auxrnd → pass kEllswiftZero32
@@ -635,8 +638,11 @@ std::array<std::uint8_t, 64> ellswift_create_fast(const Scalar& privkey,
     // "_fast" auxrnd variant: variable-time scalar_mul_generator instead of
     // ct::generator_mul. Caller has opted out of CT for the pubkey derivation.
     auto pub = scalar_mul_generator(privkey);
-    auto [x_bytes_a, y_odd] = pub.x_bytes_and_parity();
-    auto x = FieldElement::from_bytes(x_bytes_a);
+    // Same single-inverse normalize as the deterministic variant above: no
+    // serialise/parse round trip on x.
+    pub.normalize();
+    auto x = pub.x();
+    bool const y_odd = (pub.y().limbs()[0] & 1) != 0;
     auto privkey_bytes = privkey.to_bytes();
 
     std::array<std::uint8_t, 64> result{};

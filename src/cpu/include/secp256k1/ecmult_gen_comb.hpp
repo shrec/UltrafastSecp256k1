@@ -24,10 +24,12 @@
 //      b. For each comb c, look up bits at positions b, b+d, b+2d, ...
 //         forming a t-bit index -> add table[c][index] to R
 //
-// Table size: d * 2^t affine points
-//   teeth=15, d=17: 17 * 2^15 = 557K points ~= 35 MB
-//   teeth=11, d=24: 24 * 2^11 = 49K points  ~= 3 MB (L2-friendly)
-//   teeth= 6, d=43: 43 * 2^6  = 2752 points ~= 176 KB (L1-friendly)
+// Table size: d * 2^t affine points. CombAffinePoint below is two FieldElements
+// (32 B each) plus a bool, i.e. 72 B per entry after padding -- the byte figures
+// on these lines were computed from a 64 B entry and were all low by 12.5%.
+//   teeth=15, d=17: 17 * 2^15 = 557K points ~=  40 MB
+//   teeth=11, d=24: 24 * 2^11 = 49K points  ~= 3.5 MB (L2-friendly)
+//   teeth= 6, d=43: 43 * 2^6  = 2752 points ~= 198 KB (L1-friendly)
 //
 // Cost: d doublings + d*combs additions = d*(1 + combs) point ops
 //   teeth=15: 17 dbl + 17 add  = 34 ops  (fastest, but big table)

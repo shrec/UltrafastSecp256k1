@@ -136,7 +136,7 @@ KnowledgeProof knowledge_prove_base(const Scalar& secret,
     auto R_comp = R.to_compressed();
     Scalar k_eff = k;
     if (R_comp[0] == 0x03) {
-        R = R.negate();
+        R.negate_inplace();
         k_eff = k_eff.negate();
         R_comp = R.to_compressed();
     }
@@ -391,9 +391,9 @@ RangeProof range_prove(std::uint64_t value,
     Point A_pt = ct::generator_mul(alpha);
     for (std::size_t i = 0; i < RANGE_PROOF_BITS; ++i) {
         if (!a_L[i].is_zero()) {
-            A_pt = A_pt.add(gens.G[i].scalar_mul(a_L[i]));
+            A_pt.add_inplace(gens.G[i].scalar_mul(a_L[i]));
         }
-        A_pt = A_pt.add(gens.H[i].scalar_mul(a_R[i]));
+        A_pt.add_inplace(gens.H[i].scalar_mul(a_R[i]));
     }
     proof.A = A_pt;
     Point const& A = proof.A;
@@ -401,8 +401,8 @@ RangeProof range_prove(std::uint64_t value,
     // S = rho*G + sum(s_L[i]*G_i + s_R[i]*H_i)
     Point S_pt = ct::generator_mul(rho);
     for (std::size_t i = 0; i < RANGE_PROOF_BITS; ++i) {
-        S_pt = S_pt.add(gens.G[i].scalar_mul(s_L[i]));
-        S_pt = S_pt.add(gens.H[i].scalar_mul(s_R[i]));
+        S_pt.add_inplace(gens.G[i].scalar_mul(s_L[i]));
+        S_pt.add_inplace(gens.H[i].scalar_mul(s_R[i]));
     }
     proof.S = S_pt;
     Point const& S = proof.S;
@@ -540,16 +540,16 @@ RangeProof range_prove(std::uint64_t value,
         Point R_pt = Point::infinity();
 
         for (std::size_t i = 0; i < n; ++i) {
-            L = L.add(G_vec[n + i].scalar_mul(a_vec[i]));
-            L = L.add(H_vec[i].scalar_mul(b_vec[n + i]));
+            L.add_inplace(G_vec[n + i].scalar_mul(a_vec[i]));
+            L.add_inplace(H_vec[i].scalar_mul(b_vec[n + i]));
             c_L = c_L + a_vec[i] * b_vec[n + i];
 
-            R_pt = R_pt.add(G_vec[i].scalar_mul(a_vec[n + i]));
-            R_pt = R_pt.add(H_vec[n + i].scalar_mul(b_vec[i]));
+            R_pt.add_inplace(G_vec[i].scalar_mul(a_vec[n + i]));
+            R_pt.add_inplace(H_vec[n + i].scalar_mul(b_vec[i]));
             c_R = c_R + a_vec[n + i] * b_vec[i];
         }
-        L = L.add(H_ped.scalar_mul(c_L));
-        R_pt = R_pt.add(H_ped.scalar_mul(c_R));
+        L.add_inplace(H_ped.scalar_mul(c_L));
+        R_pt.add_inplace(H_ped.scalar_mul(c_R));
 
         proof.L[round] = L;
         proof.R[round] = R_pt;
@@ -707,7 +707,7 @@ bool range_verify(const PedersenCommitment& commitment,
     Scalar s_coeff[RANGE_PROOF_BITS];
     s_coeff[0] = Scalar::one();
     for (std::size_t j = 0; j < RANGE_PROOF_LOG2; ++j) {
-        s_coeff[0] = s_coeff[0] * x_inv_rounds[j];
+        s_coeff[0] *= x_inv_rounds[j];
     }
 
     for (std::size_t i = 1; i < RANGE_PROOF_BITS; ++i) {
@@ -719,10 +719,10 @@ bool range_verify(const PedersenCommitment& commitment,
         s_coeff[i] = Scalar::one();
         for (std::size_t jj = 0; jj < RANGE_PROOF_LOG2; ++jj) {
             if ((i >> (RANGE_PROOF_LOG2 - 1 - jj)) & 1) {
-                s_coeff[i] = s_coeff[i] * x_rounds[jj];
+                s_coeff[i] *= x_rounds[jj];
             }
             else {
-                s_coeff[i] = s_coeff[i] * x_inv_rounds[jj];
+                s_coeff[i] *= x_inv_rounds[jj];
             }
         }
     }

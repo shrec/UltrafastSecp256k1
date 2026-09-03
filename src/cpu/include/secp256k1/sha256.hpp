@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <cstddef>
 #include <cstring>
+#include <cassert>
 
 namespace secp256k1 {
 
@@ -151,15 +152,28 @@ public:
     }
 
     // Compact midstate: only the 32-byte state + 8-byte total (40 bytes).
-    // In a tag midstate, buf_ is always zeroed and buf_len_ is always 0 —
-    // they are dead weight in a full SHA256 copy. Use SHA256Midstate when
-    // copying a midstate into cached_tagged_hash() to avoid copying buf_[64].
+    //
+    // PRECONDITION -- buf_len_ == 0, i.e. the absorbed length is a multiple of
+    // 64. A Midstate carries state_ and total_ ONLY; it does NOT carry buf_ or
+    // buf_len_. Capturing one from a context with a partial block silently
+    // DISCARDS those buffered bytes while total_ keeps counting them, so the
+    // restored context hashes different data than the original absorbed.
+    //
+    // This is safe for a tagged-hash midstate (SHA256(tag) twice = exactly 64
+    // bytes, so buf_len_ is 0) — the case it exists for. It is NOT safe after
+    // an arbitrary update(): a 32-byte seed leaves 32 bytes buffered and
+    // uncompressed, and the midstate then encodes nothing but the length.
+    // batch_verify.cpp did exactly that and lost the batch seed; see the note
+    // on batch_weight() there. The assert fires in every debug and CI build.
     struct Midstate {
         std::uint32_t state[8];
         std::uint64_t total;
     };
 
     Midstate capture_midstate() const noexcept {
+        assert(buf_len_ == 0 &&
+               "capture_midstate() requires a 64-byte block boundary: a Midstate "
+               "cannot carry buffered bytes, so they would be silently dropped");
         Midstate m;
         for (int i = 0; i < 8; ++i) m.state[i] = state_[i];
         m.total = total_;

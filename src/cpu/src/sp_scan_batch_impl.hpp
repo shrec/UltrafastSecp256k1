@@ -85,7 +85,7 @@ sp_scan_batch_impl(const fast::Scalar& scan_privkey,
     tl_a_sums.assign(N, Point::infinity());
     for (std::size_t i = 0; i < N; ++i)
         for (const auto& P : input_pubkeys_per_tx[i])
-            tl_a_sums[i] = tl_a_sums[i].add(P);
+            tl_a_sums[i].add_inplace(P);
 
     // Stage 1: S_i = scan_privkey × A_sum_i (KPlan + batch field-inv).
     fast::KPlan plan = fast::KPlan::from_scalar(scan_privkey);

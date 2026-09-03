@@ -224,7 +224,7 @@ static Point compute_group_commitment_inline_binding(
         // with zero security benefit (CLAUDE.md CT boundary rule).
         Point const rho_E = nc.binding_point.scalar_mul(rho);
         Point const contribution = nc.hiding_point.add(rho_E);
-        R = R.add(contribution);
+        R.add_inplace(contribution);
     }
 
     return R;
@@ -423,7 +423,7 @@ frost_keygen_finalize(ParticipantId participant_id,
         Point rhs = Point::infinity();
         Scalar x_pow = Scalar::one();
         for (std::size_t j = 0; j < comm->coeffs.size(); ++j) {
-            rhs = rhs.add(comm->coeffs[j].scalar_mul(x_pow));
+            rhs.add_inplace(comm->coeffs[j].scalar_mul(x_pow));
             x_pow = x_pow * x_i;
         }
 
@@ -451,7 +451,7 @@ frost_keygen_finalize(ParticipantId participant_id,
     Point group_key = Point::infinity();
     for (const auto& c : commitments) {
         if (!c.coeffs.empty()) {
-            group_key = group_key.add(c.coeffs[0]);
+            group_key.add_inplace(c.coeffs[0]);
         }
     }
     // A group public key of infinity means the shares cancel — reject as degenerate.
@@ -667,7 +667,7 @@ frost_aggregate(const std::vector<FrostPartialSig>& partial_sigs,
     // NOTE: R is a public group commitment; VT field inverse is safe here.
     auto R_y = R.y().to_bytes();
     if (R_y[31] & 1) {
-        R = R.negate();
+        R.negate_inplace();
     }
 
     // Aggregate: s = Sum z_i

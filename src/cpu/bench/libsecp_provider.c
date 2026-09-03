@@ -38,6 +38,18 @@ void libsecp_fe_inv_var(unsigned char out32[32], const unsigned char in32[32]) {
     secp256k1_fe_get_b32(out32, &r);
 }
 
+/* Square root and lambda split: no wrapper existed for either, so neither had a
+   comparison row. Both sit on hot paths -- lift_x runs twice per Schnorr batch
+   entry, and the lambda split runs once per scalar in every GLV multiply. */
+int libsecp_fe_sqrt_var(void *r, const void *a) {
+    return secp256k1_fe_sqrt((secp256k1_fe *)r, (const secp256k1_fe *)a);
+}
+
+void libsecp_scalar_split_lambda(void *r1, void *r2, const void *k) {
+    secp256k1_scalar_split_lambda((secp256k1_scalar *)r1, (secp256k1_scalar *)r2,
+                                  (const secp256k1_scalar *)k);
+}
+
 void libsecp_fe_inv_var_raw(void *r, const void *a) {
     secp256k1_fe_inv_var((secp256k1_fe *)r, (const secp256k1_fe *)a);
 }
@@ -110,10 +122,19 @@ void libsecp_ecmult(void *r, const void *a, const void *na, const void *ng) {
                      (const secp256k1_scalar *)na, (const secp256k1_scalar *)ng);
 }
 
-/* ecmult_gen: k*G (generator mul using Comb tables) */
+/* ecmult_gen: k*G (generator mul using Comb tables)
+ *
+ * libsecp256k1 v0.8.0 renamed secp256k1_ecmult_gen -> secp256k1_ecmult_gen_gej
+ * (same signature) and added a secp256k1_ecmult_gen_ge variant. Build with
+ * -DLIBSECP_ECMULT_GEN_GEJ=1 when compiling against v0.8.0 or newer. */
 void libsecp_ecmult_gen(const void *ctx_ecmult_gen, void *r, const void *k) {
+#if defined(LIBSECP_ECMULT_GEN_GEJ) && LIBSECP_ECMULT_GEN_GEJ == 1
+    secp256k1_ecmult_gen_gej((const secp256k1_ecmult_gen_context *)ctx_ecmult_gen,
+                             (secp256k1_gej *)r, (const secp256k1_scalar *)k);
+#else
     secp256k1_ecmult_gen((const secp256k1_ecmult_gen_context *)ctx_ecmult_gen,
                          (secp256k1_gej *)r, (const secp256k1_scalar *)k);
+#endif
 }
 
 /* Helper: get the ecmult_gen_context from a secp256k1_context */

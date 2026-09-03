@@ -62,15 +62,10 @@ Point decompress_point(const std::array<uint8_t, 33>& compressed) {
     bool const y_odd = (y.limbs()[0] & 1) != 0;
     bool const want_odd = (compressed[0] == 0x03);
     if (y_odd != want_odd) {
-        y = y.negate();
+        y.negate_assign();
     }
 
     return Point::from_affine(x, y);
-}
-
-// Check if point has even Y
-bool has_even_y(const Point& P) {
-    return P.has_even_y();
 }
 
 } // anonymous namespace
@@ -142,13 +137,19 @@ MuSig2KeyAggCtx musig2_key_agg(const std::vector<std::array<uint8_t, 33>>& pubke
 
     ctx.Q = Q;
 
-    // Ensure even Y for BIP-340 compatibility
-    ctx.Q_negated = !has_even_y(Q);
+    // Ensure even Y for BIP-340 compatibility. Point::negate() copies X, Z and z_one_
+    // verbatim and only flips Y, so Q's X bytes are also the negated ctx.Q's X bytes:
+    // one x_bytes_and_parity() yields the parity and the X bytes from a single
+    // inversion instead of has_even_y() plus a second inversion of the same Z in x().
+    // Point::has_even_y() answers "not even" for infinity, which the parity bit alone
+    // cannot express — keep that case explicit so Q_negated is unchanged.
+    auto const [q_x, q_y_odd] = Q.x_bytes_and_parity();
+    ctx.Q_negated = q_y_odd || Q.is_infinity();
     if (ctx.Q_negated) {
         ctx.Q = Q.negate();
     }
 
-    ctx.Q_x = ctx.Q.x().to_bytes();
+    ctx.Q_x = q_x;
 
     // Store individual pubkeys for signer_index validation in musig2_partial_sign (Rule 13).
     ctx.individual_pubkeys = pubkeys;
@@ -318,8 +319,8 @@ MuSig2AggNonce musig2_nonce_agg(const std::vector<MuSig2PubNonce>& pub_nonces) {
             agg.R2 = Point::infinity();
             return agg;
         }
-        agg.R1 = agg.R1.add(r1);
-        agg.R2 = agg.R2.add(r2);
+        agg.R1.add_inplace(r1);
+        agg.R2.add_inplace(r2);
     }
 
     return agg;
@@ -338,8 +339,8 @@ MuSig2AggNonce musig2_nonce_agg_points(
             agg.R2 = Point::infinity();
             return agg;
         }
-        agg.R1 = agg.R1.add(r1);
-        agg.R2 = agg.R2.add(r2);
+        agg.R1.add_inplace(r1);
+        agg.R2.add_inplace(r2);
     }
     return agg;
 }
@@ -396,16 +397,18 @@ MuSig2Session musig2_start_sign_session(
         session.R = Point::generator();
     }
 
-    // Negate R if needed for even Y
-    session.R_negated = !has_even_y(session.R);
+    // Negate R if needed for even Y. R cannot be infinity here — the G substitution
+    // above guarantees it — and Point::negate() leaves X, Z and z_one_ untouched, so
+    // this single inversion supplies both the parity and the X bytes of the negated R.
+    auto const [r_x, r_y_odd] = session.R.x_bytes_and_parity();
+    session.R_negated = r_y_odd;
     if (session.R_negated) {
-        session.R = session.R.negate();
+        session.R.negate_inplace();
     }
 
     // e = tagged_hash("BIP0340/challenge", R.x || Q_x || msg)
-    auto R_x = session.R.x().to_bytes();
     uint8_t e_input[96];
-    std::memcpy(e_input, R_x.data(), 32);
+    std::memcpy(e_input, r_x.data(), 32);
     std::memcpy(e_input + 32, key_agg_ctx.Q_x.data(), 32);
     std::memcpy(e_input + 64, msg.data(), 32);
     auto e_hash = cached_tagged_hash(g_challenge_midstate, e_input, 96);
@@ -567,7 +570,7 @@ bool musig2_partial_verify(
     // Effective nonce: R_i = R1_i + b * R2_i
     auto R_eff = R1_i.add(R2_i.scalar_mul(session.b));
     if (session.R_negated) {
-        R_eff = R_eff.negate();
+        R_eff.negate_inplace();
     }
 
     // Key contribution: e * a_i * P_i

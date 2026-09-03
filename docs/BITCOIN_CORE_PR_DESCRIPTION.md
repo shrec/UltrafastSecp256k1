@@ -47,12 +47,12 @@ larger code footprint (measured 2,310 KB Ultra `.text` vs libsecp256k1's 1,261 K
 `docs/SHIM_FOOTPRINT_COMPARISON.md`).
 
 Full benchmark data and methodology: `docs/BITCOIN_CORE_BENCH_RESULTS.json`
-and `docs/bench_unified_2026-05-30_gcc14_x86-64.json`.
+and `docs/bench_unified_2026-09-03_gcc14_x86-64.json`.
 
 ## Security properties
 
 - Constant-time signing paths: LLVM ct-verif + Valgrind taint + dudect (600s)
-- 275 exploit PoCs tests, 0 failures
+- 276 exploit PoCs tests, 0 failures
 - Wycheproof ECDSA/ECDH: all vectors pass
 - RFC 6979 nonce: 35/35 test vectors
 - BIP-340 Schnorr: 27/27 test vectors
@@ -88,16 +88,16 @@ library in production for Silent Payments (BIP-352) GPU scanning.
 
 ### CT signing throughput (GCC 14.2.0 — CT-vs-CT, production-equivalent)
 
-All numbers from `docs/bench_unified_2026-05-30_gcc14_x86-64.json`
+All numbers from `docs/bench_unified_2026-09-03_gcc14_x86-64.json`
 (Intel i5-14400F, turbo lock CONFIRMED, core pinned, 500 warmup, 11 passes, IQR trimming):
 
 | Compiler | CT ECDSA sign | CT Schnorr sign | Notes |
 |---|---|---|---|
-| **GCC 14.2.0 + LTO** | **+33% vs libsecp (1.33×)** | **+26% vs libsecp (1.26×)** | CT-vs-CT, canonical controlled run |
+| **GCC 14.2.0 + LTO** | **+34% vs libsecp (1.34×)** | **+27% vs libsecp (1.27×)** | CT-vs-CT, canonical controlled run |
 | Clang 19 (archived, 2026-03-24) | +33% vs libsecp | ~+9% vs libsecp | Archived; not a current controlled run |
 
 Bitcoin Core Linux CI uses GCC; the GCC 14 row is the relevant metric.
-Full raw data: `docs/bench_unified_2026-05-30_gcc14_x86-64.json`.
+Full raw data: `docs/bench_unified_2026-09-03_gcc14_x86-64.json`.
 
 ### ConnectBlock Schnorr: −17% regression (native C++ API, unique pubkeys)
 
@@ -147,7 +147,7 @@ The ABI layer is the production-safe surface.
 
 CT signing results were collected with: turbo off, taskset -c 0, nice -20, 500
 warmup/op, 11 passes, IQR outlier removal. Compiler: GCC 14.2.0, Release + LTO.
-Canonical data: `docs/bench_unified_2026-05-30_gcc14_x86-64.json`. ConnectBlock
+Canonical data: `docs/bench_unified_2026-09-03_gcc14_x86-64.json`. ConnectBlock
 integration data (hard turbo lock confirmed, intel_pstate/no_turbo=1,
 governor=performance, taskset -c 0, nice -20, 2026-05-12):
 `docs/BITCOIN_CORE_BENCH_RESULTS.json`.

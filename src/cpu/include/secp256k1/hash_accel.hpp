@@ -10,10 +10,14 @@
 //
 //   Tier 0: SCALAR   -- Portable C++ (baseline, always available)
 //   Tier 1: ARM SHA2 -- ARMv8 SHA-256 instructions (single-message HW accel)
-//   Tier 2: SHA-NI   -- Intel SHA Extensions (single-message HW accel, ~3-5x)
-//   Tier 3: AVX2     -- 4-way multi-buffer SHA-256 (interleaved, ~8-12x)
+//   Tier 2: SHA-NI   -- Intel SHA Extensions (single-message HW accel)
+//   Tier 3: AVX2     -- 4-way multi-buffer SHA-256 (interleaved)
 //                       + optimized RIPEMD-160 with BMI/BMI2
-//   Tier 4: AVX-512  -- 8-way multi-buffer SHA-256 (if available, ~16x)
+//   Tier 4: AVX-512  -- 8-way multi-buffer SHA-256 (if available)
+//
+// Speedups: not yet measured -- benchmark required. Multipliers previously stated
+// here for tiers 2-4 had no artifact behind them, which this repository bans
+// everywhere, comments included.
 //
 // ## Hot-path API for search pipeline:
 //

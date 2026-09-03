@@ -1,5 +1,775 @@
 # Audit Changelog
 
+## 2026-09-03 — Why verify sits at parity, and one thing that did move
+
+Question asked: break through `ecdsa_verify` / `schnorr_verify` at 1.00× and the
+`point add (mixed J+A)` row at 0.96×. Both were taken apart. One moved; the other
+is at a floor, and the reason is worth recording so it is not chased again.
+
+### The verify budget
+
+`ecdsa_verify` is 93% one `ecmult`. Measured by zeroing one scalar at a time,
+which removes that side's additions while leaving the doubling chain in place:
+
+| | ns | share |
+|---|---:|---:|
+| 128 doublings | 15 030 | 44% |
+| P-side additions | 10 646 | 31% |
+| G-side additions | 5 487 | 16% |
+| per-call P table build | 1 571 | 5% |
+| GLV, wNAF recode, setup | ~1 350 | 4% |
+| **full ecmult** | **33 891** | |
+
+### The doubling count is a floor, and it is a mathematical one
+
+44% is 128 doublings, set by the 128-bit half-scalars the 2-dimensional GLV
+split produces. A 3-dimensional split over `{1, λ, λ²}` would give ~85-bit
+components — `n^(1/3)` is `2^85.3` — and cut the chain by a third.
+
+It does not exist. LLL-reducing the lattice `{(x,y,z) : x + yλ + zλ² ≡ 0 (mod n)}`
+returns `(1, 1, 1)` as its shortest vector, because `λ³ = 1` and `λ ≠ 1` force
+`1 + λ + λ² ≡ 0`. The lattice collapses along that vector back to the
+2-dimensional one already in use, and the other two reduced basis vectors come
+back at 2^127. **secp256k1 admits no 3-dimensional GLV**, and 128 doublings is
+the floor for this curve — the same floor libsecp256k1 is at.
+
+Our doubling is already 1.09–1.14× faster than theirs, so the 44% is not where
+this is lost.
+
+### The window widths were already right
+
+`WINDOW_G = 15` and `WINDOW_P = 5` match libsecp exactly. Swept G anyway, since
+the G+H tables are 1280 KB and the source note warns the micro-benchmark flatters
+a large window:
+
+| WINDOW_G | G+H tables | ecmult | vs 15 |
+|---:|---:|---:|---:|
+| 12 | 160 KB | 35 369.7 | +4.23% |
+| 13 | 320 KB | 34 533.1 | +1.76% |
+| 14 | 640 KB | 34 057.7 | +0.36% |
+| **15** | 1280 KB | **33 934.7** | — |
+
+Monotone. 15 stays.
+
+### What did move: Point::add, 225.5 → 220.7 ns
+
+`Point::add`'s two mixed paths default-constructed the result — writing zero,
+one, zero and two flags, fifteen 64-bit stores — and then handed those fields to
+`jac52_add_mixed_to`, which writes all four of them on every one of its exits.
+The zero-fill was dead. A private uninitialised constructor removes it.
+
+The row is still 0.96× against libsecp's `gej_add_ge_var`, and the remaining gap
+is the API shape rather than the arithmetic: `Point::add` decides the coordinate
+shape at runtime (`z_one_` checks, a `fe52_is_one_raw` probe), where libsecp's
+caller has already chosen the formula. The equivalent of libsecp's function is
+`add_mixed52_inplace`, which measures **213.9 against 212.0 — 0.99×** — and is
+already public for callers that know their operands are affine.
+
+### The one lever left, and why it was not pulled
+
+The per-call P-table build is 1571 ns, 5% of the ecmult, and
+`dual_scalar_mul_gen_prebuilt` plus `build_schnorr_verify_tables` already exist
+to skip it for a caller that keeps the table. Wiring a pubkey-keyed cache into
+`ecdsa_verify` would take that 5% straight off the benchmark, because
+`bench_unified` rotates a pool of 64 keys and every lookup would hit. A block of
+real transactions mostly does not repeat pubkeys, so the same cache would miss
+and cost. That is a benchmark artifact, not a speedup, and it is not being taken.
+
+CaaS 417/464 ALL PASSED, 0 failures.
+
+## 2026-09-03 — P1: FieldElement::sqrt() was wrong for ~18% of inputs (issue #402)
+
+Found while checking whether anything else lags libsecp256k1. `FieldElement::sqrt()`
+returns a value that is **not** a square root for a large class of inputs: over the
+256 single-bit squares (`x = 2^k`, input `x²`, correct answer `±x`), **46 of 256 are
+wrong**. `FieldElement52::sqrt()` is exact on all 256.
+
+```
+x = 2^33      x*x = 2^66      sqrt() -> 0x…fffffc30      (not ±2^33)
+```
+
+**Root cause, two things compounding.** `FieldElement::sqrt()` was written to
+delegate to the 5×52 chain, guarded on `SECP256K1_FAST_52BIT` — which is the FE52
+*storage* switch and is **off** in the default build. `field.cpp` also never
+included `config.hpp`, so it saw neither that macro nor `SECP256K1_FE52_COMPUTE`,
+the one that actually means "the 5×52 kernels can run here". The delegation was
+therefore compiled out and every caller fell through to the 4×64 chain — which is
+itself defective. Both chains are textually identical (blocks of 1s in `(p+1)/4`
+are 2, 22 and 223 long, same as libsecp), and `square()`, `square_inplace()` and
+`operator*` each agree with `x*x` on 21 024 checks, so the defect is in how the
+4×64 primitives carry non-canonical intermediates through 255 chained squarings.
+
+**Affected callers:** `zk.cpp:70`, `adaptor.cpp:240`, `address.cpp:761`,
+`pedersen.cpp:22`, `ellswift.cpp:106/124/268`. Impact is per-caller: where the
+caller re-validates `y² == x³ + 7` a wrong root is rejected, so the effect is a
+false negative; callers that do not re-validate propagate an off-curve `y`. The
+BIP-340 hot paths call `sqrt()` on `FieldElement52` values and are unaffected,
+which is why the KAT suites stayed green.
+
+**Fix.** Guard on `SECP256K1_FE52_COMPUTE` and include `config.hpp`. 46/256 → 0/256,
+and it is also faster: 5452.8 ns against the 4×64 route's 6267.5 ns. The 4×64 chain
+remains for targets without the 5×52 kernels and is now marked in-source as known
+defective rather than a validated fallback; that path still needs its own fix.
+
+## 2026-09-03 — Field square root: −13%, and two operations that had no comparison row
+
+Follow-up to the deficit sweep. Two hot operations were never compared against
+libsecp at all, because `libsecp_provider.c` had no wrapper for either.
+
+### field sqrt: 0.85× → 0.98×
+
+`lift_x` runs it twice per Schnorr batch entry, so it is a large share of the
+per-signature overhead batch verification cannot amortise — and it had no row.
+
+`FieldElement52::sqrt()` packed out of 5×52 into 4×64 and ran the chain with
+`field_sqr_full_asm`, which normalises on every step. The 5×52 route stays in
+representation and lets the magnitude ride. Identical chain either way — 255
+squarings and 13 multiplications, the same chain libsecp uses — so the
+normalisation bookkeeping over 255 squarings is the entire difference:
+
+| | ns |
+|---|---:|
+| 4×64 route (was shipped) | 6267.5 |
+| 5×52 route (now shipped) | **5452.8** |
+| libsecp `fe_sqrt` | 5330.9 |
+
+Verified identical on the same 64 inputs before switching. The 4×64 route is kept
+behind `SECP256K1_HYBRID_4X64_SQRT`, off by default.
+
+### GLV lambda split: 2.34× ahead
+
+`glv_decompose` 94.3 ns against libsecp's `scalar_split_lambda` at 221.0 ns. No
+change needed — recorded because it had never been measured against anything.
+
+Both wrappers are now in `libsecp_provider.c`, so future runs carry the rows.
+
+## 2026-09-03 — The three places we were behind libsecp256k1
+
+The 2026-09-03 comparison against libsecp256k1 v0.8.0 left three operations
+losing. All three were taken apart; two were real and are fixed, one turned out
+not to be a deficit at all.
+
+### scalar from_bytes: 0.71× → 1.06×, now ahead
+
+11.41 ns against libsecp's ~8.1. **Not** a semantic difference — both reduce
+mod n, neither rejects; the shipped code simply ran the same 4-limb subtract
+chain twice, once inside `sub_impl()` for the value and once inside `ge()` only
+to learn whether the borrow came out, then selected between two 4-limb results.
+
+Two changes, measured as isolated variants on the same inputs before either was
+applied to the tree:
+
+| variant | ns |
+|---|---:|
+| shipped, two subtract chains | 18.68 |
+| one chain, borrow reused as the test | 14.63 |
+| **complement-add, specialised overflow test** | **7.82** |
+| libsecp `scalar_set_b32` | 8.10 |
+
+`order_overflow()` replaces the generic `ge(x, ORDER)` borrow chain. `ge` walks
+four `sbb` instructions, each waiting on the carry the last one wrote; the
+specialised form exploits `ORDER[3] == 0xFFFF...FF` — a limb no value can
+exceed — so the comparison collapses to independent tests the machine issues in
+parallel. Still branchless, so the constant-time property `from_bytes` needed
+for nonce-derived inputs is unchanged. It replaces `ge(x, ORDER)` at all nine
+call sites, not just this one.
+
+The reduction itself now adds 2^256 − n and lets the carry fall off the top
+limb instead of subtracting n. Same single conditional reduction, but the
+complement has two limbs at zero-or-one, so half the adds fold away at compile
+time.
+
+In-tree, raw call against raw call: **11.41 ns → 7.66 ns**, against libsecp's
+8.05 — this operation is now 1.05× ahead rather than 0.71× behind.
+
+### field inverse (variable-time): 0.86× → 0.94×
+
+The gap was algorithmic and specific. Both libraries run Bernstein–Yang
+safegcd; the difference was inside the 62-divstep inner loop.
+
+Ours cancelled **one** bit of `g` per pass — add `f` to make `g` even, shift
+once, let the next `ctz` find the single new zero. libsecp solves for the
+multiple `w` of `f` that zeroes up to **six** low bits at once (`f` is odd so it
+is invertible mod 2^k; `f*f−2` is the third Hensel lift of `f⁻¹` mod 2^6, making
+`f*g*(f*f−2)` equal to `−g/f` mod 2^6), then lets the next `ctz` skip all of
+them in bulk. `limit` bounds `w` by the iterations remaining and by `delta+1`,
+past which the swap branch is the correct move instead.
+
+Two further changes in the same path:
+
+- The trailing `for (i = len; i < 5; ++i) { f.v[i] = 0; g.v[i] = 0; }` in
+  `safegcd_update_fg` was removed. Every consumer is bounded by `len`, so it was
+  pure work; libsecp does not clear them either.
+- libsecp's `if (g.v[0] == 0)` guard on the outer zero scan was **re-tested**,
+  because the faster divstep makes the outer loop a larger share of the total
+  and could have flipped the trade recorded earlier. It did not: 4 interleaved
+  rounds, guarded 1524.3–1526.8 ns against unguarded 1510.0–1511.5 ns,
+  non-overlapping. The unguarded form stays, and the note in the source now
+  carries both measurements.
+
+Raw call against raw call, no byte conversions on either side:
+**1650.8 ns → 1509.5 ns**, against libsecp's 1411.8. A 6% gap remains and is not
+yet explained.
+
+### point add (mixed J+A): there was no 5% deficit
+
+bench_unified reported 227.2 ns against libsecp's 216.4. Measured raw against
+raw — our `add_mixed52_inplace` writing into a destination against
+`secp256k1_gej_add_ge_var` writing through its pointer, both rotating over the
+same operand pool — it is **213.6 ns against 211.5 ns, 0.99×**.
+
+The reported gap is the shape of the bench row, not the kernel: our row goes
+through `Point::add`'s coordinate-shape dispatch (`z_one_` checks and a runtime
+`fe52_is_one_raw`) while libsecp's calls the mixed-add kernel directly, because
+in libsecp the caller has already decided which formula applies. Operation
+counts are identical — 8M + 3S, three negates, seven adds on both sides.
+
+No change made. The row in the comparison table was corrected instead.
+
+**Test:** `audit/test_regression_scalar_reduce_and_safegcd_divstep.cpp`
+(17 checks). The reduction is recomputed independently in base 256 on the raw
+bytes — no limbs, no complement, no shared helper — at n−2…n+2, 2^256−1, all 256
+single-bit values and 4000 random inputs with half forced above n. The inverse is
+checked by `a · a⁻¹ == 1` on the same boundary set plus inputs built with long
+zero runs in either half, where the bulk-skip and the multi-bit cancellation
+interact, and cross-checked on a sample against Fermat's `a^(p−2)` by plain
+square-and-multiply — an algorithm sharing no code with safegcd.
+
+## 2026-09-03 — Point self-assignment removed at 54 sites
+
+The same change as the FE52 wave, applied to `Point`: `X = X.add(Y)` writes the
+result to a temporary and then copies it back over `X`. For a `FieldElement52`
+local that is free — SROA scalarises five limbs into registers and the copy
+becomes register renaming. A `Point` is three FE52 plus flags, and at every site
+below the target is either an array element, a struct member reached through a
+pointer, or a local too wide to keep in registers. None of those are
+scalarisable, so the copy is a real round trip through memory.
+
+| pattern | sites |
+|---|---:|
+| `X = X.add(Y)` → `X.add_inplace(Y)` | 30 |
+| `X = X.add(Y.negate())` → `X.sub_inplace(Y)` | 2 |
+| `X = X.dbl()` → `X.dbl_inplace()` | 2 |
+| `X = X.negate()` → `X.negate_inplace()` / `X.negate_assign(m)` | 22 |
+
+Across `zk.cpp` (10), `musig2.cpp` (4), `frost.cpp` (3), `ct_point.cpp` (7),
+`pedersen.cpp` (2), `precompute.cpp` (2), `point.cpp`, `address.cpp`,
+`selftest.cpp`, `sp_scan_batch_impl.cpp`, `impl/ufsecp_taproot.cpp`, and the
+shim (`shim_musig`, `shim_pubkey`, `shim_extrakeys`, `shim_ellswift`,
+`libbitcoin.hpp`).
+
+`negate(m)` and `negate_assign(m)` carry identical signatures and defaults on
+both `FieldElement` and `FieldElement52`, so the substitution is exact.
+
+**No magnitude claimed, and that is the measured result, not a hedge.** Unlike
+the FE52 wave — worth 8.87% on `ct::generator_mul` because `R.z` is rescaled on
+all 44 comb iterations — every site here sits next to a scalar multiplication or
+a hash costing three orders of magnitude more than the copy it removes.
+Measured anyway, ns/op, 3 rotated runs per arm, cpu0 pinned, turbo off:
+
+| operation | before | after | |
+|---|---:|---:|---:|
+| `Point::add` (J+A mixed) | 356.9–357.6 | 357.7–357.9 | +0.02% |
+| `Point::dbl` | 126.0–126.1 | 125.9–126.0 | −0.19% |
+| `dual_mul` | 33618.8–33639.1 | 33656.3–33738.6 | +0.05% |
+| `scalar_mul` | 30240.7–30311.8 | 30270.7–30368.3 | overlap |
+| `ecdsa_verify` | 35522.0–35588.3 | 35639.9–35704.6 | +0.14% |
+| `schnorr_verify` | 35541.8–35638.7 | 35600.1–35675.4 | overlap |
+| `ct::generator_mul` | 12838.8–12856.9 | 12837.1–12883.7 | overlap |
+| `ct::ecdsa_sign` | 19045.7–19116.3 | 19016.7–19063.7 | overlap |
+
+Three rows separate by 0.02–0.14%, which is binary-layout drift, not the change:
+none of those three paths contains a rewritten site. The change is kept because
+it removes real memory traffic and reads better, not because it is faster here.
+
+**Test:** `audit/test_regression_inplace_point_ops.cpp` (18 checks). The rewrite
+is only safe if the in-place form is exactly the returning form, and the two are
+separate implementations — nothing asserted their equivalence before. Pins all
+225 ordered pairs from a pool spanning both coordinate shapes, plus the cases a
+generic-only implementation gets wrong on their own (an infinity operand,
+P + (-P), P + P routed through add(), affine/Jacobian mixes) and the
+`negate_assign` default-magnitude parity the FieldElement half depends on.
+
+CaaS 415/462 ALL PASSED, 0 failures — unchanged.
+
+## 2026-09-03 — P1: signed-digit Pippenger was wrong for non-affine input
+
+`pippenger_msm` returned a well-formed WRONG point for any input set whose
+points carry a Z, whenever the window landed on the signed-digit path (c >= 7).
+Under the old window table that is every MSM from n = 512 up. Present on HEAD
+before this branch; found while extending window coverage.
+
+**Root cause.** The unsigned scatter has always branched on `all_affine` and
+kept a general Jacobian loop for the other case. The signed scatter had no such
+branch — it went straight to
+
+```cpp
+buckets[abs_d] = Point::from_affine52(points[i].X52(), points[i].Y52());
+buckets[abs_d].add_mixed52_inplace(points[i].X52(), points[i].Y52());
+```
+
+Both of those assume z = 1. For a Jacobian point the affine x is X/Z², so
+dropping Z does not fail loudly — it substitutes a different point on the curve
+and the MSM finishes normally with the wrong answer.
+
+**Reproduction** (points built as `pt[i] = P; P = P.add(G);`, i.e. left
+Jacobian — the shape both existing MSM tests already used):
+
+| n | window | input shape | vs naive sum |
+|---|---|---|---|
+| 256 | c=5/6 unsigned | Jacobian | ok |
+| 512 | c=7 signed | Jacobian | **WRONG** |
+| 800 | c=8 signed | Jacobian | **WRONG** |
+| 512, 800 | signed | affine | ok |
+
+**Why it survived.** The suite's two MSM tests run at n = 64 and n = 256. The
+old window table put both on the unsigned path, so nothing ever reached the
+signed scatter with a Jacobian point. Raising the bands to c = 7 for n >= 105
+made the existing tests fail immediately — which is how it was found.
+
+**This also corrects a note in the tree.** `use_signed`'s `c >= 7` bound carried
+a comment saying the signed path "has a defect that only shows at c = 6, not
+root-caused". There is no c = 6 defect. The defect is this one, and c = 6 was
+simply the first window someone tried to enable signed digits for — using a
+Jacobian input set. The bound stays at 7 for the measured reason (c = 6 is
+slower, never faster), not for a correctness reason that does not exist.
+
+**Fix.** The signed scatter now splits on `all_affine` exactly as the unsigned
+one does: the mixed-add loop for affine inputs, a full Jacobian loop otherwise.
+No change to the affine path, which is what every in-tree caller feeds.
+
+**Test:** covered by `audit/test_regression_pippenger_window_bands.cpp`, which
+runs every band size in BOTH input shapes and keeps an explicit
+Jacobian-plus-small-scalars case — the exact shape that exposes it. A check that
+only ever normalises its points cannot see this class of bug, which is why the
+first version of that test did not.
+
+## 2026-09-03 — GLV Pippenger for MSM (−19.8% on Schnorr batch verify)
+
+`schnorr_batch_verify(N)` builds an MSM over n = 2N points. Four things in that
+path were re-measured and all four moved.
+
+### 1. GLV inside Pippenger
+
+`pippenger_msm` paid the full 256 bits per scalar. `multi_scalar_mul` (Strauss)
+had used GLV for a long time; Pippenger had not. The bucket engine is now
+`pippenger_core(scalars, points, n, c, scalar_bits)` — generic in the scalar
+length — and `pippenger_msm_glv` feeds it 2n points with ~128-bit halves.
+
+The MSM doubles in width and halves in depth, so the FILL term is unchanged:
+2n points over half the windows is the same number of bucket writes. The
+AGGREGATION term is `windows × 2^c` and does not depend on n at all, so halving
+the windows halves it outright. That is the entire gain, and it is why it is
+largest at moderate n where aggregation is the biggest share of the work.
+
+Microseconds per MSM, three implementations, same inputs, same process, affine
+input points as every caller feeds:
+
+| n | Strauss | Pippenger | GLV Pippenger | best previous → GLV |
+|---|---:|---:|---:|---:|
+| 48 | 814.9 | 1192.3 | 899.2 | +10.3% (Strauss wins) |
+| 56 | 950.7 | 1306.3 | 974.4 | +2.5% (Strauss wins) |
+| 64 | 1084.1 | 1406.2 | 1051.7 | **−3.0%** |
+| 96 | 1651.2 | 1787.4 | 1344.2 | **−18.6%** |
+| 128 | 2209.2 | 2081.7 | 1626.2 | **−21.9%** |
+| 200 | 3476.3 | 2750.1 | 2261.0 | **−17.8%** |
+| 512 | 9031.0 | 5383.7 | 4811.7 | **−10.6%** |
+| 1024 | 18989.2 | 9511.7 | 8756.1 | **−7.9%** |
+| 2048 | 40659.4 | 17233.5 | 16166.7 | **−6.2%** |
+
+Window count is now `floor(scalar_bits / c) + 1` on the signed path, and the +1
+is not slack: the top window starts at `floor(scalar_bits/c)·c`, so the widest
+value it can hold is `2^(scalar_bits mod c) − 1`, always below the `2^(c−1)`
+half point. No carry can leave it, for any `scalar_bits`. When c divides the
+length exactly, that window is the one that catches the carry BUG-01 dropped.
+
+### 2. Window bands: c = 6 is not optimal at any size
+
+`use_signed` turns on at `c >= 7`. Signed digits halve the bucket count, so
+`c = 7` has 2^6 = 64 effective buckets — the **same** count as `c = 6` unsigned
+— but needs 256/7 + 1 = 37 windows instead of ceil(256/6) = 43. Same work per
+window, 14% fewer windows. The old bands predate the signed-digit path and never
+credited `c = 7` with the halving it gets for free. The band 80..384 was `c = 6`,
+which is exactly where batch verification lands.
+
+Same file linked with the window forced, so the only difference is `c`:
+
+| n | c=5 | c=6 | c=7 | c=8 |
+|---|---:|---:|---:|---:|
+| 128 | 2350.8 | 2574.2 | **2293.4** | 2811.6 |
+| 200 | 3199.8 | 3378.4 | **3018.3** | 3510.1 |
+| 384 | 5293.8 | 5226.4 | **4724.5** | 5169.6 |
+| 768 | 9643.5 | 8963.7 | **8240.8** | 8316.8 |
+
+`pippenger_glv_window` is a separate table: both inputs to the cost model
+changed (twice the points, half the windows), so the old bands do not transfer.
+Its bands sit higher at equal m for the same reason — a wider window costs half
+what it used to.
+
+### 3. `msm()` crossover 48 → 60
+
+GLV Pippenger overtakes Strauss at n ≈ 60, not 48. Below that the setup — n
+decompositions, n endomorphisms, 2n point copies — is not yet amortised.
+
+### 4. `schnorr_batch_verify` individual cutoff 96 → 38
+
+The cutoff is a function of how fast the MSM is, so it moved when the MSM did.
+Both paths measured in the same binary, µs per signature:
+
+| N | individual | MSM path | |
+|---|---:|---:|---|
+| 32 | 36.97 | 39.97 | individual |
+| 36 | 36.56 | 37.56 | individual |
+| 40 | 37.18 | 36.71 | MSM |
+| 48 | 38.16 | 35.63 | MSM |
+| 64 | 37.97 | 33.27 | MSM |
+
+Leaving it at 96 would have kept every batch from 39 to 96 signatures on the
+path that is now up to 15% slower for them.
+
+### End to end
+
+`schnorr_batch_verify`, µs per signature, HEAD vs this branch, three rotated
+runs per arm, cpu0 pinned, performance governor, turbo off, `nice -20`. Every
+row below has **non-overlapping ranges**:
+
+| batch | MSM n | HEAD | branch | |
+|---|---:|---:|---:|---:|
+| N=24 | 48 | 36.702–36.797 | 36.107–36.415 | −0.8…−1.9% |
+| N=40 | 80 | 37.136–37.341 | 35.995–36.134 | −2.7…−3.6% |
+| N=48 | 96 | 37.444–37.624 | 34.766–34.897 | −6.8…−7.6% |
+| N=56 | 112 | 37.872–38.051 | 34.548–34.721 | −8.3…−9.2% |
+| N=64 | 128 | 38.052–38.362 | 34.588–35.103 | −7.7…−9.8% |
+| N=80 | 160 | 38.328–38.483 | 32.799–32.916 | −14.1…−14.8% |
+| N=100 | 200 | 40.306–40.574 | 32.545–32.701 | **−18.9…−19.8%** |
+| N=128 | 256 | 37.486–37.630 | 31.130–31.386 | −16.3…−17.3% |
+| N=192 | 384 | 35.491–35.738 | 30.710–30.767 | −13.3…−14.1% |
+| N=256 | 512 | 33.370–33.442 | 30.981–31.025 | −7.0…−7.4% |
+| N=512 | 1024 | 33.713–34.079 | 32.254–32.344 | −4.1…−5.4% |
+
+N ≤ 16 is unchanged: those batches verify one signature at a time and never
+reach the MSM.
+
+Embedded targets keep the old routing. GLV Pippenger holds 2n points and 2n
+half-scalars in thread_local scratch — more than plain Pippenger, not less — and
+that budget has not been measured on the device, so ESP32 does not inherit a
+desktop measurement.
+
+`pippenger_msm` keeps its own fallback at n < 48 deliberately: the audit suite
+calls it directly at n = 64, 100 and 128 to exercise the bucket path, and raising
+that threshold would silently route those tests to Strauss.
+
+**Test:** `audit/test_regression_pippenger_window_bands.cpp` (180 checks). Pins
+both window tables at every band edge plus their monotonicity, and cross-checks
+`pippenger_msm`, `pippenger_msm_glv` and `msm()` against `multi_scalar_mul` — an
+independent algorithm — plus a naive sum of `scalar_mul` where affordable, at all
+17 sizes the bands moved. The 128..896 band switched from the unsigned bucket
+path to the signed-digit one, so the carry-forcing inputs (all scalars n−1, all
+2^255, alternating) run at those sizes specifically. The GLV section covers small
+and degenerate n, infinity points mid-set, and n−1 scalars where the 129-bit
+window bound is tightest.
+
+## 2026-09-03 — Copy elimination on the constant-time path (-8.9% on ct::generator_mul)
+
+Four lines. `R.z = R.z * global_z` became `R.z.mul_assign(global_z)` at the four
+global-Z rescale sites in `ct_point.cpp`, and three Bulletproof folding steps in
+`zk.cpp` moved from `x = x * y` to `x *= y`.
+
+| operation | before | after | |
+|---|---:|---:|---:|
+| `ct::generator_mul` (k·G) | 14 096 | 12 845 | **−8.87%** |
+| `ct::ecdsa_sign` | 20 368 | 19 067 | **−6.39%** |
+| `schnorr_verify` | 35 915 | 35 601 | −0.87% |
+| `ecdsa_verify` | 35 877 | 35 643 | −0.65% |
+
+Interleaved A/B, 10 samples per arm, rotated, cpu0 pinned, turbo off; every row
+above has non-overlapping ranges.
+
+**Why four lines are worth 8.9%, and why the obvious version of the same change
+is worth nothing.** `*this = *this * rhs` is free when the object is a local:
+SROA scalarises a `FieldElement52` into five registers and the assignment becomes
+register renaming. It is a real 40-byte round trip through memory when the object
+is *addressable* — a struct member reached through a pointer, a comb table entry,
+a vector element — because SROA cannot scalarise those. The constant-time path is
+made of exactly such objects, and `R.z` is rescaled on every one of the 44 comb
+iterations.
+
+Bisected to be sure: rewriting `FieldElement52::mul_assign` and `square_inplace`
+to write through measured **0.00%**, and the whole 8.9% stayed when those were
+reverted and only the call sites kept. The copy that costs time is at the call
+site, not in the wrapper.
+
+### Three things tried and refuted, recorded in the code so they are not retried
+
+- **Relaxing the aliasing contract** to libsecp's (RESTRICT on `b` only, so the
+  in-place wrappers could write through): **+1.5% on `scalar_mul (k*P)`**, whose
+  time is 39% `jac52_double_coords`, a pure by-value path where the RESTRICT
+  promise buys real scheduling freedom. Reverted.
+- **libsecp's `if (g.v[0] == 0)` short-circuit** in the SafeGCD inverse loop
+  (`modinv64_impl.h:665`): **2.7–4.3% slower** here, across all three call
+  shapes. The branch mispredicts once per inverse while the unconditional OR over
+  at most five limbs is branch-free and pipelined.
+- **Inlining `jac52_add_zinv_inplace`** (12% of verify). The comment claimed a
+  ~1100 ns I-cache regression, measured before the field kernels were
+  force-inlined. Re-measured: the regression is gone and so is any gain — every
+  range overlaps. Left NOINLINE because nothing argues for changing it, and the
+  comment now says that rather than repeating a number that no longer holds.
+
+### Profiles, for whoever picks this up next
+
+    ECDSA / Schnorr verify            batch verify (N=192)
+    43.9%  dual_scalar_mul_gen_point  32.4%  add_mixed52_inplace   (8M+3S)
+    25.6%  apply_wnaf_mixed52         17.4%  jac52_add_inplace     (12M+5S)
+    12.0%  jac52_add_zinv_inplace      3.0%  jac52_add_mixed_inplace_zr
+     6.2%  fe52_inverse_safegcd_var           (Schnorr only, lift_x)
+
+The 17.4% in batch verify is `partial_sum.add_inplace(running_sum)` in
+`pippenger.cpp:345`, which runs on *every* bucket index rather than only the
+occupied ones — roughly 4 700 full Jacobian additions per MSM. Both operands are
+sequentially-updated Jacobian accumulators, so batch normalisation does not apply;
+making it cheaper means changing the aggregation algorithm (co-Z aggregation, or
+Bos–Coster), not the call. `running_sum += bucket[b]` is already on the mixed-add
+path whenever a bucket was written once, which is the common case.
+
+**Validation.** CaaS `unified_audit_runner`: 411/461 modules passed, ALL PASSED,
+0 failures. `ci/run_fast_gates.sh`: 5 failures, all pre-existing at HEAD (7).
+Regression modules: scalar_decomposition_and_comb 10/10,
+single_affine_materialisation 17/17, table_build_invariants 10/10.
+
+## 2026-09-03 — Comment accuracy sweep, HMAC guards fail closed, five more dead trim loops
+
+Thirty-one stale or wrong comments were collected during the representation
+sweep. Five were removed by the GLV rewrite itself and several by the earlier
+inversion wave; the remaining fourteen are fixed here. Two of them turned out not
+to be comment problems at all.
+
+**HMAC length guards now fail closed.** `ecdsa.cpp`'s three HMAC helpers cover
+`[0,55]`, `(64,119]` and `[128,183]`, leaving gaps at `[56,64]` and `[120,127]`
+where every one of them returns *without writing* `out[32]`. Verified unreachable
+— every call site passes a fixed 32, 33, 97, 113, 129 or 145 — so this was never
+a live defect. The guards nevertheless now `memset(out, 0, 32)` before returning,
+so a future caller landing in a gap gets a deterministic all-zero HMAC, which
+`parse_bytes_strict_nonzero` rejects, instead of whatever was on its stack. The
+header comment claimed the supported range was `(55, 119]`; it is `(64, 119]`,
+because `rem = msg_len - 64` must land in `[1,55]`. RFC 6979 output is unchanged,
+asserted byte-for-byte by `test_regression_single_affine_materialisation`.
+
+**Ten more dead wNAF trim loops.** The sweep named three sites and the previous
+wave removed them. Checking the comment that annotated a fourth showed the same
+loops alive in five more functions — `scalar_mul_with_plan_glv52`,
+`scalar_mul_with_plan_glv52_4x`, `batch_scalar_mul_fixed_k`, `batch_scan_run`
+and `batch_scan_run_lockstep`, the last three on the BIP-352 scan path. All feed
+from the same `compute_wnaf_into`, so the same invariant holds: `out_len =
+last_set_bit + 1` with the final digit odd, hence `wnaf[len-1]` is never zero and
+the loop cannot iterate. All ten removed, each replaced by the invariant rather
+than by silence.
+
+**The twelve remaining comment fixes**, every one checked against the current code
+rather than against the sweep's description of it:
+
+| where | what was wrong |
+|---|---|
+| `hash_accel.hpp` | three unmeasured speedup multipliers on tiers 2–4 |
+| `ecmult_gen_comb.hpp` | table sizes computed from a 64 B entry; `CombAffinePoint` is 72 B, so all three were 12.5% low |
+| `ct_point.cpp` header | described a 64×16 table that no longer exists; it is 11 blocks × 32 entries with `COMB_BITS` exactly 256 |
+| `ct_point.cpp` | "80 bytes" vs "88 bytes" in the same file — both right: 80 is the scan's read span, 88 the stride |
+| `ct_point.cpp` | an unmeasured `~278 ns`, and a saving stated as "~5M per call" where both formulas are 7M+5S |
+| `ct_scalar.cpp` | line 690 said the position is public while line 695 justified the masked scan as constant-time in the position |
+| `point.cpp` ×7 | unmeasured nanosecond figures; "saves one multiply" (it is two plus a normalize); "~33% fewer muls" (it is half); the same skipped operation costed at 5 ns in one place and 10 ns in another |
+| `glv.cpp` | claimed compile-time constant folding, but no multiply there has two compile-time operands — the win is immediates instead of loads |
+
+Where a number could not be traced to an artifact it is now "not measured —
+benchmark required", as the repository requires.
+
+**Validation.** CaaS `unified_audit_runner`: 411/461 modules passed, ALL PASSED,
+0 failures. `ci/run_fast_gates.sh`: 5 failures, all pre-existing at HEAD (7).
+Regression modules: scalar_decomposition_and_comb 10/10,
+single_affine_materialisation 17/17, table_build_invariants 10/10.
+
+## 2026-09-03 — Scalar decomposition, comb geometry, wNAF scan, field-kernel inlining
+
+Four independent rewrites landed together, plus the inlining policy change. Every
+one of them fails SILENTLY when wrong — the arithmetic stays well-formed, nothing
+asserts, and the answer is simply a different point — so each is pinned by an
+independent recomputation rather than by a spot check.
+
+**GLV decomposition, both tracks.** `fast::glv_decompose` and
+`ct::ct_glv_decompose` kept libsecp's *derived* constant set (`-b1`, `-b2`, `λ`)
+instead of the raw lattice basis. `minus_b2 = n - b2` is a full 256-bit constant
+while `b2` itself is 126 bits, so every `c2` product was computed at four times
+the necessary width and then needed a wide mod-n reduction that the narrow form
+does not. Using the raw basis:
+
+    k2 = c1·mb1 − c2·b2   (mod n)      both products < 2^254 < n, already reduced
+    k1 = k − c1·a1 − c2·a2 (mod n)      a1 = b2 (126 bits), a2 = 2^128 + a2_lo
+
+The rewrite rests on the exact identity `λ·k2 = c1·a1 + c2·a2 (mod n)` — verified
+as integers, together with `(a1 + b1·λ) ≡ 0` and `(a2 + b2·λ) ≡ 0` and `λ³ ≡ 1` —
+and on operand-width bounds proved at the maximum rather than sampled: `c(k)` is
+monotone non-decreasing in `k`, so its maximum is at `k = KMAX`, evaluated at both
+`n−1` and the unreduced `2^256−1`. Two independent limb-faithful integer models —
+one of the original code including `glv_reduce_mod_n`'s N_C folding, one of the
+code as written — agree with the mathematical reference on 120,526 and 150,523
+scalars with zero mismatches. Five `static_assert`s pin `kB2 == n − kMB2` limb by
+limb so a mistyped constant is a compile error.
+
+`mul_shift_384_const` is deliberately untouched: its full 16-mac Comba keeps only
+the high half exactly as libsecp's `secp256k1_scalar_mul_shift_var` does, and its
+low columns exist to carry into column 4. Dropping them makes `c1`/`c2`
+approximate and silently breaks the proven `|k1|,|k2| < 2^128` bound.
+
+Work removed: 19 of the 67 64×64→128 multiplies per `fast::` call (67 → 48), and
+in `ct_glv_decompose` three full constant-time 256×256 multiplies collapse to four
+128×128 ones. Also gone: two mod-n reductions, a 7-limb carry loop, two 5-limb N_C
+reductions, and the serial chain `k2 → reduce → sign test → negate → multiply →
+reduce` — `c1` and `c2` now feed four mutually independent products.
+
+**A latent correctness bug removed with it.** The `>128-bit k2_abs` fallback ran a
+full 4×4 multiply into `lk8[0..7]` but `lk2` is `uint64_t[6]` and only `lk8[0..5]`
+was copied, discarding the top 128 bits. The branch is unreachable (`k2_abs` never
+exceeded 128 bits in 150,523 modelled scalars, including `n−1` and `2^256−1`), so
+this was never a live defect — but it would have been a silently wrong `k1` if the
+bound ever moved. The item-2 rewrite computes `k1` from `c1` and `c2` directly and
+never forms `λ·k2_abs`, so the guard, the fallback and the truncating copy are gone
+as a consequence rather than as a separate patch.
+
+**Comb geometry.** The generator comb's tail block lost two teeth and `COMB_BITS`
+went 264 → 256, deleting the correction point, its addition, 16
+permanently-unselectable table entries and 8 always-zero bit extractions. Those
+teeth covered bit positions 256–263, which are zero for every scalar below `n` —
+so a geometry error is invisible except at the very top of the range.
+
+**wNAF scan bound.** `compute_wnaf_into` stopped scanning all 256 bit positions
+and now stops at the scalar's top set bit; three trailing-zero trim loops that
+could provably never iterate were deleted. Both rest on the digit invariant
+`out_len = last_set + 1` with the last digit odd: the digit branch is entered only
+when the scalar bit differs from the carry, so bit 0 of `extracted + carry` is 1
+and subtracting `carry << w` (w ≥ 2) cannot clear it.
+
+**Also:** `batch_z_inv` converts each Z once instead of twice; `batch_to_compressed`
+and `batch_x_only_bytes` write in place; four adaptor tagged-hash sites moved to a
+midstate. The generic `tagged_hash(const char*, …)` in `schnorr.cpp` was **rejected**
+— it is generic over the tag and cannot key a fixed midstate.
+
+**Field-kernel inlining.** `fe52_mul_inner` and `fe52_sqr_inner` carried
+`__attribute__((optimize("O2"), noinline))` — two stacked blockers, since on GCC
+the `optimize()` attribute alone prevents inlining into a caller built with
+different options. libsecp256k1 v0.8.0 (PR #1859) force-inlined the equivalent
+routines; measured here against v0.8.0 in the same binary and harness, warm run
+versus warm run with the unmodified libsecp/OpenSSL rows as the control at +0.01%
+median drift: **90 of 104 engine operations ≥ 500 ns improved by more than 2%, one
+regressed.** Standing against the current libsecp release moved from 0.92×/0.93× to
+**1.00×/1.01×** on ECDSA/Schnorr verify, and CT signing from 1.28×/1.19× to
+**1.35×/1.27×**. Enabled on x86-64 only: the library grows 14.84% (libsecp reported
+4.6%; this engine has roughly three times the field-mul call sites), and ARM64,
+RISC-V and the embedded targets have far smaller instruction caches and have not
+been measured. Override with `-DUFSECP_FE52_FORCE_INLINE_KERNELS=0/1`.
+
+**Mutation-artifact scanner updated, not silenced.** MA-1b asserted the presence
+of `while (len_a_hi > 0 …)`, which is gone with the trim loops. MA-1a — the
+absence check for the dangerous `>= 0` form that reads `wnaf[-1]` — is untouched
+and still fires whether or not the loops ever return. MA-1b's job was to stop MA-1a
+passing vacuously on an unreadable or truncated file, so its canary now pins the
+`compute_wnaf_into` call sites, which still exist. Together the two now assert:
+the wNAF recoding sites are present, and none of them is followed by a `>= 0` trim
+loop.
+
+**Tests.** `audit/test_regression_scalar_decomposition_and_comb.cpp`
+(`math_invariants`, blocking, wired with a standalone CTest target). Its corpus is
+515 boundary scalars — `n−1`, `n−2`, and every `2^i` and `2^i − 1` — chosen because
+that is exactly where a width bound, a comb-geometry change and a top-digit scan
+bound each break first. Every check runs against an independent route to the same
+value: `k·P` against `(k−1)·P + P`, `fast::` against `ct::`, `a·G + b·P` against two
+separate single-base multiplications, and batch serialisation against per-point
+serialisation including a `Z == 1` row and an infinity row. 10/10 checks pass.
+
+**Measurement note.** The point-kernel force-inline variant (`jac52_double`,
+`jac52_add_mixed`, `jac52_add`, `jac52_add_inplace`, `jac52_add_zinv_inplace`,
+`jac52_dblu`, `jac52_zaddu_zr`, `jac52_add_mixed_inplace_zr`; +1.63% code) is built
+and correctness-verified but **not yet decided** — three attempts to measure it
+were rejected by their own control rows, twice because background load reached
+cpu0 and once because the largest binary perturbs the libsecp code it is being
+compared against, libsecp being linked into the same binary. It needs a quiet
+machine. See `BENCH-FIRST-TOUCH-ARTIFACT` in the knowledge base before reading any
+`bench_unified` A/B between builds of different size.
+
+## 2026-09-02 — Schnorr batch weight lost its seed (`exploit_batch_weight_seed_binding`)
+
+- **Soundness defect, found and fixed.** `schnorr_batch_verify` accepted batches
+  containing individually-invalid signatures. Reproduced end to end: a batch of
+  97 signatures, two of which fail `schnorr_verify` on their own, verified
+  `true`.
+- **Root cause.** `batch_verify.cpp` derived its randomiser as
+  `a_i = SHA256(batch_seed || i)` by capturing a `SHA256::Midstate` from a
+  context that had absorbed the 32-byte seed. A `Midstate` carries only
+  `state_` and `total_`, so it is well defined *only* on a 64-byte block
+  boundary. At 32 bytes nothing had been compressed and all 32 seed bytes were
+  still sitting in `buf_`; the capture discarded them while `total_` kept
+  counting them. Every weight collapsed to a public constant of the index
+  alone — identical in every batch, on every machine.
+- **Consequence.** The 32 CSPRNG bytes XORed into the seed (P2-SEC-002, added
+  precisely to make weights unpredictable) became a no-op. With the `a_i`
+  known in advance, defeating the aggregate check costs one modular inversion:
+  offset `s_0` by any `t_0` and `s_1` by `t_1 = -(a_0/a_1)·t_0`, and the two
+  errors `a_0·t_0·G` and `a_1·t_1·G` cancel in the sum. No key, no grinding,
+  no discrete log.
+- **Reachability.** The randomised MSM path runs only for
+  `n > kSchnorrBatchIndividualCutoff` (96); at or below that the implementation
+  verifies signatures one at a time and derives no weight. Both public
+  overloads — `SchnorrBatchEntry` and `SchnorrBatchCachedEntry` — were affected.
+- **Introduced by** `ca0dde78` ("perf: C-5 SHA256 midstate"), a pure
+  performance change whose own comment asserted the false precondition
+  "buf_[64] is always zero-filled in a midstate context".
+- **Fix.** `batch_weight()` now hashes a 36-byte `seed || index_le32` buffer
+  built once and reused across the loop. One SHA-256 compression, no context
+  object and no copy at all — less work than either the 104-byte context copy
+  it replaced or the broken 40-byte midstate.
+- **Root-cause hardening.** `SHA256::capture_midstate()` now documents the
+  block-boundary precondition and asserts it. Rebuilding the pre-fix
+  `batch_verify.cpp` against the new header aborts on that assert.
+- **Tests.** Added `audit/test_exploit_batch_weight_seed_binding.cpp` (section
+  `exploit_poc`, blocking), fully wired with a standalone CTest target. It
+  reconstructs the broken weights from the SHA-256 definition rather than from
+  the engine, builds the cross-cancellation forgery, and requires both
+  overloads to reject it; it also pins the *legitimate* 64-byte-boundary
+  midstate round-trip so the fix cannot regress the tagged-hash use. Verified
+  to fail (6/8) against pre-fix code and pass (8/8) after.
+- **Also corrected `audit/test_batch_randomness.cpp`,** which passed unchanged
+  through the entire broken window. It reimplements the weight function instead
+  of calling it, and its model had drifted from the engine in two ways: it kept
+  an `a_0 = 1` short-circuit the engine had removed as unsound, and it omits
+  the per-call CSPRNG XOR. Its `a_0 == 1` assertions are inverted to the
+  current contract, and the file now states in its header that it models the
+  spec and that the engine-side property lives in the new PoC.
+- Filed as GitHub #400.
+
+## 2026-09-02 — Odd-multiple table build invariants (`regression_table_build_invariants`)
+
+- Added `audit/test_regression_table_build_invariants.cpp` (section
+  `math_invariants`, blocking), wired into `unified_audit_runner.cpp` and
+  `audit/CMakeLists.txt` with a standalone CTest target.
+- Asserts two invariants that no existing gate covered, both surfaced by the CPU
+  representation-search work in `experiments/representation_search/`:
+  - **Window-constant agreement.** `dual_scalar_mul_gen_point` recodes its wNAF
+    digits at `WINDOW_G` while `tbl_G` / `tbl_H` are sized from a separate
+    constant, `kDualMulWindowG`. Those were independently-written literals.
+    Setting the table constant alone indexed past the end of the table: a
+    segfault at window 12, and at window 13 no crash at all — five silently
+    wrong `dual_mul(a*G + b*P)` results out of 89 ECC property checks. Fixed by
+    deriving one from the other with a `static_assert`; this module asserts the
+    behaviour rather than the syntax, so it still fires if the two are ever
+    unlinked again.
+  - **Shared-Z table contract.** Windowed tables store pseudo-affine entries on
+    one implied global Z, built with zero field inversions. A build that lands
+    on a wrong Z is wrong in *every* entry by the same factor, so checking a
+    single entry proves nothing. This module walks all 16 odd multiples on both
+    the `fast::` and `ct::` tracks and cross-checks the two tracks against each
+    other.
+- Comparisons are on the canonical serialised point, not on internal
+  coordinates, so the checks survive a change of coordinate or table
+  representation — which is precisely what they exist to guard.
+- Also filed as GitHub #399.
+
 ## 2026-07-22 — Roadmap evidence reconciliation (`ROADMAP_FINAL_005`)
 
 - Preserved the proven G-1..G-10, G-9b, and P21 closures and reconciled the

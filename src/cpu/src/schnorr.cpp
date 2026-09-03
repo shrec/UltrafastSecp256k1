@@ -68,16 +68,32 @@ static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
     FE52 const x3 = px52.square() * px52;
     FE52 const y2 = x3 + kSeven52;
 
-    // Fast QR rejection via Jacobi (~900 ns) before sqrt (~3.8 µs).
-    // Jacobi is correct for 256-bit inputs (= normalized field elements close to p).
-    // Signature R.x and pubkey x-values are 256-bit, so this is safe.
-    if (y2.jacobi_var() != 1) return Point::infinity();
-
-    // sqrt + verify (defense-in-depth: jacobi_var has a known bug for inputs < 2^33
-    // where it may return an incorrect QR result. Secp256k1 field values from valid
-    // signatures/pubkeys are never this small (x >= 1 for any real key), but the
-    // sqrt+verify confirms correctness unconditionally. SEC-008: no code fix needed;
-    // the defense already catches any jacobi_var misclassification.)
+    // sqrt + verify. This is the AUTHORITATIVE quadratic-residue test and it runs
+    // unconditionally, so a Jacobi pre-check in front of it decides nothing on any
+    // on-curve x -- which is every honest pubkey and every honest signature R.x.
+    // It could only short-circuit an OFF-curve x, and it was paying ~730 ns on
+    // every cold lift_x to do so.
+    //
+    // Removed 2026-09-02 (representation search). Three reasons, in order:
+    //   1. It was the lone holdout. recovery.cpp carries the byte-identical block
+    //      with the comment "skip Jacobi pre-check", and none of the other eleven
+    //      decompression sites pre-check either (batch_verify, taproot, ct_point,
+    //      ecdsa, shim_pubkey, address, pedersen, zk, ecies, bip32, shim_musig).
+    //      libsecp256k1's secp256k1_ge_set_xo_var does not either -- it calls
+    //      fe_sqrt and uses the return value, exactly as this does now.
+    //   2. Its own comment documented jacobi_var as having "a known bug for inputs
+    //      < 2^33 where it may return an incorrect QR result", with this sqrt+verify
+    //      named as the defense. Deleting the pre-check removes a documented
+    //      misclassification source and leaves the defense.
+    //   3. The saving is real but small and MUST NOT be claimed as a speedup: ~730 ns
+    //      per lift_x CACHE MISS only. bench_unified will not move at all (its 64-key
+    //      warm pool always hits the 1024-slot lift_x cache); an uncached single
+    //      Schnorr verify is about 2.9%, ConnectBlockAllSchnorr well under 1%. This
+    //      lands under CLAUDE.md performance rule 5 -- removal of known algorithmic
+    //      waste, magnitude not overclaimed -- not as a measured win.
+    //
+    // ellswift.cpp KEEPS its fe_jacobi_is_qr, and correctly: there the Jacobi
+    // AVOIDS a sqrt on a non-residue rather than preceding one that runs anyway.
     FE52 y52 = y2.sqrt();
     FE52 check = y52.square();
     check.negate_assign(1);
@@ -89,7 +105,7 @@ static Point lift_x_from_limbs(const std::uint64_t* px_limb_le) {
     y_norm.normalize();
     if (y_norm.n[0] & 1) {
         // Negate: y = p - y
-        y52 = y52.negate(1);
+        y52.negate_assign(1);
         y52.normalize_weak();
     }
 
@@ -380,9 +396,10 @@ bool SchnorrSignature::parse_strict(const std::array<uint8_t, 64>& data,
 std::array<uint8_t, 32> schnorr_pubkey(const Scalar& private_key) {
     SECP_ASSERT_SCALAR_VALID(private_key);
     auto P = ct::generator_mul(private_key);
-    auto [px, p_y_odd] = P.x_bytes_and_parity();
-    (void)p_y_odd;
-    return px;
+    // BIP-340 x-only encoding drops the Y parity, so the affine-Y recovery that
+    // x_bytes_and_parity() performs is unused here. x_only_bytes() yields the
+    // identical X bytes without it (same Z inverse, same X, one normalize).
+    return P.x_only_bytes();
 }
 
 // -- SchnorrKeypair Creation --------------------------------------------------
@@ -422,12 +439,14 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     // Step 1: t = d XOR tagged_hash("BIP0340/aux", aux_rand)
     auto t_hash = cached_tagged_hash(g_aux_midstate, aux_rand.data(), 32);
     auto d_bytes = kp.d.to_bytes();
-    uint8_t t[32];
-    for (std::size_t i = 0; i < 32; ++i) t[i] = d_bytes[i] ^ t_hash[i];
 
     // Step 2: k' = tagged_hash("BIP0340/nonce", t || pubkey_x || msg)
+    // t is XOR'd straight into nonce_input[0..31]: it was read exactly once, by
+    // the memcpy that used to sit here, and the nonce_input erasure below already
+    // covers those bytes — a separate t[32] would only add a secret-bearing stack
+    // buffer to erase. Fixed 32-iteration loop, no secret-dependent index.
     uint8_t nonce_input[96];
-    std::memcpy(nonce_input, t, 32);
+    for (std::size_t i = 0; i < 32; ++i) nonce_input[i] = d_bytes[i] ^ t_hash[i];
     std::memcpy(nonce_input + 32, kp.px.data(), 32);
     std::memcpy(nonce_input + 64, msg.data(), 32);
     auto rand_hash = cached_tagged_hash(g_nonce_midstate, nonce_input, 96);
@@ -438,7 +457,6 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
         // Zeroize all secret-derived data before early return (~2^-128 probability).
         detail::secure_erase(d_bytes.data(), d_bytes.size());
         detail::secure_erase(t_hash.data(), t_hash.size());
-        detail::secure_erase(t, sizeof(t));
         detail::secure_erase(nonce_input, sizeof(nonce_input));
         detail::secure_erase(rand_hash.data(), rand_hash.size());
         detail::secure_erase(&k_prime, sizeof(k_prime));
@@ -470,7 +488,8 @@ SchnorrSignature schnorr_sign(const SchnorrKeypair& kp,
     // Erase all secret-derived stack buffers (matches ct::schnorr_sign cleanup)
     detail::secure_erase(d_bytes.data(), d_bytes.size());
     detail::secure_erase(t_hash.data(), t_hash.size());
-    detail::secure_erase(t, sizeof(t));
+    // nonce_input[0..31] holds t (d XOR t_hash) — erasing the 96-byte buffer
+    // covers it; there is no separate t[32] to scrub.
     detail::secure_erase(nonce_input, sizeof(nonce_input));
     detail::secure_erase(rand_hash.data(), rand_hash.size());
     detail::secure_erase(challenge_input, sizeof(challenge_input));

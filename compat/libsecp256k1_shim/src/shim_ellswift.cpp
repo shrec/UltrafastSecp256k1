@@ -109,7 +109,7 @@ int secp256k1_ellswift_decode(
     auto t = FieldElement::from_bytes(t_bytes);
     bool t_odd = (t == FieldElement::zero()) ? true : ((t.to_bytes()[31] & 1) != 0);
     bool y_odd = (y.to_bytes()[31] & 1) != 0;
-    if (y_odd != t_odd) y = y.negate();
+    if (y_odd != t_odd) y.negate_assign();
 
     auto xb = x.to_bytes();
     auto yb = y.to_bytes();
@@ -211,7 +211,7 @@ int secp256k1_ellswift_xdh(
     auto y = y2.sqrt();
     if (!(y.square() == y2)) { erase_secrets(); return 0; }
     auto yb = y.to_bytes();
-    if (yb[31] & 1) y = y.negate();
+    if (yb[31] & 1) y.negate_assign();
 
     auto their_point = Point::from_affine(their_x, y);
     if (their_point.is_infinity()) { erase_secrets(); return 0; }

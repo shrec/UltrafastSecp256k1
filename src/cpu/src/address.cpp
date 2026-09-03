@@ -855,7 +855,7 @@ silent_payment_scan(const Scalar& scan_privkey,
     // Sum of input public keys: A = Sum A_i
     Point A_sum = Point::infinity();
     for (const auto& A : input_pubkeys) {
-        A_sum = A_sum.add(A);
+        A_sum.add_inplace(A);
     }
 
     // Shared secret: S = b_scan * A_sum

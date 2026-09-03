@@ -6,12 +6,29 @@
 //   2. Uniqueness: different batches -> different weights
 //   3. Non-zero: weights are never zero (zero = skip signature)
 //   4. Binding: weights depend on ALL signatures in batch
-//   5. a_0 = 1 optimization safety
+//   5. a_0 is NOT fixed to 1 -- it is a seed-derived weight like every other
 //   6. Distribution: weights are well-distributed (not biased)
 //   7. Batch verification correctness: valid batch passes, corrupted fails
 //
-// Weight derivation: a_i = SHA256(batch_seed || i_le32), a_0 = 1
+// Weight derivation: a_i = SHA256(batch_seed || i_le32) for EVERY i including 0
 //   batch_seed = SHA256(R0 || s0 || pk0 || msg0 || ... || Rn || sn || pkn || msgn)
+//                XOR 32 CSPRNG bytes drawn per call
+//
+// SCOPE -- READ THIS BEFORE TRUSTING A PASS FROM THIS MODULE.
+//   batch_weight_audit() below is a MODEL of the specification, not a call into
+//   the engine, and compute_batch_seed() cannot include the per-call CSPRNG XOR
+//   because it cannot predict it. So every check here is a property of the
+//   MODEL. That is useful for pinning the spec, and useless for catching an
+//   engine that has stopped implementing it -- this module passed unchanged
+//   through the entire window in which the engine's real batch_weight() was
+//   dropping the seed (ca0dde78 .. fixed).
+//
+//   The engine-side property -- that the weights the ENGINE actually uses are
+//   bound to the batch seed -- is asserted through the public API by
+//   audit/test_exploit_batch_weight_seed_binding.cpp. Note also that every
+//   batch built here is far below kSchnorrBatchIndividualCutoff (96), so these
+//   batches are verified one signature at a time and never derive a weight at
+//   all. Keep both modules; they cover different things.
 // ============================================================================
 
 #include <cstdio>
@@ -53,10 +70,13 @@ void check(bool cond, const char* name) {
     }
 }
 
-// Reproduce batch_weight logic for audit
+// Model of the specified batch_weight. NOT the engine's function -- see the
+// SCOPE note at the top of this file.
+//
+// No special case for index 0: fixing a_0 = 1 deviates from the small-exponents
+// soundness proof, which requires every weight to be uniform, so the engine
+// derives a_0 from the seed like all the others.
 Scalar batch_weight_audit(const std::array<uint8_t, 32>& batch_seed, uint32_t index) {
-    if (index == 0) return Scalar::one();
-
     uint8_t buf[36];
     std::memcpy(buf, batch_seed.data(), 32);
     buf[32] = static_cast<uint8_t>(index & 0xFF);
@@ -68,7 +88,11 @@ Scalar batch_weight_audit(const std::array<uint8_t, 32>& batch_seed, uint32_t in
     return Scalar::from_bytes(h);
 }
 
-// Generate batch_seed from entries (same logic as batch_verify.cpp)
+// Generate batch_seed from entries. This models the DOMAIN-BINDING half of the
+// engine's seed only: batch_verify.cpp additionally XORs 32 fresh CSPRNG bytes
+// in per call, which a deterministic model cannot reproduce. Weights derived
+// here are therefore predictable by construction -- that is a property of the
+// model, never of the engine.
 std::array<uint8_t, 32> compute_batch_seed(
     const secp256k1::SchnorrBatchEntry* entries, std::size_t n) {
     SHA256 ctx;
@@ -179,9 +203,9 @@ void test_non_zero_weights() {
     };
     auto seed = compute_batch_seed(batch.data(), batch.size());
 
-    // a_0 = 1 (non-zero by construction)
+    // a_0 is a derived weight like any other; it must be non-zero, not 1.
     auto w0 = batch_weight_audit(seed, 0);
-    check(w0 == Scalar::one(), "a_0 == 1");
+    check(!w0.is_zero(), "a_0 non-zero");
 
     // Check weights for indices 1..1000
     // Probability of SHA256 output mapping to zero mod n is ~2^-256
@@ -227,29 +251,32 @@ void test_binding() {
 }
 
 void test_a0_optimization() {
-    std::printf("  [5] a_0 = 1 optimization safety\n");
+    std::printf("  [5] a_0 is a seed-derived weight, NOT fixed to 1\n");
 
-    // a_0 = 1 is safe because:
-    // - Verifier doesn't choose which signature is first
-    // - Even with a_0 known, a_1...a_{n-1} remain unpredictable
-    // - The equation: a_0*s_0*G + sum(a_i*s_i*G) = a_0*R_0 + sum(a_i*R_i) + ...
-    //   An adversary who forges sig_0 must still satisfy a_0 * (bad equation)
-    //   which means they need s_0*G = R_0 + e_0*P_0, i.e., standard BIP-340 verify
-
-    // Verify a_0 = 1 for any seed
+    // The engine used to short-circuit a_0 = 1 to save one scalar_mul. That was
+    // removed: the small-exponents soundness proof requires every weight to be
+    // uniform random, and a weight the attacker knows in advance is a weight
+    // they can cancel against. a_0 must now behave exactly like a_1.
     std::array<uint8_t, 32> seed1{};
     seed1[0] = 0xAA;
     std::array<uint8_t, 32> seed2{};
     seed2[0] = 0xBB;
 
-    check(batch_weight_audit(seed1, 0) == Scalar::one(), "a_0 == 1 (seed1)");
-    check(batch_weight_audit(seed2, 0) == Scalar::one(), "a_0 == 1 (seed2)");
+    auto w0_s1 = batch_weight_audit(seed1, 0);
+    auto w0_s2 = batch_weight_audit(seed2, 0);
 
-    // But a_1 is NOT 1
+    check(!(w0_s1 == Scalar::one()), "a_0 != 1 (seed1)");
+    check(!(w0_s2 == Scalar::one()), "a_0 != 1 (seed2)");
+
+    // ...and it must move with the seed. A weight that ignores the seed is the
+    // exact defect test_exploit_batch_weight_seed_binding.cpp exists to catch.
+    check(!(w0_s1 == w0_s2), "a_0 depends on the seed");
+
     auto w1_s1 = batch_weight_audit(seed1, 1);
     auto w1_s2 = batch_weight_audit(seed2, 1);
     check(!(w1_s1 == Scalar::one()), "a_1 != 1 (seed1)");
     check(!(w1_s2 == Scalar::one()), "a_1 != 1 (seed2)");
+    check(!(w1_s1 == w1_s2), "a_1 depends on the seed");
 }
 
 void test_distribution() {
