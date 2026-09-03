@@ -418,3 +418,67 @@ No dependencies beyond the standard library. Raw results go to
 No number in this document came from running code on hardware. The weighted
 costs are model outputs. Until the benchmark harness exists and a controlled
 A/B run is recorded, every entry above is a *prediction*.
+
+## Cross-formula equivalence on a declared slice
+
+`repsearch/crossform.py`, driven by `tools/run_crossform.py`.
+
+The beam search in `rewrite.py` rewrites one straight-line program in place. Every
+candidate it builds uses the reference's own input list, its gate demands the
+candidate's output key set equal the reference's exactly, and equivalence is raw
+value equality on every coordinate. Those three commitments are right for a
+peephole substitution -- a caller reading `.z` must keep getting the same `.z` --
+and they are exactly why that search can never propose a **different formula**.
+
+Meloni's co-Z addition is the standing example:
+
+```text
+madd_production   inputs (X1, Y1, Z1, X2, Y2)   8M+3S+3neg+7add   weighted 11.33  depth 5.26
+zaddu             inputs (X1, Y1, X2, Y2, Z)    5M+2S+7sub        weighted  7.28  depth 3.23
+```
+
+Same arity, four shared names, but the fifth position means different things: `Z1`
+belongs to P alone with Q implicitly affine, while `Z` is shared by P and Q. No
+local rewrite bridges that.
+
+This module does not weaken the equivalence test. The raw-value comparison stays
+exactly as strong. What it adds is the ability to state the **precondition** under
+which two different formulas agree:
+
+```text
+madd_production(X1, Y1, 1, X2, Y2) == zaddu_sum_only(X1, Y1, X2, Y2, 1)
+```
+
+Both sides are affine there, which is one situation described twice.
+
+Running it against the whole registry:
+
+```text
+formula                  slice               weighted     depth  extra outputs
+zaddu                    Z=1, Z1=1             -35.7%    -38.6%  Xp, Yp, Zp
+zaddu_sum_only           Z=1, Z1=1             -35.7%    -38.6%  -
+madd_prod_no_signfold    everywhere             -1.1%     -1.9%  -
+madd_prod_s2_reassoc     everywhere             +0.0%     +0.0%  -
+```
+
+The −35.7% is the same transformation the engine measured at 34.7% on hardware.
+
+**The control is the part that matters.** An unpinned input takes a random field
+value, so the empty slice is a real test rather than an error, and co-Z must be
+seen to fail it:
+
+```text
+off the slice (Z1 free): agreed  0/64   holds=False
+on the slice  (Z1 = 1) : agreed 64/64   holds=True
+```
+
+Zero of sixty-four. The two `madd_prod_*` variants, which are genuine rewrites,
+hold with no precondition at all. A tool that could not tell those two situations
+apart would licence substituting a formula whose precondition the caller does not
+meet, which is worse than having no tool.
+
+Extra outputs are reported, never dropped: `zaddu` hands back P on the new Z
+alongside P+Q, and those three values are the reason the formula exists -- a chain
+of them needs no normalisation between steps.
+
+Slices are **declared**, never inferred from whether they happen to pass.
