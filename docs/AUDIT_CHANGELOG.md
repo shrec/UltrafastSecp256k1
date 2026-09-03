@@ -1,5 +1,41 @@
 # Audit Changelog
 
+## 2026-09-03 — Constant hoisting: closed, with a number
+
+The open question was which values the engine computes at runtime that could be
+compile-time constants. Swept and closed — not by converting them, but by
+measuring what conversion would be worth.
+
+**The sweep.** 86 function-local statics with computed initialisers, **zero
+inside an inner loop**. 7 loop recomputations, all genuinely per-iteration. 1
+uncached derivation, and that one is from runtime data. In the twelve hot files
+exactly **11 non-constexpr statics of a value type** remain, and 3 of those sit
+in the no-`__int128` `#else` fallback — dead on x86-64.
+
+**What conversion would buy.** A function-local `static const` with a
+non-constant initialiser runs its initialiser once, but re-checks the
+thread-safe guard on **every** access. That guard is the only thing `constexpr`
+removes, so it is the number that decides the question:
+
+| | ns/access |
+|---|---:|
+| `static const`, guard checked | 1.621 |
+| `constexpr`, no guard | 0.813 |
+| **the guard** | **0.808** |
+
+Every remaining site is read once per call of an operation costing 50 ns or
+more. `kSeven52` sits in `lift_x` at ~6300 ns — 0.013%. The whole axis is worth
+under 1%, and most sites are between 0.01% and 1.6%.
+
+**And the cheapest conversions buy the least.** `FieldElement52` is already
+`constexpr`-aggregate-initialisable — a plain `uint64_t n[5]` — so its two
+statics convert for free, and are worth 0.013%. `FieldElement` is **not** a
+literal type, so converting its five statics needs `constexpr` constructors
+across the type: the broadest change, for the smallest return.
+
+Nothing changed in the engine. Recorded as `INVARIANT-HOISTING-CLOSED` so this
+is not reopened as a performance item without a new measurement.
+
 ## 2026-09-03 — Why verify sits at parity, and one thing that did move
 
 Question asked: break through `ecdsa_verify` / `schnorr_verify` at 1.00× and the
