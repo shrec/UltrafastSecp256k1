@@ -110,10 +110,19 @@ void libsecp_ecmult(void *r, const void *a, const void *na, const void *ng) {
                      (const secp256k1_scalar *)na, (const secp256k1_scalar *)ng);
 }
 
-/* ecmult_gen: k*G (generator mul using Comb tables) */
+/* ecmult_gen: k*G (generator mul using Comb tables)
+ *
+ * libsecp256k1 v0.8.0 renamed secp256k1_ecmult_gen -> secp256k1_ecmult_gen_gej
+ * (same signature) and added a secp256k1_ecmult_gen_ge variant. Build with
+ * -DLIBSECP_ECMULT_GEN_GEJ=1 when compiling against v0.8.0 or newer. */
 void libsecp_ecmult_gen(const void *ctx_ecmult_gen, void *r, const void *k) {
+#if defined(LIBSECP_ECMULT_GEN_GEJ) && LIBSECP_ECMULT_GEN_GEJ == 1
+    secp256k1_ecmult_gen_gej((const secp256k1_ecmult_gen_context *)ctx_ecmult_gen,
+                             (secp256k1_gej *)r, (const secp256k1_scalar *)k);
+#else
     secp256k1_ecmult_gen((const secp256k1_ecmult_gen_context *)ctx_ecmult_gen,
                          (secp256k1_gej *)r, (const secp256k1_scalar *)k);
+#endif
 }
 
 /* Helper: get the ecmult_gen_context from a secp256k1_context */
