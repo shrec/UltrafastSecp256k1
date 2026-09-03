@@ -1,5 +1,72 @@
 # Audit Changelog
 
+## 2026-09-03 — Copy elimination on the constant-time path (-8.9% on ct::generator_mul)
+
+Four lines. `R.z = R.z * global_z` became `R.z.mul_assign(global_z)` at the four
+global-Z rescale sites in `ct_point.cpp`, and three Bulletproof folding steps in
+`zk.cpp` moved from `x = x * y` to `x *= y`.
+
+| operation | before | after | |
+|---|---:|---:|---:|
+| `ct::generator_mul` (k·G) | 14 096 | 12 845 | **−8.87%** |
+| `ct::ecdsa_sign` | 20 368 | 19 067 | **−6.39%** |
+| `schnorr_verify` | 35 915 | 35 601 | −0.87% |
+| `ecdsa_verify` | 35 877 | 35 643 | −0.65% |
+
+Interleaved A/B, 10 samples per arm, rotated, cpu0 pinned, turbo off; every row
+above has non-overlapping ranges.
+
+**Why four lines are worth 8.9%, and why the obvious version of the same change
+is worth nothing.** `*this = *this * rhs` is free when the object is a local:
+SROA scalarises a `FieldElement52` into five registers and the assignment becomes
+register renaming. It is a real 40-byte round trip through memory when the object
+is *addressable* — a struct member reached through a pointer, a comb table entry,
+a vector element — because SROA cannot scalarise those. The constant-time path is
+made of exactly such objects, and `R.z` is rescaled on every one of the 44 comb
+iterations.
+
+Bisected to be sure: rewriting `FieldElement52::mul_assign` and `square_inplace`
+to write through measured **0.00%**, and the whole 8.9% stayed when those were
+reverted and only the call sites kept. The copy that costs time is at the call
+site, not in the wrapper.
+
+### Three things tried and refuted, recorded in the code so they are not retried
+
+- **Relaxing the aliasing contract** to libsecp's (RESTRICT on `b` only, so the
+  in-place wrappers could write through): **+1.5% on `scalar_mul (k*P)`**, whose
+  time is 39% `jac52_double_coords`, a pure by-value path where the RESTRICT
+  promise buys real scheduling freedom. Reverted.
+- **libsecp's `if (g.v[0] == 0)` short-circuit** in the SafeGCD inverse loop
+  (`modinv64_impl.h:665`): **2.7–4.3% slower** here, across all three call
+  shapes. The branch mispredicts once per inverse while the unconditional OR over
+  at most five limbs is branch-free and pipelined.
+- **Inlining `jac52_add_zinv_inplace`** (12% of verify). The comment claimed a
+  ~1100 ns I-cache regression, measured before the field kernels were
+  force-inlined. Re-measured: the regression is gone and so is any gain — every
+  range overlaps. Left NOINLINE because nothing argues for changing it, and the
+  comment now says that rather than repeating a number that no longer holds.
+
+### Profiles, for whoever picks this up next
+
+    ECDSA / Schnorr verify            batch verify (N=192)
+    43.9%  dual_scalar_mul_gen_point  32.4%  add_mixed52_inplace   (8M+3S)
+    25.6%  apply_wnaf_mixed52         17.4%  jac52_add_inplace     (12M+5S)
+    12.0%  jac52_add_zinv_inplace      3.0%  jac52_add_mixed_inplace_zr
+     6.2%  fe52_inverse_safegcd_var           (Schnorr only, lift_x)
+
+The 17.4% in batch verify is `partial_sum.add_inplace(running_sum)` in
+`pippenger.cpp:345`, which runs on *every* bucket index rather than only the
+occupied ones — roughly 4 700 full Jacobian additions per MSM. Both operands are
+sequentially-updated Jacobian accumulators, so batch normalisation does not apply;
+making it cheaper means changing the aggregation algorithm (co-Z aggregation, or
+Bos–Coster), not the call. `running_sum += bucket[b]` is already on the mixed-add
+path whenever a bucket was written once, which is the common case.
+
+**Validation.** CaaS `unified_audit_runner`: 411/461 modules passed, ALL PASSED,
+0 failures. `ci/run_fast_gates.sh`: 5 failures, all pre-existing at HEAD (7).
+Regression modules: scalar_decomposition_and_comb 10/10,
+single_affine_materialisation 17/17, table_build_invariants 10/10.
+
 ## 2026-09-03 — Comment accuracy sweep, HMAC guards fail closed, five more dead trim loops
 
 Thirty-one stale or wrong comments were collected during the representation

@@ -1018,10 +1018,19 @@ static void jac52_add_mixed_inplace_zr(JacobianPoint52& p,
 // Cost: 9M + 3S + ~11A
 // Saves 1S per G/H lookup vs the previous approach (2M scale + 7M+4S mixed add).
 // Also avoids modifying the G/H table entry (no cache-line dirtying).
-// NOT force-inlined: inlining both add_mixed and add_zinv causes ~1100 ns
-// regression due to I-cache pressure (hot loop exceeds ~5 KB threshold).
-// Only add_mixed is inlineable; add_zinv stays NOINLINE.
+// Inlining this was once measured as a ~1100 ns regression from I-cache pressure,
+// the hot loop crossing a ~5 KB threshold. That predates the field kernels being
+// force-inlined, so it was re-measured (interleaved A/B, 10 samples per arm,
+// cpu0, turbo off): the regression is GONE, and so is any gain -- ecdsa_verify
+// -0.46%, schnorr_verify -0.44%, dual_mul -0.87%, every range overlapping.
+// It stays NOINLINE because nothing argues for changing it, not because the old
+// number still holds. REPSEARCH_INLINE_ZINV=1 flips it if a different target
+// (ARM64, RISC-V, a smaller I-cache) wants the question re-opened there.
+#if defined(REPSEARCH_INLINE_ZINV) && REPSEARCH_INLINE_ZINV == 1
+SECP256K1_HOT_FUNCTION SECP256K1_INLINE
+#else
 SECP256K1_HOT_FUNCTION SECP256K1_NOINLINE
+#endif
 static void jac52_add_zinv_inplace(JacobianPoint52& p,
                                     const AffinePoint52& b,
                                     const FieldElement52& bzinv) noexcept {

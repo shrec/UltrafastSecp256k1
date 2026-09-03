@@ -1503,7 +1503,7 @@ static CTJacobianPoint scalar_mul_jac_fe52_z1(const FE52& px, const FE52& py,
         unified_add_core<false, true>(&R, R, t);  // HAMBURG: K_CONST → no degenerate
     }
 
-    R.z = R.z * global_z;
+    R.z.mul_assign(global_z);
     return R;
 }
 
@@ -1631,7 +1631,7 @@ static CTJacobianPoint scalar_mul_jac(const Point& p, const Scalar& k) noexcept 
         unified_add_core<false>(&R, R, t);
     }
 
-    R.z = R.z * global_z;
+    R.z.mul_assign(global_z);
     return R;
 }
 
@@ -1854,7 +1854,7 @@ Point scalar_mul_prebuilt(const CTScalarMulTables& tables,
         unified_add_core<false>(&R, R, t);
     }
 
-    R.z = R.z * tables.global_z;
+    R.z.mul_assign(tables.global_z);
     Point result = R.to_point();
     SECP256K1_DECLASSIFY(&result, sizeof(result));
     return result;
@@ -1911,7 +1911,7 @@ Point scalar_mul_prebuilt_fast(const CTScalarMulTables& tables,
         add_affine_fast_ct(&R, R, t);
     }
 
-    R.z = R.z * tables.global_z;
+    R.z.mul_assign(tables.global_z);
     Point result = R.to_point();
     SECP256K1_DECLASSIFY(&result, sizeof(result));
     return result;

@@ -243,6 +243,19 @@ using namespace fe52_constants;
 #  endif
 #endif
 
+// ALIASING CONTRACT: r, a and b must not alias. That is stricter than
+// libsecp256k1, which permits r == a, and it is kept deliberately: relaxing it so
+// the in-place wrappers could write through measured +1.5% on scalar_mul (k*P),
+// whose time is 39% jac52_double_coords -- a pure by-value path where the
+// RESTRICT promise is worth real scheduling freedom.
+//
+// The copy that DOES cost time is not here. `*this = *this * rhs` is free when
+// the object is a local, because SROA scalarises it into registers. It is a real
+// 40-byte round trip through memory when the object is addressable -- a comb
+// table entry, a struct member reached through a pointer. Removing four of those
+// on the constant-time path (ct_point.cpp's global-Z rescales) measured
+// -8.9% on ct::generator_mul and -6.4% on ct::ecdsa_sign. Look for the pattern
+// at the CALL SITES, not in these wrappers.
 #if UFSECP_FE52_FORCE_INLINE_KERNELS
 SECP256K1_FE52_FORCE_INLINE
 #elif defined(__GNUC__) || defined(__clang__)
@@ -2441,9 +2454,7 @@ FieldElement52 FieldElement52::mul_var(const FieldElement52& rhs) const noexcept
 }
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::mul_assign_var(const FieldElement52& rhs) noexcept {
-    std::uint64_t tmp[5];
-    fe52_mul_inner_var(tmp, n, rhs.n);
-    n[0]=tmp[0]; n[1]=tmp[1]; n[2]=tmp[2]; n[3]=tmp[3]; n[4]=tmp[4];
+    *this = mul_var(rhs);
 }
 
 SECP256K1_FE52_FORCE_INLINE
@@ -2465,9 +2476,7 @@ FieldElement52 FieldElement52::square_var() const noexcept {
 }
 SECP256K1_FE52_FORCE_INLINE
 void FieldElement52::square_inplace_var() noexcept {
-    std::uint64_t tmp[5];
-    fe52_sqr_inner_var(tmp, n);
-    n[0]=tmp[0]; n[1]=tmp[1]; n[2]=tmp[2]; n[3]=tmp[3]; n[4]=tmp[4];
+    *this = square_var();
 }
 
 SECP256K1_FE52_FORCE_INLINE

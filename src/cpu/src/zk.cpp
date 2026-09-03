@@ -707,7 +707,7 @@ bool range_verify(const PedersenCommitment& commitment,
     Scalar s_coeff[RANGE_PROOF_BITS];
     s_coeff[0] = Scalar::one();
     for (std::size_t j = 0; j < RANGE_PROOF_LOG2; ++j) {
-        s_coeff[0] = s_coeff[0] * x_inv_rounds[j];
+        s_coeff[0] *= x_inv_rounds[j];
     }
 
     for (std::size_t i = 1; i < RANGE_PROOF_BITS; ++i) {
@@ -719,10 +719,10 @@ bool range_verify(const PedersenCommitment& commitment,
         s_coeff[i] = Scalar::one();
         for (std::size_t jj = 0; jj < RANGE_PROOF_LOG2; ++jj) {
             if ((i >> (RANGE_PROOF_LOG2 - 1 - jj)) & 1) {
-                s_coeff[i] = s_coeff[i] * x_rounds[jj];
+                s_coeff[i] *= x_rounds[jj];
             }
             else {
-                s_coeff[i] = s_coeff[i] * x_inv_rounds[jj];
+                s_coeff[i] *= x_inv_rounds[jj];
             }
         }
     }
