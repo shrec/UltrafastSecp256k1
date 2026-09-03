@@ -4,6 +4,7 @@
 
 #include "secp256k1/adaptor.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/tagged_hash.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/ct/point.hpp"
@@ -18,6 +19,23 @@ using fast::Point;
 using fast::Scalar;
 using fast::FieldElement;
 
+// -- Tagged-hash midstates for the adaptor domain tags -------------------------
+// Every tag below is a compile-time constant, so the SHA-256 state after the
+// 64-byte BIP-340 prefix SHA256(tag)||SHA256(tag) is fixed for the life of the
+// process. Build it once here rather than re-deriving SHA256(tag) and
+// recompressing the prefix block on every call. The digest is identical by
+// construction — the midstate IS the state after those 64 bytes, and the tag
+// STRINGS are unchanged, so the signature bytes are unchanged. The prefix is
+// exactly one whole block, so nothing is left buffered (SHA256-MIDSTATE-BOUNDARY).
+// "BIP0340/challenge" is not repeated here: detail::g_challenge_midstate in
+// tagged_hash.hpp already holds it.
+static const SHA256 g_adaptor_nonce_midstate =
+    detail::make_tag_midstate("adaptor_nonce_v1");
+static const SHA256 g_dleq_challenge_midstate =
+    detail::make_tag_midstate("ufsecp/ecdsa_adaptor_dleq_v1");
+static const SHA256 g_dleq_nonce_midstate =
+    detail::make_tag_midstate("ufsecp/ecdsa_adaptor_dleq_nonce_v1");
+
 // -- Internal: deterministic nonce for adaptor signing -------------------------
 
 static Scalar adaptor_nonce(const Scalar& privkey,
@@ -29,12 +47,9 @@ static Scalar adaptor_nonce(const Scalar& privkey,
     // Previously the tag was appended LAST, which is weaker — a collision-prone
     // scheme where the hash of (data || tag) offers no isolation from untagged
     // hash functions sharing the same prefix.
-    constexpr char domain[] = "adaptor_nonce_v1";
-    auto tag_hash = SHA256::hash(domain, sizeof(domain) - 1);
-
-    SHA256 h;
-    h.update(tag_hash.data(), 32);  // SHA256(tag) prepended twice — BIP-340 pattern
-    h.update(tag_hash.data(), 32);
+    // g_adaptor_nonce_midstate already encodes SHA256(tag)||SHA256(tag) for
+    // "adaptor_nonce_v1" — the BIP-340 prefix, absorbed but not re-derived.
+    SHA256 h = g_adaptor_nonce_midstate;
     auto sk_bytes = privkey.to_bytes();
     h.update(sk_bytes.data(), 32);
     h.update(msg, msg_len);
@@ -87,12 +102,8 @@ static Scalar adaptor_nonce(const Scalar& privkey,
 static Scalar ecdsa_adaptor_dleq_challenge(const Point& R_hat, const Point& R,
                                            const Point& T,
                                            const Point& A, const Point& B) {
-    constexpr char tag[] = "ufsecp/ecdsa_adaptor_dleq_v1";
-    auto tag_hash = SHA256::hash(reinterpret_cast<const std::uint8_t*>(tag),
-                                 sizeof(tag) - 1);
-    SHA256 h;
-    h.update(tag_hash.data(), 32);
-    h.update(tag_hash.data(), 32);
+    // "ufsecp/ecdsa_adaptor_dleq_v1" prefix, precomputed at static init.
+    SHA256 h = g_dleq_challenge_midstate;
     const Point* pts[] = {&R_hat, &R, &T, &A, &B};
     for (const Point* p : pts) {
         auto c = p->to_compressed();
@@ -112,11 +123,8 @@ static Scalar ecdsa_adaptor_dleq_nonce(const Scalar& privkey, const Scalar& k,
                                        const Point& R_hat, const Point& R,
                                        const Point& adaptor_point,
                                        const std::uint8_t* msg, std::size_t msg_len) {
-    constexpr char domain[] = "ufsecp/ecdsa_adaptor_dleq_nonce_v1";
-    auto tag_hash = SHA256::hash(domain, sizeof(domain) - 1);
-    SHA256 h;
-    h.update(tag_hash.data(), 32);
-    h.update(tag_hash.data(), 32);
+    // "ufsecp/ecdsa_adaptor_dleq_nonce_v1" prefix, precomputed at static init.
+    SHA256 h = g_dleq_nonce_midstate;
     auto sk_bytes = privkey.to_bytes();
     h.update(sk_bytes.data(), 32);
     auto k_bytes = k.to_bytes();
@@ -200,7 +208,11 @@ schnorr_adaptor_sign(const Scalar& private_key,
     std::memcpy(challenge_data, R_x.data(), 32);
     std::memcpy(challenge_data + 32, P_x.data(), 32);
     std::memcpy(challenge_data + 64, msg.data(), 32);
-    auto e_hash = tagged_hash("BIP0340/challenge", challenge_data, 96);
+    // Same digest as tagged_hash("BIP0340/challenge", ...) — the shared midstate
+    // is exactly the state after that tag's 64-byte prefix, so this only skips
+    // re-deriving a constant. Matches schnorr_challenge_scalar.
+    auto e_hash = detail::cached_tagged_hash(detail::g_challenge_midstate,
+                                             challenge_data, 96);
     Scalar e = Scalar::from_bytes(e_hash);
 
     // s = k + e * sk — CT: both k (secret nonce) and sk (secret key) are secret
@@ -257,7 +269,10 @@ bool schnorr_adaptor_verify(const SchnorrAdaptorSig& pre_sig,
     std::memcpy(challenge_data, R_x.data(), 32);
     std::memcpy(challenge_data + 32, pubkey_x.data(), 32);
     std::memcpy(challenge_data + 64, msg.data(), 32);
-    auto e_hash = tagged_hash("BIP0340/challenge", challenge_data, 96);
+    // Shared "BIP0340/challenge" midstate — byte-identical to the generic
+    // tagged_hash() call it replaces (see schnorr_adaptor_sign).
+    auto e_hash = detail::cached_tagged_hash(detail::g_challenge_midstate,
+                                             challenge_data, 96);
     Scalar const e = Scalar::from_bytes(e_hash);
 
     // Verify: s*G == R^ + e*P  (since s = k + e*d)

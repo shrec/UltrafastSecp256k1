@@ -1,5 +1,112 @@
 # Audit Changelog
 
+## 2026-09-03 — Scalar decomposition, comb geometry, wNAF scan, field-kernel inlining
+
+Four independent rewrites landed together, plus the inlining policy change. Every
+one of them fails SILENTLY when wrong — the arithmetic stays well-formed, nothing
+asserts, and the answer is simply a different point — so each is pinned by an
+independent recomputation rather than by a spot check.
+
+**GLV decomposition, both tracks.** `fast::glv_decompose` and
+`ct::ct_glv_decompose` kept libsecp's *derived* constant set (`-b1`, `-b2`, `λ`)
+instead of the raw lattice basis. `minus_b2 = n - b2` is a full 256-bit constant
+while `b2` itself is 126 bits, so every `c2` product was computed at four times
+the necessary width and then needed a wide mod-n reduction that the narrow form
+does not. Using the raw basis:
+
+    k2 = c1·mb1 − c2·b2   (mod n)      both products < 2^254 < n, already reduced
+    k1 = k − c1·a1 − c2·a2 (mod n)      a1 = b2 (126 bits), a2 = 2^128 + a2_lo
+
+The rewrite rests on the exact identity `λ·k2 = c1·a1 + c2·a2 (mod n)` — verified
+as integers, together with `(a1 + b1·λ) ≡ 0` and `(a2 + b2·λ) ≡ 0` and `λ³ ≡ 1` —
+and on operand-width bounds proved at the maximum rather than sampled: `c(k)` is
+monotone non-decreasing in `k`, so its maximum is at `k = KMAX`, evaluated at both
+`n−1` and the unreduced `2^256−1`. Two independent limb-faithful integer models —
+one of the original code including `glv_reduce_mod_n`'s N_C folding, one of the
+code as written — agree with the mathematical reference on 120,526 and 150,523
+scalars with zero mismatches. Five `static_assert`s pin `kB2 == n − kMB2` limb by
+limb so a mistyped constant is a compile error.
+
+`mul_shift_384_const` is deliberately untouched: its full 16-mac Comba keeps only
+the high half exactly as libsecp's `secp256k1_scalar_mul_shift_var` does, and its
+low columns exist to carry into column 4. Dropping them makes `c1`/`c2`
+approximate and silently breaks the proven `|k1|,|k2| < 2^128` bound.
+
+Work removed: 19 of the 67 64×64→128 multiplies per `fast::` call (67 → 48), and
+in `ct_glv_decompose` three full constant-time 256×256 multiplies collapse to four
+128×128 ones. Also gone: two mod-n reductions, a 7-limb carry loop, two 5-limb N_C
+reductions, and the serial chain `k2 → reduce → sign test → negate → multiply →
+reduce` — `c1` and `c2` now feed four mutually independent products.
+
+**A latent correctness bug removed with it.** The `>128-bit k2_abs` fallback ran a
+full 4×4 multiply into `lk8[0..7]` but `lk2` is `uint64_t[6]` and only `lk8[0..5]`
+was copied, discarding the top 128 bits. The branch is unreachable (`k2_abs` never
+exceeded 128 bits in 150,523 modelled scalars, including `n−1` and `2^256−1`), so
+this was never a live defect — but it would have been a silently wrong `k1` if the
+bound ever moved. The item-2 rewrite computes `k1` from `c1` and `c2` directly and
+never forms `λ·k2_abs`, so the guard, the fallback and the truncating copy are gone
+as a consequence rather than as a separate patch.
+
+**Comb geometry.** The generator comb's tail block lost two teeth and `COMB_BITS`
+went 264 → 256, deleting the correction point, its addition, 16
+permanently-unselectable table entries and 8 always-zero bit extractions. Those
+teeth covered bit positions 256–263, which are zero for every scalar below `n` —
+so a geometry error is invisible except at the very top of the range.
+
+**wNAF scan bound.** `compute_wnaf_into` stopped scanning all 256 bit positions
+and now stops at the scalar's top set bit; three trailing-zero trim loops that
+could provably never iterate were deleted. Both rest on the digit invariant
+`out_len = last_set + 1` with the last digit odd: the digit branch is entered only
+when the scalar bit differs from the carry, so bit 0 of `extracted + carry` is 1
+and subtracting `carry << w` (w ≥ 2) cannot clear it.
+
+**Also:** `batch_z_inv` converts each Z once instead of twice; `batch_to_compressed`
+and `batch_x_only_bytes` write in place; four adaptor tagged-hash sites moved to a
+midstate. The generic `tagged_hash(const char*, …)` in `schnorr.cpp` was **rejected**
+— it is generic over the tag and cannot key a fixed midstate.
+
+**Field-kernel inlining.** `fe52_mul_inner` and `fe52_sqr_inner` carried
+`__attribute__((optimize("O2"), noinline))` — two stacked blockers, since on GCC
+the `optimize()` attribute alone prevents inlining into a caller built with
+different options. libsecp256k1 v0.8.0 (PR #1859) force-inlined the equivalent
+routines; measured here against v0.8.0 in the same binary and harness, warm run
+versus warm run with the unmodified libsecp/OpenSSL rows as the control at +0.01%
+median drift: **90 of 104 engine operations ≥ 500 ns improved by more than 2%, one
+regressed.** Standing against the current libsecp release moved from 0.92×/0.93× to
+**1.00×/1.01×** on ECDSA/Schnorr verify, and CT signing from 1.28×/1.19× to
+**1.35×/1.27×**. Enabled on x86-64 only: the library grows 14.84% (libsecp reported
+4.6%; this engine has roughly three times the field-mul call sites), and ARM64,
+RISC-V and the embedded targets have far smaller instruction caches and have not
+been measured. Override with `-DUFSECP_FE52_FORCE_INLINE_KERNELS=0/1`.
+
+**Mutation-artifact scanner updated, not silenced.** MA-1b asserted the presence
+of `while (len_a_hi > 0 …)`, which is gone with the trim loops. MA-1a — the
+absence check for the dangerous `>= 0` form that reads `wnaf[-1]` — is untouched
+and still fires whether or not the loops ever return. MA-1b's job was to stop MA-1a
+passing vacuously on an unreadable or truncated file, so its canary now pins the
+`compute_wnaf_into` call sites, which still exist. Together the two now assert:
+the wNAF recoding sites are present, and none of them is followed by a `>= 0` trim
+loop.
+
+**Tests.** `audit/test_regression_scalar_decomposition_and_comb.cpp`
+(`math_invariants`, blocking, wired with a standalone CTest target). Its corpus is
+515 boundary scalars — `n−1`, `n−2`, and every `2^i` and `2^i − 1` — chosen because
+that is exactly where a width bound, a comb-geometry change and a top-digit scan
+bound each break first. Every check runs against an independent route to the same
+value: `k·P` against `(k−1)·P + P`, `fast::` against `ct::`, `a·G + b·P` against two
+separate single-base multiplications, and batch serialisation against per-point
+serialisation including a `Z == 1` row and an infinity row. 10/10 checks pass.
+
+**Measurement note.** The point-kernel force-inline variant (`jac52_double`,
+`jac52_add_mixed`, `jac52_add`, `jac52_add_inplace`, `jac52_add_zinv_inplace`,
+`jac52_dblu`, `jac52_zaddu_zr`, `jac52_add_mixed_inplace_zr`; +1.63% code) is built
+and correctness-verified but **not yet decided** — three attempts to measure it
+were rejected by their own control rows, twice because background load reached
+cpu0 and once because the largest binary perturbs the libsecp code it is being
+compared against, libsecp being linked into the same binary. It needs a quiet
+machine. See `BENCH-FIRST-TOUCH-ARTIFACT` in the knowledge base before reading any
+`bench_unified` A/B between builds of different size.
+
 ## 2026-09-02 — Schnorr batch weight lost its seed (`exploit_batch_weight_seed_binding`)
 
 - **Soundness defect, found and fixed.** `schnorr_batch_verify` accepted batches

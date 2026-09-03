@@ -956,6 +956,61 @@ void add_affine_fast_ct(CTJacobianPoint* out,
     out->infinity = 0;
 }
 
+// -- Incomplete CT mixed add specialised for Z1 == 1 -------------------------
+// add_affine_fast_ct with Z1 = 1 substituted.  That turns five of its field
+// operations into identities: Z1Z1 = 1, U2 = b.x, both halves of S2 = b.y,
+// and Z3 = H.  Used for the comb's first mixed addition, where the accumulator
+// was loaded straight out of an affine table entry one statement earlier.
+// The peel is keyed on the block index, a public loop counter, never on the
+// scalar, so the CT profile is unchanged.
+//
+// MAGNITUDES -- the part that must not be got wrong:
+//  * U2 := b.x is magnitude 1, exactly what the multiply it replaces emitted,
+//    so H is still 20 and the negate(18) literal must NOT be lowered.
+//  * S2 := b.y is the one magnitude that changes.  comb_lookup may hand back
+//    the conditionally negated y, which is magnitude 2 where a multiply would
+//    have emitted magnitude 1, so R becomes 13 instead of 12.  R is only ever
+//    squared or multiplied after this, and the lazy-add headroom is ~4096, so
+//    13 is far inside the contract.
+//  * Z3 := H would hand the next iteration a magnitude-20 Z, so it is
+//    normalize_weak'd back to magnitude 1 for less than the cost of a multiply.
+//  * X3 (7) and Y3 (3) are unchanged.
+__attribute__((always_inline)) inline
+void add_affine_fast_ct_z1(CTJacobianPoint* out,
+                            const CTJacobianPoint& a,
+                            const CTAffinePoint& b) noexcept {
+    FE52 const& X1 = a.x;
+    FE52 const& Y1 = a.y;
+
+    FE52 H = b.x;                            // U2 = b.x*Z1^2 with Z1 == 1
+    H.add_assign(X1.negate(18));            // H = U2-X1  (X1 mag<=18)
+    FE52 R = b.y;                            // S2 = b.y*Z1^3 with Z1 == 1
+    R.add_assign(Y1.negate(10));            // R = S2-Y1  (mag 13, see above)
+
+    FE52 Z3 = H;                             // Z3 = H*Z1 with Z1 == 1
+    Z3.normalize_weak();                     // back to magnitude 1
+
+    FE52 const HH   = H.square();           // H^2          [1S]
+    FE52 const HHH  = HH * H;               // H^3          [1M]
+    FE52 const U1HH = X1 * HH;              // X1*H^2       [1M]
+
+    FE52 const RR   = R.square();           // R^2          [1S]
+    FE52 X3 = RR;
+    X3.add_assign(HHH.negate(1));           // R^2-H^3
+    X3.add_assign(U1HH.negate(1));
+    X3.add_assign(U1HH.negate(1));         // R^2-H^3-2*X1*H^2 = X3  (mag=7)
+
+    FE52 Y3 = U1HH;
+    Y3.add_assign(X3.negate(7));            // X1*H^2 - X3  (X3 mag=7)
+    Y3.mul_assign(R);                       // R*(X1*H^2 - X3) [1M]
+    Y3.add_assign((Y1 * HHH).negate(1));   // - Y1*H^3       [1M]
+
+    out->x = X3;
+    out->y = Y3;
+    out->z = Z3;
+    out->infinity = 0;
+}
+
 // HAMBURG=true: skip degenerate case detection (provably impossible with
 // the Hamburg scalar encoding). Keeps the same formula structure as the
 // general case for optimal ILP, but removes fe52_normalizes_to_zero()
@@ -1130,117 +1185,27 @@ static std::array<std::uint64_t, 4> ct_mul_shift_384(
     return result;
 }
 
-// --- Secp256k1 order-specific 512->256 scalar reduction ----------------------
-// Reduces a 512-bit product modulo n = 2^256 - {NC0, NC1, 1, 0}.
-// Three phases: 512->385->258->256 bits. Constant-time.
-// Adapted from bitcoin-core/secp256k1 scalar_4x64_impl.h (MIT license).
-static constexpr std::uint64_t ORDER[4] = {
-    0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
-    0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
-};
-static constexpr std::uint64_t NC0 = 0x402DA1732FC9BEBFULL; // ~ORDER[0]+1
-static constexpr std::uint64_t NC1 = 0x4551231950B75FC4ULL; // ~ORDER[1]
-// NC2 = 1, NC3 = 0
-
-// --- Full 256x256 -> mod n multiply (CT, 5x52 path) -------------------------
-// 4x4 schoolbook -> 8 limbs -> 3-phase secp256k1-specific reduce_512.
-// Adapted from bitcoin-core/secp256k1 scalar_4x64_impl.h (MIT license).
-// Uses __int128 for the carry chain (available on gcc/clang).
-static Scalar ct_scalar_mul_mod_n(const Scalar& a, const Scalar& b) noexcept {
-    const auto& al = a.limbs();
-    const auto& bl = b.limbs();
-
-    // --- 4x4 schoolbook multiply -> 8-limb product l[0..7] ---
-    std::uint64_t l[8] = {};
-    for (size_t i = 0; i < 4; ++i) {
+// --- CT 128x128 -> 256 multiply ----------------------------------------------
+// Every product in ct_glv_decompose pairs a <=128-bit rounding quotient with a
+// <=128-bit lattice constant, so a 2x2 schoolbook is exact.  The operand WIDTH
+// is a property of the fixed constants and of the rounding step -- c1 < 2^126
+// and c2 < 2^128 hold for EVERY k, not just for the k in hand -- so the narrow
+// form is width-invariant: fixed trip counts, no branch, no data-dependent
+// index, nothing observable that depends on the secret scalar.
+static inline void ct_mul_2x2(std::uint64_t r[4],
+                               const std::uint64_t a[2],
+                               const std::uint64_t b[2]) noexcept {
+    r[0] = 0; r[1] = 0; r[2] = 0; r[3] = 0;
+    for (std::size_t i = 0; i < 2; ++i) {
         unsigned __int128 carry = 0;
-        for (size_t j = 0; j < 4; ++j) {
-            unsigned __int128 const t = (unsigned __int128)al[i] * bl[j] + l[i + j] + carry;
-            l[i + j] = (std::uint64_t)t;
+        for (std::size_t j = 0; j < 2; ++j) {
+            unsigned __int128 const t = static_cast<unsigned __int128>(a[i]) * b[j]
+                                + r[i + j] + carry;
+            r[i + j] = static_cast<std::uint64_t>(t);
             carry = t >> 64;
         }
-        l[i + 4] = (std::uint64_t)carry;
+        r[i + 2] = static_cast<std::uint64_t>(carry);
     }
-
-    // --- Phase 1: reduce 512 -> 385 bits ---
-    // m[0..6] = l[0..3] + l[4..7] * NC  (NC = {NC0, NC1, 1, 0})
-    std::uint64_t const n0 = l[4], n1 = l[5], n2 = l[6], n3 = l[7];
-    unsigned __int128 c = 0;
-
-    c = (unsigned __int128)n0 * NC0 + l[0];
-    auto const m0 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)n1 * NC0 + (unsigned __int128)n0 * NC1 + l[1];
-    auto const m1 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)n2 * NC0 + (unsigned __int128)n1 * NC1 + n0 + l[2];
-    auto const m2 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)n3 * NC0 + (unsigned __int128)n2 * NC1 + n1 + l[3];
-    auto const m3 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)n3 * NC1 + n2;
-    auto const m4 = (std::uint64_t)c; c >>= 64;
-
-    c += n3;
-    auto const m5 = (std::uint64_t)c;
-    auto const m6 = (std::uint32_t)(c >> 64);  // <= 1
-
-    // --- Phase 2: reduce 385 -> 258 bits ---
-    // p[0..4] = m[0..3] + m[4..6] * NC
-    c = (unsigned __int128)m4 * NC0 + m0;
-    auto const p0 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)m5 * NC0 + (unsigned __int128)m4 * NC1 + m1;
-    auto const p1 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)m6 * NC0 + (unsigned __int128)m5 * NC1 + m4 + m2;
-    auto const p2 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)m6 * NC1 + m5 + m3;
-    auto const p3 = (std::uint64_t)c; c >>= 64;
-
-    std::uint32_t const p4 = (std::uint32_t)c + m6;  // <= 2
-
-    // --- Phase 3: reduce 258 -> 256 bits ---
-    // r[0..3] = p[0..3] + p4 * NC
-    c = (unsigned __int128)p4 * NC0 + p0;
-    auto const r0 = (std::uint64_t)c; c >>= 64;
-
-    c += (unsigned __int128)p4 * NC1 + p1;
-    auto const r1 = (std::uint64_t)c; c >>= 64;
-
-    c += (std::uint64_t)p4 + p2;
-    auto const r2 = (std::uint64_t)c; c >>= 64;
-
-    c += p3;
-    auto const r3 = (std::uint64_t)c;
-    auto const final_c = (unsigned)(c >> 64);
-
-    // --- Final reduction: subtract n if r >= n ---
-    std::uint64_t r_arr[4] = {r0, r1, r2, r3};
-
-    // check_overflow: r >= n?
-    int yes = 0, no = 0;
-    no |= (r3 < ORDER[3]);
-    no |= (r2 < ORDER[2]);
-    yes |= (r2 > ORDER[2]) & ~no;
-    no |= (r1 < ORDER[1]);
-    yes |= (r1 > ORDER[1]) & ~no;
-    yes |= (r0 >= ORDER[0]) & ~no;
-    unsigned const overflow = final_c + static_cast<unsigned>(yes);
-
-    // reduce: r -= overflow * n  (overflow is 0 or 1)
-    c = (unsigned __int128)r_arr[0] + (unsigned __int128)overflow * NC0;
-    r_arr[0] = (std::uint64_t)c; c >>= 64;
-    c += (unsigned __int128)r_arr[1] + (unsigned __int128)overflow * NC1;
-    r_arr[1] = (std::uint64_t)c; c >>= 64;
-    c += r_arr[2] + (std::uint64_t)overflow;  // NC2 = 1
-    r_arr[2] = (std::uint64_t)c; c >>= 64;
-    c += r_arr[3];
-    r_arr[3] = (std::uint64_t)c;
-
-    return Scalar::from_limbs({r_arr[0], r_arr[1], r_arr[2], r_arr[3]});
 }
 
 // --- beta (beta) as FE52 -- cube root of unity mod p ----------------------------
@@ -1258,12 +1223,6 @@ static constexpr std::array<std::uint64_t, 4> kG1{{
 static constexpr std::array<std::uint64_t, 4> kG2{{
     0x1571B4AE8AC47F71ULL, 0x221208AC9DF506C6ULL,
     0x6F547FA90ABFE4C4ULL, 0xE4437ED6010E8828ULL
-}};
-static constexpr std::array<std::uint8_t, 32> kLambdaBytes{{
-    0x53,0x63,0xAD,0x4C,0xC0,0x5C,0x30,0xE0,
-    0xA5,0x26,0x1C,0x02,0x88,0x12,0x64,0x5A,
-    0x12,0x2E,0x22,0xEA,0x20,0x81,0x66,0x78,
-    0xDF,0x02,0x96,0x7C,0x1B,0x23,0xBD,0x72
 }};
 
 } // anonymous namespace (GLV CT helpers)
@@ -1299,39 +1258,62 @@ CTAffinePoint affine_neg(const CTAffinePoint& p) noexcept {
 // --- CT GLV Decomposition (full scalar_mul mod n, matches libsecp256k1) ------
 
 CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
-    static const Scalar lambda = Scalar::from_bytes(kLambdaBytes);
-
-    // GLV lattice basis constants as FULL Scalars (256-bit mod n).
-    // minus_b1 = -b1 mod n  (128-bit, upper limbs zero)
-    // minus_b2 = -b2 mod n  (full 256-bit!)
-    // These match libsecp256k1's constants exactly.
-    static const Scalar minus_b1 = Scalar::from_limbs({
-        0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL, 0ULL, 0ULL
-    });
-    static const Scalar minus_b2 = Scalar::from_limbs({
-        0xD765CDA83DB1562CULL, 0x8A280AC50774346DULL,
-        0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
-    });
+    // Raw GLV lattice basis, low 128 bits only.  libsecp256k1 publishes the
+    // DERIVED constant set (-b1, -b2, lambda); -b2 = n - b2 is a full 256-bit
+    // number even though b2 itself is 126 bits, which forces a 256x256 multiply
+    // plus a wide mod-n reduction for every c2 term, and then a third 256x256
+    // multiply by lambda to recover k1.  Working from the raw basis instead keeps
+    // all four products inside 2x2:
+    //   -b1  = 0xE4437ED6010E8828_6F547FA90ABFE4C3   (128 bits)
+    //    b2  = 0x3086D221A7D46BCD_E86C90E49284EB15   (126 bits), and a1 == b2
+    //    a2  = 2^128 + kA2Lo, kA2Lo = 125 bits
+    // The lattice relations a1 + b1*lambda == 0 (mod n) and a2 + b2*lambda == 0
+    // (mod n) hold exactly, so
+    //   lambda*k2 = lambda*(-c1*b1 - c2*b2) = c1*a1 + c2*a2   (mod n)
+    // and k1 needs no lambda multiply at all -- the 2^128 half of a2 is a limb
+    // placement, not a multiply.
+    static constexpr std::uint64_t kMinusB1[2] = {
+        0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL
+    };
+    static constexpr std::uint64_t kB2[2] = {          // b2, and a1 == b2
+        0xE86C90E49284EB15ULL, 0x3086D221A7D46BCDULL
+    };
+    static constexpr std::uint64_t kA2Lo[2] = {        // a2 - 2^128
+        0x57C1108D9D44CFD8ULL, 0x14CA50F7A8E2F3F6ULL
+    };
 
     auto k_limbs = k.limbs();
     auto c1_limbs = ct_mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG1);
     auto c2_limbs = ct_mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG2);
 
-    // Full 256x256 scalar multiply mod n for both terms.
-    // k2 = c1*(-b1) + c2*(-b2) mod n  (libsecp256k1 formula)
-    Scalar const c1_sc = Scalar::from_limbs({c1_limbs[0], c1_limbs[1], c1_limbs[2], c1_limbs[3]});
-    Scalar const c2_sc = Scalar::from_limbs({c2_limbs[0], c2_limbs[1], c2_limbs[2], c2_limbs[3]});
-    Scalar const p1     = ct_scalar_mul_mod_n(c1_sc, minus_b1);
-    Scalar const p2     = ct_scalar_mul_mod_n(c2_sc, minus_b2);
-    Scalar const k2_mod = scalar_add(p1, p2);
+    // Width bounds, valid for EVERY 4-limb k (c1 and c2 are monotonic in k, so
+    // evaluating at the largest 4-limb input k = 2^256-1 bounds them all):
+    //   c1 <= 2^126 and c2 <= 2^128, hence c1_limbs[2..3] and c2_limbs[2..3] are
+    //   always zero and reading only the low two limbs cannot depend on k.
+    //   c1*(-b1) < 2^254, c2*b2 < 2^254, c1*a1 < 2^252, c2*kA2Lo < 2^253,
+    //   c1*a1 + c2*kA2Lo < 2^253, and c2*2^128 < n - 2^253.
+    // Every product is therefore already reduced -- no mod-n reduction anywhere.
+    std::uint64_t mb1c1[4], b2c2[4], a1c1[4], a2c2[4];
+    ct_mul_2x2(mb1c1, c1_limbs.data(), kMinusB1);
+    ct_mul_2x2(b2c2,  c2_limbs.data(), kB2);
+    ct_mul_2x2(a1c1,  c1_limbs.data(), kB2);
+    ct_mul_2x2(a2c2,  c2_limbs.data(), kA2Lo);
+
+    // k2 = c1*(-b1) - c2*b2 mod n.  scalar_sub is the branchless mod-n
+    // subtract (borrow mask + cmov256), so the wrap is a cmov, never a branch.
+    Scalar const k2_mod = scalar_sub(
+        Scalar::from_limbs({mb1c1[0], mb1c1[1], mb1c1[2], mb1c1[3]}),
+        Scalar::from_limbs({b2c2[0], b2c2[1], b2c2[2], b2c2[3]}));
 
     std::uint64_t const k2_high = ct_scalar_is_high(k2_mod);
     Scalar const k2_abs = scalar_cneg(k2_mod, k2_high);
 
-    // k1 = k - k2*lambda mod n (full scalar multiply)
-    Scalar const lambda_k2 = scalar_cneg(
-        ct_scalar_mul_mod_n(lambda, k2_abs), k2_high);
-    Scalar const k1_mod = scalar_sub(k, lambda_k2);
+    // k1 = k - lambda*k2 = k - c1*a1 - c2*kA2Lo - c2*2^128 mod n.
+    Scalar const lambda_k2 = scalar_add(
+        Scalar::from_limbs({a1c1[0], a1c1[1], a1c1[2], a1c1[3]}),
+        Scalar::from_limbs({a2c2[0], a2c2[1], a2c2[2], a2c2[3]}));
+    Scalar const c2_shifted = Scalar::from_limbs({0, 0, c2_limbs[0], c2_limbs[1]});
+    Scalar const k1_mod = scalar_sub(scalar_sub(k, lambda_k2), c2_shifted);
 
     std::uint64_t const k1_high = ct_scalar_is_high(k1_mod);
     Scalar const k1_abs = scalar_cneg(k1_mod, k1_high);
@@ -1941,30 +1923,43 @@ Point scalar_mul_prebuilt_fast(const CTScalarMulTables& tables,
 // --- CT Generator Multiplication (5x52) -- Comb Method -----------------------
 // Uses signed-digit multi-comb (adapted from bitcoin-core/secp256k1).
 //
-// Parameters: COMB_TEETH=6, COMB_BLOCKS=11, COMB_SPACING=4.
-//   COMB_BITS = 11*6*4 = 264 >= 256 (8 extra bits corrected at end).
+// Parameters: COMB_TEETH=6, COMB_BLOCKS=11, COMB_SPACING=4, with the LAST
+// block short: blocks 0..9 carry 6 teeth, block 10 carries 4.  That makes
+// COMB_BITS = 10*6*4 + 4*4 = 256 exactly, so every bit of v is covered once
+// and no bit beyond 255 is ever addressed.
 //
 // Hamburg encoding: v = (k + K_gen) / 2 mod n, bits of v become {+1,-1} signs.
 // Outer loop over COMB_SPACING (4 iterations with 3 doublings between them).
-// Inner loop over COMB_BLOCKS (11 blocks): lookup + unified add.
+// Inner loop over the 10 six-tooth blocks plus the short tail block.
 //
 // For block b at spacing offset s, comb digit gathers bits at positions:
 //   tooth t -> (b * COMB_TEETH + t) * COMB_SPACING + s
-// Each digit -> 6-bit unsigned -> signed table lookup (32 entries).
+// The short block keeps that same base index (b * COMB_TEETH), so its four
+// teeth land on 240..255 and the block set tiles 0..255 exactly.
+// Each digit -> teeth-bit unsigned -> signed table lookup (2^(teeth-1) entries).
 //
-// Since 264 > 256, bits 256-263 of v are 0 (treated as sign=-1).
-// Correction: add precomputed (2^264 - 2^256)*G after the main loop.
+// The identity sum_{i<256} 2^i = 2^256 - 1 = K_gen is what makes the comb
+// exact: sum (2*bit_i - 1)*2^i*G = (2v - (2^256-1))*G = k*G.  A comb wider
+// than 256 bits would leave a residue and need a correction point added at the
+// end; at exactly 256 bits there is nothing left to correct.
 //
-// Runtime: 43 additions + 44 lookups (31 cmovs each) + 3 doublings + 1 correction.
-// Table: 11 blocks x 32 entries = 352 affine points ~= 31 KB (fits L1D).
+// Runtime: 43 additions + 44 lookups + 3 doublings, no correction.
+// Table: 10 blocks x 32 entries + 1 block x 8 entries = 328 affine points.
 
 namespace {
 
 constexpr unsigned COMB_TEETH   = 6;
 constexpr unsigned COMB_BLOCKS  = 11;    // 11 blocks with spacing 4
-constexpr unsigned COMB_SPACING = 4;     // ceil(256 / (11*6)) = 4
-constexpr unsigned COMB_BITS    = COMB_BLOCKS * COMB_TEETH * COMB_SPACING;  // 264
-constexpr std::size_t COMB_TABLE_SIZE = 1u << (COMB_TEETH - 1);  // 32
+constexpr unsigned COMB_SPACING = 4;
+// The last block is short so the comb spans exactly 256 bits.
+constexpr unsigned COMB_FULL_BLOCKS = COMB_BLOCKS - 1;   // 10 six-tooth blocks
+constexpr unsigned COMB_TAIL_TEETH  = 4;                 // block 10 has 4 teeth
+constexpr unsigned COMB_BITS =
+    COMB_FULL_BLOCKS * COMB_TEETH * COMB_SPACING + COMB_TAIL_TEETH * COMB_SPACING;
+static_assert(COMB_BITS == 256,
+              "comb must tile exactly 256 bits: K_gen = 2^256-1 assumes it");
+constexpr std::size_t COMB_TABLE_SIZE      = 1u << (COMB_TEETH - 1);       // 32
+constexpr std::size_t COMB_TAIL_TABLE_SIZE = 1u << (COMB_TAIL_TEETH - 1);  // 8
 
 // Hamburg constant: K_gen = (2^256 - 1) mod n
 static constexpr std::uint64_t K_GEN[4] = {
@@ -1975,8 +1970,8 @@ static constexpr std::uint64_t K_GEN[4] = {
 };
 
 struct alignas(64) CombGenTable {
-    CTAffinePoint entries[COMB_BLOCKS][COMB_TABLE_SIZE];
-    CTAffinePoint correction;  // (2^264 - 2^256)*G for 264-bit correction
+    CTAffinePoint entries[COMB_FULL_BLOCKS][COMB_TABLE_SIZE];
+    CTAffinePoint tail[COMB_TAIL_TABLE_SIZE];  // short last block
     // Note: no default member initializer — BSS guarantees zero (= false) at startup.
     // Default member init would generate a global constructor on MCUs.
     bool initialized;
@@ -1985,59 +1980,78 @@ struct alignas(64) CombGenTable {
 static CombGenTable g_comb_table;
 static std::once_flag g_comb_table_once;
 
-// -- Extract 6-bit comb digit from scattered bit positions --------------------
+// -- Extract a comb digit from scattered bit positions ------------------------
 // For block b at spacing offset comb_off: gather bit at position
 //   (b * COMB_TEETH + tooth) * COMB_SPACING + comb_off
-// for each tooth. Bits beyond 255 are treated as 0 (v is 256 bits).
+// for each of the block's teeth.  `teeth` is COMB_TEETH for blocks 0..9 and
+// COMB_TAIL_TEETH for the short last block — a property of the block index,
+// which is a public loop counter.
 inline std::uint64_t extract_comb_digit(const Scalar& v,
                                          unsigned block,
-                                         unsigned comb_off) noexcept {
+                                         unsigned comb_off,
+                                         unsigned teeth) noexcept {
+    // The teeth of one (block, comb_off) digit sit at base, base+4, ...,
+    // spanning (teeth-1)*4 + 1 contiguous bit positions across at most two
+    // limbs, so a single window read replaces `teeth` scalar_bit calls.
+    // scalar_bit rescans all four limbs behind a mask because it assumes the
+    // index may be secret; here block, comb_off and teeth are all loop-derived,
+    // so base is public.  Only the bits returned are secret and they are still
+    // combined branchlessly.  The highest position read is 243 + 12 = 255, so
+    // the comb never addresses a bit outside the scalar.
+    unsigned const span = (teeth - 1) * COMB_SPACING + 1;
+    std::size_t const base = static_cast<std::size_t>(block) * COMB_TEETH
+                             * COMB_SPACING + comb_off;
+    std::uint64_t const window = scalar_window(v, base, span);
+
     std::uint64_t digit = 0;
-    for (unsigned tooth = 0; tooth < COMB_TEETH; ++tooth) {
-        std::size_t const pos = (static_cast<std::size_t>(block) * COMB_TEETH
-                                 + tooth) * COMB_SPACING + comb_off;
-        std::uint64_t const bit = (pos < 256) ? scalar_bit(v, pos) : 0;
-        digit |= bit << tooth;
+    for (unsigned tooth = 0; tooth < teeth; ++tooth) {
+        digit |= ((window >> (tooth * COMB_SPACING)) & 1) << tooth;
     }
     return digit;
 }
 
-// -- CT lookup from 32-entry signed comb table --------------------------------
-// Table stores entries for unsigned values 32..63 (bit5=1).
-// For values 0..31 (bit5=0): look up complement index and negate Y.
+// -- CT lookup from a signed comb table ---------------------------------------
+// A TEETH-tooth block stores 2^(TEETH-1) entries, those for unsigned values
+// with the top bit set.  For values with the top bit clear: look up the
+// complement index and negate Y.
 //
-// Identity: table_u[d] = -table_u[63-d]  (complementary signs)
-// table_s[idx] = table_u[idx | 32] = table_u[idx + 32]
+// Identity: table_u[d] = -table_u[(2^TEETH - 1) - d]  (complementary signs)
+// table_s[idx] = table_u[idx | 2^(TEETH-1)]
 //
-// For din[32,63] (bit5=1): idx = d & 31, point = table_s[idx]
-// For din[0,31]  (bit5=0): idx = 31-(d&31), point = -table_s[idx]
+// top bit 1: idx = d & (SIZE-1),        point =  table_s[idx]
+// top bit 0: idx = (SIZE-1) - (d&SIZE-1), point = -table_s[idx]
+//
+// TEETH is a template parameter because it is fixed per block index (a public
+// loop counter), so the scan length is the same for every scalar: the timing
+// pattern is 32,32,...,32,8 per outer iteration regardless of the secret.
 //
 // AVX2 path: same XOR/AND blending technique as table_lookup_core.
 // Each CTAffinePoint is 80 bytes (x.n[5] + y.n[5] = 10 × 8 bytes).
 // Layout fits in 2.5 ymm256 registers: r0 (x.n[0..3]), r1 (x.n[4], y.n[0..2]),
 // r2_128 (y.n[3..4], 16 bytes).
-// The 32-entry scan reduces from ~31×12 scalar ops to ~31×5 AVX2 ops.
+template <unsigned TEETH>
 static inline
 void comb_lookup(CTAffinePoint* out,
                   const CTAffinePoint* table,
                   std::uint64_t digit) noexcept {
-    std::uint64_t const top = (digit >> (COMB_TEETH - 1)) & 1;
+    constexpr std::size_t TABLE_SIZE = std::size_t{1} << (TEETH - 1);
+    std::uint64_t const top = (digit >> (TEETH - 1)) & 1;
     std::uint64_t const needs_negate = top ^ 1;  // negate if top bit is 0
     auto const neg_mask = static_cast<std::uint64_t>(
                       -static_cast<std::int64_t>(needs_negate));
 
-    std::uint64_t const d_lo = digit & (COMB_TABLE_SIZE - 1);
+    std::uint64_t const d_lo = digit & (TABLE_SIZE - 1);
 
     // index: top=1 -> d_lo; top=0 -> (TABLE_SIZE-1 - d_lo)
     std::uint64_t const idx_pos = d_lo;
-    std::uint64_t const idx_neg = (COMB_TABLE_SIZE - 1) - d_lo;
+    std::uint64_t const idx_neg = (TABLE_SIZE - 1) - d_lo;
     // Branchless select
     std::uint64_t const index = idx_pos ^ ((idx_pos ^ idx_neg) & neg_mask);
 
 #if SECP256K1_CT_AVX2
-    // AVX2 vectorized CT linear scan over all 32 entries.
+    // AVX2 vectorized CT linear scan over all TABLE_SIZE entries.
     // Mirrors table_lookup_core: load entry 0 into accumulators, then
-    // for m=1..31: compute eq_mask(m, index), broadcast to ymm, XOR/AND blend.
+    // for m=1..TABLE_SIZE-1: eq_mask(m, index), broadcast to ymm, XOR/AND blend.
     // Aliasing: __m256i has __may_alias__ in GCC/Clang immintrin.h -- safe.
     {
         const auto* base0 = reinterpret_cast<const char*>(&table[0].x.n[0]);
@@ -2045,7 +2059,7 @@ void comb_lookup(CTAffinePoint* out,
         __m256i r1 = _mm256_loadu_si256(reinterpret_cast<const __m256i*>(base0 + 32));  // x.n[4], y.n[0..2]
         __m128i r2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(base0 + 64));     // y.n[3..4]
 
-        for (std::size_t m = 1; m < COMB_TABLE_SIZE; ++m) {
+        for (std::size_t m = 1; m < TABLE_SIZE; ++m) {
             std::uint64_t const eq = eq_mask(static_cast<std::uint64_t>(m), index);
             __m256i const vmask   = _mm256_set1_epi64x(static_cast<long long>(eq));
             __m128i const vmask128 = _mm_set1_epi64x(static_cast<long long>(eq));
@@ -2068,10 +2082,10 @@ void comb_lookup(CTAffinePoint* out,
         _mm_storeu_si128(reinterpret_cast<__m128i*>(dst + 64), r2);
     }
 #else
-    // CT linear scan over all 32 entries (scalar fallback)
+    // CT linear scan over all TABLE_SIZE entries (scalar fallback)
     out->x = table[0].x;
     out->y = table[0].y;
-    for (std::size_t m = 1; m < COMB_TABLE_SIZE; ++m) {
+    for (std::size_t m = 1; m < TABLE_SIZE; ++m) {
         std::uint64_t const mask = eq_mask(static_cast<std::uint64_t>(m), index);
         fe52_cmov(&out->x, table[m].x, mask);
         fe52_cmov(&out->y, table[m].y, mask);
@@ -2086,6 +2100,64 @@ void comb_lookup(CTAffinePoint* out,
     out->infinity = 0;
 }
 
+// -- Build one block's signed table -------------------------------------------
+// entry[idx] = P_{TEETH-1} + sum_{j < TEETH-1} (2*bit_j(idx) - 1) * P_j,
+// where P_t = bases[base_off + t].  Shared by the six-tooth blocks and the
+// four-tooth tail so both geometries come from one piece of code.
+template <unsigned TEETH>
+void build_comb_block(CTAffinePoint* dst, const Point* bases,
+                       unsigned base_off) noexcept {
+    constexpr std::size_t TABLE_SIZE = std::size_t{1} << (TEETH - 1);
+
+    // Convert teeth base points to affine for efficient construction
+    FE52 zs[TEETH], z_invs[TEETH];
+    for (unsigned t = 0; t < TEETH; ++t) {
+        zs[t] = bases[base_off + t].Z52();
+    }
+    fe52_batch_inverse(z_invs, zs, TEETH);
+
+    FE52 aff_x[TEETH], aff_y[TEETH];
+    for (unsigned t = 0; t < TEETH; ++t) {
+        FE52 const zi2 = z_invs[t].square();
+        FE52 const zi3 = zi2 * z_invs[t];
+        aff_x[t] = bases[base_off + t].X52() * zi2;
+        aff_y[t] = bases[base_off + t].Y52() * zi3;
+        aff_x[t].normalize();
+        aff_y[t].normalize();
+    }
+
+    Point entries_jac[TABLE_SIZE];
+
+    for (std::size_t idx = 0; idx < TABLE_SIZE; ++idx) {
+        // Start with +P_{TEETH-1} (always positive in the signed table)
+        Point entry = Point::from_affine52(aff_x[TEETH - 1], aff_y[TEETH - 1]);
+
+        for (unsigned j = 0; j < TEETH - 1; ++j) {
+            FE52 const py = ((idx >> j) & 1) ? aff_y[j] : aff_y[j].negate(1);
+            Point const pj = Point::from_affine52(aff_x[j], py);
+            entry = entry.add(pj);
+        }
+        entries_jac[idx] = entry;
+    }
+
+    // Batch-invert Z coordinates and store as affine
+    FE52 ent_zs[TABLE_SIZE], ent_zis[TABLE_SIZE];
+    for (std::size_t idx = 0; idx < TABLE_SIZE; ++idx) {
+        ent_zs[idx] = entries_jac[idx].Z52();
+    }
+    fe52_batch_inverse(ent_zis, ent_zs, TABLE_SIZE);
+
+    for (std::size_t idx = 0; idx < TABLE_SIZE; ++idx) {
+        FE52 const zi2 = ent_zis[idx].square();
+        FE52 const zi3 = zi2 * ent_zis[idx];
+        dst[idx].x = entries_jac[idx].X52() * zi2;
+        dst[idx].y = entries_jac[idx].Y52() * zi3;
+        dst[idx].x.normalize();
+        dst[idx].y.normalize();
+        dst[idx].infinity = 0;
+    }
+}
+
 // -- Build comb table ---------------------------------------------------------
 void build_comb_table() noexcept {
     Point const G = Point::generator();
@@ -2093,8 +2165,11 @@ void build_comb_table() noexcept {
     // Step 1: Compute base points for all (block, tooth) pairs.
     // For block b, tooth t: base = 2^((b*COMB_TEETH + t) * COMB_SPACING) * G
     //                             = 2^((b*6 + t)*4) * G
-    // Total: COMB_BLOCKS * COMB_TEETH = 66 base points.
-    constexpr unsigned NUM_BASES = COMB_BLOCKS * COMB_TEETH;  // 66
+    // The tail block continues the same index run, so the bases are
+    // 10*6 + 4 = 64 consecutive powers and cover exactly bits 0..255.
+    constexpr unsigned NUM_BASES =
+        COMB_FULL_BLOCKS * COMB_TEETH + COMB_TAIL_TEETH;  // 64
+    static_assert(NUM_BASES * COMB_SPACING == COMB_BITS, "base run must tile COMB_BITS");
     Point bases[NUM_BASES];
     bases[0] = G;
     for (unsigned i = 1; i < NUM_BASES; ++i) {
@@ -2104,87 +2179,13 @@ void build_comb_table() noexcept {
         }
     }
 
-    // Step 2: For each block b, build signed table from 6 base points.
-    for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
-        // Teeth for block b are at indices b*6 + t, for t = 0..5
-        unsigned const base_off = b * COMB_TEETH;
-
-        // Convert teeth base points to affine for efficient construction
-        FE52 zs[COMB_TEETH], z_invs[COMB_TEETH];
-        for (unsigned t = 0; t < COMB_TEETH; ++t) {
-            zs[t] = bases[base_off + t].Z52();
-        }
-        fe52_batch_inverse(z_invs, zs, COMB_TEETH);
-
-        FE52 aff_x[COMB_TEETH], aff_y[COMB_TEETH];
-        for (unsigned t = 0; t < COMB_TEETH; ++t) {
-            FE52 const zi2 = z_invs[t].square();
-            FE52 const zi3 = zi2 * z_invs[t];
-            aff_x[t] = bases[base_off + t].X52() * zi2;
-            aff_y[t] = bases[base_off + t].Y52() * zi3;
-            aff_x[t].normalize();
-            aff_y[t].normalize();
-        }
-
-        // Build all 32 signed entries.
-        Point entries_jac[COMB_TABLE_SIZE];
-
-        for (unsigned idx = 0; idx < COMB_TABLE_SIZE; ++idx) {
-            // Start with +P_5 (always positive for tooth 5 in signed table)
-            Point entry = Point::from_affine52(aff_x[COMB_TEETH - 1],
-                                                aff_y[COMB_TEETH - 1]);
-
-            for (unsigned j = 0; j < COMB_TEETH - 1; ++j) {
-                FE52 const py = ((idx >> j) & 1) ? aff_y[j] : aff_y[j].negate(1);
-                Point const pj = Point::from_affine52(aff_x[j], py);
-                entry = entry.add(pj);
-            }
-            entries_jac[idx] = entry;
-        }
-
-        // Batch-invert Z coordinates and store as affine
-        FE52 ent_zs[COMB_TABLE_SIZE], ent_zis[COMB_TABLE_SIZE];
-        for (unsigned idx = 0; idx < COMB_TABLE_SIZE; ++idx) {
-            ent_zs[idx] = entries_jac[idx].Z52();
-        }
-        fe52_batch_inverse(ent_zis, ent_zs, COMB_TABLE_SIZE);
-
-        for (unsigned idx = 0; idx < COMB_TABLE_SIZE; ++idx) {
-            FE52 const zi2 = ent_zis[idx].square();
-            FE52 const zi3 = zi2 * ent_zis[idx];
-            g_comb_table.entries[b][idx].x = entries_jac[idx].X52() * zi2;
-            g_comb_table.entries[b][idx].y = entries_jac[idx].Y52() * zi3;
-            g_comb_table.entries[b][idx].x.normalize();
-            g_comb_table.entries[b][idx].y.normalize();
-            g_comb_table.entries[b][idx].infinity = 0;
-        }
+    // Step 2: six-tooth blocks, then the four-tooth tail.
+    for (unsigned b = 0; b < COMB_FULL_BLOCKS; ++b) {
+        build_comb_block<COMB_TEETH>(g_comb_table.entries[b], bases,
+                                     b * COMB_TEETH);
     }
-
-    // Step 3: Precompute correction point = (2^264 - 2^256)*G
-    // COMB_BITS=264 covers 264 bits but v has only 256. Bits 256-263 are 0,
-    // interpreted as sign=-1 in Hamburg encoding. This adds an unwanted
-    // -(2^256 + 2^257 + ... + 2^263)*G = -(2^264 - 2^256)*G.
-    // Correction: add (2^264 - 2^256)*G at the end.
-    //
-    // Compute: 2^256*G, then accumulate 2^257..2^263 via doubling.
-    Point p_pow = G;
-    for (unsigned d = 0; d < 256; ++d) {
-        p_pow.dbl_inplace();
-    }
-    Point corr = p_pow;  // 2^256 * G
-    for (unsigned i = 0; i < COMB_BITS - 256 - 1; ++i) { // 7 more
-        p_pow.dbl_inplace();
-        corr = corr.add(p_pow);
-    }
-    // Store as affine
-    FE52 const cz_inv = fe52_inverse(corr.Z52());
-    FE52 const cz2 = cz_inv.square();
-    FE52 const cz3 = cz2 * cz_inv;
-    g_comb_table.correction.x = corr.X52() * cz2;
-    g_comb_table.correction.y = corr.Y52() * cz3;
-    g_comb_table.correction.x.normalize();
-    g_comb_table.correction.y.normalize();
-    g_comb_table.correction.infinity = 0;
+    build_comb_block<COMB_TAIL_TEETH>(g_comb_table.tail, bases,
+                                      COMB_FULL_BLOCKS * COMB_TEETH);
 
     g_comb_table.initialized = true;
 }
@@ -2209,16 +2210,16 @@ Point generator_mul(const Scalar& k) noexcept {
     CTJacobianPoint R;
     CTAffinePoint T;
 
-    // -- Main loop: outer COMB_SPACING x inner COMB_BLOCKS ----------------
+    // -- Main loop: outer COMB_SPACING x inner blocks ---------------------
     // Outer loop iterates over spacing offsets from COMB_SPACING-1 down to 0.
-    // Inner loop iterates over 11 blocks.
+    // Inner loop iterates over the 10 six-tooth blocks plus the short tail.
     // Between outer iterations, double the accumulator once.
     unsigned comb_off = COMB_SPACING - 1;
 
     // First outer iteration: first block initializes R directly
     {
-        std::uint64_t const digit = extract_comb_digit(v, 0, comb_off);
-        comb_lookup(&T, g_comb_table.entries[0], digit);
+        std::uint64_t const digit = extract_comb_digit(v, 0, comb_off, COMB_TEETH);
+        comb_lookup<COMB_TEETH>(&T, g_comb_table.entries[0], digit);
         R.x = T.x;
         R.y = T.y;
         R.z = FE52::one();
@@ -2231,13 +2232,27 @@ Point generator_mul(const Scalar& k) noexcept {
     // that R equals a table entry (which would cause the incomplete formula to
     // misbehave) is ~2^-128 — same reasoning as scalar_mul_prebuilt_fast.
     // Using the incomplete mixed-add (7M+3S) instead of the complete unified
-    // formula (12M+2S) saves ~5M per call × ~43 additions ≈ 215M ≈ 2800 ns.
+    // formula (12M+2S) saves ~5M per call × ~43 additions.
+    // Block 1 still sees Z1 == 1 (R was loaded straight from the table above),
+    // so it uses the Z1==1 specialisation.  The peel is on the block index,
+    // which is a public loop counter.
+    {
+        std::uint64_t const digit = extract_comb_digit(v, 1, comb_off, COMB_TEETH);
+        comb_lookup<COMB_TEETH>(&T, g_comb_table.entries[1], digit);
+        add_affine_fast_ct_z1(&R, R, T);
+    }
     #ifdef __clang__
     #pragma clang loop unroll(disable)
     #endif
-    for (unsigned b = 1; b < COMB_BLOCKS; ++b) {
-        std::uint64_t const digit = extract_comb_digit(v, b, comb_off);
-        comb_lookup(&T, g_comb_table.entries[b], digit);
+    for (unsigned b = 2; b < COMB_FULL_BLOCKS; ++b) {
+        std::uint64_t const digit = extract_comb_digit(v, b, comb_off, COMB_TEETH);
+        comb_lookup<COMB_TEETH>(&T, g_comb_table.entries[b], digit);
+        add_affine_fast_ct(&R, R, T);
+    }
+    {
+        std::uint64_t const digit =
+            extract_comb_digit(v, COMB_FULL_BLOCKS, comb_off, COMB_TAIL_TEETH);
+        comb_lookup<COMB_TAIL_TEETH>(&T, g_comb_table.tail, digit);
         add_affine_fast_ct(&R, R, T);
     }
 
@@ -2248,15 +2263,16 @@ Point generator_mul(const Scalar& k) noexcept {
         #ifdef __clang__
         #pragma clang loop unroll(disable)
         #endif
-        for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
-            std::uint64_t const digit = extract_comb_digit(v, b, comb_off);
-            comb_lookup(&T, g_comb_table.entries[b], digit);
+        for (unsigned b = 0; b < COMB_FULL_BLOCKS; ++b) {
+            std::uint64_t const digit = extract_comb_digit(v, b, comb_off, COMB_TEETH);
+            comb_lookup<COMB_TEETH>(&T, g_comb_table.entries[b], digit);
             add_affine_fast_ct(&R, R, T);
         }
+        std::uint64_t const digit =
+            extract_comb_digit(v, COMB_FULL_BLOCKS, comb_off, COMB_TAIL_TEETH);
+        comb_lookup<COMB_TAIL_TEETH>(&T, g_comb_table.tail, digit);
+        add_affine_fast_ct(&R, R, T);
     }
-
-    // -- Correction: add (2^264 - 2^256)*G for the 8 extra comb bits -----
-    add_affine_fast_ct(&R, R, g_comb_table.correction);
 
     Point result = R.to_point();
     SECP256K1_DECLASSIFY(&result, sizeof(result));
@@ -2711,6 +2727,34 @@ void add_affine_fast_ct_4x64(CTJacobianPoint* out,
     out->infinity = 0;
 }
 
+// --- Same incomplete mixed add with Z1 == 1 (4x64) --------------------------
+// Z1Z1, U2, S2 and Z3 collapse to identities exactly as in the 52-bit twin.
+// 4x64 arithmetic is always fully reduced, so there is no magnitude
+// bookkeeping and Z3 = H needs no normalization.
+SECP256K1_INLINE
+void add_affine_fast_ct_4x64_z1(CTJacobianPoint* out,
+                                  const CTJacobianPoint& a,
+                                  const CTAffinePoint& b) noexcept {
+    FE52 const H    = field_sub(b.x, a.x);   // U2 = b.x, Z1 == 1
+    FE52 const R    = field_sub(b.y, a.y);   // S2 = b.y, Z1 == 1
+
+    FE52 const Z3   = H;                      // Z3 = H*Z1, Z1 == 1
+    FE52 const HH   = field_sqr(H);          // [1S]
+    FE52 const HHH  = field_mul(HH, H);      // [1M]
+    FE52 const U1HH = field_mul(a.x, HH);    // [1M]
+
+    FE52 const RR   = field_sqr(R);          // [1S]
+    FE52 X3 = field_sub(field_sub(RR, HHH),
+                        field_add(U1HH, U1HH));
+    FE52 Y3 = field_sub(field_mul(field_sub(U1HH, X3), R),
+                        field_mul(a.y, HHH)); // [2M]
+
+    out->x = X3;
+    out->y = Y3;
+    out->z = Z3;
+    out->infinity = 0;
+}
+
 // --- Brier-Joye Unified Mixed Addition template (4x64) ----------------------
 // CHECK_INFINITY=false skips infinity handling (safe in scalar_mul inner loop).
 // Cost: 7M + 5S.
@@ -2846,13 +2890,6 @@ static std::uint64_t ct_scalar_is_high(const Scalar& s) noexcept {
     return is_nonzero_mask(borrow);
 }
 
-static constexpr std::uint64_t ORDER[4] = {
-    0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
-    0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
-};
-static constexpr std::uint64_t NC0 = 0x402DA1732FC9BEBFULL;
-static constexpr std::uint64_t NC1 = 0x4551231950B75FC4ULL;
-
 // --- CT 256x256->512, shift >>384 (portable) ---------------------------------
 
 static std::array<std::uint64_t, 4> ct_mul_shift_384(
@@ -2875,240 +2912,27 @@ static std::array<std::uint64_t, 4> ct_mul_shift_384(
     return result;
 }
 
-// --- Full 256x256 -> mod n multiply (CT, 4x64 path, portable) ----------------
-// 4x4 schoolbook -> 8 limbs -> 3-phase secp256k1-specific reduce_512.
-// Adapted from bitcoin-core/secp256k1 scalar_4x64_impl.h (MIT license).
-// Uses U128/mul64 helpers (no __int128 required).
-static Scalar ct_scalar_mul_mod_n(const Scalar& a, const Scalar& b) noexcept {
-    const auto& al = a.limbs();
-    const auto& bl = b.limbs();
-
-    // --- 4x4 schoolbook multiply -> 8-limb product l[0..7] ---
-    std::uint64_t l[8];
-    mul_4x4(l, al.data(), bl.data());
-
-    // Helper lambda: accumulate a*b into (lo, carry_hi), return new lo
-    // This emulates the __int128 carry chain using U128/mul64.
-    // We implement the 3-phase reduction using explicit carry tracking.
-
-    // --- Phase 1: reduce 512 -> 385 bits ---
-    // m[0..6] = l[0..3] + l[4..7] * NC  (NC = {NC0, NC1, 1, 0})
-    std::uint64_t const n0 = l[4], n1 = l[5], n2 = l[6], n3 = l[7];
-    std::uint64_t m0, m1, m2, m3, m4, m5;
-    std::uint32_t m6;
-    {
-        // Accumulator: (acc_lo, acc_hi) represents up to 128+32 bits of carry chain
-        std::uint64_t acc_lo = 0, acc_hi = 0;
-
-        // Column 0: l[0] + n0*NC0
-        U128 t = mul64(n0, NC0);
-        acc_lo = l[0] + t.lo;
-        acc_hi = t.hi + static_cast<std::uint64_t>(acc_lo < l[0]);
-        m0 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        // Column 1: l[1] + n1*NC0 + n0*NC1
-        acc_lo += l[1]; acc_hi += static_cast<std::uint64_t>(acc_lo < l[1]);
-        t = mul64(n1, NC0);
-        std::uint64_t s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        t = mul64(n0, NC1);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        m1 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        // Column 2: l[2] + n2*NC0 + n1*NC1 + n0 (n0*NC2, NC2=1)
-        acc_lo += l[2]; acc_hi += static_cast<std::uint64_t>(acc_lo < l[2]);
-        t = mul64(n2, NC0);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        t = mul64(n1, NC1);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        s = acc_lo + n0;
-        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        m2 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        // Column 3: l[3] + n3*NC0 + n2*NC1 + n1
-        acc_lo += l[3]; acc_hi += static_cast<std::uint64_t>(acc_lo < l[3]);
-        t = mul64(n3, NC0);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        t = mul64(n2, NC1);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        s = acc_lo + n1;
-        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        m3 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        // Column 4: n3*NC1 + n2
-        t = mul64(n3, NC1);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        s = acc_lo + n2;
-        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        m4 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        // Column 5: n3
-        s = acc_lo + n3;
-        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        m5 = acc_lo;
-        m6 = static_cast<std::uint32_t>(acc_hi);  // <= 1
+// --- CT 128x128 -> 256 multiply (portable) -----------------------------------
+// See the 5x52 copy for the width argument: c1 < 2^126 and c2 < 2^128 are
+// structural properties of the rounding step, true for every k, so the narrow
+// multiply is width-invariant and constant-time with respect to the scalar.
+static inline void ct_mul_2x2(std::uint64_t r[4],
+                               const std::uint64_t a[2],
+                               const std::uint64_t b[2]) noexcept {
+    r[0] = 0; r[1] = 0; r[2] = 0; r[3] = 0;
+    for (int i = 0; i < 2; ++i) {
+        std::uint64_t carry = 0;
+        for (int j = 0; j < 2; ++j) {
+            U128 const m = mul64(a[i], b[j]);
+            std::uint64_t sum = r[i + j] + m.lo;
+            std::uint64_t const c1 = static_cast<std::uint64_t>(sum < r[i + j]);
+            sum += carry;
+            std::uint64_t const c2 = static_cast<std::uint64_t>(sum < carry);
+            r[i + j] = sum;
+            carry = m.hi + c1 + c2;
+        }
+        r[i + 2] = carry;
     }
-
-    // --- Phase 2: reduce 385 -> 258 bits ---
-    // p[0..4] = m[0..3] + m[4..6] * NC
-    std::uint64_t p0, p1, p2, p3;
-    std::uint32_t p4;
-    {
-        std::uint64_t acc_lo = 0, acc_hi = 0;
-        U128 t;
-        std::uint64_t s;
-
-        // Column 0: m0 + m4*NC0
-        t = mul64(m4, NC0);
-        acc_lo = m0 + t.lo;
-        acc_hi = t.hi + static_cast<std::uint64_t>(acc_lo < m0);
-        p0 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        // Column 1: m1 + m5*NC0 + m4*NC1
-        acc_lo += m1; acc_hi += static_cast<std::uint64_t>(acc_lo < m1);
-        t = mul64(m5, NC0);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        t = mul64(m4, NC1);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        p1 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        // Column 2: m2 + m6*NC0 + m5*NC1 + m4
-        acc_lo += m2; acc_hi += static_cast<std::uint64_t>(acc_lo < m2);
-        t = mul64(static_cast<std::uint64_t>(m6), NC0);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        t = mul64(m5, NC1);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        s = acc_lo + m4;
-        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        p2 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        // Column 3: m3 + m6*NC1 + m5
-        acc_lo += m3; acc_hi += static_cast<std::uint64_t>(acc_lo < m3);
-        t = mul64(static_cast<std::uint64_t>(m6), NC1);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        s = acc_lo + m5;
-        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        p3 = acc_lo;
-        acc_lo = acc_hi;
-
-        p4 = static_cast<std::uint32_t>(acc_lo) + m6;  // <= 2
-    }
-
-    // --- Phase 3: reduce 258 -> 256 bits ---
-    // r[0..3] = p[0..3] + p4 * NC
-    std::uint64_t r0, r1, r2, r3;
-    unsigned final_c;
-    {
-        std::uint64_t acc_lo = 0, acc_hi = 0;
-        U128 t;
-        std::uint64_t s;
-
-        t = mul64(static_cast<std::uint64_t>(p4), NC0);
-        acc_lo = p0 + t.lo;
-        acc_hi = t.hi + static_cast<std::uint64_t>(acc_lo < p0);
-        r0 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        acc_lo += p1; acc_hi += static_cast<std::uint64_t>(acc_lo < p1);
-        t = mul64(static_cast<std::uint64_t>(p4), NC1);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        r1 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        acc_lo += p2; acc_hi += static_cast<std::uint64_t>(acc_lo < p2);
-        s = acc_lo + static_cast<std::uint64_t>(p4);  // p4 * NC2=1
-        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
-        acc_lo = s;
-        r2 = acc_lo;
-        acc_lo = acc_hi; acc_hi = 0;
-
-        acc_lo += p3; acc_hi += static_cast<std::uint64_t>(acc_lo < p3);
-        r3 = acc_lo;
-        final_c = static_cast<unsigned>(acc_hi);
-    }
-
-    // --- Final reduction: subtract n if r >= n ---
-    std::uint64_t r_arr[4] = {r0, r1, r2, r3};
-
-    int yes = 0, no = 0;
-    no |= (r3 < ORDER[3]);
-    no |= (r2 < ORDER[2]);
-    yes |= (r2 > ORDER[2]) & ~no;
-    no |= (r1 < ORDER[1]);
-    yes |= (r1 > ORDER[1]) & ~no;
-    yes |= (r0 >= ORDER[0]) & ~no;
-    unsigned overflow = final_c + static_cast<unsigned>(yes);
-
-    // reduce: r += overflow * NC  (which is equivalent to r -= overflow * n)
-    {
-        std::uint64_t acc_lo, acc_hi;
-        U128 t;
-        std::uint64_t s;
-
-        t = mul64(static_cast<std::uint64_t>(overflow), NC0);
-        acc_lo = r_arr[0] + t.lo;
-        acc_hi = t.hi + static_cast<std::uint64_t>(acc_lo < r_arr[0]);
-        r_arr[0] = acc_lo;
-        acc_lo = acc_hi;
-
-        acc_lo += r_arr[1];
-        acc_hi = static_cast<std::uint64_t>(acc_lo < r_arr[1]);
-        t = mul64(static_cast<std::uint64_t>(overflow), NC1);
-        s = acc_lo + t.lo;
-        acc_hi += t.hi + static_cast<std::uint64_t>(s < acc_lo);
-        r_arr[1] = s;
-        acc_lo = acc_hi;
-
-        acc_lo += r_arr[2];
-        acc_hi = static_cast<std::uint64_t>(acc_lo < r_arr[2]);
-        s = acc_lo + static_cast<std::uint64_t>(overflow);  // NC2=1
-        acc_hi += static_cast<std::uint64_t>(s < acc_lo);
-        r_arr[2] = s;
-        acc_lo = acc_hi;
-
-        r_arr[3] += acc_lo;
-    }
-
-    return Scalar::from_limbs({r_arr[0], r_arr[1], r_arr[2], r_arr[3]});
 }
 
 // --- beta (beta) as 4x64 FieldElement ------------------------------------------
@@ -3128,12 +2952,6 @@ static constexpr std::array<std::uint64_t, 4> kG1{{
 static constexpr std::array<std::uint64_t, 4> kG2{{
     0x1571B4AE8AC47F71ULL, 0x221208AC9DF506C6ULL,
     0x6F547FA90ABFE4C4ULL, 0xE4437ED6010E8828ULL
-}};
-static constexpr std::array<std::uint8_t, 32> kLambdaBytes{{
-    0x53,0x63,0xAD,0x4C,0xC0,0x5C,0x30,0xE0,
-    0xA5,0x26,0x1C,0x02,0x88,0x12,0x64,0x5A,
-    0x12,0x2E,0x22,0xEA,0x20,0x81,0x66,0x78,
-    0xDF,0x02,0x96,0x7C,0x1B,0x23,0xBD,0x72
 }};
 
 } // anonymous namespace (GLV CT helpers 4x64)
@@ -3168,42 +2986,65 @@ CTAffinePoint affine_neg(const CTAffinePoint& p) noexcept {
 // --- CT GLV Decomposition (4x64, fully CT, portable) ------------------------
 
 CTGLVDecomposition ct_glv_decompose(const Scalar& k) noexcept {
-    static const Scalar lambda = Scalar::from_bytes(kLambdaBytes);
-
-    // GLV lattice basis constants as FULL Scalars (256-bit mod n).
-    // Matches libsecp256k1's constants exactly.
-    static const Scalar minus_b1 = Scalar::from_limbs({
-        0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL, 0ULL, 0ULL
-    });
-    static const Scalar minus_b2 = Scalar::from_limbs({
-        0xD765CDA83DB1562CULL, 0x8A280AC50774346DULL,
-        0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
-    });
+    // Raw GLV lattice basis, low 128 bits only.  libsecp256k1 publishes the
+    // DERIVED constant set (-b1, -b2, lambda); -b2 = n - b2 is a full 256-bit
+    // number even though b2 itself is 126 bits, which forces a 256x256 multiply
+    // plus a wide mod-n reduction for every c2 term, and then a third 256x256
+    // multiply by lambda to recover k1.  Working from the raw basis instead keeps
+    // all four products inside 2x2:
+    //   -b1  = 0xE4437ED6010E8828_6F547FA90ABFE4C3   (128 bits)
+    //    b2  = 0x3086D221A7D46BCD_E86C90E49284EB15   (126 bits), and a1 == b2
+    //    a2  = 2^128 + kA2Lo, kA2Lo = 125 bits
+    // The lattice relations a1 + b1*lambda == 0 (mod n) and a2 + b2*lambda == 0
+    // (mod n) hold exactly, so
+    //   lambda*k2 = lambda*(-c1*b1 - c2*b2) = c1*a1 + c2*a2   (mod n)
+    // and k1 needs no lambda multiply at all -- the 2^128 half of a2 is a limb
+    // placement, not a multiply.
+    static constexpr std::uint64_t kMinusB1[2] = {
+        0x6F547FA90ABFE4C3ULL, 0xE4437ED6010E8828ULL
+    };
+    static constexpr std::uint64_t kB2[2] = {          // b2, and a1 == b2
+        0xE86C90E49284EB15ULL, 0x3086D221A7D46BCDULL
+    };
+    static constexpr std::uint64_t kA2Lo[2] = {        // a2 - 2^128
+        0x57C1108D9D44CFD8ULL, 0x14CA50F7A8E2F3F6ULL
+    };
 
     auto k_limbs = k.limbs();
-    auto c1_limbs = ct_mul_shift_384(
-        {k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG1);
-    auto c2_limbs = ct_mul_shift_384(
-        {k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG2);
+    auto c1_limbs = ct_mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG1);
+    auto c2_limbs = ct_mul_shift_384({k_limbs[0], k_limbs[1], k_limbs[2], k_limbs[3]}, kG2);
 
-    // Full 256x256 scalar multiply mod n for both terms.
-    // k2 = c1*(-b1) + c2*(-b2) mod n  (libsecp256k1 formula)
-    Scalar c1_sc = Scalar::from_limbs({c1_limbs[0], c1_limbs[1], c1_limbs[2], c1_limbs[3]});
-    Scalar c2_sc = Scalar::from_limbs({c2_limbs[0], c2_limbs[1], c2_limbs[2], c2_limbs[3]});
-    Scalar p1     = ct_scalar_mul_mod_n(c1_sc, minus_b1);
-    Scalar p2     = ct_scalar_mul_mod_n(c2_sc, minus_b2);
-    Scalar k2_mod = scalar_add(p1, p2);
+    // Width bounds, valid for EVERY 4-limb k (c1 and c2 are monotonic in k, so
+    // evaluating at the largest 4-limb input k = 2^256-1 bounds them all):
+    //   c1 <= 2^126 and c2 <= 2^128, hence c1_limbs[2..3] and c2_limbs[2..3] are
+    //   always zero and reading only the low two limbs cannot depend on k.
+    //   c1*(-b1) < 2^254, c2*b2 < 2^254, c1*a1 < 2^252, c2*kA2Lo < 2^253,
+    //   c1*a1 + c2*kA2Lo < 2^253, and c2*2^128 < n - 2^253.
+    // Every product is therefore already reduced -- no mod-n reduction anywhere.
+    std::uint64_t mb1c1[4], b2c2[4], a1c1[4], a2c2[4];
+    ct_mul_2x2(mb1c1, c1_limbs.data(), kMinusB1);
+    ct_mul_2x2(b2c2,  c2_limbs.data(), kB2);
+    ct_mul_2x2(a1c1,  c1_limbs.data(), kB2);
+    ct_mul_2x2(a2c2,  c2_limbs.data(), kA2Lo);
 
-    std::uint64_t k2_high = ct_scalar_is_high(k2_mod);
-    Scalar k2_abs = scalar_cneg(k2_mod, k2_high);
+    // k2 = c1*(-b1) - c2*b2 mod n.  scalar_sub is the branchless mod-n
+    // subtract (borrow mask + cmov256), so the wrap is a cmov, never a branch.
+    Scalar const k2_mod = scalar_sub(
+        Scalar::from_limbs({mb1c1[0], mb1c1[1], mb1c1[2], mb1c1[3]}),
+        Scalar::from_limbs({b2c2[0], b2c2[1], b2c2[2], b2c2[3]}));
 
-    // k1 = k - k2*lambda mod n (full scalar multiply)
-    Scalar lambda_k2 = scalar_cneg(
-        ct_scalar_mul_mod_n(lambda, k2_abs), k2_high);
-    Scalar k1_mod = scalar_sub(k, lambda_k2);
+    std::uint64_t const k2_high = ct_scalar_is_high(k2_mod);
+    Scalar const k2_abs = scalar_cneg(k2_mod, k2_high);
 
-    std::uint64_t k1_high = ct_scalar_is_high(k1_mod);
-    Scalar k1_abs = scalar_cneg(k1_mod, k1_high);
+    // k1 = k - lambda*k2 = k - c1*a1 - c2*kA2Lo - c2*2^128 mod n.
+    Scalar const lambda_k2 = scalar_add(
+        Scalar::from_limbs({a1c1[0], a1c1[1], a1c1[2], a1c1[3]}),
+        Scalar::from_limbs({a2c2[0], a2c2[1], a2c2[2], a2c2[3]}));
+    Scalar const c2_shifted = Scalar::from_limbs({0, 0, c2_limbs[0], c2_limbs[1]});
+    Scalar const k1_mod = scalar_sub(scalar_sub(k, lambda_k2), c2_shifted);
+
+    std::uint64_t const k1_high = ct_scalar_is_high(k1_mod);
+    Scalar const k1_abs = scalar_cneg(k1_mod, k1_high);
 
     CTGLVDecomposition result;
     result.k1     = k1_abs;
@@ -3359,17 +3200,25 @@ Point scalar_mul(const Point& p, const Scalar& k) noexcept {
 }
 
 // --- CT Generator Multiplication (4x64) -- Comb Method ------------------------
-// COMB_TEETH=6, COMB_BLOCKS=11, COMB_SPACING=4.  COMB_BITS = 264 >= 256.
-// Table: 11 blocks x 32 entries = 352 affine points ~= 31 KB (fits L1D).
-// Runtime: 43 additions + 44 lookups + 3 doublings + 1 correction.
+// COMB_TEETH=6, COMB_BLOCKS=11, COMB_SPACING=4, last block short (4 teeth):
+// COMB_BITS = 10*6*4 + 4*4 = 256 exactly, so the comb tiles every bit of v
+// once, K_gen = 2^256-1 is exactly right, and no correction point is needed.
+// Table: 10 blocks x 32 entries + 1 block x 8 entries = 328 affine points.
+// Runtime: 43 additions + 44 lookups + 3 doublings, no correction.
 
 namespace {
 
 constexpr unsigned COMB_TEETH   = 6;
 constexpr unsigned COMB_BLOCKS  = 11;
 constexpr unsigned COMB_SPACING = 4;
-constexpr unsigned COMB_BITS    = COMB_BLOCKS * COMB_TEETH * COMB_SPACING;  // 264
-constexpr std::size_t COMB_TABLE_SIZE = 1u << (COMB_TEETH - 1);  // 32
+constexpr unsigned COMB_FULL_BLOCKS = COMB_BLOCKS - 1;   // 10 six-tooth blocks
+constexpr unsigned COMB_TAIL_TEETH  = 4;                 // block 10 has 4 teeth
+constexpr unsigned COMB_BITS =
+    COMB_FULL_BLOCKS * COMB_TEETH * COMB_SPACING + COMB_TAIL_TEETH * COMB_SPACING;
+static_assert(COMB_BITS == 256,
+              "comb must tile exactly 256 bits: K_gen = 2^256-1 assumes it");
+constexpr std::size_t COMB_TABLE_SIZE      = 1u << (COMB_TEETH - 1);       // 32
+constexpr std::size_t COMB_TAIL_TABLE_SIZE = 1u << (COMB_TAIL_TEETH - 1);  // 8
 
 static constexpr std::uint64_t K_GEN[4] = {
     0x402DA1732FC9BEBEULL, 0x4551231950B75FC4ULL,
@@ -3377,8 +3226,8 @@ static constexpr std::uint64_t K_GEN[4] = {
 };
 
 struct alignas(64) CombGenTable {
-    CTAffinePoint entries[COMB_BLOCKS][COMB_TABLE_SIZE];
-    CTAffinePoint correction;
+    CTAffinePoint entries[COMB_FULL_BLOCKS][COMB_TABLE_SIZE];
+    CTAffinePoint tail[COMB_TAIL_TABLE_SIZE];  // short last block
     bool initialized = false;
 };
 
@@ -3393,34 +3242,45 @@ static std::once_flag g_comb_table_once;
 
 inline std::uint64_t extract_comb_digit(const Scalar& v,
                                          unsigned block,
-                                         unsigned comb_off) noexcept {
+                                         unsigned comb_off,
+                                         unsigned teeth) noexcept {
+    // One window read replaces `teeth` scalar_bit scans; see the 5x52 twin for
+    // the argument.  base and teeth come from loop counters only, so they are
+    // public; the bits are secret and are combined branchlessly.  The highest
+    // position read is 243 + 12 = 255, inside the scalar.
+    unsigned span = (teeth - 1) * COMB_SPACING + 1;
+    std::size_t base = static_cast<std::size_t>(block) * COMB_TEETH
+                       * COMB_SPACING + comb_off;
+    std::uint64_t window = scalar_window(v, base, span);
+
     std::uint64_t digit = 0;
-    for (unsigned tooth = 0; tooth < COMB_TEETH; ++tooth) {
-        std::size_t pos = (static_cast<std::size_t>(block) * COMB_TEETH
-                           + tooth) * COMB_SPACING + comb_off;
-        std::uint64_t bit = (pos < 256) ? scalar_bit(v, pos) : 0;
-        digit |= bit << tooth;
+    for (unsigned tooth = 0; tooth < teeth; ++tooth) {
+        digit |= ((window >> (tooth * COMB_SPACING)) & 1) << tooth;
     }
     return digit;
 }
 
+// TEETH is a template parameter because it is fixed per block index (a public
+// loop counter), so the scan length is identical for every scalar.
+template <unsigned TEETH>
 static inline
 void comb_lookup(CTAffinePoint* out,
                   const CTAffinePoint* table,
                   std::uint64_t digit) noexcept {
-    std::uint64_t top = (digit >> (COMB_TEETH - 1)) & 1;
+    constexpr std::size_t TABLE_SIZE = std::size_t{1} << (TEETH - 1);
+    std::uint64_t top = (digit >> (TEETH - 1)) & 1;
     std::uint64_t needs_negate = top ^ 1;
     std::uint64_t neg_mask = static_cast<std::uint64_t>(
                       -static_cast<std::int64_t>(needs_negate));
 
-    std::uint64_t d_lo = digit & (COMB_TABLE_SIZE - 1);
+    std::uint64_t d_lo = digit & (TABLE_SIZE - 1);
     std::uint64_t idx_pos = d_lo;
-    std::uint64_t idx_neg = (COMB_TABLE_SIZE - 1) - d_lo;
+    std::uint64_t idx_neg = (TABLE_SIZE - 1) - d_lo;
     std::uint64_t index = idx_pos ^ ((idx_pos ^ idx_neg) & neg_mask);
 
     out->x = table[0].x;
     out->y = table[0].y;
-    for (std::size_t m = 1; m < COMB_TABLE_SIZE; ++m) {
+    for (std::size_t m = 1; m < TABLE_SIZE; ++m) {
         std::uint64_t mask = eq_mask(static_cast<std::uint64_t>(m), index);
         field_cmov(&out->x, table[m].x, mask);
         field_cmov(&out->y, table[m].y, mask);
@@ -3431,11 +3291,60 @@ void comb_lookup(CTAffinePoint* out,
     out->infinity = 0;
 }
 
+// entry[idx] = P_{TEETH-1} + sum_{j < TEETH-1} (2*bit_j(idx) - 1) * P_j,
+// where P_t = bases[base_off + t].  Shared by the six-tooth blocks and the
+// four-tooth tail so both geometries come from one piece of code.
+template <unsigned TEETH>
+void build_comb_block(CTAffinePoint* dst, const Point* bases,
+                       unsigned base_off) noexcept {
+    constexpr std::size_t TABLE_SIZE = std::size_t{1} << (TEETH - 1);
+
+    FE52 zs[TEETH], z_invs[TEETH];
+    for (unsigned t = 0; t < TEETH; ++t)
+        zs[t] = bases[base_off + t].z();
+    fe_batch_inverse(z_invs, zs, TEETH);
+
+    FE52 aff_x[TEETH], aff_y[TEETH];
+    for (unsigned t = 0; t < TEETH; ++t) {
+        FE52 zi2 = field_sqr(z_invs[t]);
+        FE52 zi3 = field_mul(zi2, z_invs[t]);
+        aff_x[t] = field_mul(bases[base_off + t].X(), zi2);
+        aff_y[t] = field_mul(bases[base_off + t].Y(), zi3);
+    }
+
+    Point entries_jac[TABLE_SIZE];
+    for (std::size_t idx = 0; idx < TABLE_SIZE; ++idx) {
+        Point entry = Point::from_affine(aff_x[TEETH - 1], aff_y[TEETH - 1]);
+        for (unsigned j = 0; j < TEETH - 1; ++j) {
+            FE52 py = ((idx >> j) & 1) ? aff_y[j] : field_neg(aff_y[j]);
+            Point pj = Point::from_affine(aff_x[j], py);
+            entry = entry.add(pj);
+        }
+        entries_jac[idx] = entry;
+    }
+
+    FE52 ent_zs[TABLE_SIZE], ent_zis[TABLE_SIZE];
+    for (std::size_t idx = 0; idx < TABLE_SIZE; ++idx)
+        ent_zs[idx] = entries_jac[idx].z();
+    fe_batch_inverse(ent_zis, ent_zs, TABLE_SIZE);
+
+    for (std::size_t idx = 0; idx < TABLE_SIZE; ++idx) {
+        FE52 zi2 = field_sqr(ent_zis[idx]);
+        FE52 zi3 = field_mul(zi2, ent_zis[idx]);
+        dst[idx].x = field_mul(entries_jac[idx].X(), zi2);
+        dst[idx].y = field_mul(entries_jac[idx].Y(), zi3);
+        dst[idx].infinity = 0;
+    }
+}
+
 void build_comb_table() noexcept {
     Point G = Point::generator();
 
-    // Compute base points: base[i] = 2^(i * COMB_SPACING) * G for i = 0..65
-    constexpr unsigned NUM_BASES = COMB_BLOCKS * COMB_TEETH;  // 66
+    // base[i] = 2^(i * COMB_SPACING) * G for i = 0..63; the tail block
+    // continues the same run, so the bases cover exactly bits 0..255.
+    constexpr unsigned NUM_BASES =
+        COMB_FULL_BLOCKS * COMB_TEETH + COMB_TAIL_TEETH;  // 64
+    static_assert(NUM_BASES * COMB_SPACING == COMB_BITS, "base run must tile COMB_BITS");
     Point bases[NUM_BASES];
     bases[0] = G;
     for (unsigned i = 1; i < NUM_BASES; ++i) {
@@ -3444,65 +3353,11 @@ void build_comb_table() noexcept {
             bases[i].dbl_inplace();
     }
 
-    for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
-        unsigned const base_off = b * COMB_TEETH;
-
-        FE52 zs[COMB_TEETH], z_invs[COMB_TEETH];
-        for (unsigned t = 0; t < COMB_TEETH; ++t)
-            zs[t] = bases[base_off + t].z();
-        fe_batch_inverse(z_invs, zs, COMB_TEETH);
-
-        FE52 aff_x[COMB_TEETH], aff_y[COMB_TEETH];
-        for (unsigned t = 0; t < COMB_TEETH; ++t) {
-            FE52 zi2 = field_sqr(z_invs[t]);
-            FE52 zi3 = field_mul(zi2, z_invs[t]);
-            aff_x[t] = field_mul(bases[base_off + t].X(), zi2);
-            aff_y[t] = field_mul(bases[base_off + t].Y(), zi3);
-        }
-
-        Point entries_jac[COMB_TABLE_SIZE];
-        for (unsigned idx = 0; idx < COMB_TABLE_SIZE; ++idx) {
-            Point entry = Point::from_affine(aff_x[COMB_TEETH - 1],
-                                              aff_y[COMB_TEETH - 1]);
-            for (unsigned j = 0; j < COMB_TEETH - 1; ++j) {
-                FE52 py = ((idx >> j) & 1) ? aff_y[j] : field_neg(aff_y[j]);
-                Point pj = Point::from_affine(aff_x[j], py);
-                entry = entry.add(pj);
-            }
-            entries_jac[idx] = entry;
-        }
-
-        FE52 ent_zs[COMB_TABLE_SIZE], ent_zis[COMB_TABLE_SIZE];
-        for (unsigned idx = 0; idx < COMB_TABLE_SIZE; ++idx)
-            ent_zs[idx] = entries_jac[idx].z();
-        fe_batch_inverse(ent_zis, ent_zs, COMB_TABLE_SIZE);
-
-        for (unsigned idx = 0; idx < COMB_TABLE_SIZE; ++idx) {
-            FE52 zi2 = field_sqr(ent_zis[idx]);
-            FE52 zi3 = field_mul(zi2, ent_zis[idx]);
-            g_comb_table.entries[b][idx].x = field_mul(
-                entries_jac[idx].X(), zi2);
-            g_comb_table.entries[b][idx].y = field_mul(
-                entries_jac[idx].Y(), zi3);
-            g_comb_table.entries[b][idx].infinity = 0;
-        }
-    }
-
-    // Correction point: (2^264 - 2^256)*G
-    Point p_pow = G;
-    for (unsigned d = 0; d < 256; ++d)
-        p_pow.dbl_inplace();
-    Point corr = p_pow;  // 2^256 * G
-    for (unsigned i = 0; i < COMB_BITS - 256 - 1; ++i) { // 7 more
-        p_pow.dbl_inplace();
-        corr = corr.add(p_pow);
-    }
-    FE52 cz_inv = field_inv(corr.z());
-    FE52 cz2 = field_sqr(cz_inv);
-    FE52 cz3 = field_mul(cz2, cz_inv);
-    g_comb_table.correction.x = field_mul(corr.X(), cz2);
-    g_comb_table.correction.y = field_mul(corr.Y(), cz3);
-    g_comb_table.correction.infinity = 0;
+    for (unsigned b = 0; b < COMB_FULL_BLOCKS; ++b)
+        build_comb_block<COMB_TEETH>(g_comb_table.entries[b], bases,
+                                     b * COMB_TEETH);
+    build_comb_block<COMB_TAIL_TEETH>(g_comb_table.tail, bases,
+                                      COMB_FULL_BLOCKS * COMB_TEETH);
 
     g_comb_table.initialized = true;
 }
@@ -3533,17 +3388,29 @@ Point generator_mul(const Scalar& k) noexcept {
 
     // First outer iteration: first block initializes R
     {
-        std::uint64_t digit = extract_comb_digit(v, 0, comb_off);
-        comb_lookup(&T, g_comb_table.entries[0], digit);
+        std::uint64_t digit = extract_comb_digit(v, 0, comb_off, COMB_TEETH);
+        comb_lookup<COMB_TEETH>(&T, g_comb_table.entries[0], digit);
         R.x = T.x;  R.y = T.y;  R.z = FieldElement::one();  R.infinity = 0;
     }
 
     // Safety: all T values are fixed G multiples from the precomputed comb
     // table. The incomplete formula is safe here for the same reason as in the
     // 52-bit path — probability of R equalling a table entry is ~2^-128.
-    for (unsigned b = 1; b < COMB_BLOCKS; ++b) {
-        std::uint64_t digit = extract_comb_digit(v, b, comb_off);
-        comb_lookup(&T, g_comb_table.entries[b], digit);
+    // Block 1 still sees Z1 == 1 (public block index, not scalar-derived).
+    {
+        std::uint64_t digit = extract_comb_digit(v, 1, comb_off, COMB_TEETH);
+        comb_lookup<COMB_TEETH>(&T, g_comb_table.entries[1], digit);
+        add_affine_fast_ct_4x64_z1(&R, R, T);
+    }
+    for (unsigned b = 2; b < COMB_FULL_BLOCKS; ++b) {
+        std::uint64_t digit = extract_comb_digit(v, b, comb_off, COMB_TEETH);
+        comb_lookup<COMB_TEETH>(&T, g_comb_table.entries[b], digit);
+        add_affine_fast_ct_4x64(&R, R, T);
+    }
+    {
+        std::uint64_t digit =
+            extract_comb_digit(v, COMB_FULL_BLOCKS, comb_off, COMB_TAIL_TEETH);
+        comb_lookup<COMB_TAIL_TEETH>(&T, g_comb_table.tail, digit);
         add_affine_fast_ct_4x64(&R, R, T);
     }
 
@@ -3551,15 +3418,16 @@ Point generator_mul(const Scalar& k) noexcept {
     while (comb_off-- > 0) {
         point_dbl_n_core(&R, 1);
 
-        for (unsigned b = 0; b < COMB_BLOCKS; ++b) {
-            std::uint64_t digit = extract_comb_digit(v, b, comb_off);
-            comb_lookup(&T, g_comb_table.entries[b], digit);
+        for (unsigned b = 0; b < COMB_FULL_BLOCKS; ++b) {
+            std::uint64_t digit = extract_comb_digit(v, b, comb_off, COMB_TEETH);
+            comb_lookup<COMB_TEETH>(&T, g_comb_table.entries[b], digit);
             add_affine_fast_ct_4x64(&R, R, T);
         }
+        std::uint64_t digit =
+            extract_comb_digit(v, COMB_FULL_BLOCKS, comb_off, COMB_TAIL_TEETH);
+        comb_lookup<COMB_TAIL_TEETH>(&T, g_comb_table.tail, digit);
+        add_affine_fast_ct_4x64(&R, R, T);
     }
-
-    // Correction for extra comb bits
-    add_affine_fast_ct_4x64(&R, R, g_comb_table.correction);
 
     Point result = R.to_point();
     SECP256K1_DECLASSIFY(&result, sizeof(result));

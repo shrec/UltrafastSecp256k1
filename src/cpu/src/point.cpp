@@ -3387,7 +3387,14 @@ static void batch_z_inv(const Point* points, size_t n,
         if (points[i].is_infinity()) {
             partials[i] = running; // skip infinity, don't multiply
         } else {
+            // Stash the converted Z in the caller's slot so the backward pass
+            // can reuse it instead of repeating Point::z() -- an FE52 copy,
+            // normalize and 4-limb repack -- for the identical value. The
+            // backward pass reads the slot before overwriting it, and infinity
+            // rows are still never written, so the "undefined for infinity"
+            // contract above and the set of skipped rows are both unchanged.
             FieldElement const z_fe = points[i].z();
+            out_z_inv[i] = z_fe;
             partials[i] = running;
             running *= z_fe;
         }
@@ -3401,7 +3408,7 @@ static void batch_z_inv(const Point* points, size_t n,
         if (points[i].is_infinity()) {
             continue;
         }
-        FieldElement const z_fe = points[i].z();
+        FieldElement const z_fe = out_z_inv[i];   // stashed by the forward pass
         out_z_inv[i] = partials[i] * inv;
         inv *= z_fe;
     }
@@ -4163,9 +4170,11 @@ void Point::batch_to_compressed(const Point* points, size_t n,
             out[i].fill(0);
             continue;
         }
-        auto x_bytes = aff_x[i].to_bytes();
         out[i][0] = (aff_y[i].limbs()[0] & 1U) ? 0x03 : 0x02;
-        std::copy(x_bytes.begin(), x_bytes.end(), out[i].begin() + 1);
+        // Serialize straight into the output slot -- same byte layout as
+        // to_bytes(), without the returned array temporary and its copy
+        // (matches the non-FE52 path in to_compressed()).
+        aff_x[i].to_bytes_into(out[i].data() + 1);
     }
 }
 
@@ -4222,7 +4231,7 @@ void Point::batch_x_only_bytes(const Point* points, size_t n,
         FieldElement z_inv2 = z_inv[i];
         z_inv2.square_inplace();
         FieldElement const x_aff = points[i].X() * z_inv2;
-        out[i] = x_aff.to_bytes();
+        x_aff.to_bytes_into(out[i].data());   // same bytes, no array temporary
     }
 }
 
@@ -4416,11 +4425,12 @@ Point Point::dual_scalar_mul_gen_point(const Scalar& a, const Scalar& b, const P
     compute_wnaf_into(decomp_b.k1, WINDOW_P, wnaf_b1.data(), wnaf_b1.size(), len_b1);
     compute_wnaf_into(decomp_b.k2, WINDOW_P, wnaf_b2.data(), wnaf_b2.size(), len_b2);
 
-    // Trim trailing zeros
-    while (len_a_lo > 0 && wnaf_a_lo[len_a_lo - 1] == 0) --len_a_lo;
-    while (len_a_hi > 0 && wnaf_a_hi[len_a_hi - 1] == 0) --len_a_hi;
-    while (len_b1 > 0 && wnaf_b1[len_b1 - 1] == 0) --len_b1;
-    while (len_b2 > 0 && wnaf_b2[len_b2 - 1] == 0) --len_b2;
+    // No trailing-zero trim: compute_wnaf_into sets out_len = last_set_bit + 1,
+    // and every digit it stores is odd -- the digit branch is entered only when
+    // the scalar bit differs from the carry, so bit 0 of (extracted + carry) is
+    // 1, and subtracting carry<<w (w >= 2) cannot clear it. wnaf[len-1] is
+    // therefore never zero and a trim loop cannot iterate. Same reasoning as
+    // scalar_mul_glv52 above.
 
     // -- 4-stream Shamir interleaved scan -----------------------------
     JacobianPoint52 result52 = {
@@ -4540,10 +4550,8 @@ Point Point::dual_scalar_mul_gen_prebuilt(
     compute_wnaf_into(a_hi,  WINDOW_G, wnaf_a_hi.data(), wnaf_a_hi.size(), len_a_hi);
     compute_wnaf_into(decomp_b.k1, WINDOW_P, wnaf_b1.data(), wnaf_b1.size(), len_b1);
     compute_wnaf_into(decomp_b.k2, WINDOW_P, wnaf_b2.data(), wnaf_b2.size(), len_b2);
-    while (len_a_lo > 0 && wnaf_a_lo[len_a_lo-1] == 0) --len_a_lo;
-    while (len_a_hi > 0 && wnaf_a_hi[len_a_hi-1] == 0) --len_a_hi;
-    while (len_b1 > 0 && wnaf_b1[len_b1-1] == 0) --len_b1;
-    while (len_b2 > 0 && wnaf_b2[len_b2-1] == 0) --len_b2;
+    // No trailing-zero trim -- every digit compute_wnaf_into stores is odd, so
+    // wnaf[len-1] is never zero (see dual_scalar_mul_gen_point above).
 
     // -- 4-stream scan (same structure as dual_scalar_mul_gen_point) ----------
     JacobianPoint52 result52 = {

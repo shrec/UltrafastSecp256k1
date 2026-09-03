@@ -3273,7 +3273,9 @@ std::vector<int32_t> compute_wnaf(const Scalar& scalar, unsigned window_bits) {
 // implicit subtraction without modifying the scalar.
 //
 // Performance: ~3 ops per zero position, ~10 ops per non-zero position.
-// For 128-bit GLV scalars with w=15: ~120 skip + ~8 extract = ~400 ops total.
+// The scan stops just past the scalar's top set bit (see the `hi` bound
+// below), so for the ~128-bit GLV half-scalars every caller passes, the ~128
+// positions above that bit are never walked.
 // Prior shift-and-subtract: ~256 * 13 + ~60 * 20 = ~4500 ops per call.
 void compute_wnaf_into(const Scalar& scalar,
                        unsigned window_bits,
@@ -3298,7 +3300,27 @@ void compute_wnaf_into(const Scalar& scalar,
     int last_set = -1;
     int bit = 0;
 
-    while (bit < 256) {
+    // Bound the scan by the scalar's top set bit: above it every extracted bit
+    // is zero, so a position there can only ever take the skip branch. The one
+    // exception is a carry still pending when the scan crosses the top bit --
+    // it emits a single digit at msb+1 (word = 0 + 1 = 1, and 1 >> (w - 1) == 0
+    // for every w >= 2, so the carry clears itself) and the rest are skips.
+    // Hence msb + 2 and NOT msb + 1: a tighter bound would drop that pending
+    // digit and shorten out_len. A pending carry can never reach further than
+    // msb + 1, because carry is set only when the extracted window has bit
+    // w-1 set, which puts a set scalar bit at position p + w - 1 and so lands
+    // the next scan position at p + w <= msb + 1.
+    int msb = -1;
+    for (std::size_t i = d.size(); i-- > 0;) {
+        if (d[i] != 0U) {
+            msb = (static_cast<int>(i) * 64) +
+                  (63 - static_cast<int>(clz64_local(d[i])));
+            break;
+        }
+    }
+    const int hi = (msb + 2 < 256) ? (msb + 2) : 256;
+
+    while (bit < hi) {
         // Read single bit at position `bit`
         const auto cur = static_cast<unsigned>(
             (d[static_cast<unsigned>(bit) >> 6] >>
@@ -3309,7 +3331,9 @@ void compute_wnaf_into(const Scalar& scalar,
             continue;
         }
 
-        // Non-zero digit: extract up to w bits (clamped at 256)
+        // Non-zero digit: extract up to w bits. The window is clamped against
+        // the full 256-bit scalar, never against `hi` -- a narrower `now` would
+        // change both the digit value and the stride.
         int now = w;
         if (now > 256 - bit) now = 256 - bit;
 

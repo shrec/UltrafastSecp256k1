@@ -1391,6 +1391,12 @@ target_compile_definitions(test_exploit_batch_schnorr_forge_standalone PRIVATE S
 add_test(NAME exploit_batch_schnorr_forge COMMAND test_exploit_batch_schnorr_forge_standalone)
 set_tests_properties(exploit_batch_schnorr_forge PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr;batch")
 
+add_executable(test_regression_scalar_decomposition_and_comb_standalone test_regression_scalar_decomposition_and_comb.cpp)
+audit_target_defaults(test_regression_scalar_decomposition_and_comb_standalone)
+target_compile_definitions(test_regression_scalar_decomposition_and_comb_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_scalar_decomposition_and_comb COMMAND test_regression_scalar_decomposition_and_comb_standalone)
+set_tests_properties(regression_scalar_decomposition_and_comb PROPERTIES TIMEOUT 300 LABELS "audit;regression;glv;comb;wnaf")
+
 add_executable(test_regression_single_affine_materialisation_standalone test_regression_single_affine_materialisation.cpp)
 audit_target_defaults(test_regression_single_affine_materialisation_standalone)
 target_compile_definitions(test_regression_single_affine_materialisation_standalone PRIVATE STANDALONE_TEST)
@@ -3928,6 +3934,7 @@ add_executable(unified_audit_runner
     test_exploit_batch_soundness.cpp
     test_exploit_batch_weight_seed_binding.cpp
     test_regression_single_affine_materialisation.cpp
+    test_regression_scalar_decomposition_and_comb.cpp
     test_exploit_batch_verify_correctness.cpp
     test_exploit_batch_verify_poison.cpp
     test_exploit_bip143_sighash.cpp

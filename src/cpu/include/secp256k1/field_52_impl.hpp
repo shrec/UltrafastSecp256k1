@@ -207,7 +207,45 @@ using namespace fe52_constants;
 // attribute is doing exactly what its comment says (keeping Debug and coverage
 // off O0) and is not capping Release performance. Checked so nobody re-raises
 // it; do not "fix" this without re-measuring.
-#if defined(__GNUC__) || defined(__clang__)
+
+// ===========================================================================
+// Field-kernel inlining policy
+// ===========================================================================
+// fe52_mul_inner and fe52_sqr_inner carried __attribute__((optimize("O2"),
+// noinline)). Two separate blockers were stacked there: noinline, and the
+// optimize() attribute, which on GCC also prevents inlining into a caller
+// compiled with different options.
+//
+// libsecp256k1 v0.8.0 (PR #1859) force-inlined the equivalent routines and
+// reported 0.6-11% on GCC/MSVC. Measured here against v0.8.0 on an i5-14400F
+// (GCC 14.2, performance governor, turbo off, cpu0, nice -20, warm run vs warm
+// run, libsecp/OpenSSL rows as the control at +0.01% median drift):
+//   90 of 104 engine operations >= 500 ns improved by more than 2%, 1 regressed.
+//   ECDSA verify vs libsecp v0.8.0 went 0.92x -> 1.00x, Schnorr verify
+//   0.93x -> 1.01x, CT ECDSA sign 1.28x -> 1.35x, CT Schnorr sign 1.19x -> 1.27x.
+// The gain is not in the multiply itself -- field_mul and field_sqr are
+// unchanged to 0.00% in both libraries -- it is that removing the call boundary
+// lets the caller schedule the 64x64->128 arithmetic alongside its own work.
+//
+// COST: libfastsecp256k1.a grows 14.84% (libsecp reported 4.6%; this engine has
+// roughly three times the field-mul call sites). That is why this is ON only
+// where it has been measured. ARM64, RISC-V and the embedded targets have far
+// smaller instruction caches and much tighter flash budgets, and the experiment
+// has NOT been run on them -- enabling it there is a guess, not a result. Run
+// the same warm-vs-warm A/B on the real device before flipping the default.
+//
+// Override either way with -DUFSECP_FE52_FORCE_INLINE_KERNELS=0 / =1.
+#if !defined(UFSECP_FE52_FORCE_INLINE_KERNELS)
+#  if defined(__x86_64__) || defined(_M_X64)
+#    define UFSECP_FE52_FORCE_INLINE_KERNELS 1
+#  else
+#    define UFSECP_FE52_FORCE_INLINE_KERNELS 0
+#  endif
+#endif
+
+#if UFSECP_FE52_FORCE_INLINE_KERNELS
+SECP256K1_FE52_FORCE_INLINE
+#elif defined(__GNUC__) || defined(__clang__)
 __attribute__((optimize("O2"), noinline))
 static
 #else
@@ -1418,7 +1456,9 @@ void fe52_mul_inner_var(std::uint64_t* SECP256K1_RESTRICT r,
 // the finding that O3 emits byte-identical code. Disassembled at
 // -O3 -march=native: 164 instructions, 21 multiplies (12.8%), 70 mov/push/pop
 // (42.7%) -- the same data-movement-dominated shape.
-#if defined(__GNUC__) || defined(__clang__)
+#if UFSECP_FE52_FORCE_INLINE_KERNELS
+SECP256K1_FE52_FORCE_INLINE
+#elif defined(__GNUC__) || defined(__clang__)
 __attribute__((optimize("O2"), noinline))
 static
 #else

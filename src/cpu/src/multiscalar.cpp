@@ -122,13 +122,12 @@ Point multi_scalar_mul(const Scalar* scalars,
         compute_wnaf_into(decomp.k2, w,
                           wnaf_k2, wnaf_capacity, wnaf_lens[n + i]);
 
-        // Trim trailing zeros -- half-scalars are ~128 bits
-        while (wnaf_lens[i] > 0 && wnaf_k1[wnaf_lens[i] - 1] == 0) {
-            --wnaf_lens[i];
-        }
-        while (wnaf_lens[n + i] > 0 && wnaf_k2[wnaf_lens[n + i] - 1] == 0) {
-            --wnaf_lens[n + i];
-        }
+        // No trailing-zero trim: compute_wnaf_into sets out_len = last_set + 1,
+        // and every digit it stores is odd -- the digit branch is entered only
+        // when the scalar bit differs from the carry, so bit 0 of
+        // (extracted + carry) is 1, and subtracting carry<<w (w >= 2) cannot
+        // clear it. The carry-extension digit it may append is the literal 1.
+        // wnaf[len-1] is therefore never zero and a trim loop cannot iterate.
 
         max_len = std::max(max_len,
                            std::max(wnaf_lens[i], wnaf_lens[n + i]));
