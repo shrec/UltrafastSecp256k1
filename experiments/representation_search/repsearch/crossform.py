@@ -64,6 +64,7 @@ class Agreement(NamedTuple):
     weighted_after: float
     depth_before: float
     depth_after: float
+    equivalence: str = "raw"       # "raw" | "projective"
 
     @property
     def holds(self) -> bool:
@@ -98,13 +99,35 @@ def _on_curve_points(count: int, seed: int) -> List[Tuple[int, int]]:
     return out
 
 
+def _same_jacobian_point(a: Dict[str, int], b: Dict[str, int]) -> bool:
+    """Do (X, Y, Z) and (X', Y', Z') denote the same affine point?
+
+    Jacobian coordinates are a class, not a value: (X, Y, Z) and (t^2 X, t^3 Y, t Z)
+    are the same point for every t != 0. The registry holds two conventions that
+    differ by exactly such a t -- libsecp's doubling ends Z3 = Y*Z, the EFD
+    formulas end Z3 = 2*Y*Z -- so a raw-value comparison between them reports a
+    disagreement that is really a change of representative.
+
+    This is the WEAKER gate and it is not the default. Substituting across it is
+    sound only where the caller reads the point and not the coordinates; a call
+    site that compares Z against 1, reuses a Z from a previous step, or hands the
+    triple to something with its own convention is not such a caller.
+    """
+    zb2 = b["Z"] * b["Z"] % P
+    za2 = a["Z"] * a["Z"] % P
+    if a["X"] * zb2 % P != b["X"] * za2 % P:
+        return False
+    return a["Y"] * zb2 % P * b["Z"] % P == b["Y"] * za2 % P * a["Z"] % P
+
+
 def slice_agreement(reference: SLP,
                     candidate: SLP,
                     var_map: Dict[str, str],
                     pins: Dict[str, int],
                     samples: int = 256,
                     seed: int = 0x5EC0256B1,
-                    point_inputs: Sequence[Tuple[str, str]] = (("X1", "Y1"), ("X2", "Y2"))) -> Agreement:
+                    point_inputs: Sequence[Tuple[str, str]] = (("X1", "Y1"), ("X2", "Y2")),
+                    projective: bool = False) -> Agreement:
     """Do `reference` and `candidate` compute the same outputs on the declared slice?
 
     `var_map` maps each candidate input to a reference input; a candidate input
@@ -133,7 +156,13 @@ def slice_agreement(reference: SLP,
         (x1, y1), (x2, y2) = pairs[2 * i], pairs[2 * i + 1]
         if x1 == x2:
             continue                      # doubling, not addition: a different formula
-        supply = {"X1": x1, "Y1": y1, "X2": x2, "Y2": y2}
+        # The same two points under every naming convention the registry uses.
+        # A one-point formula calls its input (X, Y); a two-point one calls the
+        # first point (X1, Y1). Seeding both from the SAME point is what lets a
+        # doubling be compared against a doubling without a var_map per pair --
+        # and getting this wrong compares two formulas on different inputs, which
+        # produces a disagreement that means nothing.
+        supply = {"X1": x1, "Y1": y1, "X2": x2, "Y2": y2, "X": x1, "Y": y1}
         # An input that is neither a point coordinate nor pinned gets a random
         # field value. That is what makes the EMPTY slice a real test rather than
         # an error: with Z1 free, a formula that only agrees when Z1 = 1 must be
@@ -153,7 +182,13 @@ def slice_agreement(reference: SLP,
             continue
 
         used += 1
-        bad = tuple(k for k in shared if got_ref[k] % P != got_cand[k] % P)
+        if projective and {"X", "Y", "Z"} <= set(shared):
+            rest = tuple(k for k in shared if k not in ("X", "Y", "Z"))
+            bad = tuple(k for k in rest if got_ref[k] % P != got_cand[k] % P)
+            if not _same_jacobian_point(got_ref, got_cand):
+                bad = bad + ("X", "Y", "Z")
+        else:
+            bad = tuple(k for k in shared if got_ref[k] % P != got_cand[k] % P)
         if bad:
             if first_bad is None:
                 first_bad = Disagreement(dict(ref_env), got_ref, got_cand, bad)
@@ -168,6 +203,7 @@ def slice_agreement(reference: SLP,
         samples=used, agreed=agreed, disagreement=first_bad,
         weighted_before=cb.weighted, weighted_after=cc.weighted,
         depth_before=cb.depth, depth_after=cc.depth,
+        equivalence="projective" if projective else "raw",
     )
 
 
