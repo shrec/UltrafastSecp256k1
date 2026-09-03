@@ -97,3 +97,97 @@ def test_sample_count_is_reported_not_assumed():
     a = slice_agreement(madd_production(), zaddu_sum_only(), ZMAP, AFFINE, samples=4)
     assert a.samples <= 4
     assert a.holds == (a.samples > 0 and a.agreed == a.samples)
+
+
+def test_one_point_and_two_point_names_denote_the_same_point():
+    """A doubling calls its input (X, Y); an addition calls the first point
+    (X1, Y1). Both names have to be seeded from the SAME point, or a doubling
+    compared against a doubling is evaluated at two different inputs and the
+    disagreement that comes back means nothing.
+
+    That is not hypothetical: it is what an all-pairs registry sweep did before
+    this was fixed. Every doubling pair was reported as non-agreeing, which read
+    as "the doubling family is exhausted" when the truth was that the family had
+    never been compared at all.
+    """
+    from repsearch.pointforms import (dbl_production, dbl_prod_alt_sign,
+                                      dbl_prod_mul_by_3_as_add)
+
+    ref = dbl_production()
+    for cand in (dbl_prod_alt_sign(), dbl_prod_mul_by_3_as_add()):
+        a = slice_agreement(ref, cand, {}, FREE, samples=64)
+        assert a.samples > 40, "the sample was discarded"
+        assert a.holds, (cand.name, a.disagreement)
+
+
+def test_the_two_z_conventions_are_kept_apart_by_default():
+    """The registry holds two Jacobian conventions. libsecp's doubling ends
+    Z3 = Y*Z; the EFD formulas end Z3 = 2*Y*Z. Those denote the same affine
+    point through different representatives, and by default the tool must call
+    them different -- a call site that reuses Z, or tests it against 1, is not
+    free to swap one for the other.
+
+    Under the explicit projective gate they agree, and that is the ONLY way the
+    two families can be compared at all. Both halves matter: the first keeps the
+    default sound, the second keeps a whole third of the registry reachable.
+    """
+    from repsearch.pointforms import dbl_production, dbl_2009_l
+
+    ref, cand = dbl_production(), dbl_2009_l()
+
+    raw = slice_agreement(ref, cand, {}, FREE, samples=64)
+    assert not raw.holds, "a change of representative must not pass the raw gate"
+    assert raw.equivalence == "raw"
+    assert set(raw.disagreement.keys) == {"X", "Y", "Z"}
+
+    proj = slice_agreement(ref, cand, {}, FREE, samples=64, projective=True)
+    assert proj.samples > 40
+    assert proj.holds, proj.disagreement
+    assert proj.equivalence == "projective"
+
+
+def test_projective_gate_still_rejects_a_genuinely_different_map():
+    """The weaker gate must stay a gate. co-Z off its slice is a different map,
+    not a rescaled one, so loosening raw equality to projective equality must
+    not let it through."""
+    a = slice_agreement(madd_production(), zaddu_sum_only(), ZMAP, FREE,
+                        samples=128, projective=True)
+    assert a.samples > 100
+    assert not a.holds, "projective equality is not an excuse to drop a precondition"
+
+
+def test_the_shipped_formulas_are_the_registry_minimum():
+    """The point of the sweep is to find something cheaper than what is shipped.
+    Pinning the current answer -- nothing is -- means a future formula that beats
+    a production one shows up as a test failure rather than going unnoticed.
+
+    Ties count as held: madd_prod_s2_reassoc reaches the same weight as the
+    shipped mixed add by reassociating one product, which is a draw and not a
+    win. Only a strictly cheaper formula should break this test.
+
+    This also guards the cost model: it was the corrected sub weight that put
+    the in-tree doubling and mixed add back on top, and a regression there would
+    silently re-rank them.
+    """
+    from repsearch import pointforms
+
+    by_role = {}
+    for name in dir(pointforms):
+        fn = getattr(pointforms, name)
+        if name.startswith("_") or not callable(fn):
+            continue
+        if not name.startswith(("madd", "dbl", "mdbl", "zaddu")):
+            continue
+        try:
+            f = fn()
+        except Exception:
+            continue
+        ins = set(f.inputs)
+        role = "dbl" if ins <= {"X", "Y", "Z"} else ("madd" if "Z1" in ins else "cozadd")
+        by_role.setdefault(role, []).append((f.cost().weighted, f.name, f.note or ""))
+
+    for role in ("dbl", "madd"):
+        entries = sorted(by_role[role])
+        best = entries[0][0]
+        tied = [e for e in entries if e[0] <= best + 1e-9]
+        assert any("in_tree" in e[2] for e in tied), (role, tied)
