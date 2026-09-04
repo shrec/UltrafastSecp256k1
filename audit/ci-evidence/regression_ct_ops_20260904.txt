@@ -1,0 +1,18 @@
+[regression_ct_ops] CT operation regressions (SEC-002/007/008/010, CT-004/005)
+
+  [CT-004] ecdsa_sign_verified round-trip
+  [CT-005] ct::generator_mul and fast scalar_mul agree
+  [SEC-007] ECDSA verify accepts high-S (no implicit normalize)
+  [SEC-008] Schnorr sign + verify round-trip
+  [SEC-002] CT scalar ops: inverse, negate, add
+
+  [CT-005] source scan: ecdsa_sign_verified calls ct::ecdsa_sign
+  [CT-004] musig2_nonce_gen: generator_mul_blinded + transparency
+  [SEC-007] batch_weight non-zero: batch_verify correctness
+  [SEC-008] adaptor: degenerate sentinel source scan + round-trip
+  [SEC-010] bip32_master_key: parse_bytes_strict_nonzero
+  [SEC-002/CT-002] frost_lagrange: ct::scalar_mul source scan + 2-of-3
+  [SEC-002-EXTRACT] schnorr_adaptor_extract: ct::scalar_sub + ct::scalar_cneg source scan
+  [CT-005] ecdsa_sign_verified: 10 random keys all verify
+
+  pass=42  fail=0

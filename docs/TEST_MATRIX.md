@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 462 modules (186 non-exploit + 276 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 467 modules (191 non-exploit + 276 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -106,14 +106,14 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 465 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 467 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 465 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 467 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test on CT generator and signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
 | `src/cuda/src/test_windows_macro_compat.cu` | CUDA/MSVC | `cuda_windows_macro_compat`: compile regression for Windows SDK `small` macro collisions in the public CUDA header |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 465 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 467 modules, 8 sections) |
 
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
@@ -1070,3 +1070,10 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `regression_shim_rfc6979_compat` | `audit/test_regression_shim_rfc6979_compat.cpp` | SHIM-P3-006: rfc6979_nonce_libsecp_compat determinism + signing correctness — same inputs same nonce, NULL vs non-NULL ndata differ, ecdsa_sign_libsecp_compat verifies (RFC-1..9); advisory=false |
 | `regression_shim_divergence_fixes` | `audit/test_regression_shim_divergence_fixes.cpp` | ILLCB-001/002: pubkey_parse NULL args fire illegal_cb; DER-STRICT: r=0/s=0 accepted at parse; keypair_sec BIP-340: stored sk produces even-Y pubkey (SDF-1..6); advisory=true |
 | `regression_shim_tweak_recover_null_cb` | `audit/test_regression_shim_tweak_recover_null_cb.cpp` | TRNC-1..4: xonly_pubkey_tweak_add, tweak_add_check, keypair_xonly_tweak_add, recoverable_sig_convert fire illegal_callback on NULL non-ctx args (SHIM-NULL-CB-2026); advisory=true |
+| `regression_pippenger_window_bands` | `audit/test_regression_pippenger_window_bands.cpp` | Window-band boundaries of `pippenger_optimal_window` at the sizes `schnorr_batch_verify` actually uses. c=6 was removed, so the 80..384 band crossed into `use_signed` (c >= 7) and switched from the unsigned bucket path to the signed-digit one; also pins the P1 fix where signed scatter assumed affine input. Every failure mode here yields a well-formed but wrong point. |
+| `regression_inplace_point_ops` | `audit/test_regression_inplace_point_ops.cpp` | `X.op_inplace(Y)` must equal `X.op(Y)` exactly. 54 call sites were rewritten to the in-place form; the two are separate implementations, not one wrapping the other. Covers infinity operands, P+(-P), P+P routed through `add()`, and mixed affine/Jacobian pairs -- the cases a generic-only implementation gets wrong. |
+| `regression_scalar_reduce_and_safegcd_divstep` | `audit/test_regression_scalar_reduce_and_safegcd_divstep.cpp` | Two speed rewrites of arithmetic with exactly one correct answer: `Scalar::from_bytes` now adds 2^256-n and drops the carry, gated on a specialised `order_overflow()` replacing `ge(x, ORDER)` at nine sites; and `safegcd_divsteps_62_var` cancels up to 6 bits per pass. Boundary cases n-1, n and 2^256-1 are pinned. |
+| `regression_single_affine_materialisation` | `audit/test_regression_single_affine_materialisation.cpp` | Call sites that inverted Z twice on the same point -- once to read x, again for y parity or serialisation -- now invert once. Each removal rests on an equivalence between two ways of reading one point; if normalisation, the 5x52 -> 4x64 repack, byte order or parity derivation ever changes, the sites silently produce different bytes. |
+| `regression_table_build_invariants` | `audit/test_regression_table_build_invariants.cpp` | Odd-multiple table construction: window-constant agreement between `dual_scalar_mul_gen_point`'s recoding at `WINDOW_G` and the separately-written `kDualMulWindowG` that sizes `tbl_G`/`tbl_H`, plus the shared-Z contract. A mismatch produces a self-consistent wrong table rather than an obvious break. |
+| `exploit_batch_weight_seed_binding` | `audit/test_exploit_batch_weight_seed_binding.cpp` | Exploit PoC (P0, fixed): `schnorr_batch_verify` checks `sum_i a_i * D_i == O` instead of N individual equations. The Bellare-Garay-Rabin small-exponents argument requires the weights `a_i` to be unpredictable to the forger; this pins that the randomiser's seed binding is present, without which a forgery survives the aggregate. |
+| `atomic_link_closure` | `src/cpu/tests/test_atomic_link_closure.cpp` | Link-closure guard: every atomic symbol the library references must resolve from the linked runtime, so a build cannot silently pick up a partial libatomic and fail only under contention. |

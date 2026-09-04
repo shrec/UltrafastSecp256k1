@@ -1,5 +1,71 @@
 # Audit Changelog
 
+## 2026-09-03 — The gate suite goes green: 8 failing gates, one of them a real contradiction
+
+`ci_local.sh` reported 5 of 30 checks failing and `run_fast_gates.sh` 8 of 74.
+None of it was caused by the commit under test — the identical set reproduces on
+the parent commit in a detached worktree — but "pre-existing" is not "fine", and
+one of the eight was two gates asserting opposite things about the same line.
+
+### The contradiction: `crt`
+
+`ci/check_windows_cuda_contract.py` listed `crt` in `REQUIRED_SUBPACKAGES`.
+`audit/test_windows_cuda_workflow_contract.cpp` asserts sub-packages
+`must never include 'crt'`. Both run against `.github/workflows/windows-cuda.yml`,
+and no edit to that file could satisfy both.
+
+The history resolves it. `crt` entered the Python gate on 2026-07-21
+(`fix(ci): install Windows CUDA CRT headers`); the workflow dropped it again on
+2026-08-26 (`ci(windows): stabilize CUDA toolchain workflow`), which is also when
+the C++ assertion was added — but the Python set was never updated. The Windows
+network installer publishes no `crt` package; nvcc already carries those headers,
+and requesting a name that does not exist fails the whole toolkit install rather
+than degrading. So the shipped workflow and the later in-workflow contract test
+are right: `crt` moved from `REQUIRED_SUBPACKAGES` to
+`INVALID_WINDOWS_SUBPACKAGES`, and `ci/test_audit_scripts.py`'s fixture — which
+encoded the old direction, asserting that a workflow *without* `crt` must be
+rejected — was rewritten so both halves still bite: an incomplete set (thrust
+omitted) and a Windows-invalid name (`cudart_dev`, `crt`) are separate faults,
+plus a new fixture pinning `crt` alone as rejected.
+
+### Two CI-contract tests that ran almost nowhere
+
+`test_shim_security_gate_policy.cpp` and `test_windows_cuda_workflow_contract.cpp`
+(both added 2026-08-26) had a `_run()` and a `main()` but no `ALL_MODULES` row and
+no entry in `audit/CMakeLists.txt`. The Windows one ran only from the Windows job
+it guards; the shim one ran nowhere at all. Both are now wired
+(`section: security_gate`, `advisory=false`), which takes the runner from 465 to
+**467 modules**.
+
+Wiring alone would have been a false green. Both resolved their YAML relative to
+the current directory — `test_shim_security_gate_policy.cpp` with a bare
+`.github/workflows/gate.yml` — and a contract test that cannot read its contract
+executes zero checks, which reports as a pass. Both now resolve through
+`UFSECP_SOURCE_ROOT` first, verified by running each from `/tmp`: 15 live checks +
+23 mutation regressions, and 23 checks, respectively, in both locations.
+
+### Stale canonical data
+
+The three audit modules added on 2026-09-02/03 never had
+`ci/sync_module_count.py` run for them, so every doc still said 462 modules / 186
+non-exploit. `ci/sync_all_docs.py` (the umbrella script —
+`sync_module_count.py` and `sync_docs_from_canonical.py` disagree with each other
+on `AUDIT_COVERAGE.md` and never converge when run separately) propagated the real
+counts. Seven CTest targets were absent from `docs/TEST_MATRIX.md`, six of them
+from this week's work; all are now documented.
+
+### Retroactive coverage records
+
+`7eb17d90` and `86791b1a` changed files under `src/cpu/src/` without a test in the
+same commit. `7eb17d90` changed no executable statement at all — three point.cpp
+hunks correcting magnitude annotations, nothing else — and `86791b1a`'s
+`Point(Uninitialised)` paths are driven end to end by
+`regression_inplace_point_ops`, which landed one commit later. Both are recorded
+in `RETROACTIVELY_COVERED` with the covering test named, and
+`RETROACTIVELY_COVERED_FROZEN_COUNT` raised 64 → 66 as that guard requires.
+
+**Result: `run_fast_gates.sh` 74 gates, 0 failing.**
+
 ## 2026-09-03 — Two documentation defects closed (#397, #398)
 
 Both were filed against comments that say something the code does not do. Both

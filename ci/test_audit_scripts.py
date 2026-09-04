@@ -4434,7 +4434,11 @@ def check_windows_cuda_contract_fixtures() -> None:
                 "uses": "Jimver/cuda-toolkit@" + "a" * 40,
                 "with": {
                     "method": "network",
-                    "sub-packages": '["nvcc", "crt", "cudart", "thrust", "visual_studio_integration"]',
+                    # No "crt": the Windows network installer publishes no such
+                    # package, nvcc already carries the CRT headers, and
+                    # audit/test_windows_cuda_workflow_contract.cpp asserts it is
+                    # never listed. This mirrors the real windows-cuda.yml.
+                    "sub-packages": '["nvcc", "cudart", "thrust", "visual_studio_integration"]',
                 },
             },
             {
@@ -4453,18 +4457,40 @@ def check_windows_cuda_contract_fixtures() -> None:
     linux_only_header_name = {
         "jobs": {"windows-cuda": {"steps": [dict(step) for step in clean["jobs"]["windows-cuda"]["steps"]]}},
     }
+    # Drops a genuinely required package (thrust) and adds two that the Windows
+    # network installer does not publish: cudart_dev, and crt. Both halves must
+    # still bite -- an incomplete set and a Linux-only name are different faults.
     linux_only_header_name["jobs"]["windows-cuda"]["steps"][0] = {
         "uses": "Jimver/cuda-toolkit@" + "a" * 40,
         "with": {
             "method": "network",
-            "sub-packages": '["nvcc", "cudart", "cudart_dev", "thrust", "visual_studio_integration"]',
+            "sub-packages": '["nvcc", "crt", "cudart", "cudart_dev", "visual_studio_integration"]',
         },
     }
     header_kinds = {p["kind"] for p in mod.evaluate_document(linux_only_header_name)}
     if "cuda_subpackages_missing" not in header_kinds:
-        failures.append("missing Windows crt package did not fail")
+        failures.append("omitted required thrust package did not fail")
     if "cuda_subpackages_invalid_windows" not in header_kinds:
-        failures.append("Linux-only cudart_dev package was accepted on Windows")
+        failures.append("Linux-only cudart_dev / crt packages were accepted on Windows")
+
+    # crt on its own must be rejected, not merely tolerated alongside another
+    # fault: it is the exact package the 2026-07-21 gate required and the
+    # 2026-08-26 workflow fix removed, and nothing else pins that direction.
+    crt_only = {
+        "jobs": {"windows-cuda": {"steps": [dict(step) for step in clean["jobs"]["windows-cuda"]["steps"]]}},
+    }
+    crt_only["jobs"]["windows-cuda"]["steps"][0] = {
+        "uses": "Jimver/cuda-toolkit@" + "a" * 40,
+        "with": {
+            "method": "network",
+            "sub-packages": '["nvcc", "crt", "cudart", "thrust", "visual_studio_integration"]',
+        },
+    }
+    crt_kinds = {p["kind"] for p in mod.evaluate_document(crt_only)}
+    if "cuda_subpackages_invalid_windows" not in crt_kinds:
+        failures.append("crt was accepted on Windows")
+    if "cuda_subpackages_missing" in crt_kinds:
+        failures.append("crt is still being demanded as a required Windows package")
 
     cpu_fallback = {
         "jobs": {"windows-cuda": {"steps": [dict(step) for step in clean["jobs"]["windows-cuda"]["steps"]]}},

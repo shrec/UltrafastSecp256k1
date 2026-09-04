@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-07-22T22:47:43.828867+00:00",
-  "library": "out/codex-bip352/include/ufsecp/libufsecp.so",
+  "generated_at": "2026-09-04T00:10:59.853763+00:00",
+  "library": "out/ci-audit/include/ufsecp/libufsecp.so.4.5.0",
   "repeat": 5,
   "overall_pass": true,
   "issues": [],

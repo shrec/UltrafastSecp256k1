@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-07-22",
+  "updated_at": "2026-09-04",
   "source": "docs/ASSURANCE_LEDGER.md",
   "claims": [
     {
@@ -221,5 +221,6 @@
         "public docs"
       ]
     }
-  ]
+  ],
+  "update_note": "2026-09-04: re-attestation only, no claim change. ci/validate_assurance.py was re-run: the ledger covers all 212 header functions and this file's 8 claim IDs match ASSURANCE_LEDGER.md. Recorded because audit_sla_check.py ages this artifact from its last git commit, so a claims file that is correct and therefore unedited still ages into a blocking violation."
 }

@@ -4335,6 +4335,13 @@ add_executable(unified_audit_runner
     test_regression_ct_scalar_inverse_zero.cpp
     # SEC-006: Bip324Session privkey_ lifetime documentation (2026-05-21)
     test_regression_bip324_privkey_lifetime.cpp
+    # CI-workflow contract tests (both added 2026-08-26, never wired). They own
+    # the integrity of two gates that nothing else checks: gate.yml's shim
+    # advisory/non-advisory report classification, and windows-cuda.yml's
+    # toolchain contract. Both resolve their YAML via UFSECP_SOURCE_ROOT, so
+    # neither can report a zero-check pass when run from an unrelated CWD.
+    test_shim_security_gate_policy.cpp
+    test_windows_cuda_workflow_contract.cpp
 )
 # Shim-independent tests: always add to unified_audit_runner.
 target_sources(unified_audit_runner PRIVATE

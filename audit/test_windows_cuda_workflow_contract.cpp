@@ -26,6 +26,23 @@ struct Check {
 
 bool locate_workflow_file(std::string& out_path) {
     namespace fs = std::filesystem;
+    std::error_code root_ec;
+#ifdef UFSECP_SOURCE_ROOT
+    // Compile-time absolute repo root, baked in by audit/CMakeLists.txt. Tried
+    // before the CWD walk-up because unified_audit_runner is routinely invoked
+    // from a directory unrelated to the tree, where the walk-up finds nothing --
+    // and "not found" in a contract test means zero checks executed, which reads
+    // as a pass. The walk-up stays for the standalone CTest and MSVC builds,
+    // which compile this file without the macro.
+    {
+        fs::path const rooted =
+            fs::path(UFSECP_SOURCE_ROOT) / ".github" / "workflows" / "windows-cuda.yml";
+        if (fs::exists(rooted, root_ec)) {
+            out_path = rooted.string();
+            return true;
+        }
+    }
+#endif
     fs::path dir = fs::current_path();
     for (int i = 0; i < 10; ++i) {
         fs::path candidate = dir / ".github" / "workflows" / "windows-cuda.yml";

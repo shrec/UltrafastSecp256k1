@@ -50,6 +50,33 @@ static int g_pass = 0, g_fail = 0;
 namespace {
 
 const char* kGateYmlPath = ".github/workflows/gate.yml";
+
+// Resolve kGateYmlPath against the compile-time repo root when there is one.
+// Wired into unified_audit_runner, this file is run from whatever directory the
+// runner was launched in; a bare relative path finds gate.yml only when that
+// happens to be the repo root. Everywhere else read_file() fails, and a contract
+// test that cannot read its contract executes zero checks -- which reports as a
+// pass, not a skip. The relative path remains the fallback for the standalone
+// build, which is compiled without UFSECP_SOURCE_ROOT.
+std::string resolve_gate_yml() {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+#ifdef UFSECP_SOURCE_ROOT
+    fs::path const rooted = fs::path(UFSECP_SOURCE_ROOT) / ".github" / "workflows" / "gate.yml";
+    if (fs::exists(rooted, ec)) return rooted.string();
+#endif
+    fs::path dir = fs::current_path(ec);
+    if (!ec) {
+        for (int i = 0; i < 10; ++i) {
+            fs::path const candidate = dir / ".github" / "workflows" / "gate.yml";
+            if (fs::exists(candidate, ec)) return candidate.string();
+            fs::path const parent = dir.parent_path();
+            if (parent.empty() || parent == dir) break;
+            dir = parent;
+        }
+    }
+    return std::string(kGateYmlPath);
+}
 const char* kStepStartMarker = "- name: Run shim security regression modules";
 const char* kNextStepMarker = "\n      - name:";
 const char* kRunnerInvocation =
@@ -194,13 +221,14 @@ bool run_scenario(const std::string& dedented_script,
 } // namespace
 
 int test_shim_security_gate_policy_run() {
-    printf("[shim-gate-report-policy] Contract checks against %s\n", kGateYmlPath);
+    std::string const gate_yml_path = resolve_gate_yml();
+    printf("[shim-gate-report-policy] Contract checks against %s\n", gate_yml_path.c_str());
     g_pass = g_fail = 0;
 
     std::string gate_yml;
-    if (!read_file(kGateYmlPath, gate_yml)) {
-        printf("  FAIL [%s:%d] could not read %s (wrong cwd? test must run from repo root)\n",
-               __FILE__, __LINE__, kGateYmlPath);
+    if (!read_file(gate_yml_path, gate_yml)) {
+        printf("  FAIL [%s:%d] could not read %s\n",
+               __FILE__, __LINE__, gate_yml_path.c_str());
         return 1;
     }
 

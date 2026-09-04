@@ -656,6 +656,8 @@ int test_exploit_gpu_bip352_multispend_failclosed_run();            // issue #33
 // track): see benchmarks/github_issue_335/opencl_round3_evidence/README.md
 // for the full evidence bundle. These 3 files were written by the OpenCL
 // Phase-1 agent but never wired into ALL_MODULES[] until this pass.
+int test_shim_security_gate_policy_run();         // gate.yml shim advisory/non-advisory report policy
+int test_windows_cuda_workflow_contract_run();    // windows-cuda.yml toolchain + retention-job contract
 int test_regression_opencl_bip352_faultinject_symbols_absent_run(); // SAS-1..3: fault-injection hooks absent from release symbol table (nm/nm -D on running binary)
 int test_exploit_opencl_bip352_control_call_failclosed_run();       // per-site E2E fail-closed proof for all 18 OpenCL control-call sites (complements exploit_gpu_bip352_multispend_failclosed's single-site E2E case)
 int test_regression_opencl_kernel_resolver_unrelated_cwd_run();     // RCU-1..8: systemic OpenCL kernel-resolver fix (5 loaders), unrelated-CWD + installed-layout + genuine relocated-install (round 10)
@@ -1425,6 +1427,20 @@ static const AuditModule ALL_MODULES[] = {
     // genuinely absent from this binary's own static AND dynamic symbol
     // tables. No BIP-352 feature dependency (pure nm/self-exe inspection).
     { "regression_opencl_bip352_faultinject_symbols_absent", "SAS-1..3: OpenCL BIP-352 fault-injection test hooks (ufsecp_test_opencl_bip352_*) are compiled out of every normal build and absent from the running binary's static (nm) and dynamic (nm -D) symbol tables — issue #335 round 3", "security_gate", test_regression_opencl_bip352_faultinject_symbols_absent_run, false },
+    // === CI-workflow contract tests (added 2026-08-26, wired 2026-09-03) ===
+    // Both existed on disk with a _run() and a main() but no ALL_MODULES row, so
+    // they ran only where their own workflow happened to invoke them -- the
+    // Windows one from windows-cuda.yml's first step, the shim one nowhere at
+    // all. Wiring them here is what the broadened check_exploit_wiring scan asks
+    // for, and it also means a change to either workflow is caught on Linux CI
+    // rather than after a Windows job has already been dispatched.
+    // advisory=false: both are self-contained static analyses of in-tree YAML,
+    // resolved through UFSECP_SOURCE_ROOT, so there is no infrastructure whose
+    // absence could legitimately skip them. (The shim module's layer 2 replays
+    // the extracted step through bash+python3; where those are absent it reports
+    // a notice and layer 1 still runs, so the module has no vacuous-pass path.)
+    { "shim_security_gate_policy", "CI CONTRACT: gate.yml's \"Run shim security regression modules\" step decides, from unified_audit_runner's JSON report, whether a nonzero runner exit is an advisory-only result (must NOT hard-fail) or a real failure (must). Layer 1 pins the step's documented properties against the YAML text; layer 2 extracts the step's actual run: script, swaps the runner for a controlled stub, and executes the real bash+python pipeline over synthetic reports -- missing-report, advisory-only-nonzero, mixed advisory/non-advisory, clean pass, nonzero-with-no-classified-cause, and a Rule 16 GPU advisory false-pass. A static-only predecessor of this test passed against a patch whose exit-code reconciliation hard-failed the exact advisory-only case its own policy exempted (CI_SHIM_GATE_REPORT_POLICY_ARTIFACT_703), which is why the executable layer exists", "security_gate", test_shim_security_gate_policy_run, false },
+    { "windows_cuda_workflow_contract", "CI CONTRACT: windows-cuda.yml is the only job that compiles the Windows/MSVC GPU host path, and it is one edit away from silently degrading into a job that passes without building anything. Pins the pinned toolkit version (12.8.1, no drift to the unsupported 13.2 default), the Windows-valid sub-package set, the fail-fast CUDA_PATH/nvcc/cicc/ptxas/nvcc.profile diagnostics, output confinement to out/windows-cuda, and the libbitcoin-direct hook retention job staying real and unmasked. Every invariant is proven to have teeth: 23 single-point mutations are applied to a copy of the live file text and each corresponding check is asserted to flip pass->fail. Companion to ci/check_windows_cuda_contract.py, which parses the same file structurally", "security_gate", test_windows_cuda_workflow_contract_run, false },
     // issue #335 round 3 (OpenCL track, 2026-07-16): systemic OpenCL kernel-
     // resolver fix — ensure_frost_kernel/ensure_hash160_kernel/
     // ensure_zk_kernels/ensure_bip324_kernels/ensure_bip352_kernel all now

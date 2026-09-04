@@ -98,6 +98,30 @@ TEST_PATTERNS = (
 # commit (retroactive coverage). The gate accepts these provided the named
 # test file exists on disk. Format: sha_prefix → [test_file, reason].
 RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
+    "7eb17d90cb": (
+        ["audit/test_regression_inplace_point_ops.cpp"],
+        "Comment-only change inside a security directory. The three point.cpp hunks "
+        "leave every executable statement byte-identical -- `FieldElement52 const "
+        "negX1 = p.x.negate(8);` before and after -- and correct only the trailing "
+        "magnitude annotations, which claimed h was mag 6 when negate(8) on a mag-8 "
+        "input gives mag 9 and the sum is mag 10. The field_52.hpp hunk is likewise a "
+        "corrected comment: the inverse() note had the comparison inverted against the "
+        "measured numbers. Wrong magnitude annotations are how the NEXT change "
+        "overflows the accumulator, so they were fixed rather than left. The mixed-add "
+        "paths they annotate are exercised by regression_inplace_point_ops across "
+        "Jacobian/affine/infinity operand pairs.",
+    ),
+    "86791b1aea": (
+        ["audit/test_regression_inplace_point_ops.cpp"],
+        "Point::add's two mixed paths construct their result with a private "
+        "Point(Uninitialised) that skips the member zero-fill, on the argument that "
+        "every field is written before use. That argument is exactly what needs "
+        "testing: if any path leaves a field unwritten the result is garbage, not a "
+        "crash. regression_inplace_point_ops landed one commit later and drives add() "
+        "over the full ordered pool -- Jacobian x affine x infinity, P + (-P), P + P "
+        "routed through add() -- which is precisely the set of paths reaching those "
+        "two constructions. Coverage exists; it was committed separately.",
+    ),
     "ce2906b86c": (
         ["compat/libsecp256k1_shim/tests/shim_test.cpp", "ci/run_libsecp_shim_api_test.sh"],
         "CI security gate wiring commit: enabled the already-existing shim API/layout "
@@ -720,7 +744,7 @@ RETROACTIVELY_COVERED: dict[str, tuple[list[str], str]] = {
 # Frozen count guard (CAAS-006): prevents silent whitelist growth.
 # When adding a new entry above, increment this constant too.
 # Unauthorized bypass (adding an entry without incrementing) → import-time assertion failure.
-RETROACTIVELY_COVERED_FROZEN_COUNT: int = 64
+RETROACTIVELY_COVERED_FROZEN_COUNT: int = 66
 assert len(RETROACTIVELY_COVERED) == RETROACTIVELY_COVERED_FROZEN_COUNT, (
     f"RETROACTIVELY_COVERED has {len(RETROACTIVELY_COVERED)} entries but "
     f"RETROACTIVELY_COVERED_FROZEN_COUNT={RETROACTIVELY_COVERED_FROZEN_COUNT}. "

@@ -63,12 +63,22 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "windows-cuda.yml"
 REQUIRED_SUBPACKAGES = {
     "nvcc",
-    "crt",
     "cudart",
     "thrust",
     "visual_studio_integration",
 }
-INVALID_WINDOWS_SUBPACKAGES = {"cudart_dev"}
+# "crt" is not a package the Windows network installer publishes -- on Windows the
+# nvcc component already carries the CRT headers, and asking for a name that does
+# not exist makes the whole toolkit install fail rather than degrade. It was added
+# to the REQUIRED set on 2026-07-21 ("fix(ci): install Windows CUDA CRT headers"),
+# removed from the workflow again on 2026-08-26 ("ci(windows): stabilize CUDA
+# toolchain workflow") when that turned out not to work, and this set was never
+# updated to match -- so this gate demanded a sub-package that
+# audit/test_windows_cuda_workflow_contract.cpp (compiled and run as the FIRST
+# step of the same workflow) asserts must never appear. Two gates asserting
+# opposite things about one line is why the fast-gate suite could not go green;
+# the shipped workflow and the later, in-workflow contract test are authoritative.
+INVALID_WINDOWS_SUBPACKAGES = {"cudart_dev", "crt"}
 REQUIRED_TARGETS = {"secp256k1_gpu_host", "secp256k1_cuda_lib"}
 
 
