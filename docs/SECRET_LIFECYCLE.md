@@ -63,7 +63,7 @@ The signing, BIP-32/BIP-39, MuSig2, FROST and ECIES secret-cleanup sequences are
 byte-for-byte unchanged. CT evidence for the affected surfaces was re-verified on
 2026-09-04 (see `docs/CT_EVIDENCE_STATUS.json`): `exploit_recoverable_sign_ct`,
 `exploit_bug002_recovery_ct` and `regression_ct_scalar_inverse_zero` all rc=0 in a
-466-module `unified_audit_runner` run with 0 blocking failures, and
+full `unified_audit_runner` run with 0 blocking failures, and
 `ci/valgrind_ct_check.sh` returned PASS with 0 branch-on-uninit and 0 uninit-value
 errors across 39 tracked checks.
 
