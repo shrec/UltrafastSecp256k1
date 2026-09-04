@@ -1,6 +1,71 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-06-17 | **Version**: 4.5.0
+**Last updated**: 2026-09-04 | **Version**: 4.5.0
+
+### 2026-09-04 - Representation-search wave: two lifecycle-relevant items, the rest public-data
+
+The representation-search work touched eight files the secret-path gate watches
+(`address.cpp`, `bip32.cpp`, `ecdh.cpp`, `ecdsa.cpp`, `frost.cpp`, `musig2.cpp`,
+`recovery.cpp`, `schnorr.cpp`). Two changes are genuinely lifecycle-relevant and are
+recorded here for that reason; the rest are public-data arithmetic and are recorded
+so the next reader does not have to re-derive that.
+
+**1. A process-lifetime static HMAC midstate (`ecdsa.cpp`).** RFC 6979 step c keys its
+first HMAC with `K0 = 0x00 * 32`. Because that key is a fixed constant, both pad
+midstates are input-independent, so `init_zero_key32()` computes them once into a
+function-local `static const HMAC_Ctx` and memcpys them per call.
+
+This puts an HMAC midstate in static storage for the life of the process, which is
+exactly the shape that would normally be a finding — so, explicitly: **the key is the
+all-zero constant, not a secret.** Nothing derived from a private key, nonce, or seed
+is held. The midstate is produced by `init_key32(ZERO_KEY32)` itself rather than
+transcribed from a table, so it is bit-identical to the per-call computation it
+replaces, and an `assert` pins that the caller really did pass `K0`. No `secure_erase`
+site is affected: the per-signature HMAC contexts that DO absorb secret material are
+still stack-local and still erased on the same paths as before.
+
+**2. `hmac_short` now fails closed (`ecdsa.cpp`).** The `msg_len > 55` guard used to
+`return` with the 32-byte output buffer untouched, leaving whatever the caller had
+there — the guard existed to stop a `size_t` wrap in a later `memset` count, and it
+did, but it left the output undefined. It now zeroes `out` before returning, so a
+rejected call cannot leave stale bytes in a buffer the caller may read. This is a
+strict improvement in output hygiene; no secret input handling changed.
+
+**Everything else on those paths is public data.** Recorded individually because the
+files are on the watch list:
+
+- `ecdh.cpp` — the change normalizes a **public key** copy once instead of paying two
+  Z-inversions across `x()` and `y()` for the on-curve check. The ECDH scalar and the
+  shared-secret derivation are untouched; the CT multiplication and its erasure
+  sequence are unchanged.
+- `musig2.cpp` — reads the parity bit and the X bytes of the aggregate point `Q` from
+  one `x_bytes_and_parity()` instead of `has_even_y()` plus a second inversion of the
+  same Z. `Q` is the aggregate PUBLIC key. The infinity case is kept explicit because
+  a parity bit alone cannot express it. Secnonce handling and its erasure are unchanged.
+- `frost.cpp`, `address.cpp`, `bip32.cpp`, `recovery.cpp` — `X = X.op(Y)` rewritten to
+  `X.op_inplace(Y)` / `negate_assign()`. All operands are public: FROST commitment and
+  nonce POINTS and the group public key, BIP-352 public-key aggregation, and public
+  y-coordinates. Signing shares and private scalars are not involved.
+  Lifecycle note in the general case: the in-place form writes through an existing
+  object instead of materialising a temporary, so where an operand IS secret-adjacent
+  it strictly reduces the number of copies that would need erasing — it never
+  increases it. `audit/test_regression_inplace_point_ops.cpp` pins that the in-place
+  and returning forms agree on every operand shape including infinity and P + (-P).
+- `schnorr.cpp` — removes the Jacobi pre-check in front of the authoritative
+  sqrt-and-verify in `lift_x`. Its inputs are signature `R.x` and pubkey x-values,
+  both public and both attacker-visible on-chain, so this is a verify-path change with
+  no secret-dependent branch either before or after. It also deletes a documented
+  misclassification source (`jacobi_var` for inputs < 2^33) while leaving the defense
+  that covered it.
+
+No `secure_erase` call site was added, removed, or reordered anywhere in this wave.
+The signing, BIP-32/BIP-39, MuSig2, FROST and ECIES secret-cleanup sequences are
+byte-for-byte unchanged. CT evidence for the affected surfaces was re-verified on
+2026-09-04 (see `docs/CT_EVIDENCE_STATUS.json`): `exploit_recoverable_sign_ct`,
+`exploit_bug002_recovery_ct` and `regression_ct_scalar_inverse_zero` all rc=0 in a
+466-module `unified_audit_runner` run with 0 blocking failures, and
+`ci/valgrind_ct_check.sh` returned PASS with 0 branch-on-uninit and 0 uninit-value
+errors across 39 tracked checks.
 
 ### 2026-06-22 - CPU batch-verify pool + decompress: verify-path only, no secret lifecycle change
 

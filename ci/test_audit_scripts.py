@@ -1623,15 +1623,22 @@ def check_audit_sla_untracked_artifact_uses_mtime() -> None:
         # Nothing to assert against; say so rather than pass vacuously.
         failures.append(f"{rel} absent -- generate it before running this check")
 
-    # (2) Tracked file: must still use the commit date, not mtime.
+    # (2) Tracked file: must still use the commit date, not mtime. The mtime is
+    # restored afterwards -- the graph-freshness preflight compares source mtimes
+    # against the project-graph build time, so a self-test that leaves a touched
+    # mtime behind reports the repo as stale and fails a different gate.
     tracked_rel = LIB_ROOT / "docs" / "AUDIT_SLA.json"
     if tracked_rel.exists():
-        os.utime(tracked_rel, None)
-        age = mod._file_age_days(tracked_rel)
-        if age is not None and age < 1.0:
-            failures.append(
-                "tracked docs/AUDIT_SLA.json reported <1 day old after touching "
-                "its mtime -- commit-date ageing was lost")
+        st = tracked_rel.stat()
+        try:
+            os.utime(tracked_rel, None)
+            age = mod._file_age_days(tracked_rel)
+            if age is not None and age < 1.0:
+                failures.append(
+                    "tracked docs/AUDIT_SLA.json reported <1 day old after touching "
+                    "its mtime -- commit-date ageing was lost")
+        finally:
+            os.utime(tracked_rel, (st.st_atime, st.st_mtime))
 
     if failures:
         fail(tag, "; ".join(failures))
