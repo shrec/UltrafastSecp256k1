@@ -23,8 +23,15 @@
         "audit/test_regression_signing_ct_scalar_correctness.cpp",
         "audit/test_exploit_ct_systematic.cpp"
       ],
-      "required_tools": ["valgrind-ct", "ct-verif"],
-      "optional_tools": ["dudect", "cycle-ct", "ct-arm64"],
+      "required_tools": [
+        "valgrind-ct",
+        "ct-verif"
+      ],
+      "optional_tools": [
+        "dudect",
+        "cycle-ct",
+        "ct-arm64"
+      ],
       "arch_compiler": "x86-64 (gcc-14, clang-17); arm64 via ct-arm64",
       "freshness_days": 90,
       "severity": "blocking",
@@ -40,8 +47,13 @@
         "src/cpu/src/schnorr.cpp",
         "audit/test_regression_schnorr_ct_arithmetic.cpp"
       ],
-      "required_tools": ["valgrind-ct", "ct-verif"],
-      "optional_tools": ["dudect"],
+      "required_tools": [
+        "valgrind-ct",
+        "ct-verif"
+      ],
+      "optional_tools": [
+        "dudect"
+      ],
       "arch_compiler": "x86-64 (gcc-14, clang-17)",
       "freshness_days": 90,
       "severity": "blocking",
@@ -58,14 +70,19 @@
         "audit/test_exploit_recoverable_sign_ct.cpp",
         "audit/test_exploit_bug002_recovery_ct.cpp"
       ],
-      "required_tools": ["valgrind-ct"],
-      "optional_tools": ["ct-verif", "dudect"],
+      "required_tools": [
+        "valgrind-ct"
+      ],
+      "optional_tools": [
+        "ct-verif",
+        "dudect"
+      ],
       "arch_compiler": "x86-64 (gcc-14, clang-17)",
       "freshness_days": 90,
       "severity": "blocking",
-      "last_verified": "2026-06-01",
+      "last_verified": "2026-09-04",
       "status": "pass",
-      "notes": "Recovery-id derivation CT (regressed by bug002)."
+      "notes": "Recovery-id derivation CT (regressed by bug002). Re-verified 2026-09-04: both committed-evidence modules re-ran in unified_audit_runner (466 modules, 0 blocking failures) -- exploit_recoverable_sign_ct rc=0 and exploit_bug002_recovery_ct rc=0. valgrind-ct (valgrind-3.22.0, ci/valgrind_ct_check.sh) returned PASS with 0 conditional-branch-on-uninit and 0 uninit-value errors across 39 tracked checks. SCOPE LIMIT: that harness (audit/test_ct_sidechannel.cpp) drives the shared CT primitive layer -- masks, cmov/cswap, ct_lookup, field add/mul/sqr/inv, scalar ops, complete_add -- and does NOT itself call recoverable signing, so the binary-level verdict covers the primitives recovery.cpp is built from rather than recovery.cpp's own control flow. The module-level evidence is what covers that path directly."
     },
     {
       "id": "CT-KEYPAIR-SECKEY",
@@ -76,8 +93,13 @@
         "src/cpu/include/secp256k1/ct/sign.hpp",
         "audit/test_regression_ct_secret_is_zero.cpp"
       ],
-      "required_tools": ["valgrind-ct", "ct-verif"],
-      "optional_tools": ["dudect"],
+      "required_tools": [
+        "valgrind-ct",
+        "ct-verif"
+      ],
+      "optional_tools": [
+        "dudect"
+      ],
       "arch_compiler": "x86-64 (gcc-14, clang-17)",
       "freshness_days": 90,
       "severity": "blocking",
@@ -93,14 +115,18 @@
         "src/cpu/include/secp256k1/ct/scalar.hpp",
         "audit/test_regression_ct_scalar_inverse_zero.cpp"
       ],
-      "required_tools": ["valgrind-ct"],
-      "optional_tools": ["ct-verif"],
+      "required_tools": [
+        "valgrind-ct"
+      ],
+      "optional_tools": [
+        "ct-verif"
+      ],
       "arch_compiler": "x86-64 / arm64 with __int128 (see residual RR-NEW-01)",
       "freshness_days": 90,
       "severity": "warning",
-      "last_verified": "2026-05-21",
+      "last_verified": "2026-09-04",
       "status": "pass",
-      "notes": "WARNING severity: documented residual RR-NEW-01 (RESIDUAL_RISK_REGISTER.md) — on platforms without __int128 (WASM, MSVC 32-bit) the fallback multiplication chain is variable-time; not a Bitcoin Core target."
+      "notes": "Re-verified 2026-09-04: regression_ct_scalar_inverse_zero rc=0 in unified_audit_runner, and valgrind-ct (valgrind-3.22.0) returned PASS -- 0 branch/uninit errors -- with ct::field_inv and the ct:: scalar operations driven directly by the harness. PREVIOUS NOTE -- WARNING severity: documented residual RR-NEW-01 (RESIDUAL_RISK_REGISTER.md) — on platforms without __int128 (WASM, MSVC 32-bit) the fallback multiplication chain is variable-time; not a Bitcoin Core target."
     },
     {
       "id": "CT-RFC6979-NONCE",
@@ -110,8 +136,13 @@
         "audit/test_regression_rfc6979_ct_loop.cpp",
         "audit/test_exploit_ecdsa_rfc6979_kat.cpp"
       ],
-      "required_tools": ["valgrind-ct", "ct-verif"],
-      "optional_tools": ["dudect"],
+      "required_tools": [
+        "valgrind-ct",
+        "ct-verif"
+      ],
+      "optional_tools": [
+        "dudect"
+      ],
       "arch_compiler": "x86-64 (gcc-14, clang-17)",
       "freshness_days": 90,
       "severity": "blocking",
@@ -129,7 +160,10 @@
         "ci/check_gpu_ct_uniformity.py"
       ],
       "required_tools": [],
-      "optional_tools": ["gpu-ct-uniformity", "check-ct-branches"],
+      "optional_tools": [
+        "gpu-ct-uniformity",
+        "check-ct-branches"
+      ],
       "arch_compiler": "GPU (CUDA/OpenCL/Metal); white-box ncu requires a --gpu host",
       "freshness_days": 180,
       "severity": "owner_gated",

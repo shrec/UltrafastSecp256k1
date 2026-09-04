@@ -105,17 +105,35 @@ def _file_age_days(path: Path) -> float | None:
     if not path.exists():
         return None
     try:
-        result = subprocess.run(
-            ["git", "log", "-1", "--format=%ct", "--", str(path)],
+        # Ask whether the file is tracked RIGHT NOW, not whether git has ever
+        # heard of it. `git log -- <path>` also returns the commit that DELETED
+        # or untracked a path, so a build artifact that was once committed and
+        # later moved under .gitignore keeps reporting that commit's date -- and
+        # then no amount of regenerating it makes it fresh. out/reports/
+        # risk_surface_report.json hit exactly that: untracked since caba608d
+        # (2026-07-01, "Fix security autonomy stale build report gate"), it read
+        # as 65 days old seconds after being regenerated, blocking the SLA on an
+        # artifact that was current. The docstring above always described the
+        # intended behaviour; only the test for "tracked" was wrong.
+        tracked = subprocess.run(
+            ["git", "ls-files", "--error-unmatch", "--", str(path)],
             capture_output=True,
             text=True,
             cwd=str(LIB_ROOT),
             timeout=15,
-        )
-        ts_str = result.stdout.strip()
-        if ts_str:
-            age_secs = time.time() - float(ts_str)
-            return age_secs / 86400.0
+        ).returncode == 0
+        if tracked:
+            result = subprocess.run(
+                ["git", "log", "-1", "--format=%ct", "--", str(path)],
+                capture_output=True,
+                text=True,
+                cwd=str(LIB_ROOT),
+                timeout=15,
+            )
+            ts_str = result.stdout.strip()
+            if ts_str:
+                age_secs = time.time() - float(ts_str)
+                return age_secs / 86400.0
     except (subprocess.SubprocessError, ValueError, OSError):
         pass
     # Fallback to mtime for untracked/local-only files

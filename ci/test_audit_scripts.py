@@ -1570,6 +1570,75 @@ def check_audit_sla_build_report_not_tracked() -> None:
         ok(tag, "build-scoped risk report is ignored and not tracked")
 
 
+def check_audit_sla_untracked_artifact_uses_mtime() -> None:
+    """B3 regression: being untracked is not enough to make an artifact fresh.
+
+    check_audit_sla_build_report_not_tracked() above asserts that
+    out/reports/risk_surface_report.json stays out of git, on the reasoning that
+    a tracked build artifact would be aged by its commit date instead of by the
+    current build. That reasoning was right and the check was not sufficient:
+    `git log -1 -- <path>` also returns the commit that UNTRACKED a path, so the
+    file kept reporting the date of caba608d (2026-07-01, "Fix security autonomy
+    stale build report gate") forever. Regenerating it changed nothing -- it read
+    as 65 days old seconds after being written, blocking the SLA and dropping the
+    autonomy score to 90 on evidence that was current.
+
+    So this pins the behaviour rather than the tracking state: an untracked file
+    is aged by mtime even when git has history for its path, and a tracked file
+    is still aged by its commit date even when its mtime is now.
+    """
+    tag = "B3:audit_sla_untracked_uses_mtime"
+    path = SCRIPT_DIR / "audit_sla_check.py"
+    try:
+        spec = importlib.util.spec_from_file_location("audit_sla_age_selftest", str(path))
+        if spec is None or spec.loader is None:
+            fail(tag, "could not build module spec for audit_sla_check.py")
+            return
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    failures = []
+
+    # (1) Untracked, but git HAS history for the path: must use mtime.
+    rel = Path("out/reports/risk_surface_report.json")
+    full = LIB_ROOT / rel
+    tracked = subprocess.run(
+        ["git", "ls-files", "--error-unmatch", "--", str(rel)],
+        cwd=str(LIB_ROOT), capture_output=True, text=True).returncode == 0
+    history = subprocess.run(
+        ["git", "log", "-1", "--format=%ct", "--", str(rel)],
+        cwd=str(LIB_ROOT), capture_output=True, text=True).stdout.strip()
+    if not tracked and history and full.exists():
+        os.utime(full, None)
+        age = mod._file_age_days(full)
+        if age is None or age > 1.0:
+            failures.append(
+                f"untracked {rel} with git history reported {age} days old "
+                "(mtime is now) -- the git-log path is being taken for an "
+                "untracked file")
+    elif not full.exists():
+        # Nothing to assert against; say so rather than pass vacuously.
+        failures.append(f"{rel} absent -- generate it before running this check")
+
+    # (2) Tracked file: must still use the commit date, not mtime.
+    tracked_rel = LIB_ROOT / "docs" / "AUDIT_SLA.json"
+    if tracked_rel.exists():
+        os.utime(tracked_rel, None)
+        age = mod._file_age_days(tracked_rel)
+        if age is not None and age < 1.0:
+            failures.append(
+                "tracked docs/AUDIT_SLA.json reported <1 day old after touching "
+                "its mtime -- commit-date ageing was lost")
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "untracked artifacts age by mtime; tracked ones by commit date")
+
+
 def check_external_audit_bundle_negative_fixtures() -> None:
     """B4/B5: verify_external_audit_bundle.py must fail closed on a tampered
     digest, a missing evidence file, an evidence hash mismatch, a stale commit
@@ -4704,6 +4773,7 @@ def main() -> int:
     check_p21_semantic_requirement_map()
     check_audit_sla_pre_alert_and_block()
     check_audit_sla_build_report_not_tracked()
+    check_audit_sla_untracked_artifact_uses_mtime()
     check_external_audit_bundle_negative_fixtures()
     check_ct_independence_negative_fixtures()
     check_multi_ci_repro_negative_fixtures()
