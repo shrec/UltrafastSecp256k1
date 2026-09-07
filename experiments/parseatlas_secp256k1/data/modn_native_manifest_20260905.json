@@ -1,0 +1,384 @@
+{
+  "schema": "parseatlas_modn_native_manifest_v1",
+  "created_utc": "2026-09-05 15:28:31 UTC",
+  "repository": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+  "repository_id": "repo_666797171f0141c58bf05f579b2ee16e",
+  "branch": "experiment/representation-search",
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "session_id": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "window_id": "window_de017c2a746dfe4337ab093f",
+  "task_mode": {
+    "mode": "direct_workers_owner_authorized",
+    "canonical_task_id": "PA_SECP_M1_MODN_NATIVE_015",
+    "canonical_task_transition_performed": false,
+    "reason": "Owner explicitly requested continuing direct work until Tasks are fixed; Task launch preflight blocker documented separately.",
+    "needfix_id": "NF-2026-00012"
+  },
+  "decision": {
+    "research_evidence": "reviewed",
+    "production_replacement": false,
+    "reason": "Both candidate paired cell medians lose to matched inline Original in all eight invocations.",
+    "whole_engine_speedup_claim": false,
+    "novelty_claim": false,
+    "constant_time_claim": false,
+    "complete_25_by_25_claim": false
+  },
+  "scope": {
+    "modulus": "secp256k1 scalar order n, not field p",
+    "operation": "canonical full modular addition",
+    "methods": [
+      "Original inline",
+      "Blocked2 inline",
+      "GP recomputed inline",
+      "unchanged actual public Scalar+= diagnostic only"
+    ],
+    "shapes": [
+      "one dependent recurrence",
+      "eight independent recurrences; not a parallel transformation of the same dependent chain"
+    ],
+    "correctness_oracle": "Independent Boost cpp_int and unchanged public fast Scalar, all32bytes; benchmark exact full256byte state comparison against actual Scalar replay.",
+    "production_and_reference_files_unchanged": true,
+    "committed": false,
+    "pushed": false,
+    "global_machine_settings_changed": false
+  },
+  "hashes": [
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/modn_add_control.hpp",
+      "sha256": "0858f280f415d247e569e652e49a6635c999e80c3f7d89494a715c3585daa04f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/modn_add_compare.cpp",
+      "sha256": "f71d45f79155545e40dc412f2fdd9eac9b453b43a1d43d35626e8bf2fbf9700b"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_modn_add_control.cpp",
+      "sha256": "258fc1f4b40b04686d7747a2284257fd3faf2bc1bdbb2c35fa0f40497f2b1eeb"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/MODN_NATIVE_PROTOCOL.md",
+      "sha256": "75b340846747c9ba222f7c584184f2e74fd4e9438432ccf125dd200c95319c70"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/MODN_NATIVE_RESULTS.md",
+      "sha256": "636db2aa3b9e81cdf52cde265c6c439ad3b61afc4338eac67f4f5c77bba89f4d"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/l0_native_kernels.hpp",
+      "sha256": "13966af5531c3d6c2525de00d5e8e41b53245cb3d9244e29117f642e4db2da60"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/L0_25_LENSES.md",
+      "sha256": "eece21b35a4bc44a5d2b04cedb875a02537ae7bab10c23a67f6dcb4f3445fc96"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_run_plan_20260905.json",
+      "sha256": "6c2b0e3ff5569b3b58a6fd30d38beb435362e74ba9c8670c4ba6a6029a32b9ac"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_validation_20260905.json",
+      "sha256": "f8a8fb7e4fd3b36402cdf7cb5c9e60c296d6bbc75ff66244356810c5a002073f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_numeric_audit_20260905.json",
+      "sha256": "bc4c276e6b42dbdf6534a99efc2c3f53c99e5f62e7c83ed1e6479e1a11acaaf7"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_disassembly_20260905.txt",
+      "sha256": "b6bc7d8f15ea6c73e6a0fde976d4bfc83ce3b7cd1a0cb87721f45b1320226274"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_256_run1_20260905.json",
+      "sha256": "9cfed81da97abd1345b42be3bf159763ddede3426195ae9bf1beec082d1bf9f6"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_4096_run1_20260905.json",
+      "sha256": "9e983a4f602439f9953bb800e0a36b02eddcfc1fcc3885cb1e967abe037e2c5f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_4096_run1_20260905.json",
+      "sha256": "4f4456cf7bef43f6a60af2354d5ffe44373a8c12e2355c7aecf84b100050f47c"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_256_run1_20260905.json",
+      "sha256": "5ed7d86a69a551fce721048a3c334499766125fb2fe3d0d8dd6e6a02225574bb"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_256_run2_20260905.json",
+      "sha256": "1c265be5c789336cce8f568ce83a0229eab0688d13f8f3b9ec439321f18b5cca"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_4096_run2_20260905.json",
+      "sha256": "137c6772b8db629e873c2408c8c572df974a4f9fea4cb3902587151b21e79c85"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_4096_run2_20260905.json",
+      "sha256": "b6f2a8c5abe4890a201497d81f82da404d826d61f88dea15afd069a5d04fd469"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_256_run2_20260905.json",
+      "sha256": "598ab28aa24bab4fadeb550591a3981c60ec81894fc1a4121985a316979624aa"
+    },
+    {
+      "path": "src/cpu/src/scalar.cpp",
+      "sha256": "9da20c8fbe95c531b73fd494ff8e7a969d055ae31e8a7b4b588d0885a960050e"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/scalar.hpp",
+      "sha256": "610844d21051f606d418c2e38f9ec273cd3ab3bcc62b6d8841c1931f546bcc25"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/detail/arith64.hpp",
+      "sha256": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/types.hpp",
+      "sha256": "a0f2a2d1237a2b0561e84df93b29e87d52277660bda792e0207ba19d833772c4"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/debug_invariants.hpp",
+      "sha256": "6ac45941eacfbf0666e30ff6d3f4f37254a4c5e66e6f2ae167155ebc3f957fdf"
+    },
+    {
+      "path": "/tmp/parseatlas-modn-review.7b5Pcg/test_gcc",
+      "sha256": "ad6a5bdfa70af9ba6da145488fd5b6f16abf55429c03e629b45e0108a2807e84"
+    },
+    {
+      "path": "/tmp/parseatlas-modn-review.7b5Pcg/test_portable",
+      "sha256": "879db6beff32a83c7e4620fbfb78fe4b7019c055b2d725e9c929094bf7e841ae"
+    },
+    {
+      "path": "/tmp/parseatlas-modn-review.7b5Pcg/test_clang",
+      "sha256": "ec1951db0252fccd0b8e3c1f3ad18a5159ea700032167e64d3a4d01b1c5dc756"
+    },
+    {
+      "path": "/tmp/parseatlas-modn-review.7b5Pcg/test_ubsan",
+      "sha256": "e7ba2420cdf71824c1baecf4097db9c427eade87f53b458d0c5c014b226af41f"
+    },
+    {
+      "path": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare",
+      "sha256": "0ef42ba836bc7b29a567c330d6d6394fcf8ddf85c4dafe39f041082581df991c"
+    },
+    {
+      "path": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare_ubsan",
+      "sha256": "936f918cdaf70a3c78a6ba456cda6aa5f84ef13dcbd458349225d11839889c12"
+    }
+  ],
+  "artifact_notes": [
+    "Raw benchmark JSON was persisted verbatim including exact64bitUnixns; no parsed reserialization.",
+    "Manifest excludes its own hash to avoid recursive identity. Its final hash is in the session handoff.",
+    "Temporary executable paths may expire; source, exact commands, hash and 13disassembly ranges remain durable.",
+    "Frozen protocol has a cosmetic trailingblanklineatEOF warning; its preregistered hash was preserved. See whitespace receipts."
+  ],
+  "commands": {
+    "correctness_builds": [
+      [
+        "gcc",
+        "g++ -O3 -march=native -DNDEBUG -std=c++17 -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/tests/test_modn_add_control.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-modn-review.7b5Pcg/test_gcc"
+      ],
+      [
+        "portable",
+        "g++ -O3 -march=native -DNDEBUG -DSECP256K1_NO_INT128 -std=c++17 -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/tests/test_modn_add_control.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-modn-review.7b5Pcg/test_portable"
+      ],
+      [
+        "clang",
+        "clang++ -O3 -march=native -DNDEBUG -std=c++17 -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/tests/test_modn_add_control.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-modn-review.7b5Pcg/test_clang"
+      ],
+      [
+        "ubsan",
+        "g++ -O1 -g -fsanitize=undefined -fno-sanitize-recover=undefined -std=c++17 -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/tests/test_modn_add_control.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-modn-review.7b5Pcg/test_ubsan"
+      ]
+    ],
+    "driver_builds": [
+      [
+        "compare",
+        "g++ -O3 -march=native -DNDEBUG -std=c++17 -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/probes/modn_add_compare.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-modn-review.7b5Pcg/modn_compare"
+      ],
+      [
+        "compare_ubsan",
+        "g++ -O1 -g -fsanitize=undefined -fno-sanitize-recover=undefined -std=c++17 -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/probes/modn_add_compare.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-modn-review.7b5Pcg/modn_compare_ubsan"
+      ]
+    ],
+    "correctness_runs": [
+      "/tmp/parseatlas-modn-review.7b5Pcg/test_gcc",
+      "/tmp/parseatlas-modn-review.7b5Pcg/test_portable",
+      "/tmp/parseatlas-modn-review.7b5Pcg/test_clang",
+      "/tmp/parseatlas-modn-review.7b5Pcg/test_ubsan"
+    ],
+    "measurements": [
+      {
+        "ordinal": 1,
+        "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape dependent --count 256 --cpu 4 --seed 20260905 --target-ms 200",
+        "raw": "experiments/parseatlas_secp256k1/data/modn_native_dependent_256_run1_20260905.json",
+        "exit_code": 0
+      },
+      {
+        "ordinal": 2,
+        "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape throughput --count 4096 --cpu 4 --seed 20260905 --target-ms 200",
+        "raw": "experiments/parseatlas_secp256k1/data/modn_native_throughput_4096_run1_20260905.json",
+        "exit_code": 0
+      },
+      {
+        "ordinal": 3,
+        "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape dependent --count 4096 --cpu 4 --seed 20260905 --target-ms 200",
+        "raw": "experiments/parseatlas_secp256k1/data/modn_native_dependent_4096_run1_20260905.json",
+        "exit_code": 0
+      },
+      {
+        "ordinal": 4,
+        "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape throughput --count 256 --cpu 4 --seed 20260905 --target-ms 200",
+        "raw": "experiments/parseatlas_secp256k1/data/modn_native_throughput_256_run1_20260905.json",
+        "exit_code": 0
+      },
+      {
+        "ordinal": 5,
+        "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape throughput --count 256 --cpu 4 --seed 20260905 --target-ms 200",
+        "raw": "experiments/parseatlas_secp256k1/data/modn_native_throughput_256_run2_20260905.json",
+        "exit_code": 0
+      },
+      {
+        "ordinal": 6,
+        "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape dependent --count 4096 --cpu 4 --seed 20260905 --target-ms 200",
+        "raw": "experiments/parseatlas_secp256k1/data/modn_native_dependent_4096_run2_20260905.json",
+        "exit_code": 0
+      },
+      {
+        "ordinal": 7,
+        "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape throughput --count 4096 --cpu 4 --seed 20260905 --target-ms 200",
+        "raw": "experiments/parseatlas_secp256k1/data/modn_native_throughput_4096_run2_20260905.json",
+        "exit_code": 0
+      },
+      {
+        "ordinal": 8,
+        "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape dependent --count 256 --cpu 4 --seed 20260905 --target-ms 200",
+        "raw": "experiments/parseatlas_secp256k1/data/modn_native_dependent_256_run2_20260905.json",
+        "exit_code": 0
+      }
+    ]
+  },
+  "environment": {
+    "cpu_model": "Intel Core i5-14400F",
+    "logical_cpus": 16,
+    "physical_cores": 10,
+    "pinned_cpu": 4,
+    "sibling_cpu": 5,
+    "measurement_workers": 1,
+    "compiler_version": "GCC14.2.0",
+    "clang_correctness_version": "18.1.3",
+    "pre_measure_endpoint": {
+      "chunk_id": "8fe0d6",
+      "wall_time_seconds": 0.000003787,
+      "exit_code": 0,
+      "original_token_count": 51,
+      "output": "==> /sys/devices/system/cpu/cpu4/cpufreq/scaling_cur_freq <==\n2500049\n\n==> /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor <==\nperformance\n\n==> /sys/devices/system/cpu/intel_pstate/no_turbo <==\n1\n"
+    },
+    "post_measure_endpoint": {
+      "chunk_id": "ec71cb",
+      "wall_time_seconds": 0.000005225,
+      "exit_code": 0,
+      "original_token_count": 51,
+      "output": "==> /sys/devices/system/cpu/cpu4/cpufreq/scaling_cur_freq <==\n800000\n\n==> /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor <==\nperformance\n\n==> /sys/devices/system/cpu/intel_pstate/no_turbo <==\n1\n"
+    },
+    "continuous_frequency_record": false,
+    "fixed_frequency_claim": false,
+    "pmu_counters": false,
+    "external_load_isolated": false,
+    "sibling_load_isolated": false,
+    "thermal_control": false
+  },
+  "validation": {
+    "premesurement_record": "experiments/parseatlas_secp256k1/data/modn_native_validation_20260905.json",
+    "correctness_configurations_passed": 4,
+    "fixtures_per_configuration": 126593,
+    "fixture_families_overlap": true,
+    "recurrence_steps_per_configuration": 32896,
+    "mismatches": 0,
+    "smoke_invocations_passed": 8,
+    "invalid_driver_cli_cases": 9,
+    "invalid_test_cli_cases": 1,
+    "numeric_audit_status": "pass",
+    "measured_samples": 256,
+    "warmups": 64,
+    "calibration_trials": 21,
+    "measured_below_target": 0,
+    "order_pre_registered": true,
+    "raw_invocations_nonoverlapping": true,
+    "all_outliers_retained": true,
+    "api_ratios_null": true,
+    "intermediate_calibration_full_state_replayed": false,
+    "final_calibration_and_every_warmup_and_measured_full_state_replayed": true,
+    "whitespace_checks": [
+      {
+        "file": "probes/modn_add_control.hpp",
+        "command": "git diff --no-index --check /dev/null experiments/parseatlas_secp256k1/probes/modn_add_control.hpp",
+        "chunk_id": "5e17bb",
+        "wall_time_seconds": 0.000008133,
+        "exit_code": 1,
+        "original_token_count": 0,
+        "output": ""
+      },
+      {
+        "file": "probes/modn_add_compare.cpp",
+        "command": "git diff --no-index --check /dev/null experiments/parseatlas_secp256k1/probes/modn_add_compare.cpp",
+        "chunk_id": "7cc98c",
+        "wall_time_seconds": 0.000003979,
+        "exit_code": 1,
+        "original_token_count": 0,
+        "output": ""
+      },
+      {
+        "file": "tests/test_modn_add_control.cpp",
+        "command": "git diff --no-index --check /dev/null experiments/parseatlas_secp256k1/tests/test_modn_add_control.cpp",
+        "chunk_id": "5c2694",
+        "wall_time_seconds": 0.000001802,
+        "exit_code": 1,
+        "original_token_count": 0,
+        "output": ""
+      },
+      {
+        "file": "MODN_NATIVE_PROTOCOL.md",
+        "command": "git diff --no-index --check /dev/null experiments/parseatlas_secp256k1/MODN_NATIVE_PROTOCOL.md",
+        "chunk_id": "33b66d",
+        "wall_time_seconds": 0.000002705,
+        "exit_code": 3,
+        "original_token_count": 22,
+        "output": "experiments/parseatlas_secp256k1/MODN_NATIVE_PROTOCOL.md:189: new blank line at EOF.\n"
+      },
+      {
+        "file": "MODN_NATIVE_RESULTS.md",
+        "command": "git diff --no-index --check /dev/null experiments/parseatlas_secp256k1/MODN_NATIVE_RESULTS.md",
+        "chunk_id": "4e1fa9",
+        "wall_time_seconds": 0.000002364,
+        "exit_code": 1,
+        "original_token_count": 0,
+        "output": ""
+      }
+    ],
+    "whitespace_interpretation": "No-index exit1 with empty output means file differences, not whitespace failure. Frozen protocol exit3 has only line189 new blank line at EOF. Cosmetic warning accepted and snapshot not rewritten."
+  },
+  "review": {
+    "root_role_separation": "Feature implementations delegated to kernel/tests/driver workers. Root independently ran mechanicalgates first, then reviewed complete source/protocol and accepted research evidence only.",
+    "independent_reviewer": "/root/native_method_review",
+    "premeasurement_source_and_binary": "CLEAN; all8timedwrappers plus3reachablethroughputbodies, actualScalar+= andadd_impl retain required work; no collapse or asymmetric eliminated work.",
+    "postmeasurement_numeric": "CLEAN;0discrepancies across256measured+64warmup+21calibration; exactBigInttimelexemes and chronology, seed/order, denominator, CPU, checksumtokens, statistics, pairedratios and APIexclusion independently checked.",
+    "report": "CLEAN for reportSHA636db2aa3b9e81cdf52cde265c6c439ad3b61afc4338eac67f4f5c77bba89f4d; allnumbers and claims checked.",
+    "checksum_caveat": "OffclockJSONaudit verifies checksum consistency; reviewed native C++ is responsible for complete-byte replay checks. Checksum alone is not byte-equivalence proof."
+  },
+  "source_graph": {
+    "used_before_implementation_and_continuously": true,
+    "new_research_paths_status": "declared_input_unindexed after exact refresh",
+    "fallback": "Bounded exact source/artifact reads; no broad filesystem discovery. Large single-line rawJSON previews truncate; exact raw paths read for audit.",
+    "old_hash_bound_lens_ledger_modified": false
+  },
+  "next_contracts": {
+    "owner_principle": "A task sequential in G0 may become parallelizable in a different lawful representation; preserve the same observable boundary.",
+    "priority": [
+      "F1 final-only modular block reduction of one recurrence",
+      "F2 bounded delayed normalization with wide reduction",
+      "P1 all-prefix ordered scan including output traffic"
+    ],
+    "independent_inner_kernel": "C1 ordered associative carry-transfer composition",
+    "not_implemented_this_snapshot": true,
+    "gates": "Freeze observable/decode/range/alias and resource budgets; native C++ Boost+unchangedreference bytes; test negativecontrols; inspect assembly; paired fullregion timings including conversion/merge/normalization/output. Distinguish arbitrary stream from periodicreuse and singlecore from multicore; workers from observedcores withheadroom."
+  }
+}

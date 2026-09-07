@@ -1,0 +1,97 @@
+{
+  "schema": "parseatlas_p5_environment_obstacles_v1",
+  "repository": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+  "repo_id": "repo_666797171f0141c58bf05f579b2ee16e",
+  "session_id": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "observed_before_measurement": {
+    "cpu": {
+      "cmd": "lscpu",
+      "chunk_id": "0e2f26",
+      "wall_time_seconds": 0.000003298,
+      "exit_code": 0,
+      "original_token_count": 855,
+      "output": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           39 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  16\nOn-line CPU(s) list:                     0-15\nVendor ID:                               GenuineIntel\nModel name:                              Intel(R) Core(TM) i5-14400F\nCPU family:                              6\nModel:                                   183\nThread(s) per core:                      2\nCore(s) per socket:                      10\nSocket(s):                               1\nStepping:                                1\nCPU(s) scaling MHz:                      80%\nCPU max MHz:                             4700.0000\nCPU min MHz:                             800.0000\nBogoMIPS:                                4992.00\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize arch_lbr ibt flush_l1d arch_capabilities ibpb_exit_to_user\nVirtualization:                          VT-x\nL1d cache:                               416 KiB (10 instances)\nL1i cache:                               448 KiB (10 instances)\nL2 cache:                                9.5 MiB (7 instances)\nL3 cache:                                20 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-15\nVulnerability Gather data sampling:      Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Reg file data sampling:    Mitigation; Clear Register File\nVulnerability Retbleed:                  Not affected\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI BHI_DIS_S\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Mitigation; IBPB before exit to userspace\n"
+    },
+    "gcc": {
+      "cmd": "g++-14 --version",
+      "chunk_id": "34edf6",
+      "wall_time_seconds": 0.000003187,
+      "exit_code": 0,
+      "original_token_count": 63,
+      "output": "g++-14 (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+    },
+    "clang": {
+      "cmd": "clang++-18 --version",
+      "chunk_id": "2ab74a",
+      "wall_time_seconds": 0.000004057,
+      "exit_code": 0,
+      "original_token_count": 28,
+      "output": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n"
+    },
+    "system": {
+      "cmd": "uname -a",
+      "chunk_id": "75c976",
+      "wall_time_seconds": 0.00000353,
+      "exit_code": 0,
+      "original_token_count": 31,
+      "output": "Linux parking 6.8.0-138-generic #138-Ubuntu SMP PREEMPT_DYNAMIC Fri Jul 31 22:41:49 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux\n"
+    },
+    "policy": {
+      "cmd": "head -n 1 /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor /sys/devices/system/cpu/intel_pstate/no_turbo /sys/devices/system/cpu/cpu4/topology/thread_siblings_list /proc/sys/kernel/perf_event_paranoid",
+      "chunk_id": "af1ee6",
+      "wall_time_seconds": 0.000004149,
+      "exit_code": 0,
+      "original_token_count": 63,
+      "output": "==> /sys/devices/system/cpu/cpu4/cpufreq/scaling_governor <==\npowersave\n\n==> /sys/devices/system/cpu/intel_pstate/no_turbo <==\n0\n\n==> /sys/devices/system/cpu/cpu4/topology/thread_siblings_list <==\n4-5\n\n==> /proc/sys/kernel/perf_event_paranoid <==\n4\n"
+    },
+    "clock": {
+      "cmd": "date -u +%Y-%m-%dT%H:%M:%SZ",
+      "chunk_id": "10511b",
+      "wall_time_seconds": 0.000004559,
+      "exit_code": 0,
+      "original_token_count": 6,
+      "output": "2026-09-05T22:15:22Z\n"
+    }
+  },
+  "policy_changes": false,
+  "owner_task_mcp_suspension": true,
+  "canonical_task_acceptance": false,
+  "obstacles": [
+    {
+      "id": "worker_source_graph_unexposed",
+      "status": "NeedFix inherited",
+      "evidence": "Worker tool discovery returned zero worker-role Source Graph tools; root provides exact verified targets and independently re-queries manager graph.",
+      "boundary": "No worker manager-role impersonation; no ordinary plugin repair."
+    },
+    {
+      "id": "assembly_index",
+      "status": "bounded exact-target fallback",
+      "evidence": "Manager bodygrep field_sqr_full_asm on src/cpu/src/field_asm_x64_gas.S scanned zero files; after refresh, file mode returned declared_input_unindexed with full hash4be633bc21143cd03834bbbde2ffa3280fd6780f93e6925770f365e0a7471f24.",
+      "boundary": "Only exact assembly target; no broad discovery."
+    },
+    {
+      "id": "pmu_denied",
+      "status": "inherited measurement limitation",
+      "evidence": "P4 retained prior perf stat denial exit255. This wave observed perf_event_paranoid4; no perf retry or policy change.",
+      "boundary": "No dynamic cycles, instruction count, cache, bandwidth, energy or causal spill attribution."
+    },
+    {
+      "id": "session_write_type",
+      "status": "resolved invocation error",
+      "evidence": "First P5 checkpoint rejected invalid_provenance because an object was passed; discovered schema requires string. Corrected call succeeded document43.",
+      "boundary": "No inferred write on error; not a plugin bug."
+    },
+    {
+      "id": "new_file_index_lag",
+      "status": "resolved for performance code freeze",
+      "evidence": "New kernel/oracle/driver/smoke/duration first returned declared_input_unindexed. Refresh status remained degraded with RuntimeError:index_subprocess:identity_slot_owned even while manager queries observed newer generations. Duration first indexed hashb0fc9a7c differed from finala9b138bd; later exact file receipt indexed_at2026-09-05T22:23:43.533548+00:00 matches final. All five code-source hashes verified before measurement.",
+      "boundary": "No stale body used for final acceptance; exact declared-file fallback recorded, no plugin/DB mutation."
+    }
+  ],
+  "limitations": [
+    "One machine and one pinned core; intentional dependency/ILP comparison, not multicore optimum.",
+    "Powersave governor and turbo enabled unchanged. Background services, SMT sibling4-5, thermals/frequency not controlled.",
+    "Full performance GCC-only; separate Clang correctness does not establish Clang timing.",
+    "New-file indexing must be refreshed/freshly verified at manager review."
+  ]
+}

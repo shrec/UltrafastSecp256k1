@@ -1,0 +1,99 @@
+{
+  "schema": "parseatlas_p2_final_review_v1",
+  "recorded_utc": "2026-09-05 20:15:22 UTC",
+  "decision": "retain experimental evidence and scenario-specific candidates; no production integration",
+  "manager_session": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "task_mcp_status": "owner-suspended; this is a local review, not a canonical task acceptance",
+  "mechanical_gate": {
+    "status": "pass",
+    "manifest_sha256": "c630ecd08b55374b99691d08edf4f809421bd11e1fc332f3ab168523f50d5bfd",
+    "hashed_files_verified": 41,
+    "json_files_parsed": 10,
+    "relative_doc_links_checked": 29,
+    "lens_rows": 25,
+    "test_configurations_checked": 3,
+    "numeric_audit_checks": 13831,
+    "numeric_audit_errors": 0,
+    "experimental_text_files_whitespace_checked": 13,
+    "repository": {
+      "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+      "branch": "experiment/representation-search"
+    },
+    "preserved_baseline_hashes": [
+      {
+        "path": "experiments/parseatlas_secp256k1/P1_PRIMITIVE_RESULTS.md",
+        "sha256": "1aa92a7111ab1cb5190a353ab686fdce18a2599a90c73154f6a04e1c9b22333f"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/F2_REDUCTION_RESULTS.md",
+        "sha256": "2c38ae0389b5ddc5d7f27717d5f5a6be0b031c3e85b7e76d7fdf46f952664609"
+      },
+      {
+        "path": "src/cpu/src/field.cpp",
+        "sha256": "6a3d2bf87e1619de395d737a198b228810f09486508bed7203d07fccadfd218c"
+      },
+      {
+        "path": "src/cpu/src/field_asm_x64_gas.S",
+        "sha256": "4be633bc21143cd03834bbbde2ffa3280fd6780f93e6925770f365e0a7471f24"
+      },
+      {
+        "path": "audit/test_regression_field_reduce_carry.cpp",
+        "sha256": "95f40ab0808515f9e6336467921e6c44ddc70529244d7b81be659652ac746cd1"
+      }
+    ],
+    "errors": []
+  },
+  "git_diff_check": {
+    "exit_code": 0
+  },
+  "review_order": "manager executed C++ correctness/smoke gates before complete driver/oracle code review; full performance series then received independent numerical/report audit",
+  "independent_report_review": {
+    "reviewer": "/root/p1_scalar_inventory",
+    "status": "pass",
+    "displayed_numeric_values_checked": 120,
+    "lens_rows": 25,
+    "blocking_findings": [],
+    "scope": "report rounding, pair counts, raw-region counts, F2 operand convention, sum-bound preconditions, setup/security/field-completion limitations; source-routing and symbol-size claims covered by separate manager source/nm review"
+  },
+  "review_rework": [
+    {
+      "finding": "Initial bridge normalized twice.",
+      "resolution": "Worker aligned raw arithmetic followed by exactly one to_fe normalization; tests aligned; all full performance evidence uses frozen v2 hashes."
+    },
+    {
+      "finding": "Transient Source Graph test body stale after metadata-only update.",
+      "resolution": "Final exact body re-query returned fresh final source hash before completion; no unresolved stale-source gate."
+    },
+    {
+      "finding": "Final mechanical checker initially expected bare V01 table cells and counted zero rows.",
+      "resolution": "Corrected checker to accept V01 followed by lens name; no document or production change required; final unique V01-V25 check passed."
+    }
+  ],
+  "retained_needfix": {
+    "artifact": "data/p2_lazy_needfix_20260905.json",
+    "status": "reproduced GCC and Clang outside the canonical core test contract",
+    "summary": "4096 canonical summands can fit raw limbs yet lose 2^64 during direct full normalization; carry-first weak-then-full is correct for the witness and has a derived canonical-sum cap of 4096. No production caller reachability asserted.",
+    "production_fix_made": false
+  },
+  "open_limitations": [
+    "Field research is not complete",
+    "No new candidate has production or CT approval",
+    "FE52 resident setup amortization and unary bridge ABI limitations remain explicit",
+    "Mul chain advantage is noisy (13/16 wins), not universal",
+    "No PMU/register-spill/cache-traffic measurement",
+    "One machine/native GCC full-series profile; background services and thermal state uncontrolled"
+  ],
+  "preserved_scope": {
+    "production_unchanged_this_wave": true,
+    "prior_P1_and_F2_reports_unchanged": true,
+    "no_scalar_or_upper_layer_implementation": true,
+    "no_commit_push_tag_or_default_CI_change": true
+  },
+  "next_field_only_gate": [
+    "bounded deferred-normalization regions with explicit canonical-sum bounds and full-region costs",
+    "product and sparse-prime reduction scheduling, dependency and register evidence",
+    "separate VT/CT inverse and public batch-inverse contracts",
+    "working-set/compiler/platform/security qualification before combined integration"
+  ],
+  "handoff_entry": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md"
+}

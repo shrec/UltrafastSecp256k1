@@ -1,0 +1,274 @@
+{
+  "schema": "parseatlas_p3_validation_v1",
+  "recorded_utc": "2026-09-05 20:53:01 UTC",
+  "status": "pass",
+  "source_hashes": {
+    "kernel": "7f3bad31a705de319fbdb584338f79175592636054476ea76177961cdafb32b8",
+    "test": "b14fb35571c38dcd5cd4eeacb451deb8453d4ceb1c734304c0b902f18fe42cd0"
+  },
+  "same_finite_corpus_repeated": true,
+  "arithmetic_language": "native C++ only",
+  "configs": {
+    "native": {
+      "compile_command": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p3-field-sum.ebhSnl/test_p3_native",
+      "compile_result": {
+        "chunk_id": "8735be",
+        "wall_time_seconds": 0.000001324,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "/tmp/parseatlas-p3-field-sum.ebhSnl/test_p3_native",
+      "run_result": {
+        "exit_code": 0,
+        "result": {
+          "schema": "parseatlas_p3_field_sum_correctness_v1",
+          "status": "pass",
+          "mismatches": 0,
+          "finite_corpus_only": true,
+          "timing_claim": false,
+          "constant_time_claim": false,
+          "oracle": "independent Boost ordinary-integer full sum modulo p plus corrected FE64 reference",
+          "contract": "canonical x0 plus N canonical RHS; N counts RHS; final-only output",
+          "schedules": [
+            "full1",
+            "full16",
+            "full256",
+            "full4094",
+            "weak4095"
+          ],
+          "layouts_tested_per_schedule": [
+            "FE64 E2E",
+            "FE52 resident"
+          ],
+          "seed_hex": "5041335f53554d53",
+          "phase_replay_limit_rhs": 8193,
+          "large_fixture_checkpoint_replay": false,
+          "input_preservation": "all object bytes checked after each route; no cross-type aliases",
+          "fixtures": 147,
+          "large_fixtures": 3,
+          "rhs_objects": 1612128,
+          "nonzero_rhs_objects": 1502098,
+          "seeded_cases": 147,
+          "alias_cases": 136,
+          "nonzero_seed_cases": 228,
+          "zero_residue_cases": 63,
+          "identity_fixtures": 8,
+          "null_identity_calls": 88,
+          "reference_calls": 283,
+          "e2e_calls": 1415,
+          "resident_calls": 1415,
+          "second_oracle_checks": 2830,
+          "output_checks": 3793,
+          "input_object_checks": 1612128,
+          "input_preservation_routes": 3257,
+          "checkpoint_replays": 720,
+          "raw_chunk_checks": 461744,
+          "canonical_checkpoint_checks": 922808,
+          "weak_state_checks": 208,
+          "phase_final_checks": 680,
+          "negative_controls": 43,
+          "assertions": 3703557,
+          "input_checksum_fnv1a64": "e5b81992ee2e479d",
+          "output_checksum_fnv1a64": "6c81b078909211cb"
+        }
+      }
+    },
+    "clang": {
+      "compile_command": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp src/cpu/src/field_asm.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o -pthread -latomic -o /tmp/parseatlas-p3-field-sum.ebhSnl/test_p3_clang",
+      "compile_result": {
+        "chunk_id": "b0a276",
+        "wall_time_seconds": 0.000001515,
+        "exit_code": 0,
+        "original_token_count": 74,
+        "output": "src/cpu/src/field.cpp:2997:23: warning: unused function 'safegcd_divsteps_62_jacobi_var' [-Wunused-function]\n 2997 | static inline int64_t safegcd_divsteps_62_jacobi_var(int64_t delta, uint64_t f0, uint64_t g0,\n      |                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+      },
+      "run_command": "/tmp/parseatlas-p3-field-sum.ebhSnl/test_p3_clang",
+      "run_result": {
+        "exit_code": 0,
+        "result": {
+          "schema": "parseatlas_p3_field_sum_correctness_v1",
+          "status": "pass",
+          "mismatches": 0,
+          "finite_corpus_only": true,
+          "timing_claim": false,
+          "constant_time_claim": false,
+          "oracle": "independent Boost ordinary-integer full sum modulo p plus corrected FE64 reference",
+          "contract": "canonical x0 plus N canonical RHS; N counts RHS; final-only output",
+          "schedules": [
+            "full1",
+            "full16",
+            "full256",
+            "full4094",
+            "weak4095"
+          ],
+          "layouts_tested_per_schedule": [
+            "FE64 E2E",
+            "FE52 resident"
+          ],
+          "seed_hex": "5041335f53554d53",
+          "phase_replay_limit_rhs": 8193,
+          "large_fixture_checkpoint_replay": false,
+          "input_preservation": "all object bytes checked after each route; no cross-type aliases",
+          "fixtures": 147,
+          "large_fixtures": 3,
+          "rhs_objects": 1612128,
+          "nonzero_rhs_objects": 1502098,
+          "seeded_cases": 147,
+          "alias_cases": 136,
+          "nonzero_seed_cases": 228,
+          "zero_residue_cases": 63,
+          "identity_fixtures": 8,
+          "null_identity_calls": 88,
+          "reference_calls": 283,
+          "e2e_calls": 1415,
+          "resident_calls": 1415,
+          "second_oracle_checks": 2830,
+          "output_checks": 3793,
+          "input_object_checks": 1612128,
+          "input_preservation_routes": 3257,
+          "checkpoint_replays": 720,
+          "raw_chunk_checks": 461744,
+          "canonical_checkpoint_checks": 922808,
+          "weak_state_checks": 208,
+          "phase_final_checks": 680,
+          "negative_controls": 43,
+          "assertions": 3703557,
+          "input_checksum_fnv1a64": "e5b81992ee2e479d",
+          "output_checksum_fnv1a64": "6c81b078909211cb"
+        }
+      }
+    },
+    "sanitizer": {
+      "compile_command": "g++-14 -std=c++20 -O1 -g -fno-lto -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -DSECP256K1_NO_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp -pthread -latomic -o /tmp/parseatlas-p3-field-sum.ebhSnl/test_p3_asan",
+      "compile_result": {
+        "chunk_id": "ae6d2f",
+        "wall_time_seconds": 8.3e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 /tmp/parseatlas-p3-field-sum.ebhSnl/test_p3_asan",
+      "run_result": {
+        "exit_code": 0,
+        "result": {
+          "schema": "parseatlas_p3_field_sum_correctness_v1",
+          "status": "pass",
+          "mismatches": 0,
+          "finite_corpus_only": true,
+          "timing_claim": false,
+          "constant_time_claim": false,
+          "oracle": "independent Boost ordinary-integer full sum modulo p plus corrected FE64 reference",
+          "contract": "canonical x0 plus N canonical RHS; N counts RHS; final-only output",
+          "schedules": [
+            "full1",
+            "full16",
+            "full256",
+            "full4094",
+            "weak4095"
+          ],
+          "layouts_tested_per_schedule": [
+            "FE64 E2E",
+            "FE52 resident"
+          ],
+          "seed_hex": "5041335f53554d53",
+          "phase_replay_limit_rhs": 8193,
+          "large_fixture_checkpoint_replay": false,
+          "input_preservation": "all object bytes checked after each route; no cross-type aliases",
+          "fixtures": 147,
+          "large_fixtures": 3,
+          "rhs_objects": 1612128,
+          "nonzero_rhs_objects": 1502098,
+          "seeded_cases": 147,
+          "alias_cases": 136,
+          "nonzero_seed_cases": 228,
+          "zero_residue_cases": 63,
+          "identity_fixtures": 8,
+          "null_identity_calls": 88,
+          "reference_calls": 283,
+          "e2e_calls": 1415,
+          "resident_calls": 1415,
+          "second_oracle_checks": 2830,
+          "output_checks": 3793,
+          "input_object_checks": 1612128,
+          "input_preservation_routes": 3257,
+          "checkpoint_replays": 720,
+          "raw_chunk_checks": 461744,
+          "canonical_checkpoint_checks": 922808,
+          "weak_state_checks": 208,
+          "phase_final_checks": 680,
+          "negative_controls": 43,
+          "assertions": 3703557,
+          "input_checksum_fnv1a64": "e5b81992ee2e479d",
+          "output_checksum_fnv1a64": "6c81b078909211cb"
+        }
+      }
+    }
+  },
+  "compile_rejections": {
+    "PA_P3_INVALID_FULL": {
+      "cmd": "g++-14 -std=c++20 -fsyntax-only -Isrc/cpu/include -DPA_P3_INVALID_FULL experiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp",
+      "chunk_id": "16c9de",
+      "wall_time_seconds": 0.000003356,
+      "exit_code": 1,
+      "original_token_count": 443,
+      "output": "In file included from experiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp:4:\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp: In instantiation of ‘pa_p3::FE pa_p3::detail::sum_fe52_impl(const pa_p3::FE&, std::size_t, ReadRhs) [with long unsigned int ChunkRhs = 4095; bool WeakFirst = false; ReadRhs = pa_p3::sum_fe52_e2e<4095, false>(const FE&, const FE*, std::size_t)::<lambda(std::size_t)>; pa_p3::FE = secp256k1::fast::FieldElement; std::size_t = long unsigned int]’:\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp:67:54:   required from ‘pa_p3::FE pa_p3::sum_fe52_e2e(const FE&, const FE*, std::size_t) [with long unsigned int ChunkRhs = 4095; bool WeakFirst = false; FE = secp256k1::fast::FieldElement; std::size_t = long unsigned int]’\n   67 |     return detail::sum_fe52_impl<ChunkRhs, WeakFirst>(x0, count,\n      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~\n   68 |         [rhs](std::size_t i) { return FE52::from_fe(rhs[i]); });\n      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp:23:44:   required from here\n   23 |     return pa_p3::sum_fe52_e2e<4095, false>(seed, nullptr, 0);\n      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp:43:28: error: static assertion failed: P3 chunk exceeds the canonical-seed normalization bound\n   43 |     static_assert(ChunkRhs <= (WeakFirst ? 4095U : 4094U),\n      |                   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp:43:28: note: the comparison reduces to ‘(4095 <= 4094)’\n"
+    },
+    "PA_P3_INVALID_WEAK": {
+      "cmd": "g++-14 -std=c++20 -fsyntax-only -Isrc/cpu/include -DPA_P3_INVALID_WEAK experiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp",
+      "chunk_id": "ad3f50",
+      "wall_time_seconds": 0.000002155,
+      "exit_code": 1,
+      "original_token_count": 451,
+      "output": "In file included from experiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp:4:\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp: In instantiation of ‘pa_p3::FE pa_p3::detail::sum_fe52_impl(const pa_p3::FE&, std::size_t, ReadRhs) [with long unsigned int ChunkRhs = 4096; bool WeakFirst = true; ReadRhs = pa_p3::sum_fe52_resident<4096, true>(const FE&, const FE52*, std::size_t)::<lambda(std::size_t)>; pa_p3::FE = secp256k1::fast::FieldElement; std::size_t = long unsigned int]’:\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp:75:54:   required from ‘pa_p3::FE pa_p3::sum_fe52_resident(const FE&, const FE52*, std::size_t) [with long unsigned int ChunkRhs = 4096; bool WeakFirst = true; FE = secp256k1::fast::FieldElement; FE52 = secp256k1::fast::FieldElement52; std::size_t = long unsigned int]’\n   75 |     return detail::sum_fe52_impl<ChunkRhs, WeakFirst>(x0, count,\n      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~\n   76 |         [rhs](std::size_t i) { return rhs[i]; });\n      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~      \nexperiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp:28:48:   required from here\n   28 |     return pa_p3::sum_fe52_resident<4096, true>(seed, nullptr, 0);\n      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp:43:28: error: static assertion failed: P3 chunk exceeds the canonical-seed normalization bound\n   43 |     static_assert(ChunkRhs <= (WeakFirst ? 4095U : 4094U),\n      |                   ~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp:43:28: note: the comparison reduces to ‘(4096 <= 4095)’\n"
+    },
+    "PA_P3_INVALID_ZERO": {
+      "cmd": "g++-14 -std=c++20 -fsyntax-only -Isrc/cpu/include -DPA_P3_INVALID_ZERO experiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp",
+      "chunk_id": "93d872",
+      "wall_time_seconds": 0.000001165,
+      "exit_code": 1,
+      "original_token_count": 431,
+      "output": "In file included from experiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp:4:\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp: In instantiation of ‘pa_p3::FE pa_p3::detail::sum_fe52_impl(const pa_p3::FE&, std::size_t, ReadRhs) [with long unsigned int ChunkRhs = 0; bool WeakFirst = false; ReadRhs = pa_p3::sum_fe52_e2e<0, false>(const FE&, const FE*, std::size_t)::<lambda(std::size_t)>; pa_p3::FE = secp256k1::fast::FieldElement; std::size_t = long unsigned int]’:\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp:67:54:   required from ‘pa_p3::FE pa_p3::sum_fe52_e2e(const FE&, const FE*, std::size_t) [with long unsigned int ChunkRhs = 0; bool WeakFirst = false; FE = secp256k1::fast::FieldElement; std::size_t = long unsigned int]’\n   67 |     return detail::sum_fe52_impl<ChunkRhs, WeakFirst>(x0, count,\n      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~\n   68 |         [rhs](std::size_t i) { return FE52::from_fe(rhs[i]); });\n      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/test_p3_field_sum.cpp:33:41:   required from here\n   33 |     return pa_p3::sum_fe52_e2e<0, false>(seed, nullptr, 0);\n      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp:42:28: error: static assertion failed: P3 chunk must contain at least one RHS\n   42 |     static_assert(ChunkRhs >= 1, \"P3 chunk must contain at least one RHS\");\n      |                   ~~~~~~~~~^~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p3_field_sum_kernels.hpp:42:28: note: the comparison reduces to ‘(0 >= 1)’\n"
+    }
+  },
+  "kernel_smoke": {
+    "status": "pass",
+    "manager_smoke": {
+      "exit_code": 0,
+      "checks": 3250,
+      "checksum": "dc9ac36e90846edd"
+    },
+    "header_sha256": "7f3bad31a705de319fbdb584338f79175592636054476ea76177961cdafb32b8",
+    "smoke_source_sha256": "e3a10accb0048c4de261b90e4963d3c54573214947c58a6538817a7562fb3ccd",
+    "manager_binary_sha256": "23dd8fc5d354142b6043e78f6733ec6b3f52d554df14d50940edbd3b999a9284",
+    "code_review": "complete header and smoke read after manager native smoke pass; no blocking findings; count-offset arithmetic,seed once,one final fullnormalize,chunk assertions and input alias constraints confirmed"
+  },
+  "benchmark_smokes": {
+    "gcc": {
+      "chunk_id": "c17a6a",
+      "wall_time_seconds": 0.733261622,
+      "exit_code": 0,
+      "original_token_count": 25,
+      "output": "P3 complete cells=42 raw_regions=309 output=/tmp/parseatlas-p3-field-sum.ebhSnl/p3_gcc_smoke.json\n"
+    },
+    "clang": {
+      "chunk_id": "2e1cd1",
+      "wall_time_seconds": 0.730390729,
+      "exit_code": 0,
+      "original_token_count": 25,
+      "output": "P3 complete cells=42 raw_regions=308 output=/tmp/parseatlas-p3-field-sum.ebhSnl/p3_clang_smoke.json\n"
+    },
+    "timing_scope": "validation only; may overlap owned correctness/compilation, never pooled with full series"
+  },
+  "limitations": [
+    "Not a universal proof or CT certification",
+    "Large fixtures validate complete calls/input preservation but do not replay every checkpoint",
+    "Checkpoint replay uses the actual exposed phase helpers separately, not instrumented timed kernels",
+    "Assertions and logical comparisons/counts overlap; repeated configurations are not new distinct fixtures"
+  ],
+  "review": {
+    "manager_complete_test_source_read": true,
+    "manager_complete_driver_source_read": true,
+    "blocking_findings": []
+  }
+}

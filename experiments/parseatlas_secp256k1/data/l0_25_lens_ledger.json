@@ -1,0 +1,1082 @@
+{
+  "format": "parseatlas_l0_diagnostic_ledger_v1",
+  "object": {
+    "kind": "L0_unsigned_addition_with_carry",
+    "native_word_bits": 64,
+    "native_limb_counts": [
+      1,
+      4
+    ],
+    "equation": "a + b + carry_in = low + 2**(word_bits*limbs) * carry_out",
+    "boundary": "fixed-width little-endian low bytes and separate carry bit",
+    "modulus": "none; not field_p or scalar_n",
+    "reference_commit": "fef231d4e4173bd016fb2a3a1eff67087396a203"
+  },
+  "coverage": {
+    "meaning": "addressed_not_completed_or_eligible",
+    "addressed": 25
+  },
+  "eligibility": {
+    "full_domain_boundary_equivalence": "PENDING IMPORT",
+    "constant_time_eligibility": "PENDING IMPORT",
+    "production_acceptance": "NOT ESTABLISHED",
+    "ranking": "NOT PERFORMED",
+    "novelty": "NOT CLAIMED"
+  },
+  "artifacts": [
+    {
+      "id": "methodology",
+      "path": "experiments/parseatlas_secp256k1/METHODOLOGY.en.md",
+      "sha256": "96d659069e0c82b83cd9ba92cdf5d0b6a128dd03678b6613fa2e5024fb78fbba"
+    },
+    {
+      "id": "schema",
+      "path": "experiments/parseatlas_secp256k1/schemas/research_contract.schema.json",
+      "sha256": "a871b63f98537bd53241c848a01529ccc2e6379a34710966ad7c76411f408526"
+    },
+    {
+      "id": "region_doc",
+      "path": "experiments/parseatlas_secp256k1/REGION_MODEL.md",
+      "sha256": "a968cccf5397a278a6b2ea3843b88850ca0f45b83ebc34c45f0a382ff582da08"
+    },
+    {
+      "id": "region_model",
+      "path": "experiments/parseatlas_secp256k1/region_model.py",
+      "sha256": "cafa2fd9db3c865c880c98e0ce3c843e4ef64d80915e795e2dbe5b41ed29a9b5"
+    },
+    {
+      "id": "region_tests",
+      "path": "experiments/parseatlas_secp256k1/tests/test_region_model.py",
+      "sha256": "909f83fac898452617f02be10c71c52835c1eefde6a6a73be9682773be924341"
+    },
+    {
+      "id": "baseline_report",
+      "path": "experiments/parseatlas_secp256k1/L0_BASELINES.md",
+      "sha256": "53cd920e391a104a82fa4e96a01ae32b1213a23319252bfc79bf3f64318c456d"
+    },
+    {
+      "id": "protocol",
+      "path": "experiments/parseatlas_secp256k1/BASELINE_PROTOCOL.md",
+      "sha256": "a3216f67818a37e625e6b2e1759fea511e267784c5def68a3ae1c409b1640409"
+    },
+    {
+      "id": "probe",
+      "path": "experiments/parseatlas_secp256k1/probes/l0_baseline.cpp",
+      "sha256": "ae673ac677a9212796c672d690096b07b9db979d9018b3018fea70e7b5035c9f"
+    },
+    {
+      "id": "runner",
+      "path": "experiments/parseatlas_secp256k1/baseline_runner.py",
+      "sha256": "79b749be78e56dca67e19ef6c42877280878dfd2550010fc04701978a8de5fd2"
+    },
+    {
+      "id": "cpp_tests",
+      "path": "experiments/parseatlas_secp256k1/tests/test_l0_baseline_cpp.py",
+      "sha256": "95d6ee44d60f158f6c188843f0722d2ca94dc3e3fed620d9a8ed864753cfd4b7"
+    },
+    {
+      "id": "runner_tests",
+      "path": "experiments/parseatlas_secp256k1/tests/test_baseline_runner.py",
+      "sha256": "0f76b21466ad90f7aa02e189475706749b29fbe6c7c1fabc72bd88cfdea6bb4e"
+    },
+    {
+      "id": "cpu0",
+      "path": "experiments/parseatlas_secp256k1/data/l0_baseline_cpu0_20260905.json",
+      "sha256": "dc24df158d175d7c2891ea4f873c60f2a38a6aea72b0c6ad053a28a9ca288349"
+    },
+    {
+      "id": "cpu4",
+      "path": "experiments/parseatlas_secp256k1/data/l0_baseline_cpu4_20260905.json",
+      "sha256": "547a3eb17262b75cb42154b8a5ff34f1938301b10dac2e21fb8f5c486f99dfb5"
+    },
+    {
+      "id": "pmu",
+      "path": "experiments/parseatlas_secp256k1/data/l0_baseline_process_counters_20260905.json",
+      "sha256": "30289c98151fa621b915d60c07c67ffaa1bc525870038748a424d0acb8f8e711"
+    },
+    {
+      "id": "assembly",
+      "path": "experiments/parseatlas_secp256k1/data/l0_baseline_disassembly_20260905.txt",
+      "sha256": "62a3a1c6292207cdd6d4944768e85ee032e0df1050dd1b0c21e73be0ce857738"
+    }
+  ],
+  "lenses": [
+    {
+      "id": "V01",
+      "observable": "search reachability",
+      "method": "execute derivation witness",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_model",
+        "region_tests"
+      ],
+      "observation": "The exact registered serial_adc_to_inclusive_gp_v1 template emits a replayable source/target/domain witness. Renamed graphs remain executable but are not accepted by this template-only rule.",
+      "limitations": [
+        "Reachability of one supplied rewrite is not equivalence or a search over the 25 world policies.",
+        "The Python serial/prefix controls are not the frozen native production engine."
+      ],
+      "next_evidence": [
+        "Declare a finite generator grammar, enumerate reachable forms without embedding targets, and retain witnesses and unreachable cases."
+      ],
+      "metrics": [
+        {
+          "name": "generator_reachability_coverage",
+          "unit": "reachable forms / declared search space",
+          "value": "PENDING IMPORT",
+          "reason": "No general policy generator or finite search-space denominator is implemented."
+        }
+      ]
+    },
+    {
+      "id": "V02",
+      "observable": "sampled corpus agreement",
+      "method": "seeded differential corpus; OBSERVED only",
+      "assessment": "evidenced",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "native_cpp",
+        "python_model"
+      ],
+      "artifact_refs": [
+        "cpu0",
+        "cpu4",
+        "probe",
+        "runner",
+        "cpp_tests",
+        "region_tests",
+        "region_doc"
+      ],
+      "observation": "The native original-add64 composition agrees with independent bigint low bytes and carry for 610 one-limb and 1024 four-limb corpus cases per collection. Both collections reuse the same corpus, not independent doubled coverage. Python serial/prefix controls separately have boundary and tiny exhaustive tests.",
+      "limitations": [
+        "Finite corpus agreement is not full-domain proof or cryptographic eligibility.",
+        "Large timed dataset outputs were checked for checksum stability, not individually replayed against bigint."
+      ],
+      "next_evidence": [
+        "Freeze a held-out correctness corpus before constructing new native representations; compare decoded bytes and separate carry with both original control and bigint."
+      ],
+      "metrics": [
+        {
+          "name": "native_one_limb_cases",
+          "unit": "input triples",
+          "value": 610,
+          "artifact": "cpu4",
+          "pointer": "/correctness/0/cases",
+          "provenance_kind": "observed_corpus"
+        },
+        {
+          "name": "native_one_limb_mismatches",
+          "unit": "mismatches",
+          "value": 0,
+          "artifact": "cpu4",
+          "pointer": "/correctness/0/mismatches",
+          "provenance_kind": "observed_corpus"
+        },
+        {
+          "name": "native_four_limb_cases",
+          "unit": "input triples",
+          "value": 1024,
+          "artifact": "cpu4",
+          "pointer": "/correctness/1/cases",
+          "provenance_kind": "observed_corpus"
+        },
+        {
+          "name": "native_four_limb_mismatches",
+          "unit": "mismatches",
+          "value": 0,
+          "artifact": "cpu4",
+          "pointer": "/correctness/1/mismatches",
+          "provenance_kind": "observed_corpus"
+        }
+      ]
+    },
+    {
+      "id": "V03",
+      "observable": "full-domain boundary equivalence",
+      "method": "proof or mechanical full-domain artifact",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_model",
+        "region_tests"
+      ],
+      "observation": "The retained review reports exhaustion of 131072 input triples for each of two eight-bit layouts and two supplied templates: 524288 candidate executions, not 262144 distinct triples. Ordinary tests also exhaust five smaller domains.",
+      "limitations": [
+        "This bounded tiny-domain observation is not a proof for all 64-bit or 256-bit inputs.",
+        "Typed graphs can still be arithmetically incoherent; full-domain definedness does not follow merely from WORD/BIT types."
+      ],
+      "next_evidence": [
+        "Supply a reviewed symbolic proof or mechanically checkable full-domain artifact binding evaluator semantics, encode/decode and the exact candidate implementation."
+      ],
+      "metrics": [
+        {
+          "name": "native_full_domain_equivalence",
+          "unit": "proof artifact",
+          "value": "PENDING IMPORT",
+          "reason": "No full-domain artifact covers the native 64/256-bit boundary."
+        }
+      ]
+    },
+    {
+      "id": "V04",
+      "observable": "definedness and preconditions",
+      "method": "proof plus invalid-input fixtures",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_tests",
+        "cpp_tests",
+        "probe"
+      ],
+      "observation": "Model fixtures reject invalid widths/moduli, non-bit carries, malformed states, forward references and incoherent FINISH carry2. Native CLI fixtures reject malformed fields, carry values and unsupported resource requests.",
+      "limitations": [
+        "Invalid-input fixtures establish selected rejection branches, not every API precondition in the engine.",
+        "The CLI parser contract is not the production pointer or modular API contract."
+      ],
+      "next_evidence": [
+        "List exact preconditions of the next candidate and add one rejection fixture per branch plus a definedness argument."
+      ],
+      "metrics": [
+        {
+          "name": "full_precondition_discharge",
+          "unit": "obligations discharged / declared obligations",
+          "value": "PENDING IMPORT",
+          "reason": "No complete production/candidate precondition ledger is imported."
+        }
+      ]
+    },
+    {
+      "id": "V05",
+      "observable": "range and overflow bounds",
+      "method": "range proof and boundary fixtures",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_model",
+        "region_tests",
+        "cpu4",
+        "cpp_tests"
+      ],
+      "observation": "The model keeps low limbs and carry explicitly; FINISH adds its two carry contributions and rejects carry2 rather than hiding it with OR. Native boundary cases include maximal limbs and carry propagation across limb boundaries.",
+      "limitations": [
+        "Observed boundary cases are not a complete machine overflow/range proof.",
+        "Neither Fp nor Fn reduction bounds follow from this modulus-free addition slice."
+      ],
+      "next_evidence": [
+        "Derive node-by-node ranges for each carried state and inspect the lowered unsigned operations before introducing redundancy or delayed normalization."
+      ],
+      "metrics": [
+        {
+          "name": "native_range_proof",
+          "unit": "proof artifact",
+          "value": "PENDING IMPORT",
+          "reason": "No complete source-to-machine range proof is imported."
+        }
+      ]
+    },
+    {
+      "id": "V06",
+      "observable": "aliasing behavior",
+      "method": "alias matrix tests",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_tests",
+        "probe",
+        "cpp_tests",
+        "cpu4"
+      ],
+      "observation": "Python boundary states are immutable tuples. Native bulk input/output vectors are disjoint. The conditioned native recurrence explicitly calls original_add(a,b,carry,a), so output==a is exercised by the small latency bigint smoke replay.",
+      "limitations": [
+        "This narrow in-place smoke observation does not establish a general production alias matrix.",
+        "output==b, arbitrary partial overlaps and all production modular API alias contracts remain untested here."
+      ],
+      "next_evidence": [
+        "Declare disjoint, exact-in-place and partial-overlap behavior at the selected real API boundary; test the supported cases and reject forbidden ones."
+      ],
+      "metrics": [
+        {
+          "name": "native_alias_matrix",
+          "unit": "tested alias cases / declared cases",
+          "value": "PENDING IMPORT",
+          "reason": "An exact production/candidate buffer boundary has not yet been selected."
+        }
+      ]
+    },
+    {
+      "id": "V07",
+      "observable": "caller-visible behavior",
+      "method": "API differential tests",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "native_cpp",
+        "python_model"
+      ],
+      "artifact_refs": [
+        "cpu4",
+        "runner",
+        "cpp_tests",
+        "region_doc"
+      ],
+      "observation": "The current observable boundary includes fixed-width little-endian low bytes and a separate final carry. Native malformed-input tests also check failure status and absence of successful output.",
+      "limitations": [
+        "This is a diagnostic harness boundary, not FieldElement, Scalar, group or signature API equivalence.",
+        "No hidden normalization is allowed to erase a carry mismatch."
+      ],
+      "next_evidence": [
+        "When lifting the primitive into a region, include caller-visible status, carried magnitude, output bytes and mutation behavior in the differential contract."
+      ],
+      "metrics": [
+        {
+          "name": "production_api_equivalence",
+          "unit": "API fixture matrix",
+          "value": "PENDING IMPORT",
+          "reason": "No modular or higher-layer call site is integrated into this ledger."
+        }
+      ]
+    },
+    {
+      "id": "V08",
+      "observable": "invariant eligibility",
+      "method": "artifact per declared invariant",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_tests",
+        "cpp_tests",
+        "methodology"
+      ],
+      "observation": "Structural typing, explicit carry and boundary fixtures supply evidence for selected declared invariants. The known FINISH correction demonstrates why a type-valid graph alone is insufficient.",
+      "limitations": [
+        "No blanket invariants_eligible gate is set.",
+        "Full-domain arithmetic, aliasing and constant-time obligations remain separate and incomplete."
+      ],
+      "next_evidence": [
+        "Attach a proof or explicit scoped test artifact to each invariant; preserve unresolved obligations and negative fixtures."
+      ],
+      "metrics": [
+        {
+          "name": "complete_invariant_discharge",
+          "unit": "invariant artifact set",
+          "value": "PENDING IMPORT",
+          "reason": "The complete eligible candidate invariant set is not established."
+        }
+      ]
+    },
+    {
+      "id": "V09",
+      "observable": "constant-time eligibility",
+      "method": "static trace review plus leakage experiment",
+      "assessment": "pending",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "methodology",
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "methodology",
+        "protocol",
+        "assembly"
+      ],
+      "observation": "The available timing and assembly artifacts are performance diagnostics, not a constant-time experiment. No secret-bearing candidate has a leakage result in this snapshot.",
+      "limitations": [
+        "Stable timing averages or an add/adc sequence do not certify constant time.",
+        "The Python evaluator is not a constant-time implementation."
+      ],
+      "next_evidence": [
+        "Declare secrets/public inputs, inspect branch/address traces in the exact lowered binary and perform a preregistered leakage test with explicit statistical limits."
+      ],
+      "metrics": [
+        {
+          "name": "constant_time_evidence",
+          "unit": "trace and leakage artifact",
+          "value": "PENDING IMPORT",
+          "reason": "Neither a complete static trace review nor a leakage experiment is imported."
+        }
+      ]
+    },
+    {
+      "id": "V10",
+      "observable": "resource feasibility",
+      "method": "compare declared hard ceilings",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "native_cpp",
+        "python_model"
+      ],
+      "artifact_refs": [
+        "protocol",
+        "runner",
+        "cpp_tests",
+        "runner_tests",
+        "region_doc",
+        "cpu4"
+      ],
+      "observation": "The runner enforces observed-memory headroom, at most 256 MiB working memory, at most one billion logical operations and one million passes. The typed model bounds regions to 128 nodes. Existing native workloads fit the declared collector ceilings.",
+      "limitations": [
+        "Collector feasibility is not feasibility of all generated worlds or a production latency/memory budget.",
+        "One serial timing worker intentionally avoids concurrent benchmark interference; no multicore throughput claim follows."
+      ],
+      "next_evidence": [
+        "Preregister candidate hard ceilings including conversions, table storage and complete output materialization; retain resource-failure outcomes."
+      ],
+      "metrics": [
+        {
+          "name": "candidate_resource_feasibility",
+          "unit": "declared budget comparison",
+          "value": "PENDING IMPORT",
+          "reason": "No new candidate complete-region resource budget has been evaluated."
+        }
+      ]
+    },
+    {
+      "id": "V11",
+      "observable": "property manifestness",
+      "method": "preregistered syntactic extractor",
+      "assessment": "pending",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "methodology",
+        "python_model"
+      ],
+      "artifact_refs": [
+        "methodology",
+        "region_doc",
+        "region_model"
+      ],
+      "observation": "The carry model exposes generate/propagate channels and typed nodes to inspection. No preregistered syntactic property extractor is bound by this snapshot.",
+      "limitations": [
+        "Human readability and the presence of named GP nodes are not a scored manifestness result.",
+        "No unfinished work from another experiment is imported."
+      ],
+      "next_evidence": [
+        "Specify an identifier-neutral property language, extractor and adversarial fixtures before scoring which facts each representation makes explicit."
+      ],
+      "metrics": [
+        {
+          "name": "property_manifestness",
+          "unit": "preregistered extractor result",
+          "value": "PENDING IMPORT",
+          "reason": "The extractor, property catalog and scoring contract are pending."
+        }
+      ]
+    },
+    {
+      "id": "V12",
+      "observable": "dependency depth",
+      "method": "DAG longest-path model; not runtime",
+      "assessment": "evidenced",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_model",
+        "region_tests"
+      ],
+      "observation": "In the registered four-by-64 macro model, serial has region/output depth 4/4 and prefix has 5/5. Each registered multi-output operation is one atomic unit-cost DAG node. The prefix control shows no depth improvement in this bounded model.",
+      "limitations": [
+        "Static macro depth is neither instruction dependency depth nor measured cycles.",
+        "The null result does not establish compiled prefix inferiority; changing operation granularity needs a declared separate model."
+      ],
+      "next_evidence": [
+        "Lower candidate operations explicitly, retain both macro and lowered dependency graphs, and compare with measured latency without post-hoc favorable weights."
+      ],
+      "metrics": [
+        {
+          "name": "lowered_native_dependency_depth",
+          "unit": "instruction dependency edges",
+          "value": "PENDING IMPORT",
+          "reason": "Only the typed macro model is imported; no exact instruction DAG has been extracted."
+        }
+      ]
+    },
+    {
+      "id": "V13",
+      "observable": "peak live values",
+      "method": "liveness analysis",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_model",
+        "region_tests",
+        "assembly",
+        "baseline_report"
+      ],
+      "observation": "The declared four-limb schedules have peak live values 11 for serial and 16 for prefix, with peak logical live bits 578 and 579. Separately, the actual native conditioned four-limb loop has stack loads/stores in the retained disassembly.",
+      "limitations": [
+        "The model assumes inputs initially resident and allocates outputs before freeing last-use inputs; it is not register allocation.",
+        "Model prefix liveness is not a measurement of the native serial harness, and logical live bits are not stack footprint."
+      ],
+      "next_evidence": [
+        "Bind alternative schedules and lowered code, then count actual spill loads/stores and register pressure for each compiled candidate."
+      ],
+      "metrics": [
+        {
+          "name": "compiled_peak_registers_and_spills",
+          "unit": "registers and spill accesses",
+          "value": "PENDING IMPORT",
+          "reason": "The observed stack accesses have not been turned into a complete versioned liveness/spill accounting."
+        }
+      ]
+    },
+    {
+      "id": "V14",
+      "observable": "operation multiset",
+      "method": "typed static counters",
+      "assessment": "evidenced",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_model",
+        "region_tests",
+        "probe"
+      ],
+      "observation": "The four-limb serial model contains 4 ADC nodes; prefix contains 4 SPLIT_GP, 3 COMPOSE_GP, 3 APPLY_GP and 4 FINISH nodes, totaling 14. The native four-limb baseline composes four original add64 calls; no compiled prefix candidate is timed.",
+      "limitations": [
+        "Different macro operation types do not have equal machine cost.",
+        "More macro operations do not imply slower execution; loop overhead, locality and lowering remain separate evidence."
+      ],
+      "next_evidence": [
+        "Retain typed operation vectors and actual compiler instruction classes alongside complete-region measurements, without collapsing them into an invented unit-cost score."
+      ],
+      "metrics": [
+        {
+          "name": "candidate_native_operation_multiset",
+          "unit": "lowered instruction classes",
+          "value": "PENDING IMPORT",
+          "reason": "No lowered new-method candidate is imported."
+        }
+      ]
+    },
+    {
+      "id": "V15",
+      "observable": "conversion cost",
+      "method": "separate boundary counters/benchmark",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_model",
+        "protocol",
+        "probe"
+      ],
+      "observation": "The model separately counts input decomposition as 2*limbs divmod operations and output construction as limbs shifts, limbs sum terms and one fixed-width serialization. Native timing excludes allocation, initialization and final checksum.",
+      "limitations": [
+        "These are static counts of an explicit Python boundary algorithm, not conversion timings.",
+        "Baseline arithmetic timing excludes work that a non-identity representation may require at region boundaries."
+      ],
+      "next_evidence": [
+        "Preregister encode/decode/normalization boundaries and measure both isolated conversion and complete-region cost, retaining amortization assumptions."
+      ],
+      "metrics": [
+        {
+          "name": "native_conversion_cost",
+          "unit": "ns/complete conversion boundary",
+          "value": "PENDING IMPORT",
+          "reason": "No non-identity native representation conversion has been implemented or timed."
+        }
+      ]
+    },
+    {
+      "id": "V16",
+      "observable": "region latency",
+      "method": "warmed repeated benchmark",
+      "assessment": "partial",
+      "claim_class": "MEASURED",
+      "evidence_scopes": [
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "cpu0",
+        "cpu4",
+        "protocol",
+        "baseline_report",
+        "assembly"
+      ],
+      "observation": "Both archived collections contain warmed repeated one-limb and four-limb conditioned recurrences. The numbers are nanoseconds per complete logical addition, including rotate/XOR input conditioning and loop/spill overhead.",
+      "limitations": [
+        "This is not isolated ADC latency or a prefix/carry-save result.",
+        "CPU0 exhibited synchronized nonstationarity; CPU4 was selected after observing it. Collections remain separate and all outliers remain retained."
+      ],
+      "next_evidence": [
+        "Measure original control and each candidate interleaved in the same fresh session, with identical recurrence and boundary; report uncertainty without comparing against a historical best."
+      ],
+      "metrics": [
+        {
+          "name": "cpu0_u64_latency_median",
+          "unit": "ns/logical_addition",
+          "value": 1.9558297097126978,
+          "artifact": "cpu0",
+          "pointer": "/measurement/workloads/0/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu0_u256_latency_median",
+          "unit": "ns/logical_addition",
+          "value": 6.398955246878676,
+          "artifact": "cpu0",
+          "pointer": "/measurement/workloads/3/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu4_u64_latency_median",
+          "unit": "ns/logical_addition",
+          "value": 1.2172289942474928,
+          "artifact": "cpu4",
+          "pointer": "/measurement/workloads/0/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu4_u256_latency_median",
+          "unit": "ns/logical_addition",
+          "value": 4.900240084897534,
+          "artifact": "cpu4",
+          "pointer": "/measurement/workloads/3/summary/median",
+          "provenance_kind": "collection"
+        }
+      ]
+    },
+    {
+      "id": "V17",
+      "observable": "region throughput",
+      "method": "warmed batched benchmark",
+      "assessment": "evidenced",
+      "claim_class": "MEASURED",
+      "evidence_scopes": [
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "cpu0",
+        "cpu4",
+        "protocol",
+        "baseline_report"
+      ],
+      "observation": "The same native bulk arithmetic has small-hot and LLC-exceeding working-set measurements for both widths. On CPU4 the four-limb median is approximately 3.005 ns hot and 6.536 ns large, with complete input/output records materialized.",
+      "limitations": [
+        "These are baseline regime observations, not a new-method gain, causal locality proof or DRAM bandwidth measurement.",
+        "The CPU4 large four-limb maximum near 7.965 ns remains in its seven samples; no pooling with CPU0 or PMU repeats."
+      ],
+      "next_evidence": [
+        "Hold method fixed while varying layout/capacity, and hold layout/capacity fixed while varying method; retain complete boundaries and same-session controls."
+      ],
+      "metrics": [
+        {
+          "name": "cpu0_u64_hot_median",
+          "unit": "ns/logical_addition",
+          "value": 2.3703778226900356,
+          "artifact": "cpu0",
+          "pointer": "/measurement/workloads/1/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu0_u64_stream_median",
+          "unit": "ns/logical_addition",
+          "value": 2.8633801460266115,
+          "artifact": "cpu0",
+          "pointer": "/measurement/workloads/2/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu0_u256_hot_median",
+          "unit": "ns/logical_addition",
+          "value": 5.961564354649709,
+          "artifact": "cpu0",
+          "pointer": "/measurement/workloads/4/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu0_u256_stream_median",
+          "unit": "ns/logical_addition",
+          "value": 8.012298382032393,
+          "artifact": "cpu0",
+          "pointer": "/measurement/workloads/5/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu4_u64_hot_median",
+          "unit": "ns/logical_addition",
+          "value": 1.231453876415688,
+          "artifact": "cpu4",
+          "pointer": "/measurement/workloads/1/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu4_u64_stream_median",
+          "unit": "ns/logical_addition",
+          "value": 2.3347898059421115,
+          "artifact": "cpu4",
+          "pointer": "/measurement/workloads/2/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu4_u256_hot_median",
+          "unit": "ns/logical_addition",
+          "value": 3.0052881016432043,
+          "artifact": "cpu4",
+          "pointer": "/measurement/workloads/4/summary/median",
+          "provenance_kind": "collection"
+        },
+        {
+          "name": "cpu4_u256_stream_median",
+          "unit": "ns/logical_addition",
+          "value": 6.535626546634273,
+          "artifact": "cpu4",
+          "pointer": "/measurement/workloads/5/summary/median",
+          "provenance_kind": "collection"
+        }
+      ]
+    },
+    {
+      "id": "V18",
+      "observable": "instruction count",
+      "method": "versioned hardware counter",
+      "assessment": "partial",
+      "claim_class": "MEASURED",
+      "evidence_scopes": [
+        "whole_process_pmu"
+      ],
+      "artifact_refs": [
+        "pmu",
+        "cpu4",
+        "protocol",
+        "baseline_report"
+      ],
+      "observation": "Separate CPU4 perf stat -r 3 diagnostics retain user-space cpu_core instruction event aggregate counts and variation for the hot and large four-limb benchmark processes.",
+      "limitations": [
+        "Counters include initialization, internal warmup, checksum and runtime work outside the C++ timed loop.",
+        "Per-repetition PMU counts are not exported; raw process counts divided by timed additions are not exact arithmetic CPI or isolated kernel instructions.",
+        "The separate PMU artifact records event names and the measured binary identity, but not the perf executable version; a new collection must add it."
+      ],
+      "next_evidence": [
+        "Introduce an explicitly scoped region-only PMU measurement with a validated boundary and overhead control before attributing instruction counts to candidate arithmetic."
+      ],
+      "metrics": [
+        {
+          "name": "u256_hot_process_instructions",
+          "unit": "perf aggregate user-space instructions as reported",
+          "value": 3105329469,
+          "artifact": "pmu",
+          "pointer": "/workloads/0/aggregate_perf_rows/1/count_as_reported",
+          "provenance_kind": "whole_process_pmu"
+        },
+        {
+          "name": "u256_stream_process_instructions",
+          "unit": "perf aggregate user-space instructions as reported",
+          "value": 1526794023,
+          "artifact": "pmu",
+          "pointer": "/workloads/1/aggregate_perf_rows/1/count_as_reported",
+          "provenance_kind": "whole_process_pmu"
+        },
+        {
+          "name": "inner_loop_instructions",
+          "unit": "instructions/logical_addition",
+          "value": "PENDING IMPORT",
+          "reason": "Existing PMU scope is whole process, not timed region only."
+        }
+      ]
+    },
+    {
+      "id": "V19",
+      "observable": "cache behavior",
+      "method": "versioned hardware counters",
+      "assessment": "partial",
+      "claim_class": "MEASURED",
+      "evidence_scopes": [
+        "whole_process_pmu",
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "pmu",
+        "cpu4",
+        "protocol",
+        "baseline_report"
+      ],
+      "observation": "The separate whole-process diagnostics retain generic cpu_core cache-reference and cache-miss event counts. Logical bulk record sizes are 40 and 112 bytes; large-record accounting gives about 17.1 logical GB/s, not observed memory-controller traffic.",
+      "limitations": [
+        "Generic cache events are not DRAM bytes; initialization, warmup and checksum contribute.",
+        "The compiler may read only a byte of the carry slot, while cache fills, write allocation and spills introduce other traffic; process counters do not isolate the cause of elapsed-time differences.",
+        "The separate PMU artifact records event names and the measured binary identity, but not the perf executable version; a new collection must add it."
+      ],
+      "next_evidence": [
+        "Collect region-scoped cache events and platform-supported memory-controller traffic with an explicit causal layout/working-set experiment."
+      ],
+      "metrics": [
+        {
+          "name": "u256_hot_process_cache_references",
+          "unit": "perf aggregate cache references as reported",
+          "value": 25463,
+          "artifact": "pmu",
+          "pointer": "/workloads/0/aggregate_perf_rows/2/count_as_reported",
+          "provenance_kind": "whole_process_pmu"
+        },
+        {
+          "name": "u256_hot_process_cache_misses",
+          "unit": "perf aggregate cache misses as reported",
+          "value": 16200,
+          "artifact": "pmu",
+          "pointer": "/workloads/0/aggregate_perf_rows/3/count_as_reported",
+          "provenance_kind": "whole_process_pmu"
+        },
+        {
+          "name": "u256_stream_process_cache_references",
+          "unit": "perf aggregate cache references as reported",
+          "value": 61803570,
+          "artifact": "pmu",
+          "pointer": "/workloads/1/aggregate_perf_rows/2/count_as_reported",
+          "provenance_kind": "whole_process_pmu"
+        },
+        {
+          "name": "u256_stream_process_cache_misses",
+          "unit": "perf aggregate cache misses as reported",
+          "value": 46196164,
+          "artifact": "pmu",
+          "pointer": "/workloads/1/aggregate_perf_rows/3/count_as_reported",
+          "provenance_kind": "whole_process_pmu"
+        },
+        {
+          "name": "dram_traffic",
+          "unit": "memory-controller bytes/logical_addition",
+          "value": "PENDING IMPORT",
+          "reason": "No memory-controller DRAM traffic is measured."
+        }
+      ]
+    },
+    {
+      "id": "V20",
+      "observable": "code size",
+      "method": "linked symbol accounting",
+      "assessment": "pending",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "assembly",
+        "baseline_report",
+        "cpu4"
+      ],
+      "observation": "The retained binary has the benchmark loops inlined into main. Selected timed-loop assembly windows are available, but no linked standalone kernel symbol has an exact size record.",
+      "limitations": [
+        "Whole binary size or the length of selected disassembly text cannot substitute for linked kernel code size.",
+        "Manual address windows need a declared accounting rule for shared setup and branching before becoming a code-size comparison."
+      ],
+      "next_evidence": [
+        "Choose a versioned linked-symbol or explicit machine-code-range accounting boundary and preserve inlining policy consistently for control and candidate."
+      ],
+      "metrics": [
+        {
+          "name": "linked_kernel_code_size",
+          "unit": "bytes",
+          "value": "PENDING IMPORT",
+          "reason": "No exact isolated kernel symbol accounting is imported."
+        }
+      ]
+    },
+    {
+      "id": "V21",
+      "observable": "portability",
+      "method": "declared target build/test matrix",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "cpp_tests",
+        "baseline_report",
+        "cpu0",
+        "cpu4"
+      ],
+      "observation": "The existing C++ tests compile and exercise native and SECP256K1_NO_INT128 carry paths. Recorded performance collections use only the native GCC int128 path on one Intel hybrid host, with CPU0 and CPU4 both P-cores.",
+      "limitations": [
+        "Portable-path correctness testing on one host is not cross-architecture portability or portable-path performance evidence.",
+        "Efficiency cores, ARM, other operating systems and additional compiler targets are not measured."
+      ],
+      "next_evidence": [
+        "Declare a target/backend build-and-correctness matrix first; measure target performance separately without extrapolating from this host."
+      ],
+      "metrics": [
+        {
+          "name": "cross_target_portability_matrix",
+          "unit": "target/backend test results",
+          "value": "PENDING IMPORT",
+          "reason": "Only one host and correctness checks of two carry build paths are imported."
+        }
+      ]
+    },
+    {
+      "id": "V22",
+      "observable": "compiler sensitivity",
+      "method": "fixed version/flag matrix",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "native_cpp"
+      ],
+      "artifact_refs": [
+        "cpu0",
+        "cpu4",
+        "cpp_tests",
+        "protocol"
+      ],
+      "observation": "Both timed collections bind GCC 14.2.0 with -std=c++17 -O3 -march=native -DNDEBUG -Wall -Wextra and no LTO. The portable carry define is a correctness configuration, not a timed compiler sensitivity series.",
+      "limitations": [
+        "Two selected CPUs on one compiler do not form a compiler matrix.",
+        "No Clang, alternate optimization, target ISA or LTO sensitivity conclusion is supported."
+      ],
+      "next_evidence": [
+        "Preregister a small version/flag/ISA matrix, require byte agreement for each build and preserve lowered-code and performance changes separately."
+      ],
+      "metrics": [
+        {
+          "name": "compiler_sensitivity_matrix",
+          "unit": "version/flag performance results",
+          "value": "PENDING IMPORT",
+          "reason": "Only one compiler/flag performance configuration is imported."
+        }
+      ]
+    },
+    {
+      "id": "V23",
+      "observable": "policy and tie-break sensitivity",
+      "method": "optimistic/pessimistic preregistered reruns",
+      "assessment": "pending",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "methodology"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_model",
+        "methodology"
+      ],
+      "observation": "The current serial and prefix constructions use fixed supplied templates and declared default schedules. No preregistered optimistic/pessimistic derivation or schedule tie reruns are imported.",
+      "limitations": [
+        "Identifier renaming null controls are not policy/tie-break sensitivity experiments.",
+        "One selected schedule cannot establish robustness to equivalent representation choices."
+      ],
+      "next_evidence": [
+        "Freeze admissible ties and schedules, then rerun optimistic and pessimistic selections with identical domains and preserve collapsed duplicates."
+      ],
+      "metrics": [
+        {
+          "name": "policy_tie_sensitivity",
+          "unit": "preregistered rerun outcomes",
+          "value": "PENDING IMPORT",
+          "reason": "No multi-derivation tie experiment has been completed."
+        }
+      ]
+    },
+    {
+      "id": "V24",
+      "observable": "rediscovery and held-out transfer",
+      "method": "blind generator control then unchanged-axis transfer",
+      "assessment": "pending",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "methodology"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "region_model",
+        "methodology"
+      ],
+      "observation": "The prefix identity is explicitly encoded in a known-method constructor and rewrite. No blind generator control or unchanged-axis held-out transfer artifact is available.",
+      "limitations": [
+        "Successful replay of the supplied template is not rediscovery.",
+        "Additional random inputs of the same template are not evidence of unchanged-axis transfer to a held-out object."
+      ],
+      "next_evidence": [
+        "Preregister grammar/selection before running a blind known-method recovery control, then freeze it for a declared held-out domain or operation axis."
+      ],
+      "metrics": [
+        {
+          "name": "rediscovery_and_heldout_transfer",
+          "unit": "blind and held-out experiment results",
+          "value": "PENDING IMPORT",
+          "reason": "General generation, frozen selection and held-out transfer are pending."
+        }
+      ]
+    },
+    {
+      "id": "V25",
+      "observable": "prior-art status",
+      "method": "classify reproduction, observed implementation gain, or candidate novelty pending review",
+      "assessment": "partial",
+      "claim_class": "OBSERVED",
+      "evidence_scopes": [
+        "python_model",
+        "native_cpp",
+        "methodology"
+      ],
+      "artifact_refs": [
+        "region_doc",
+        "baseline_report",
+        "methodology"
+      ],
+      "observation": "Serial carry and generate/propagate prefix are supplied known-method controls. The native baseline records existing-engine behavior. No implementation gain from a new method and no novelty are claimed.",
+      "limitations": [
+        "This classification is not a completed external prior-art review.",
+        "A promising synthesis hypothesis would still need independent correctness, full-cost measurement and relevant primary-source review."
+      ],
+      "next_evidence": [
+        "Classify each future positive claim separately as known-method reproduction, observed implementation gain or possible novelty pending prior-art review; retain negative and collapsed results."
+      ],
+      "metrics": [
+        {
+          "name": "candidate_prior_art_review",
+          "unit": "review artifact",
+          "value": "PENDING IMPORT",
+          "reason": "No new-method positive claim exists to support a novelty classification."
+        }
+      ]
+    }
+  ]
+}

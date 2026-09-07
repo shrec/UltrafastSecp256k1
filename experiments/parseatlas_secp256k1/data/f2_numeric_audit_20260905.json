@@ -1,0 +1,3510 @@
+{
+  "schema": "pa_f2_numeric_audit_v1",
+  "date": "2026-09-05",
+  "method": "Independent manager JavaScript off-clock metadata replay; all arithmetic/correctness/timing executed in native C++. Raw 64-bit timestamp lexemes parsed to BigInt; source JSON preserved verbatim.",
+  "all_invocations_complete": true,
+  "all_numeric_checks_pass": true,
+  "measured_records": 384,
+  "warmup_records": 96,
+  "untimed_preflight_records": 192,
+  "calibration_records": 178,
+  "below_target_measured": 6,
+  "min_measured_ms": 171.098046,
+  "max_measured_ms": 563.971241,
+  "checks": [
+    "exact sequential steady timestamps and elapsed differences",
+    "raw Unix invocation duration bounds",
+    "calibration order/trial/job/streak/ceil-growth/caps/qualification state machine",
+    "balanced8rounds, pervariant8samples, fixedjobs",
+    "source operation/output/thread counts and caps",
+    "reference/input evidence tokens; native actual32bytecheck explicitly relied upon",
+    "median/min/max/MAD/inclusiveIQR and pairedratio summaries",
+    "all belowtargetflags retained"
+  ],
+  "runs": [
+    {
+      "sequence": 1,
+      "series": 1,
+      "count": 256,
+      "workers": 8,
+      "calibration_records": 15,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 3,
+          "jobs": 391645
+        },
+        {
+          "variant": 3,
+          "trials": 4,
+          "jobs": 1560
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 1028521
+        },
+        {
+          "variant": 0,
+          "trials": 4,
+          "jobs": 241158
+        }
+      ],
+      "input_checksum": "af43b262f038682e",
+      "reference_checksum": "7e6bfc7aac0524e0",
+      "started_unix_ns": "1788629027368002275",
+      "finished_unix_ns": "1788629041322114764",
+      "measured_min_ms": 241.66011,
+      "measured_max_ms": 343.588426,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 1053.9583737632588,
+            "min": 1051.221104006502,
+            "max": 1071.7569809004885,
+            "mad": 2.346675208784177,
+            "inclusive_iqr": 4.485535416614994
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 621.5358232583079,
+            "min": 617.0386702243103,
+            "max": 624.2577436198599,
+            "mad": 2.0401971172873345,
+            "inclusive_iqr": 3.921534808308593
+          },
+          "paired_serial_over_candidate": {
+            "median": 1.6974614846983291,
+            "min": 1.6867644453563828,
+            "max": 1.7168501181671079,
+            "mad": 0.008333888701280046,
+            "inclusive_iqr": 0.014748276889965162
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            1.6943724359883232,
+            1.6978248253997938,
+            1.6867644453563828,
+            1.7149560027921353,
+            1.7052433176650676,
+            1.7168501181671079,
+            1.6885755402625076,
+            1.6970981439968642
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 287.9276422163475,
+            "min": 287.5431605188421,
+            "max": 289.91587531999835,
+            "mad": 0.2308193026685501,
+            "inclusive_iqr": 0.776971009828685
+          },
+          "paired_serial_over_candidate": {
+            "median": 3.6539747227250237,
+            "min": 3.6335165318761677,
+            "max": 3.7233113564209837,
+            "mad": 0.011713013632864033,
+            "inclusive_iqr": 0.0194752167674741
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            3.6646051088365,
+            3.6519569053177943,
+            3.6559925401322526,
+            3.6761928509674715,
+            3.641179081570772,
+            3.7233113564209837,
+            3.6335165318761677,
+            3.6503094096121016
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 210669.59775641025,
+            "min": 195026.29807692306,
+            "max": 220248.99102564104,
+            "mad": 4426.202564102568,
+            "inclusive_iqr": 9521.76153846152
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.0050169438531863005,
+            "min": 0.004772875912444568,
+            "max": 0.005411682013726925,
+            "mad": 0.00011698316007693887,
+            "inclusive_iqr": 0.00025674224446192023
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.005411682013726925,
+            0.004772875912444568,
+            0.004900467492804387,
+            0.005011479109298696,
+            0.005022408597073904,
+            0.005289695479766816,
+            0.004899453893414336,
+            0.005112709956636121
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 2.151392816572158,
+            "min": 2.135284181354551,
+            "max": 2.168687480067249,
+            "mad": 0.009601002993984586,
+            "inclusive_iqr": 0.01488577134658442
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            2.162809681626428,
+            2.1509621314777587,
+            2.1674588589990154,
+            2.1436076756384588,
+            2.135284181354551,
+            2.168687480067249,
+            2.1518235016665574,
+            2.150912380951167
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 729.2705447449287,
+            "min": 677.1656389900771,
+            "max": 765.1480935835472,
+            "mad": 16.041059306749105,
+            "inclusive_iqr": 31.27917065419649
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            677.1656389900771,
+            765.1480935835472,
+            746.0497484169699,
+            733.554459829309,
+            724.9866296605483,
+            703.8800949246926,
+            741.6166395116413,
+            713.9676298034717
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2502376",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1800015",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1799079",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1797122",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2402968",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500725",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2500225",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1799642",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1800109",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1799566",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 2,
+      "series": 1,
+      "count": 1,
+      "workers": 1,
+      "calibration_records": 16,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 4,
+          "jobs": 23505700
+        },
+        {
+          "variant": 3,
+          "trials": 4,
+          "jobs": 11182
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 22801737
+        },
+        {
+          "variant": 0,
+          "trials": 4,
+          "jobs": 33766418
+        }
+      ],
+      "input_checksum": "cf78d2c4770d24e2",
+      "reference_checksum": "2766138f3c069dfd",
+      "started_unix_ns": "1788629041375541785",
+      "finished_unix_ns": "1788629056697321203",
+      "measured_min_ms": 293.23623,
+      "measured_max_ms": 563.971241,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 8.868854685741319,
+            "min": 8.861122106585306,
+            "max": 8.978995965755088,
+            "mad": 0.007038650057580753,
+            "inclusive_iqr": 0.038993098113042635
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 12.558187907613899,
+            "min": 12.47511156868334,
+            "max": 23.992956644558554,
+            "mad": 0.045701957397565884,
+            "inclusive_iqr": 0.06660316433886315
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.7075607690593841,
+            "min": 0.3693796515400335,
+            "max": 0.7154064136144156,
+            "mad": 0.004146086158385021,
+            "inclusive_iqr": 0.007653624752867683
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.3693796515400335,
+            0.7154064136144156,
+            0.7128305615530575,
+            0.7035368455411123,
+            0.7094332113441887,
+            0.7105623314475454,
+            0.7056883267745795,
+            0.703292520260886
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 13.123554644104527,
+            "min": 13.025591822237052,
+            "max": 13.23376407683327,
+            "mad": 0.062264203819209385,
+            "inclusive_iqr": 0.11641193168748387
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.6769853563402501,
+            "min": 0.6695844096312241,
+            "max": 0.6807604703820712,
+            "mad": 0.0021205470334831333,
+            "inclusive_iqr": 0.004053443966831827
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.6751720826585511,
+            0.6794131767255174,
+            0.6785108171682662,
+            0.6768526024448485,
+            0.6732156043873355,
+            0.6771181102356519,
+            0.6807604703820712,
+            0.6695844096312241
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 28506.639018064747,
+            "min": 26897.932927919872,
+            "max": 34440.22670363083,
+            "mad": 726.5093453764966,
+            "inclusive_iqr": 1614.5541271686634
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.0003110265786369314,
+            "min": 0.0002573301866171469,
+            "max": 0.00033274575786448196,
+            "mad": 0.000008655079077959395,
+            "inclusive_iqr": 0.000019375302451767973
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.0002573301866171469,
+            0.00033274575786448196,
+            0.0003309775664313156,
+            0.00030415737900807524,
+            0.0003208428111220316,
+            0.0003035326529661128,
+            0.00030628547138482733,
+            0.00031576768588903546
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 0.9525018681191386,
+            "min": 0.9489485319016426,
+            "max": 1.827854024561436,
+            "mad": 0.0031833990719620786,
+            "inclusive_iqr": 0.01140961872822921
+          },
+          "favorable_columns_pairs": 1,
+          "ratios": [
+            1.827854024561436,
+            0.9496884061927104,
+            0.9518542747241109,
+            0.9620712926900933,
+            0.9489485319016426,
+            0.9529327411097608,
+            0.9646758272076802,
+            0.9520709951285165
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 2171.565414480309,
+            "min": 2041.8387332295408,
+            "max": 2623.757793573844,
+            "mad": 66.25964614323334,
+            "inclusive_iqr": 140.49108435610106
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            2623.757793573844,
+            2041.8387332295408,
+            2050.0205632790844,
+            2225.3367800979054,
+            2098.272365938348,
+            2230.7916582248145,
+            2222.6338954443613,
+            2120.4969335162564
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2498983",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 3,
+      "series": 1,
+      "count": 65536,
+      "workers": 8,
+      "calibration_records": 15,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 3,
+          "jobs": 1896
+        },
+        {
+          "variant": 3,
+          "trials": 5,
+          "jobs": 1167
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 3789
+        },
+        {
+          "variant": 0,
+          "trials": 3,
+          "jobs": 486
+        }
+      ],
+      "input_checksum": "39a95957ec7fca54",
+      "reference_checksum": "fa7d2d82c13acb85",
+      "started_unix_ns": "1788629056749814463",
+      "finished_unix_ns": "1788629072378231050",
+      "measured_min_ms": 267.075121,
+      "measured_max_ms": 503.220268,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 555713.4742798354,
+            "min": 549537.2860082304,
+            "max": 565768.6008230452,
+            "mad": 4236.613168724289,
+            "inclusive_iqr": 7891.298353909515
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 157792.6181434599,
+            "min": 156732.25738396624,
+            "max": 159557.51371308017,
+            "mad": 657.6962025316461,
+            "inclusive_iqr": 975.2943037974765
+          },
+          "paired_serial_over_candidate": {
+            "median": 3.5024437513452105,
+            "min": 3.463515870943252,
+            "max": 3.609777656918528,
+            "mad": 0.028204230576786227,
+            "inclusive_iqr": 0.05541770415178249
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            3.5420964967868462,
+            3.463515870943252,
+            3.5062329523129914,
+            3.609777656918528,
+            3.4880270930006243,
+            3.498654550377429,
+            3.4849631705935966,
+            3.5444257758420603
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 75546.12417524413,
+            "min": 75132.73634204276,
+            "max": 77400.42253892848,
+            "mad": 384.08036421219003,
+            "inclusive_iqr": 930.8429664819269
+          },
+          "paired_serial_over_candidate": {
+            "median": 7.311925459315063,
+            "min": 7.262125371395668,
+            "max": 7.399856368006493,
+            "mad": 0.0298874312839561,
+            "inclusive_iqr": 0.05475764068749367
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            7.355295031832407,
+            7.262125371395668,
+            7.376717147029822,
+            7.30963194081392,
+            7.3093505035041915,
+            7.295520169264495,
+            7.314218977816205,
+            7.399856368006493
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 288435.0698371894,
+            "min": 260349.7532133676,
+            "max": 431208.4558697515,
+            "mad": 22856.848329048837,
+            "inclusive_iqr": 58824.82862039417
+          },
+          "paired_serial_over_candidate": {
+            "median": 1.9238584422193938,
+            "min": 1.2945864437495977,
+            "max": 2.110765534537924,
+            "mad": 0.13576899018382083,
+            "inclusive_iqr": 0.3292654257643879
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            2.023982052998783,
+            1.9963665854833874,
+            2.08661192053033,
+            1.8150739401626885,
+            1.3962745559810605,
+            1.2945864437495977,
+            2.110765534537924,
+            1.8513502989554003
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 2.09164958118931,
+            "min": 2.024953511140561,
+            "max": 2.1038867774497274,
+            "mad": 0.006778918925752997,
+            "inclusive_iqr": 0.0141993715143518
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            2.0765371690197147,
+            2.096749557962298,
+            2.1038867774497274,
+            2.024953511140561,
+            2.0955543946810975,
+            2.0852359283306394,
+            2.0987937661821454,
+            2.0877447676975223
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 3.8173381256549384,
+            "min": 3.465197274702228,
+            "max": 5.635405966506175,
+            "mad": 0.2459603237784609,
+            "inclusive_iqr": 0.7197411054760732
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            3.6340712710049066,
+            3.6376712694964604,
+            3.5352607135278737,
+            4.0271813610847955,
+            5.2348948651925005,
+            5.635405966506175,
+            3.465197274702228,
+            3.9970049818134163
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500103",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500025",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2424548",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1799983",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1800238",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1802743",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2499974",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1799511",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1799229",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1804886",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 4,
+      "series": 1,
+      "count": 16,
+      "workers": 8,
+      "calibration_records": 18,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 6,
+          "jobs": 5672059
+        },
+        {
+          "variant": 3,
+          "trials": 4,
+          "jobs": 1460
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 10970229
+        },
+        {
+          "variant": 0,
+          "trials": 4,
+          "jobs": 4335765
+        }
+      ],
+      "input_checksum": "93b69556a4f9bd55",
+      "reference_checksum": "698f58db171ce27a",
+      "started_unix_ns": "1788629072425635673",
+      "finished_unix_ns": "1788629087389228104",
+      "measured_min_ms": 263.638012,
+      "measured_max_ms": 364.278078,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 69.59463185850709,
+            "min": 69.23265974977888,
+            "max": 70.14539487264646,
+            "mad": 0.2248995275343546,
+            "inclusive_iqr": 0.39925013232958406
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 46.866817852212044,
+            "min": 46.48012511858568,
+            "max": 47.196496545610685,
+            "mad": 0.11078146401509414,
+            "inclusive_iqr": 0.2513273839358874
+          },
+          "paired_serial_over_candidate": {
+            "median": 1.4859508043160368,
+            "min": 1.4704437903565797,
+            "max": 1.497247957825757,
+            "mad": 0.008180190027102574,
+            "inclusive_iqr": 0.013351773632999109
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            1.48924897018493,
+            1.4862415646648257,
+            1.497247957825757,
+            1.4704437903565797,
+            1.479172933054425,
+            1.485660043967248,
+            1.4723543299681487,
+            1.4955333131086301
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 27.3282197664242,
+            "min": 27.173750429457762,
+            "max": 29.0160728641125,
+            "mad": 0.11550428892596543,
+            "inclusive_iqr": 0.25211941792646186
+          },
+          "paired_serial_over_candidate": {
+            "median": 2.543185546808717,
+            "min": 2.3985668780768976,
+            "max": 2.5772379250679567,
+            "mad": 0.014837039386352835,
+            "inclusive_iqr": 0.02538903479364185
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            2.5196295641052493,
+            2.5772379250679567,
+            2.56101095040037,
+            2.541815653307978,
+            2.5349759710299535,
+            2.3985668780768976,
+            2.5445554403094555,
+            2.5550342219897693
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 212120.0229452055,
+            "min": 187390.77602739725,
+            "max": 249505.53287671233,
+            "mad": 18987.816095890405,
+            "inclusive_iqr": 28782.20342465752
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.00032784826277874857,
+            "min": 0.0002811376327566542,
+            "max": 0.0003719393568747958,
+            "mad": 0.00002992984859396275,
+            "inclusive_iqr": 0.000049002111418661
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.00033020611639331994,
+            0.0002811376327566542,
+            0.0003713751225573314,
+            0.0003254904091641772,
+            0.0003654069912230039,
+            0.0003055472940350784,
+            0.0003220134521722069,
+            0.0003719393568747958
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 1.7121290759301715,
+            "min": 1.6144789568896658,
+            "max": 1.7340639545693035,
+            "mad": 0.016284240505684555,
+            "inclusive_iqr": 0.024015271498049273
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            1.6918793395521838,
+            1.7340639545693035,
+            1.7104788402045088,
+            1.728604432197706,
+            1.7137793116558342,
+            1.6144789568896658,
+            1.728222200674006,
+            1.7084435362251142
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 7719.831351577402,
+            "min": 6869.491423167295,
+            "max": 9167.175165406441,
+            "mad": 482.3059166129274,
+            "inclusive_iqr": 935.9960495692385
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            7630.4751457239245,
+            9167.175165406441,
+            6896.021824954125,
+            7809.187557430879,
+            6937.404132705511,
+            7850.067485138748,
+            7902.015965931366,
+            6869.491423167295
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2499969",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500174",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1800033",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1800023",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1799329",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500100",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2499875",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2501279",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1799407",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1799951",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1799815",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 5,
+      "series": 1,
+      "count": 1048576,
+      "workers": 8,
+      "calibration_records": 12,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 3,
+          "jobs": 98
+        },
+        {
+          "variant": 3,
+          "trials": 3,
+          "jobs": 118
+        },
+        {
+          "variant": 2,
+          "trials": 3,
+          "jobs": 128
+        },
+        {
+          "variant": 0,
+          "trials": 3,
+          "jobs": 32
+        }
+      ],
+      "input_checksum": "9e9f26906e99e9d6",
+      "reference_checksum": "5981667dc82edc46",
+      "started_unix_ns": "1788629087450818173",
+      "finished_unix_ns": "1788629102134799027",
+      "measured_min_ms": 259.686602,
+      "measured_max_ms": 330.479701,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 9444207.546875,
+            "min": 9411616.46875,
+            "max": 10327490.65625,
+            "mad": 23283.890625,
+            "inclusive_iqr": 46263.8203125
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 3124726.806122449,
+            "min": 3117394.9897959186,
+            "max": 3249753.8469387754,
+            "mad": 6145.948979591951,
+            "inclusive_iqr": 81773.96428571362
+          },
+          "paired_serial_over_candidate": {
+            "median": 3.0228254754414383,
+            "min": 2.896101339372401,
+            "max": 3.3128591949543402,
+            "mad": 0.04167657599230523,
+            "inclusive_iqr": 0.07984624740183888
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            2.9489462287455495,
+            2.9474845094605993,
+            2.896101339372401,
+            3.03229938073016,
+            3.023831063707888,
+            3.3128591949543402,
+            3.0271362681914806,
+            3.0218198871749884
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 2322898.48828125,
+            "min": 2295272.4609375,
+            "max": 2436126.5859375,
+            "mad": 14641.05859375,
+            "inclusive_iqr": 31623.765625
+          },
+          "paired_serial_over_candidate": {
+            "median": 4.071732681724576,
+            "min": 3.8633528007445914,
+            "max": 4.35386467676901,
+            "mad": 0.016731830118604574,
+            "inclusive_iqr": 0.026798412215944367
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            4.044809305478673,
+            4.0746814548129535,
+            3.8633528007445914,
+            4.077612411266715,
+            4.114742913742114,
+            4.35386467676901,
+            4.0687839086362,
+            4.06519239773327
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 2261336.1737288134,
+            "min": 2200733.915254237,
+            "max": 2485233.3898305083,
+            "mad": 52125.207627118565,
+            "inclusive_iqr": 126124.52542372886
+          },
+          "paired_serial_over_candidate": {
+            "median": 4.174087699242593,
+            "min": 3.7945051287087113,
+            "max": 4.656872642734215,
+            "mad": 0.13034835744116569,
+            "inclusive_iqr": 0.24956675420683272
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            4.3074434438862585,
+            3.7945051287087113,
+            3.815556811863422,
+            4.2155401906054255,
+            4.046746729003927,
+            4.656872642734215,
+            4.178812509773346,
+            4.16936288871184
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 1.3450028563904963,
+            "min": 1.3142317317319665,
+            "max": 1.382426758048895,
+            "mad": 0.0133937222079753,
+            "inclusive_iqr": 0.021908023026827594
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            1.3716117527172722,
+            1.382426758048895,
+            1.3339839833028075,
+            1.3447261959618413,
+            1.3607714277187581,
+            1.3142317317319665,
+            1.3441033201544763,
+            1.3452795168191511
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 0.9743425688473083,
+            "min": 0.9349331645481082,
+            "max": 1.0738373823728595,
+            "mad": 0.03674938545330991,
+            "inclusive_iqr": 0.053377831531153164
+          },
+          "favorable_columns_pairs": 3,
+          "ratios": [
+            0.9390278382458269,
+            1.0738373823728595,
+            1.0125266091524467,
+            0.9672811139018221,
+            1.016802678618566,
+            0.9349331645481082,
+            0.9736698880651352,
+            0.9750152496294814
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500066",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2500078",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1799512",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1800007",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1800064",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500025",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2501872",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1800170",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 6,
+      "series": 1,
+      "count": 4096,
+      "workers": 8,
+      "calibration_records": 14,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 3,
+          "jobs": 29836
+        },
+        {
+          "variant": 3,
+          "trials": 3,
+          "jobs": 1032
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 70750
+        },
+        {
+          "variant": 0,
+          "trials": 4,
+          "jobs": 17816
+        }
+      ],
+      "input_checksum": "516bad2d97b54a88",
+      "reference_checksum": "84d54efb516709df",
+      "started_unix_ns": "1788629102185815969",
+      "finished_unix_ns": "1788629115881647582",
+      "measured_min_ms": 200.544337,
+      "measured_max_ms": 307.309928,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 16829.859059272567,
+            "min": 16813.264369106422,
+            "max": 17249.097889537494,
+            "mad": 16.400314324204373,
+            "inclusive_iqr": 59.657162101480935
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 9613.293521249498,
+            "min": 9551.009049470438,
+            "max": 9703.900321758949,
+            "mad": 21.450194396032202,
+            "inclusive_iqr": 44.75346058452851
+          },
+          "paired_serial_over_candidate": {
+            "median": 1.7507614542065015,
+            "min": 1.7355152919622245,
+            "max": 1.7941209261312328,
+            "mad": 0.011128667182323082,
+            "inclusive_iqr": 0.017844648250334272
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            1.7601852570017307,
+            1.7941209261312328,
+            1.7379279226370845,
+            1.7496704644907917,
+            1.7518524439222116,
+            1.746219435860491,
+            1.7674090522147021,
+            1.7355152919622245
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 4233.8623392226145,
+            "min": 4233.399477031802,
+            "max": 4259.956720848057,
+            "mad": 0.4559717314482441,
+            "inclusive_iqr": 7.817522968198318
+          },
+          "paired_serial_over_candidate": {
+            "median": 3.9750242632238626,
+            "min": 3.948033236146861,
+            "max": 4.074184364046741,
+            "mad": 0.011184835144697036,
+            "inclusive_iqr": 0.021644852637771272
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            3.985488527283748,
+            4.074184364046741,
+            3.9490771000521834,
+            3.948033236146861,
+            3.9718585419065393,
+            3.9692462469004486,
+            3.9869296694533713,
+            3.9781899845411854
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 219791.18895348837,
+            "min": 194325.90794573643,
+            "max": 248625.18410852714,
+            "mad": 19005.04215116278,
+            "inclusive_iqr": 35261.98376937985
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.0765953171007053,
+            "min": 0.06837889531509952,
+            "max": 0.08686716058742056,
+            "mad": 0.006992041511597179,
+            "inclusive_iqr": 0.011986153641435321
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.07229657283390085,
+            0.06937791902049675,
+            0.08336200204369111,
+            0.07523376792888768,
+            0.08412624595686728,
+            0.06837889531509952,
+            0.08686716058742056,
+            0.07795686627252293
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 2.269043102413252,
+            "min": 2.255804712812484,
+            "max": 2.2922241036800814,
+            "mad": 0.00440372584675619,
+            "inclusive_iqr": 0.010186868740248212
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            2.264243784243802,
+            2.2708527082575984,
+            2.272290495258262,
+            2.256443894019701,
+            2.267233496568906,
+            2.2730512359373143,
+            2.255804712812484,
+            2.2922241036800814
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 51.7537665709791,
+            "min": 45.89685725298967,
+            "max": 58.724510933270835,
+            "mad": 4.460916438764116,
+            "inclusive_iqr": 8.524419444983913
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            55.1269357738476,
+            58.724510933270835,
+            47.37262785486391,
+            52.47687766853061,
+            47.21307240956607,
+            58.047826432550664,
+            45.89685725298967,
+            51.03065547342759
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2496136",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1798492",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1800065",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1792613",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500445",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2502558",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1800718",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 7,
+      "series": 2,
+      "count": 4096,
+      "workers": 8,
+      "calibration_records": 14,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 3,
+          "jobs": 29899
+        },
+        {
+          "variant": 3,
+          "trials": 3,
+          "jobs": 1072
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 70703
+        },
+        {
+          "variant": 0,
+          "trials": 4,
+          "jobs": 17840
+        }
+      ],
+      "input_checksum": "516bad2d97b54a88",
+      "reference_checksum": "84d54efb516709df",
+      "started_unix_ns": "1788629115938815327",
+      "finished_unix_ns": "1788629129874622735",
+      "measured_min_ms": 211.11266,
+      "measured_max_ms": 320.993038,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 16841.448150224216,
+            "min": 16818.333295964127,
+            "max": 17034.90156950673,
+            "mad": 16.425868834081484,
+            "inclusive_iqr": 36.02212724215133
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 9564.505669085924,
+            "min": 9537.073948961504,
+            "max": 10735.912170975618,
+            "mad": 24.418642763972457,
+            "inclusive_iqr": 94.20963075688087
+          },
+          "paired_serial_over_candidate": {
+            "median": 1.7620752947506824,
+            "min": 1.5665490764196306,
+            "max": 1.7666277242932005,
+            "mad": 0.004374759779531501,
+            "inclusive_iqr": 0.010904425068728463
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            1.5665490764196306,
+            1.7623041981113212,
+            1.74766265112592,
+            1.7630021320958726,
+            1.7666277242932005,
+            1.7618463913900437,
+            1.7662723847672273,
+            1.7546661432180037
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 4240.06220386688,
+            "min": 4230.466514857927,
+            "max": 4280.4002941883655,
+            "mad": 5.73580328981825,
+            "inclusive_iqr": 11.003189397903952
+          },
+          "paired_serial_over_candidate": {
+            "median": 3.9713314793728625,
+            "min": 3.930591690791063,
+            "max": 4.017701355420935,
+            "mad": 0.008855739493896175,
+            "inclusive_iqr": 0.01850946668713327
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            3.966436227570861,
+            3.96841276870173,
+            3.9742501900439944,
+            3.930591690791063,
+            3.9919410956496777,
+            3.9641355084240315,
+            3.981846987411824,
+            4.017701355420935
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 210333.48507462686,
+            "min": 196933.4514925373,
+            "max": 233433.96175373133,
+            "mad": 13039.299440298506,
+            "inclusive_iqr": 21183.40321828358
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.08007288559971625,
+            "min": 0.07216751643478958,
+            "max": 0.0861850622731875,
+            "mad": 0.005439581695972202,
+            "inclusive_iqr": 0.007917752445411111
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.07496792147903748,
+            0.07216751643478958,
+            0.08113363984365381,
+            0.07267323018318639,
+            0.08584708487098189,
+            0.07960208416872418,
+            0.08054368703070831,
+            0.0861850622731875
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 2.2570089451471045,
+            "min": 2.229487769318997,
+            "max": 2.531957847523172,
+            "mad": 0.012024044015741309,
+            "inclusive_iqr": 0.02658782811896021
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            2.531957847523172,
+            2.251831876105565,
+            2.2740373764259427,
+            2.229487769318997,
+            2.2596391083168297,
+            2.24998928839446,
+            2.2543787819773797,
+            2.2897240999091686
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 49.61825092623177,
+            "min": 46.500601641268275,
+            "max": 54.98890587827807,
+            "mad": 3.0593787044091307,
+            "inclusive_iqr": 4.810505572817512
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            52.90844603021247,
+            54.98890587827807,
+            48.983999703482496,
+            54.08582611345713,
+            46.500601641268275,
+            49.79939344328811,
+            49.43710840917543,
+            46.617142802376996
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2138922",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1799972",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1799961",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1800803",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2498023",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1809579",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1809817",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1797474",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 8,
+      "series": 2,
+      "count": 1048576,
+      "workers": 8,
+      "calibration_records": 12,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 3,
+          "jobs": 82
+        },
+        {
+          "variant": 3,
+          "trials": 3,
+          "jobs": 119
+        },
+        {
+          "variant": 2,
+          "trials": 3,
+          "jobs": 133
+        },
+        {
+          "variant": 0,
+          "trials": 3,
+          "jobs": 32
+        }
+      ],
+      "input_checksum": "9e9f26906e99e9d6",
+      "reference_checksum": "5981667dc82edc46",
+      "started_unix_ns": "1788629129936815474",
+      "finished_unix_ns": "1788629144097054014",
+      "measured_min_ms": 255.690678,
+      "measured_max_ms": 311.500758,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 9414854.953125,
+            "min": 9382041.40625,
+            "max": 9448514.9375,
+            "mad": 13448.5625,
+            "inclusive_iqr": 23960.3046875
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 3140145.8841463416,
+            "min": 3118179,
+            "max": 3200678.1951219514,
+            "mad": 19271.201219512383,
+            "inclusive_iqr": 41488.81097560981
+          },
+          "paired_serial_over_candidate": {
+            "median": 3.001616815442473,
+            "min": 2.9312666985855875,
+            "max": 3.0191228899142737,
+            "mad": 0.013964694241410003,
+            "inclusive_iqr": 0.02876298130668431
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            3.011832277092067,
+            3.009928003653637,
+            3.0191228899142737,
+            2.9312666985855875,
+            3.0120623671074966,
+            2.980108337282932,
+            2.9933056272313094,
+            2.9841329786246766
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 2325478.334586466,
+            "min": 2305781.6015037596,
+            "max": 2342110.962406015,
+            "mad": 7052.872180451173,
+            "inclusive_iqr": 14815.727443608921
+          },
+          "paired_serial_over_candidate": {
+            "median": 4.051064396986396,
+            "min": 4.02853922228658,
+            "max": 4.096360481250097,
+            "mad": 0.01366175438365147,
+            "inclusive_iqr": 0.028952782449437997
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            4.039909560349614,
+            4.083450187285505,
+            4.047665772814595,
+            4.035059548629589,
+            4.062383057396892,
+            4.054463021158198,
+            4.02853922228658,
+            4.096360481250097
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 2363853.617647059,
+            "min": 2196648.705882353,
+            "max": 2520583.588235294,
+            "mad": 78507.0588235294,
+            "inclusive_iqr": 122744.56722689094
+          },
+          "paired_serial_over_candidate": {
+            "median": 3.9780155926350553,
+            "min": 3.74451062654818,
+            "max": 4.285312684405239,
+            "mad": 0.1380666741657972,
+            "inclusive_iqr": 0.22554757927775615
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            4.285312684405239,
+            4.037158153082266,
+            3.829004916067726,
+            3.9165496243990137,
+            3.918873032187845,
+            3.74451062654818,
+            4.165429313177832,
+            4.10513826439932
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 1.3526826237209981,
+            "min": 1.3406760573861656,
+            "max": 1.3765583154124494,
+            "mad": 0.009581236341890786,
+            "inclusive_iqr": 0.018836154426695728
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            1.3413461270991351,
+            1.3566604192288856,
+            1.3406760573861656,
+            1.3765583154124494,
+            1.3487048282131107,
+            1.3605085997829167,
+            1.3458496137639044,
+            1.372713786748881
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 1.0208626236865992,
+            "min": 0.9427339048213036,
+            "max": 1.0827751408722115,
+            "mad": 0.029622343751193714,
+            "inclusive_iqr": 0.05156130988770469
+          },
+          "favorable_columns_pairs": 5,
+          "ratios": [
+            0.9427339048213036,
+            1.0114664901517165,
+            1.0571064445044973,
+            1.0302587572214819,
+            1.0366202283233779,
+            1.0827751408722115,
+            0.9671366189174824,
+            0.9978617570021099
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2499416",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2504950",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1796292",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1800171",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1799973",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2498536",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2493315",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1801158",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 9,
+      "series": 2,
+      "count": 16,
+      "workers": 8,
+      "calibration_records": 17,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 4,
+          "jobs": 6358370
+        },
+        {
+          "variant": 3,
+          "trials": 5,
+          "jobs": 1462
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 10915990
+        },
+        {
+          "variant": 0,
+          "trials": 4,
+          "jobs": 4303576
+        }
+      ],
+      "input_checksum": "93b69556a4f9bd55",
+      "reference_checksum": "698f58db171ce27a",
+      "started_unix_ns": "1788629144156496908",
+      "finished_unix_ns": "1788629159915219940",
+      "measured_min_ms": 292.102159,
+      "measured_max_ms": 429.366738,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 69.84188869907258,
+            "min": 69.21771870648968,
+            "max": 70.96757208423878,
+            "mad": 0.1784334702117505,
+            "inclusive_iqr": 0.2852215808434835
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 47.15603771092277,
+            "min": 46.68917961678858,
+            "max": 64.530524017948,
+            "mad": 0.27579764939756757,
+            "inclusive_iqr": 2.6230043234351044
+          },
+          "paired_serial_over_candidate": {
+            "median": 1.4779110607248285,
+            "min": 1.0825802319569007,
+            "max": 1.4946952073282924,
+            "mad": 0.011633723541392249,
+            "inclusive_iqr": 0.06548876390029212
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            1.0825802319569007,
+            1.2714675784850014,
+            1.4671620078709928,
+            1.4814930675817906,
+            1.4762209651724656,
+            1.4946952073282924,
+            1.4904294549537773,
+            1.4796011562771914
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 27.315109440371415,
+            "min": 27.158922736279532,
+            "max": 39.33374233578448,
+            "mad": 0.1141220814603141,
+            "inclusive_iqr": 0.7907072102484527
+          },
+          "paired_serial_over_candidate": {
+            "median": 2.5613829672122916,
+            "min": 1.7597542109162034,
+            "max": 2.572079942123615,
+            "mad": 0.008779686514448937,
+            "inclusive_iqr": 0.07679625920336353
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            2.568245365329866,
+            2.388024951137493,
+            1.7597542109162034,
+            2.567168453229108,
+            2.524846912355414,
+            2.560133117187943,
+            2.572079942123615,
+            2.5626328172366404
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 218208.51675786593,
+            "min": 199796.27838577292,
+            "max": 237960.83310533516,
+            "mad": 4935.985978112178,
+            "inclusive_iqr": 8733.129103967163
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.0003212894530787154,
+            "min": 0.00029355637861945035,
+            "max": 0.0003492862508307513,
+            "mad": 0.000006334943104785494,
+            "inclusive_iqr": 0.000009710002691286173
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.00031172938298757157,
+            0.0003198848324567544,
+            0.000323306872092134,
+            0.00032868044057619936,
+            0.00031601055436662837,
+            0.0003492862508307513,
+            0.00029355637861945035,
+            0.0003226940737006764
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 1.728853079646467,
+            "min": 1.1994273307756878,
+            "max": 2.3723372083817176,
+            "mad": 0.01727424764612895,
+            "inclusive_iqr": 0.05696410079668679
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            2.3723372083817176,
+            1.87816425015171,
+            1.1994273307756878,
+            1.7328251541665614,
+            1.7103448412686906,
+            1.7128128227319854,
+            1.7257307506737265,
+            1.7319754086192074
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 7875.949678727864,
+            "min": 5442.984244438576,
+            "max": 8761.792042195453,
+            "mad": 386.7184430956836,
+            "inclusive_iqr": 620.6398277112103
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            8238.701596609711,
+            7465.264710418344,
+            5442.984244438576,
+            7810.5300355831505,
+            7989.755017568632,
+            7329.613207215735,
+            8761.792042195453,
+            7941.369321872577
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2495667",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2502099",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1800024",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1800823",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1800104",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2499974",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500025",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1798011",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1801368",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1798970",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 10,
+      "series": 2,
+      "count": 65536,
+      "workers": 8,
+      "calibration_records": 13,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 3,
+          "jobs": 1848
+        },
+        {
+          "variant": 3,
+          "trials": 3,
+          "jobs": 671
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 3937
+        },
+        {
+          "variant": 0,
+          "trials": 3,
+          "jobs": 511
+        }
+      ],
+      "input_checksum": "39a95957ec7fca54",
+      "reference_checksum": "fa7d2d82c13acb85",
+      "started_unix_ns": "1788629159976814975",
+      "finished_unix_ns": "1788629173367448988",
+      "measured_min_ms": 171.098046,
+      "measured_max_ms": 332.117513,
+      "below_target": 6,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 554329.1555772994,
+            "min": 550227.2504892368,
+            "max": 573044.8688845402,
+            "mad": 2501.5636007827707,
+            "inclusive_iqr": 6525.357632094063
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 157746.10633116882,
+            "min": 156905.32359307358,
+            "max": 158858.74891774892,
+            "mad": 532.077651515152,
+            "inclusive_iqr": 1021.220508658007
+          },
+          "paired_serial_over_candidate": {
+            "median": 3.512952247750036,
+            "min": 3.466355316506059,
+            "max": 3.6513759749320327,
+            "mad": 0.016465880097482843,
+            "inclusive_iqr": 0.0527801259290297
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            3.515234829331249,
+            3.5326532776712964,
+            3.4997215174763308,
+            3.6513759749320327,
+            3.5106696661688233,
+            3.4998510197052224,
+            3.466355316506059,
+            3.6124352472942265
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 75116.88049276099,
+            "min": 74870.95783591567,
+            "max": 77460.40436880874,
+            "mad": 145.30543561087688,
+            "inclusive_iqr": 503.82727965456434
+          },
+          "paired_serial_over_candidate": {
+            "median": 7.381772333132661,
+            "min": 7.299062515591436,
+            "max": 7.536075041219625,
+            "mad": 0.019341770746112097,
+            "inclusive_iqr": 0.0422036540658679
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            7.380090302501611,
+            7.383454363763711,
+            7.391516624680214,
+            7.536075041219625,
+            7.397283131166316,
+            7.327219619921211,
+            7.299062515591436,
+            7.358599589674092
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 273539.64605067065,
+            "min": 254989.63636363635,
+            "max": 494959.0357675112,
+            "mad": 14494.853949329365,
+            "inclusive_iqr": 43489.76005961248
+          },
+          "paired_serial_over_candidate": {
+            "median": 2.0411141295371236,
+            "min": 1.1180923865583214,
+            "max": 2.1737828783154165,
+            "mad": 0.10150599466946497,
+            "inclusive_iqr": 0.26100233463065003
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            2.154123984345176,
+            2.1737828783154165,
+            1.1180923865583214,
+            2.0539352764693155,
+            2.1311162640680013,
+            1.9965465983148485,
+            2.028292982604932,
+            1.5138236430820338
+          ],
+          "below_target": 6
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 2.0965195614078223,
+            "min": 2.037019098179214,
+            "max": 2.112029939459377,
+            "mad": 0.00986743080026331,
+            "inclusive_iqr": 0.022518069985331568
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            2.099458687915204,
+            2.0900591661321597,
+            2.112029939459377,
+            2.063900045614969,
+            2.1070860646478695,
+            2.0935804349004408,
+            2.1056879197683016,
+            2.037019098179214
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 3.6338570853775387,
+            "min": 3.396592381611523,
+            "max": 6.610828151180388,
+            "mad": 0.1853009050756289,
+            "inclusive_iqr": 0.5078740024266697
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            3.4260285648066153,
+            3.396592381611523,
+            6.610828151180388,
+            3.6690908070745185,
+            3.4710837957972043,
+            3.6699467100370344,
+            3.5986233636805594,
+            4.860935831793804
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500025",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2499959",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1800081",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1799797",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1799982",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2501713",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2501773",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1798223",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "800000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1800564",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 11,
+      "series": 2,
+      "count": 1,
+      "workers": 1,
+      "calibration_records": 16,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 4,
+          "jobs": 21597886
+        },
+        {
+          "variant": 3,
+          "trials": 4,
+          "jobs": 9606
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 22158871
+        },
+        {
+          "variant": 0,
+          "trials": 4,
+          "jobs": 33729439
+        }
+      ],
+      "input_checksum": "cf78d2c4770d24e2",
+      "reference_checksum": "2766138f3c069dfd",
+      "started_unix_ns": "1788629173423651475",
+      "finished_unix_ns": "1788629188747488751",
+      "measured_min_ms": 269.043753,
+      "measured_max_ms": 460.668626,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 9.548074220860892,
+            "min": 8.874596906281187,
+            "max": 13.533868381267771,
+            "mad": 0.6347206367707452,
+            "inclusive_iqr": 2.0253311728665278
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 12.734491329382884,
+            "min": 12.456948471716167,
+            "max": 21.329338713983397,
+            "mad": 0.26134807823321093,
+            "inclusive_iqr": 2.4842743405535153
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.7069294903168992,
+            "min": 0.6087252244019653,
+            "max": 1.078408020933567,
+            "mad": 0.07626864778824904,
+            "inclusive_iqr": 0.1009865077401475
+          },
+          "favorable_pairs": 1,
+          "ratios": [
+            1.078408020933567,
+            0.7145627089764789,
+            0.7105738418280921,
+            0.7032851388057063,
+            0.7870561882037244,
+            0.6232416062908925,
+            0.6087252244019653,
+            0.6345188926272263
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 14.16873495044039,
+            "min": 13.087288066255722,
+            "max": 18.9646906198425,
+            "mad": 0.9161777917295515,
+            "inclusive_iqr": 1.7905878981830803
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.6517618842206532,
+            "min": 0.4739308204863434,
+            "max": 1.0011810331116429,
+            "mad": 0.02708097956945693,
+            "inclusive_iqr": 0.1242303930223484
+          },
+          "favorable_pairs": 1,
+          "ratios": [
+            1.0011810331116429,
+            0.4739308204863434,
+            0.6781081658287524,
+            0.6422701671348584,
+            0.6297984875241637,
+            0.6239462066898386,
+            0.6612536013064478,
+            0.9759387438654658
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 34257.2863314595,
+            "min": 28451.71413699771,
+            "max": 37195.56620861961,
+            "mad": 2081.9001145117654,
+            "inclusive_iqr": 5051.795830730789
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.0002905063081335337,
+            "min": 0.00024164039701185595,
+            "max": 0.0004721569000577764,
+            "mad": 0.00003222193278704894,
+            "inclusive_iqr": 0.00007808157837264321
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.0004721569000577764,
+            0.00024164039701185595,
+            0.0002622564698466065,
+            0.0003022857915984573,
+            0.0002904795848643344,
+            0.00025431228084636307,
+            0.0002905330314027331,
+            0.0004465506290813835
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 0.9413492964756205,
+            "min": 0.6632459468325594,
+            "max": 1.538076730583372,
+            "mad": 0.10046773191372982,
+            "inclusive_iqr": 0.13744006040085677
+          },
+          "favorable_columns_pairs": 3,
+          "ratios": [
+            0.9283879697453757,
+            0.6632459468325594,
+            0.9543106232058651,
+            0.9132429105860798,
+            0.8001950775096942,
+            1.0011305413371538,
+            1.0862924268598995,
+            1.538076730583372
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 2176.819320374409,
+            "min": 1961.306248239156,
+            "max": 2585.6680150746215,
+            "mad": 77.78003133065135,
+            "inclusive_iqr": 196.72312215419333
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            2120.441389269396,
+            1961.306248239156,
+            2585.6680150746215,
+            2124.7117297131213,
+            2168.133391605833,
+            2453.464711233436,
+            2276.0014519306987,
+            2185.505249142985
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2370180",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    },
+    {
+      "sequence": 12,
+      "series": 2,
+      "count": 256,
+      "workers": 8,
+      "calibration_records": 16,
+      "calibration_counts": [
+        {
+          "variant": 1,
+          "trials": 4,
+          "jobs": 460600
+        },
+        {
+          "variant": 3,
+          "trials": 4,
+          "jobs": 1378
+        },
+        {
+          "variant": 2,
+          "trials": 4,
+          "jobs": 1039692
+        },
+        {
+          "variant": 0,
+          "trials": 4,
+          "jobs": 285849
+        }
+      ],
+      "input_checksum": "af43b262f038682e",
+      "reference_checksum": "7e6bfc7aac0524e0",
+      "started_unix_ns": "1788629188807641677",
+      "finished_unix_ns": "1788629203537445575",
+      "measured_min_ms": 263.592553,
+      "measured_max_ms": 348.735823,
+      "below_target": 0,
+      "rows": [
+        {
+          "variant": 0,
+          "method": "serial",
+          "ns_per_job": {
+            "median": 1050.8166217128623,
+            "min": 1049.5803868476014,
+            "max": 1053.6375708853275,
+            "mad": 0.4073181994689321,
+            "inclusive_iqr": 1.1993377622450225
+          },
+          "paired_serial_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 1,
+          "method": "wide5_delayed_reduction",
+          "ns_per_job": {
+            "median": 625.9986908380374,
+            "min": 617.9626639166305,
+            "max": 633.1709357359965,
+            "mad": 3.069081632652967,
+            "inclusive_iqr": 4.347384932696514
+          },
+          "paired_serial_over_candidate": {
+            "median": 1.6786181693873332,
+            "min": 1.6592778004325395,
+            "max": 1.7031943165490768,
+            "mad": 0.009690823746812183,
+            "inclusive_iqr": 0.014222194886331252
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            1.6777508837698591,
+            1.6762326770850293,
+            1.6794854550048073,
+            1.6592778004325395,
+            1.6644945584145192,
+            1.698452751490502,
+            1.6838762059081436,
+            1.7031943165490768
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 2,
+          "method": "columns128_delayed_reduction",
+          "ns_per_job": {
+            "median": 287.7261876594222,
+            "min": 287.33469142784594,
+            "max": 289.13517272422985,
+            "mad": 0.25391029266359055,
+            "inclusive_iqr": 0.6385864756100545
+          },
+          "paired_serial_over_candidate": {
+            "median": 3.6520908053636476,
+            "min": 3.6332245404472276,
+            "max": 3.6649425337374377,
+            "mad": 0.0064525891719460216,
+            "inclusive_iqr": 0.011140148258319549
+          },
+          "favorable_pairs": 8,
+          "ratios": [
+            3.651044021127309,
+            3.6531375895999862,
+            3.6554082514690696,
+            3.6347992633354878,
+            3.6332245404472276,
+            3.6495144785468536,
+            3.6649425337374377,
+            3.6616785376021177
+          ],
+          "below_target": 0
+        },
+        {
+          "variant": 3,
+          "method": "cold_multicore",
+          "ns_per_job": {
+            "median": 213060.66436865024,
+            "min": 191286.3229317852,
+            "max": 253073.89187227868,
+            "mad": 14584.876632801155,
+            "inclusive_iqr": 29370.997822931764
+          },
+          "paired_serial_over_candidate": {
+            "median": 0.004951346417297196,
+            "min": 0.004150272452872165,
+            "max": 0.005492324079649411,
+            "mad": 0.0003438915733822651,
+            "inclusive_iqr": 0.0006643443056107172
+          },
+          "favorable_pairs": 0,
+          "ratios": [
+            0.005332470875547998,
+            0.004644687728783468,
+            0.004150272452872165,
+            0.005492324079649411,
+            0.004384825041142653,
+            0.005214598191462643,
+            0.005137015310334184,
+            0.004765677524260208
+          ],
+          "below_target": 0
+        }
+      ],
+      "other_over_columns": [
+        {
+          "other_variant": 1,
+          "stats": {
+            "median": 2.1764982633993526,
+            "min": 2.148728880061084,
+            "max": 2.190591148985402,
+            "mad": 0.004578371840085138,
+            "inclusive_iqr": 0.010637621591275348
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            2.1761538357372316,
+            2.179373806238402,
+            2.1765048578277844,
+            2.190591148985402,
+            2.1827794642404736,
+            2.148728880061084,
+            2.176491668970921,
+            2.1498888893788815
+          ]
+        },
+        {
+          "other_variant": 3,
+          "stats": {
+            "median": 740.8909335822501,
+            "min": 661.7962106066229,
+            "max": 880.7634421541102,
+            "mad": 50.9190256772099,
+            "inclusive_iqr": 100.96820118602102
+          },
+          "favorable_columns_pairs": 8,
+          "ratios": [
+            684.6814743741295,
+            786.5195257285493,
+            880.7634421541102,
+            661.7962106066229,
+            828.5905381302139,
+            699.8649453992161,
+            713.438117726579,
+            768.3437494379212
+          ]
+        }
+      ],
+      "environment_before": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2504472",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2495173",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2499974",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1800098",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1800027",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1800063",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      },
+      "environment_after": {
+        "cpus": [
+          {
+            "cpu": 0,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 2,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 4,
+            "scaling_cur_freq_khz": "2500025",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 6,
+            "scaling_cur_freq_khz": "2503687",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 8,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 10,
+            "scaling_cur_freq_khz": "2500000",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 12,
+            "scaling_cur_freq_khz": "1800236",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 13,
+            "scaling_cur_freq_khz": "1805882",
+            "scaling_governor": "performance"
+          },
+          {
+            "cpu": 14,
+            "scaling_cur_freq_khz": "1795760",
+            "scaling_governor": "performance"
+          }
+        ],
+        "intel_pstate_no_turbo": "1"
+      }
+    }
+  ]
+}

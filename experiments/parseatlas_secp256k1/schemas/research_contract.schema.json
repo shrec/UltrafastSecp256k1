@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ultrafastsecp256k1.invalid/parseatlas/research-contract.schema.json",
+  "title": "secp256k1 25-world representation research record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["claim_id", "world_id", "view_id", "primitive", "applicability", "claim_class", "claim", "provenance", "limits", "gate_results"],
+  "properties": {
+    "claim_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9._-]+$"},
+    "world_id": {"$ref": "#/$defs/worldId"},
+    "view_id": {"$ref": "#/$defs/viewId"},
+    "primitive": {"$ref": "#/$defs/primitive"},
+    "applicability": {"enum": ["APPLICABLE", "N/A"]},
+    "applicability_reason": {"type": "string", "minLength": 1},
+    "claim_class": {"enum": ["OBSERVED", "PROVEN", "VERIFIED", "HYPOTHESIS", "MEASURED", "CORRECTION"]},
+    "claim": {"type": "string", "minLength": 1},
+    "provenance": {"type": "string", "minLength": 1},
+    "limits": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "seed": {"type": ["integer", "string"]},
+    "artifacts": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "boundary_witness": {
+      "type": "object", "additionalProperties": false,
+      "required": ["encode_in", "candidate", "decode_out", "input_domain", "output_domain", "ranges", "preconditions", "carried_state", "caller_visible_behavior", "overflow", "aliasing", "artifact"],
+      "properties": {
+        "encode_in": {"type": "string", "minLength": 1}, "candidate": {"type": "string", "minLength": 1}, "decode_out": {"type": "string", "minLength": 1},
+        "input_domain": {"type": "string", "minLength": 1}, "output_domain": {"type": "string", "minLength": 1}, "ranges": {"type": "string", "minLength": 1},
+        "preconditions": {"type": "string", "minLength": 1}, "carried_state": {"type": "string", "minLength": 1}, "caller_visible_behavior": {"type": "string", "minLength": 1},
+        "overflow": {"type": "string", "minLength": 1}, "aliasing": {"type": "string", "minLength": 1}, "artifact": {"type": "string", "minLength": 1}
+      }
+    },
+    "equivalence_evidence": {
+      "type": "object", "additionalProperties": false, "required": ["mode", "artifact", "assumptions"],
+      "properties": {"mode": {"enum": ["FULL_DOMAIN_PROOF", "MECHANICAL_FULL_DOMAIN", "SAMPLED_AGREEMENT"]}, "artifact": {"type": "string", "minLength": 1}, "assumptions": {"type": "array", "items": {"type": "string"}}}
+    },
+    "invariant_evidence": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["invariant", "artifact"], "properties": {"invariant": {"type": "string", "minLength": 1}, "artifact": {"type": "string", "minLength": 1}}}},
+    "measurement": {
+      "type": "object", "additionalProperties": false,
+      "required": ["environment", "software_versions", "corpus", "warm_up", "repetitions", "statistic", "uncertainty", "unit", "value"],
+      "properties": {"environment": {"type": "string", "minLength": 1}, "software_versions": {"type": "string", "minLength": 1}, "corpus": {"type": "string", "minLength": 1}, "warm_up": {"type": "integer", "minimum": 0}, "repetitions": {"type": "integer", "minimum": 2}, "statistic": {"type": "string", "minLength": 1}, "uncertainty": {"type": "string", "minLength": 1}, "unit": {"type": "string", "minLength": 1}, "value": {"type": "number"}}
+    },
+    "correction": {"type": "object", "additionalProperties": false, "required": ["supersedes_claim_id", "reason", "author", "timestamp"], "properties": {"supersedes_claim_id": {"type": "string", "minLength": 1}, "reason": {"type": "string", "minLength": 1}, "author": {"type": "string", "minLength": 1}, "timestamp": {"type": "string", "format": "date-time"}}},
+    "negative_result": {"type": "object", "additionalProperties": false, "required": ["kind", "detail", "retained_identity"], "properties": {"kind": {"enum": ["UNREACHABLE", "NON_EQUIVALENT", "INVARIANT_FAILURE", "RESOURCE_INFEASIBLE", "NULL_EFFECT", "MEASUREMENT_FAILURE", "COLLAPSED_DUPLICATE"]}, "detail": {"type": "string", "minLength": 1}, "retained_identity": {"const": true}}},
+    "gate_results": {
+      "type": "object", "additionalProperties": false,
+      "required": ["search_reachable", "boundary_equivalent", "invariants_eligible", "resource_feasible", "property_manifest"],
+      "properties": {"search_reachable": {"type": "boolean"}, "boundary_equivalent": {"type": "boolean"}, "invariants_eligible": {"type": "boolean"}, "resource_feasible": {"type": "boolean"}, "property_manifest": {"enum": ["YES", "NO", "N/A"]}}
+    },
+    "cost_vector": {
+      "type": "object", "additionalProperties": false,
+      "properties": {"dependency_depth": {"type": ["number", "string"]}, "peak_live_values": {"type": ["number", "string"]}, "operation_multiset": {"type": ["object", "string"]}, "conversion_operation_counts": {"type": "object", "minProperties": 1, "additionalProperties": {"type": "number", "minimum": 0}}, "conversion_runtime": {"type": "number"}, "region_latency": {"type": ["number", "string"]}, "region_throughput": {"type": ["number", "string"]}, "provenance_type": {"enum": ["STATIC_MODEL", "MEASURED_RUNTIME"]}},
+      "required": ["provenance_type"],
+      "anyOf": [{"required": ["dependency_depth"]}, {"required": ["peak_live_values"]}, {"required": ["operation_multiset"]}, {"required": ["conversion_operation_counts"]}, {"required": ["conversion_runtime"]}, {"required": ["region_latency"]}, {"required": ["region_throughput"]}]
+    }
+  },
+  "allOf": [
+    {"if": {"properties": {"applicability": {"const": "N/A"}}, "required": ["applicability"]}, "then": {"required": ["applicability_reason"], "not": {"anyOf": [{"required": ["measurement"]}, {"required": ["cost_vector"]}, {"required": ["boundary_witness"]}, {"required": ["equivalence_evidence"]}, {"required": ["invariant_evidence"]}]}, "properties": {"gate_results": {"properties": {"search_reachable": {"const": false}, "boundary_equivalent": {"const": false}, "invariants_eligible": {"const": false}, "resource_feasible": {"const": false}, "property_manifest": {"const": "N/A"}}}}}},
+    {"if": {"properties": {"applicability": {"const": "APPLICABLE"}}, "required": ["applicability"]}, "then": {"required": ["boundary_witness"]}},
+    {"if": {"properties": {"claim_class": {"const": "MEASURED"}}, "required": ["claim_class"]}, "then": {"required": ["measurement", "artifacts"]}},
+    {"if": {"properties": {"claim_class": {"const": "PROVEN"}}, "required": ["claim_class"]}, "then": {"required": ["equivalence_evidence", "invariant_evidence", "artifacts"], "properties": {"equivalence_evidence": {"properties": {"mode": {"const": "FULL_DOMAIN_PROOF"}}}}}},
+    {"if": {"properties": {"claim_class": {"const": "VERIFIED"}}, "required": ["claim_class"]}, "then": {"required": ["equivalence_evidence", "invariant_evidence", "artifacts"], "properties": {"equivalence_evidence": {"properties": {"mode": {"const": "MECHANICAL_FULL_DOMAIN"}}}}}},
+    {"if": {"properties": {"claim_class": {"const": "CORRECTION"}}, "required": ["claim_class"]}, "then": {"required": ["correction"]}},
+    {"if": {"properties": {"claim_class": {"enum": ["HYPOTHESIS", "OBSERVED"]}}, "required": ["claim_class"]}, "then": {"properties": {"gate_results": {"properties": {"boundary_equivalent": {"const": false}}}}}},
+    {"if": {"properties": {"gate_results": {"properties": {"boundary_equivalent": {"const": true}}, "required": ["boundary_equivalent"]}}}, "then": {"required": ["equivalence_evidence", "invariant_evidence"], "properties": {"equivalence_evidence": {"properties": {"mode": {"enum": ["FULL_DOMAIN_PROOF", "MECHANICAL_FULL_DOMAIN"]}}}}}},
+    {"if": {"properties": {"cost_vector": {"type": "object"}}, "required": ["cost_vector"]}, "then": {"properties": {"gate_results": {"properties": {"search_reachable": {"const": true}, "boundary_equivalent": {"const": true}, "invariants_eligible": {"const": true}, "resource_feasible": {"const": true}}}}}},
+    {"if": {"properties": {"cost_vector": {"properties": {"provenance_type": {"const": "MEASURED_RUNTIME"}}, "required": ["provenance_type"]}}, "required": ["cost_vector"]}, "then": {"required": ["measurement", "artifacts"], "properties": {"claim_class": {"const": "MEASURED"}, "cost_vector": {"not": {"anyOf": [{"required": ["dependency_depth"]}, {"required": ["peak_live_values"]}, {"required": ["operation_multiset"]}, {"required": ["conversion_operation_counts"]}]}}}}},
+    {"if": {"properties": {"cost_vector": {"properties": {"provenance_type": {"const": "STATIC_MODEL"}}, "required": ["provenance_type"]}}, "required": ["cost_vector"]}, "then": {"properties": {"cost_vector": {"not": {"anyOf": [{"required": ["region_latency"]}, {"required": ["region_throughput"]}, {"required": ["conversion_runtime"]}]}}}}},
+    {"if": {"required": ["negative_result"]}, "then": {"required": ["seed", "artifacts"]}}
+  ],
+  "$defs": {
+    "worldId": {"type": "string", "pattern": "^W(?:0[1-9]|1[0-9]|2[0-5])$"},
+    "viewId": {"type": "string", "pattern": "^V(?:0[1-9]|1[0-9]|2[0-5])$"},
+    "primitive": {"enum": ["field_p", "scalar_n", "group", "signature"]}
+  },
+  "x-research-contract": {
+    "version": 2,
+    "matrix": {"world_count": 25, "view_count": 25, "cells": 625, "ranking_order": ["search_reachable", "boundary_equivalent", "invariants_eligible", "resource_feasible", "cost_pareto_within_feasible_slice"]},
+    "immutable_inputs": {"historical_baseline": "d71b406c95141d81749671431a4c0f4605e0c4e4", "guidance_revision": "13fac0a300cf07eac9424434ec1e2c6bd5f75564", "parallel_worlds_revision": "f428fb53948bc15c4668c303366231817a947708", "direction": "B", "experiments": ["0037", "0038", "0039", "0040", "0041"]},
+    "primitive_classes": ["field_p", "scalar_n", "group", "signature"],
+    "claim_classes": ["OBSERVED", "PROVEN", "VERIFIED", "HYPOTHESIS", "MEASURED", "CORRECTION"],
+    "worlds": [
+      {"id":"W01","name":"production-control","representation_policy":"unchanged production conventions","derivations":"only production derivations","state":"production state","normal_forms":"production normal forms","encode_decode":"identity at selected region boundary","invariants":["baseline behavior"],"evaluation":"control","applicability":{"field_p":"APPLICABLE","scalar_n":"APPLICABLE","group":"APPLICABLE","signature":"APPLICABLE"}},
+      {"id":"W02","name":"canonical-residue","representation_policy":"unique least nonnegative representative","derivations":"reduce after every arithmetic result","state":"canonical residue","normal_forms":"[0,m)","encode_decode":"canonical integer boundary","invariants":["congruence","range"],"evaluation":"region cost"},
+      {"id":"W03","name":"centered-residue","representation_policy":"balanced signed representative","derivations":"center after arithmetic","state":"signed residue","normal_forms":"centered interval","encode_decode":"map to/from canonical residue","invariants":["congruence","signed range"],"evaluation":"region cost"},
+      {"id":"W04","name":"bounded-redundant","representation_policy":"multiple bounded encodings per value","derivations":"defer normalization within proved bounds","state":"value plus magnitude","normal_forms":"normalize only at boundary","encode_decode":"decode congruence class","invariants":["congruence","magnitude bound"],"evaluation":"depth/live-value Pareto"},
+      {"id":"W05","name":"montgomery-domain","representation_policy":"R-scaled residues","derivations":"Montgomery products and reductions","state":"xR mod m","normal_forms":"bounded Montgomery residue","encode_decode":"multiply by R / R inverse","invariants":["Montgomery congruence","range"],"evaluation":"conversion plus region cost"},
+      {"id":"W06","name":"barrett-domain","representation_policy":"reciprocal-assisted residues","derivations":"quotient approximation and correction","state":"residue plus modulus reciprocal","normal_forms":"corrected residue","encode_decode":"canonical boundary","invariants":["congruence","correction bounds"],"evaluation":"region cost"},
+      {"id":"W07","name":"pseudo-mersenne-fold","representation_policy":"fold high weight using modulus relation","derivations":"split and fold","state":"foldable coefficient vector","normal_forms":"bounded folded residue","encode_decode":"pack/unpack coefficients","invariants":["modulus relation","bounds"],"evaluation":"operation/depth Pareto"},
+      {"id":"W08","name":"saturated-limbs","representation_policy":"word-width limbs","derivations":"carry-propagating word arithmetic","state":"saturated limb vector","normal_forms":"canonical carried limbs","encode_decode":"little-endian limb pack","invariants":["radix value","carry bounds"],"evaluation":"control-adjacent cost"},
+      {"id":"W09","name":"unsaturated-limbs","representation_policy":"spare-bit limbs","derivations":"absorb and delay carries","state":"limbs plus magnitude","normal_forms":"weak/full normalization","encode_decode":"radix pack and normalize","invariants":["radix value","limb bounds"],"evaluation":"depth/live-value Pareto"},
+      {"id":"W10","name":"mixed-radix","representation_policy":"nonuniform limb weights","derivations":"weight-aware carry/fold","state":"mixed-radix digits","normal_forms":"declared digit bounds","encode_decode":"weighted sum/decompose","invariants":["weighted value","digit bounds"],"evaluation":"region cost"},
+      {"id":"W11","name":"carry-save","representation_policy":"redundant sum/carry channels","derivations":"compress without immediate propagation","state":"sum and carry vectors","normal_forms":"propagate at boundary","encode_decode":"combine channels","invariants":["combined value","channel bounds"],"evaluation":"depth/live-value Pareto"},
+      {"id":"W12","name":"residue-number","representation_policy":"coprime-channel residues","derivations":"componentwise arithmetic","state":"CRT residue tuple","normal_forms":"canonical per channel","encode_decode":"CRT split/reconstruct","invariants":["channel congruence","modulus product range"],"evaluation":"conversion/resource feasibility"},
+      {"id":"W13","name":"signed-digit","representation_policy":"bounded signed digits","derivations":"local rewrite and bounded carry","state":"signed digit vector","normal_forms":"declared digit language","encode_decode":"signed radix reconstruction","invariants":["reconstruction","digit bounds"],"evaluation":"depth/live-value Pareto"},
+      {"id":"W14","name":"factored-products","representation_policy":"retain multiplicative factors","derivations":"factor, cancel only with preconditions","state":"factor DAG","normal_forms":"canonical factor order","encode_decode":"evaluate factors","invariants":["definedness","product equivalence"],"evaluation":"operation/depth Pareto"},
+      {"id":"W15","name":"deferred-division","representation_policy":"numerator/denominator state","derivations":"cross-multiply and cancel with nonzero proof","state":"rational pair","normal_forms":"declared cancellation normal form","encode_decode":"one proved inversion at boundary","invariants":["denominator nonzero","decoded equivalence"],"evaluation":"region inversion cost"},
+      {"id":"W16","name":"common-subexpression-dag","representation_policy":"explicit shared nodes","derivations":"introduce/reuse proven equal subexpressions","state":"value DAG","normal_forms":"stable node ordering","encode_decode":"evaluate DAG","invariants":["node definitions","output equivalence"],"evaluation":"operations/live values"},
+      {"id":"W17","name":"balanced-association","representation_policy":"balanced associative trees","derivations":"reassociate only proved-associative operations","state":"balanced expression DAG","normal_forms":"deterministic balanced tie-break","encode_decode":"evaluate tree","invariants":["associativity domain","operand multiset"],"evaluation":"dependency depth"},
+      {"id":"W18","name":"serial-association","representation_policy":"left-to-right associative control","derivations":"serial fold","state":"accumulator","normal_forms":"left fold","encode_decode":"evaluate fold","invariants":["associativity domain","operand order"],"evaluation":"low live values"},
+      {"id":"W19","name":"lazy-reduction","representation_policy":"merge or eliminate intermediate reductions","derivations":"delay under explicit growth proof","state":"unreduced accumulator plus bound","normal_forms":"reduce at declared cut","encode_decode":"final reduction","invariants":["growth bound","congruence"],"evaluation":"region cost"},
+      {"id":"W20","name":"eager-reduction","representation_policy":"reduce every result","derivations":"canonicalize after each operation","state":"canonical residue sequence","normal_forms":"canonical each step","encode_decode":"canonical boundary","invariants":["range","congruence"],"evaluation":"safety control"},
+      {"id":"W21","name":"dual-carry-schedule","representation_policy":"two independent carry channels","derivations":"partition dependencies then merge","state":"two chains plus merge","normal_forms":"merged carried result","encode_decode":"merge channels","invariants":["partition identity","carry bounds"],"evaluation":"target-specific feasibility"},
+      {"id":"W22","name":"vector-lane","representation_policy":"lane-wise packed state","derivations":"batch independent instances","state":"SIMD lane tuple","normal_forms":"fixed lane mapping","encode_decode":"pack/unpack lanes","invariants":["lane independence","per-lane equivalence"],"evaluation":"throughput/resources"},
+      {"id":"W23","name":"bitsliced","representation_policy":"bit planes across instances","derivations":"boolean circuit rewrites","state":"bit-plane tuple","normal_forms":"fixed plane order","encode_decode":"transpose bits","invariants":["bit reconstruction","lane independence"],"evaluation":"throughput/conversion"},
+      {"id":"W24","name":"table-derived","representation_policy":"precomputed derived state","derivations":"derive table entries without target embedding","state":"base plus authenticated table","normal_forms":"deterministic table layout","encode_decode":"build/validate table","invariants":["entry derivation","selection behavior"],"evaluation":"memory/conversion/runtime"},
+      {"id":"W25","name":"region-composed","representation_policy":"compose admissible policies across a whole region","derivations":"typed policy composition with explicit conversions","state":"inputs, carried state, operations, outputs","normal_forms":"boundary-normalized region","encode_decode":"decode_out(candidate(encode_in(x))) = baseline(x)","invariants":["all component invariants","caller-visible equivalence"],"evaluation":"region Pareto"}
+    ],
+    "world_cell_rule": "For every primitive each world has a record-time APPLICABLE or reasoned N/A cell; omitted means invalid. Concrete output representation is primitive/region-specific. Duplicate or collapsed worlds are retained as COLLAPSED_DUPLICATE, not counted as discoveries.",
+    "views": [
+      {"id":"V01","observable":"search reachability","method":"execute derivation witness","applicability":"all primitives"},
+      {"id":"V02","observable":"sampled corpus agreement","method":"seeded differential corpus; OBSERVED only","applicability":"all applicable cells"},
+      {"id":"V03","observable":"full-domain boundary equivalence","method":"proof or mechanical full-domain artifact","applicability":"all applicable cells"},
+      {"id":"V04","observable":"definedness and preconditions","method":"proof plus invalid-input fixtures","applicability":"all applicable cells"},
+      {"id":"V05","observable":"range and overflow bounds","method":"range proof and boundary fixtures","applicability":"arithmetic-carrying cells"},
+      {"id":"V06","observable":"aliasing behavior","method":"alias matrix tests","applicability":"implementation cells"},
+      {"id":"V07","observable":"caller-visible behavior","method":"API differential tests","applicability":"group and signature; field/scalar at exposed boundaries"},
+      {"id":"V08","observable":"invariant eligibility","method":"artifact per declared invariant","applicability":"all applicable cells"},
+      {"id":"V09","observable":"constant-time eligibility","method":"static trace review plus leakage experiment","applicability":"secret-bearing cells"},
+      {"id":"V10","observable":"resource feasibility","method":"compare declared hard ceilings","applicability":"all implementation cells"},
+      {"id":"V11","observable":"property manifestness","method":"preregistered syntactic extractor","applicability":"properties declared per primitive"},
+      {"id":"V12","observable":"dependency depth","method":"DAG longest-path model; not runtime","applicability":"operation regions"},
+      {"id":"V13","observable":"peak live values","method":"liveness analysis","applicability":"operation regions"},
+      {"id":"V14","observable":"operation multiset","method":"typed static counters","applicability":"operation regions"},
+      {"id":"V15","observable":"conversion cost","method":"separate boundary counters/benchmark","applicability":"non-identity boundaries"},
+      {"id":"V16","observable":"region latency","method":"warmed repeated benchmark","applicability":"executable regions"},
+      {"id":"V17","observable":"region throughput","method":"warmed batched benchmark","applicability":"executable regions"},
+      {"id":"V18","observable":"instruction count","method":"versioned hardware counter","applicability":"supported targets"},
+      {"id":"V19","observable":"cache behavior","method":"versioned hardware counters","applicability":"supported targets"},
+      {"id":"V20","observable":"code size","method":"linked symbol accounting","applicability":"compiled implementations"},
+      {"id":"V21","observable":"portability","method":"declared target build/test matrix","applicability":"implementation cells"},
+      {"id":"V22","observable":"compiler sensitivity","method":"fixed version/flag matrix","applicability":"compiled implementations"},
+      {"id":"V23","observable":"policy and tie-break sensitivity","method":"optimistic/pessimistic preregistered reruns","applicability":"multi-derivation cells"},
+      {"id":"V24","observable":"rediscovery and held-out transfer","method":"blind generator control then unchanged-axis transfer","applicability":"generative policies"},
+      {"id":"V25","observable":"prior-art status","method":"classify reproduction, observed implementation gain, or candidate novelty pending review","applicability":"all positive claims"}
+    ]
+  }
+}

@@ -1,0 +1,415 @@
+{
+  "schema": "parseatlas_p4_build_v1",
+  "status": "reviewed_experimental_evidence_no_production_integration",
+  "repository": {
+    "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+    "repo_id": "repo_666797171f0141c58bf05f579b2ee16e",
+    "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+    "branch": "experiment/representation-search",
+    "preexisting_dirty_changes_preserved": true
+  },
+  "authority": {
+    "role": "manager",
+    "session_id": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+    "window_id": "window_598fe5564b71e8ad51cdfa48",
+    "owner_task_mcp_suspension_retained": true,
+    "canonical_task_acceptance": false,
+    "production_integration": false,
+    "worker_feature_code_manager_independent_review": true
+  },
+  "commands": {
+    "correctness_compile": {
+      "native": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_native",
+      "clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp src/cpu/src/field_asm.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_clang",
+      "sanitizer": "g++-14 -std=c++20 -O1 -g -fno-lto -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -DSECP256K1_NO_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_asan"
+    },
+    "correctness_run": {
+      "native": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_native",
+      "clang": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_clang",
+      "sanitizer": "ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_asan"
+    },
+    "kernel_smoke_compile": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_kernel_smoke.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_kernel_smoke",
+    "kernel_smoke_run": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_kernel_smoke",
+    "benchmark_compile": {
+      "gcc": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p4_field_sum_compare.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_gcc",
+      "clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p4_field_sum_compare.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_clang"
+    },
+    "benchmark_smokes": {
+      "gcc": "/tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_gcc --smoke --output /tmp/parseatlas-p4-field-sum.EFROsY/p4_gcc_smoke.json",
+      "clang": "/tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_clang --smoke --output /tmp/parseatlas-p4-field-sum.EFROsY/p4_clang_smoke.json"
+    },
+    "duration_diagnostic_compile": {
+      "gcc": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_gcc",
+      "clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_clang"
+    },
+    "duration_diagnostic_run": {
+      "gcc": "taskset -c 4 /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_gcc",
+      "clang": "taskset -c 4 /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_clang"
+    },
+    "forbidden_templates": {
+      "PA_P4_INVALID_ZERO": "g++-14 -std=c++20 -fsyntax-only -Isrc/cpu/include -DPA_P4_INVALID_ZERO experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp",
+      "PA_P4_INVALID_CHUNK": "g++-14 -std=c++20 -fsyntax-only -Isrc/cpu/include -DPA_P4_INVALID_CHUNK experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp",
+      "PA_P4_INVALID_LANES": "g++-14 -std=c++20 -fsyntax-only -Isrc/cpu/include -DPA_P4_INVALID_LANES experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp"
+    },
+    "full_series": [
+      "taskset -c 4 /tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_gcc --seed 20260905 --min-ms 200 --rounds 8 --output experiments/parseatlas_secp256k1/data/p4_run1_20260905.json",
+      "taskset -c 4 /tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_gcc --seed 20260905 --min-ms 200 --rounds 8 --reverse-order --output experiments/parseatlas_secp256k1/data/p4_run2_20260905.json"
+    ]
+  },
+  "baseline": {
+    "frozen_library": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a",
+    "library_sha256": "238294f2959e1b161428bca9a1baa990b803ee933f7f876b5b6e6cdc9b4fd577",
+    "rebuilt_this_wave": false,
+    "p1_build_manifest": "experiments/parseatlas_secp256k1/data/p1_corrected_build_20260905.json",
+    "p2_build_manifest": "experiments/parseatlas_secp256k1/data/p2_build_20260905.json",
+    "p3_build_manifest": "experiments/parseatlas_secp256k1/data/p3_build_20260905.json",
+    "history_mapping": [
+      {
+        "manifest": "p2_build_20260905.json",
+        "original_mutable_path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+        "snapshot": "experiments/parseatlas_secp256k1/data/p2_frontier_snapshot_20260905.md",
+        "sha256": "54616857756547e61416bc64a9961b8159df7bb84404e29c02e88e3f7f20c20a"
+      },
+      {
+        "manifest": "p3_build_20260905.json",
+        "original_mutable_path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+        "snapshot": "experiments/parseatlas_secp256k1/data/p3_frontier_snapshot_20260905.md",
+        "sha256": "df2995a5f27cfe527e24c0557fd26957641c41f39107dd682bf4a95f612472ae"
+      }
+    ],
+    "history_note": "Original manifests/reports unchanged. Each frontier snapshot retains exact bytes before the relevant later wave edits. Snapshot relative links resolve from the original frontier directory."
+  },
+  "profile": {
+    "full_performance_compiler": "GCC14.2.0",
+    "language": "C++20",
+    "optimization": "-O3 -march=native",
+    "lto": false,
+    "cpu": "Intel Core i5-14400F",
+    "logical_cpus": 16,
+    "physical_cores": 10,
+    "pinned_cpu": 4,
+    "one_core_reason": "Measure native carry/bank and representation scheduling without inter-thread dispatch; not a multicore optimum.",
+    "native_macros": [
+      "SECP256K1_HAS_ASM=1",
+      "SECP256K1_USE_FAST_REDUCTION=1",
+      "USE_INLINE_ASSEMBLY"
+    ],
+    "sanitizer_macros": [
+      "SECP256K1_NO_ASM=1",
+      "SECP256K1_USE_FAST_REDUCTION=1"
+    ],
+    "governor": "powersave,unchanged",
+    "turbo": "enabled,unchanged",
+    "s2_end_frequency_khz": 4600046,
+    "frequency_note": "Endpoint snapshots not average or constant frequency; no thermals/background/SMT-sibling control.",
+    "clang_scope": "Independent correctness field-source build with retained GAS object; benchmark smoke links frozen GCC library. No full Clang timing."
+  },
+  "corpus": {
+    "contract": "final canonical x0 plus N canonical RHS modulo field p; x0 once globally; only final output externally observable",
+    "seed": 20260905,
+    "source_recipe": "experiments/parseatlas_secp256k1/probes/p4_field_sum_compare.cpp",
+    "source_recipe_sha256": "29c9fa86318a35b58a440245779f51b66e8327e68f83e4bec0f00bdd6cd1013a",
+    "raw_placeholder": "PENDING IMPORT",
+    "placeholder_binding": "This manifest binds the unchanged raw JSON recipe placeholder to the exact source SHA; no raw file rewritten.",
+    "fe64_all_bytes_fnv1a64": "a228d8a510693ab4",
+    "sizes": [
+      1,
+      16,
+      256,
+      4096,
+      65536,
+      1048576
+    ],
+    "rhs_bytes_per_element": 32,
+    "largest_rhs_bytes": 33554432,
+    "resident_fe52_array": false,
+    "generation": "Same deterministic canonical FE64 recipe as P3, actual N-element prefixes; reconstructible source+seed instead of archived million hex values.",
+    "setup": "All routes allocate/generate outside jobs. FE52 packing inside jobs; all routes include seed/boundaries/full32B output. No historical timing pooling."
+  },
+  "measurement": {
+    "routes": 8,
+    "cells_per_series": 48,
+    "series": 2,
+    "measurement_rounds_per_series": 8,
+    "warmup_rounds_per_series": 2,
+    "raw_regions": 1301,
+    "calibration_regions": 341,
+    "warmup_regions": 192,
+    "measurement_regions": 768,
+    "cumulative_probes": 1322,
+    "short_calibration_regions_retained": 147,
+    "later_phase_regions": 960,
+    "later_phase_floor_ms": 200,
+    "all_later_regions_qualified": true,
+    "extended_regions_s1": 21,
+    "extended_regions_s2": 0,
+    "s1_extensions": {
+      "warmup": 4,
+      "measurement": 17
+    },
+    "method": "One continuous clock per later region; append batches without restarting or discarding short prefixes. Use actual jobs and preserve cumulative probes. Finite extension/work caps fail closed.",
+    "no_owned_build_test_competing_benchmark_during_full_series": true,
+    "arithmetic_and_timing": "native C++ only",
+    "numeric_processing": "Read-only Node/JS lossless timestamp/statistics audit; not arithmetic benchmarking"
+  },
+  "synthetic_diagnostic": {
+    "separate_binary": true,
+    "interposition_absent_from_performance_binary": true,
+    "performance_evidence": false,
+    "source": "experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp",
+    "source_sha256": "64864414f76541d5804af821f8e685f227f7efe126d984ed3f4e274f39159753",
+    "configs": 2,
+    "cases_each": 48,
+    "assertions_each": 3163,
+    "expected_main_status": "duration_unqualified",
+    "expected_main_exit_code": 2,
+    "diagnostic_exit_code": 0,
+    "limitations": "Within-region work cap and capped-final-batch path static-reviewed only; initial over-cap rejection tested."
+  },
+  "evidence": {
+    "protocol": "experiments/parseatlas_secp256k1/P4_FIELD_SUM_PROTOCOL.md",
+    "contract": "experiments/parseatlas_secp256k1/P4_FIELD_SUM_CONTRACT.md",
+    "validation": "experiments/parseatlas_secp256k1/data/p4_validation_20260905.json",
+    "duration_validation": "experiments/parseatlas_secp256k1/data/p4_duration_validation_20260905.json",
+    "numeric_audit": "experiments/parseatlas_secp256k1/data/p4_numeric_audit_20260905.json",
+    "codegen": "experiments/parseatlas_secp256k1/data/p4_codegen_20260905.json",
+    "report": "experiments/parseatlas_secp256k1/P4_FIELD_SUM_RESULTS.md",
+    "lenses": "experiments/parseatlas_secp256k1/P4_FIELD_SUM_LENS_RESULTS.md",
+    "obstacles": "experiments/parseatlas_secp256k1/data/p4_environment_obstacles_20260905.json"
+  },
+  "source_graph": {
+    "header_fresh_hash": "e3fa770e084afe647e9214ca309dbc6caf52cf2684986b43c3ed48141d7da75b",
+    "driver_file_receipt": {
+      "pages": 2,
+      "summary": "{\"file_facts\":[{\"file\":{\"build_revision\":\"aiworkhub.source_graph.semantic.v6\",\"file_path\":\"experiments/parseatlas_secp256k1/probes/p4_field_sum_compare.cpp\",\"indexed_at\":\"2026-09-05T21:31:01.201872+00:00\",\"language\":\"cpp\",\"source_hash\":\"29c9fa86318a35b58a440245779f51b66e8327e68f83e4bec0f00bdd6cd1013a\",\"status\":\"ok\"},\"source_preview_bytes\":4096,\"source_preview_truncated\":true}],\"matches\":[{\"build_revision\":\"aiworkhub.source_graph.semantic.v6\",\"file_path\":\"experiments/parseatlas_secp256k1/probes/p4_field_sum_compare.cpp\",\"indexed_at\":\"2026-09-05T21:31:01.201872+00:00\",\"kind\":\"file\",\"language\":\"cpp\",\"line_end\":1,\"line_start\":1,\"name\":\"p4_field_sum_compare.cpp\",\"qualname\":\"experiments/parseatlas_secp256k1/probes/p4_field_sum_compare.cpp\",\"source_hash\":\"29c9fa86318a35b58a440245779f51b66e8327e68f83e4bec0f00bdd6cd1013a\",\"status\":\"ok\"}]}\n"
+    },
+    "test_file_receipt": {
+      "pages": 2,
+      "summary": "{\"file_facts\":[{\"file\":{\"build_revision\":\"aiworkhub.source_graph.semantic.v6\",\"file_path\":\"experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp\",\"indexed_at\":\"2026-09-05T21:31:01.524473+00:00\",\"language\":\"cpp\",\"source_hash\":\"a706af7b0df8c3b745523280187d8bba82e196876ab907708eb1f281ff78059c\",\"status\":\"ok\"},\"source_preview_bytes\":4096,\"source_preview_truncated\":true}],\"matches\":[{\"build_revision\":\"aiworkhub.source_graph.semantic.v6\",\"file_path\":\"experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp\",\"indexed_at\":\"2026-09-05T21:31:01.524473+00:00\",\"kind\":\"file\",\"language\":\"cpp\",\"line_end\":1,\"line_start\":1,\"name\":\"test_p4_field_sum.cpp\",\"qualname\":\"experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp\",\"source_hash\":\"a706af7b0df8c3b745523280187d8bba82e196876ab907708eb1f281ff78059c\",\"status\":\"ok\"}]}\n"
+    },
+    "duration_file_receipt": {
+      "pages": 2,
+      "summary": "{\"file_facts\":[{\"build_revision\":\"aiworkhub.source_graph.semantic.v6\",\"file_path\":\"experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp\",\"indexed_at\":\"2026-09-05T21:40:21.256620+00:00\",\"language\":\"cpp\",\"source_hash\":\"64864414f76541d5804af821f8e685f227f7efe126d984ed3f4e274f39159753\",\"status\":\"ok\"}],\"matches\":[{\"build_revision\":\"aiworkhub.source_graph.semantic.v6\",\"file_path\":\"experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp\",\"indexed_at\":\"2026-09-05T21:40:21.256620+00:00\",\"kind\":\"file\",\"language\":\"cpp\",\"line_end\":1,\"line_start\":1,\"name\":\"test_p4_duration_regions.cpp\",\"qualname\":\"experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp\",\"source_hash\":\"64864414f76541d5804af821f8e685f227f7efe126d984ed3f4e274f39159753\",\"status\":\"ok\"}]}\n"
+    },
+    "obstacles": "New-file lag/intermediate stale header and missing worker tools recorded, no stale body accepted as final evidence. All final file hashes match."
+  },
+  "limitations": [
+    "One machine/profile, finite correctness corpus, not machine-checked proof, CT approval or novelty claim.",
+    "Chosen best schedule is a descriptive post-measurement selection, not an established production dispatcher or crossover threshold.",
+    "No causal memory-bandwidth, cache, spill-cost, port-pressure, critical-path or energy attribution from timings/static code.",
+    "Full-job repeated outputs checked last per region, all routes additionally validated untimed; no per-RHS barriers.",
+    "Temporary binaries and synthetic outputs are hashed for local identity/reproduction but not permanent repository artifacts.",
+    "No production/scalar/upper-layer/default CI/build integration, commit, push or tag."
+  ],
+  "recorded_utc": "2026-09-05 21:59:20 UTC",
+  "hashed_files": [
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/p4_field_sum_kernels.hpp",
+      "sha256": "e3fa770e084afe647e9214ca309dbc6caf52cf2684986b43c3ed48141d7da75b"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/p4_field_sum_compare.cpp",
+      "sha256": "29c9fa86318a35b58a440245779f51b66e8327e68f83e4bec0f00bdd6cd1013a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_p4_kernel_smoke.cpp",
+      "sha256": "a20f8faa79f9432ec23999613350114290390eaab7c71873bbff71171330eff6"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp",
+      "sha256": "a706af7b0df8c3b745523280187d8bba82e196876ab907708eb1f281ff78059c"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp",
+      "sha256": "64864414f76541d5804af821f8e685f227f7efe126d984ed3f4e274f39159753"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P4_FIELD_SUM_PROTOCOL.md",
+      "sha256": "1b408b7d4a69c74843c36b9b6014fa432d6ea903934efde1613b1b1d64a81aaa"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P4_FIELD_SUM_CONTRACT.md",
+      "sha256": "76a057fc47803132eb09828f3b4b0161b0cf0114f96dd7e29175e453feb54dba"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P4_FIELD_SUM_CODEGEN.md",
+      "sha256": "3916dedf7a65918c173d5182d9eeec0f0f026dbc8df5190822847b2f8b626028"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P4_FIELD_SUM_RESULTS.md",
+      "sha256": "edf87c4aa4410119a65cc10b88f47c149e13d7db00073a96c5d86f356e386458"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P4_FIELD_SUM_LENS_RESULTS.md",
+      "sha256": "0f462a3be6502274b3016e492f1f60f5eb65a523dc2b1a4d6dbeb5260831c382"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+      "sha256": "dd09f228bf6b9cf9c9af6b57862eb4f288e1a40398ad0170ed3a00a925253522"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p4_validation_20260905.json",
+      "sha256": "c5a5e023c1eae4f203cf52d94a10aedcf9ed9d532f62ae11d2640e8e4a948e17"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p4_duration_validation_20260905.json",
+      "sha256": "42dc9d31cf1b09adb177fc7e1f4358ec17e49be342b3a0280e3fe6663574595a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p4_environment_obstacles_20260905.json",
+      "sha256": "3189976d9b0b8bfef822733a7fda5b67909d5932365094953655c5073372e9be"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p4_codegen_20260905.json",
+      "sha256": "89bd5ac9e8e02aa87777d33c255786dc82f26f1a509ad4b65c0ddb2e1a3578e0"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p4_run1_20260905.json",
+      "sha256": "44a5e44622893f83767e23295139fa01044ed5737deee6747dbb4194745cc474"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p4_run2_20260905.json",
+      "sha256": "7bd81c6ba9608a29ec574f2980533151a82c3c619c520e0b4a46d03091ec2a10"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p3_frontier_snapshot_20260905.md",
+      "sha256": "df2995a5f27cfe527e24c0557fd26957641c41f39107dd682bf4a95f612472ae"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p3_build_20260905.json",
+      "sha256": "8df77e1bb8fc10b476c8a1d3ff4e559cfc804c82e0e339b20083b54f89130de9"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p3_final_review_20260905.json",
+      "sha256": "539f3e8c3caf77369b6e9654b394bfe714616f972f0358e0e5d6865e6560f3ff"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_build_20260905.json",
+      "sha256": "c630ecd08b55374b99691d08edf4f809421bd11e1fc332f3ab168523f50d5bfd"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_frontier_snapshot_20260905.md",
+      "sha256": "54616857756547e61416bc64a9961b8159df7bb84404e29c02e88e3f7f20c20a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_corrected_build_20260905.json",
+      "sha256": "56757b312d3a9a17799c055c82f2188fcdbe8e3c7dad19aefa44a31be7aaa2e0"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P3_FIELD_SUM_RESULTS.md",
+      "sha256": "7b257d9e8ff7f7a0c6569434b31707df5fa9e5a6ad2f920e95fe308157ed5edb"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P2_FIELD_RESULTS.md",
+      "sha256": "8765bf8f1211d264b2b4fdb02ea5eb73c4e9b72f5f1ae69d9f33df7ccec69591"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P1_PRIMITIVE_RESULTS.md",
+      "sha256": "1aa92a7111ab1cb5190a353ab686fdce18a2599a90c73154f6a04e1c9b22333f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/F2_REDUCTION_RESULTS.md",
+      "sha256": "2c38ae0389b5ddc5d7f27717d5f5a6be0b031c3e85b7e76d7fdf46f952664609"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/p3_field_sum_kernels.hpp",
+      "sha256": "7f3bad31a705de319fbdb584338f79175592636054476ea76177961cdafb32b8"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field.hpp",
+      "sha256": "da944a2803c7ec3f07fd2a3e1ec93581bdc94dc6f3f9db402edc9459b4b1b381"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field_52.hpp",
+      "sha256": "95ca595490b827c6cc1965a7ae2feb1ae72546c3b60dba0562f94f842f998898"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "sha256": "2c3f77d7855e9881ebeaf2b7f53de61e683de5201c77d23caaa288df8bf2afb3"
+    },
+    {
+      "path": "src/cpu/src/field.cpp",
+      "sha256": "6a3d2bf87e1619de395d737a198b228810f09486508bed7203d07fccadfd218c"
+    },
+    {
+      "path": "src/cpu/src/field_52.cpp",
+      "sha256": "b797a1c7a1219735424859d912596d5c3f50e1848036865d15d2879adeb8207a"
+    },
+    {
+      "path": "src/cpu/src/field_asm.cpp",
+      "sha256": "f69ff39527bc345bd58883e473b2894052090a36b0fca8372ffcd88f1928517d"
+    },
+    {
+      "path": "src/cpu/src/field_asm_x64_gas.S",
+      "sha256": "4be633bc21143cd03834bbbde2ffa3280fd6780f93e6925770f365e0a7471f24"
+    },
+    {
+      "path": "src/cpu/src/ct_field.cpp",
+      "sha256": "6452c6d58e48676347ac2c3552c68c8a47bf7e29771887f9d820154775194c44"
+    },
+    {
+      "path": "audit/test_regression_field_reduce_carry.cpp",
+      "sha256": "95f40ab0808515f9e6336467921e6c44ddc70529244d7b81be659652ac746cd1"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_kernel_smoke",
+      "sha256": "b2c622e1ff7e8c82fc28f2256bdce67b9708411eb7246001b04d6dff72f9374e"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_native",
+      "sha256": "06fcd6d7e9057f34d8eb7425967f2b9bfbe199c987d632d4fdfca307bc9d1f24"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_clang",
+      "sha256": "5c0657af55926dca87f69f7e4421b423ad82c268d7cd9105b070c108ebdb1cf7"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_asan",
+      "sha256": "48a864c1ac66605d53456bc23a0ae121020f6a396b3a19ad78b9980c44fe5fc0"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_gcc",
+      "sha256": "4e5d4be103774c8fe3ee34f6672a3232798b03751d42ce3f48b26103a4254f6e"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_clang",
+      "sha256": "4f26a25d003ecfd992949431c6ac22f408f92a1412d643fe3992a80f745b49dd"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_gcc",
+      "sha256": "4c170c36c4100e81307143cf88ebe74db5b7410c7700fa441638154f9c72d152"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_clang",
+      "sha256": "1c29b8badff48fe010e184d4ebbda854015a75323458117b36129ccf444677a1"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/p4_gcc_smoke.json",
+      "sha256": "a7647bdb09aff7a63e1716f1533efb088b5534ba7d4506f8b3b52a87e5ce2a62"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-field-sum.EFROsY/p4_clang_smoke.json",
+      "sha256": "200e448c375cc77618da6f63577600ee5dcf351790598a33408d96e30be43a3f"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a",
+      "sha256": "238294f2959e1b161428bca9a1baa990b803ee933f7f876b5b6e6cdc9b4fd577"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o",
+      "sha256": "a93dd468425759c28f513084ffbc97fe8b7d17c6a08c17594297f45855134c37"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-duration.AOKPZM/SYNTHETIC_duration_failure.json",
+      "sha256": "e2428d66d35ab4c20d338e9881e820530bcd102d9e4fffc97bfba9b25a122598"
+    },
+    {
+      "path": "/tmp/parseatlas-p4-duration.UHHn8w/SYNTHETIC_duration_failure.json",
+      "sha256": "a4abec2b7373bad5af1a046d2cbcabf56d54d93896f5cc76b68462ab9bd29543"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p4_numeric_audit_20260905.json",
+      "sha256": "93ab3ffdf1f52378a1ead87e22b28b6e70bc719bf2134828f6049cd127bb80e8"
+    }
+  ]
+}

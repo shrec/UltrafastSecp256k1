@@ -1,0 +1,1387 @@
+{
+  "format": "parseatlas_l0_native_state_manifest_v1",
+  "created_at_utc": "2026-09-05 12:22:02 UTC",
+  "repository": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+  "branch": "experiment/representation-search",
+  "reference_commit": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "session": {
+    "topic": "parseatlas_secp256k1_m0",
+    "thread_id": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+    "window_id": "window_c8d815e4e59d09a9e5d4de06",
+    "task_lifecycle": "Temporarily suspended by owner; no task mutation for this experiment"
+  },
+  "scope": {
+    "status": "OBSERVED; production transfer unmeasured",
+    "experiment": "Four unchanged carry equations crossed with two region-local state forms, complete 9-word recurrence",
+    "production_replacement_authorized": true,
+    "production_files_changed": false,
+    "production_acceptance": "Replace only after complete modular-callsite correctness, required security and realistic performance gates",
+    "reference_only_is_frozen": true,
+    "python_executed": false,
+    "global_settings_changed": false,
+    "commit_push_or_tag_performed": false
+  },
+  "sha256_by_path": {
+    "/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare": "deb956882d99578c194ed0ed668f5cc66c379209566bfb36691f0f224fd2e578",
+    "/tmp/parseatlas-state-review.P8G2Ft/test_gcc_native": "dd6bb0a10a37d1535c8aeb8387ba5f4607ce80ce62e076ab898dde1effe0e395",
+    "/tmp/parseatlas-state-review.P8G2Ft/test_gcc_portable": "c09a8ea3095676005ce3347ba4b51bb51f3797ed54b6c12c22b80336dd93eab8",
+    "/tmp/parseatlas-state-review.P8G2Ft/test_clang_native": "fca7d2935c97a8342ae5871010ea11e74112b2cc9728b3b36bcf9ffa26fc05ae",
+    "/tmp/parseatlas-state-review.P8G2Ft/test_gcc_ubsan": "571ab5e3874372cead15f5f4fdcd6e37272b7f89332944a06fca50a0a7db537e",
+    "/tmp/parseatlas-state-review.P8G2Ft/compare_ubsan": "81731fa5597cbeb1d9545f237d20ab1328a809504cbb8b8a01442077d316f497",
+    "experiments/parseatlas_secp256k1/probes/l0_state_control.hpp": "6a4e43dee0ed3208eef8b0b65e12e7bbbaed2c6ac9b16b5d1fe37779ea39f747",
+    "experiments/parseatlas_secp256k1/probes/l0_state_compare.cpp": "299e852a2a320050b8b79f8e3f43f0a85f35860084017c0d18c961cff452e5b0",
+    "experiments/parseatlas_secp256k1/tests/test_l0_state_control.cpp": "7b2a3f80192927832e83ef8a1954fa1dfc215fd9ccbef85fe0cd2a3d3ccf38a9",
+    "experiments/parseatlas_secp256k1/NATIVE_STATE_PROTOCOL.md": "e26d31cc09ebdc461a5cb33d18308d81903c7c24c354ca058fdf82cbfcab2bd5",
+    "experiments/parseatlas_secp256k1/data/l0_native_state_run_plan_20260905.json": "fbd18b52e085694303758d9c93440ed0c9cb802c21f6c73f835b84bce53941dc",
+    "experiments/parseatlas_secp256k1/probes/l0_native_kernels.hpp": "13966af5531c3d6c2525de00d5e8e41b53245cb3d9244e29117f642e4db2da60",
+    "src/cpu/include/secp256k1/detail/arith64.hpp": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d",
+    "src/cpu/src/scalar.cpp": "9da20c8fbe95c531b73fd494ff8e7a969d055ae31e8a7b4b588d0885a960050e",
+    "src/cpu/src/field.cpp": "db5792d9bc0b51cfd12927af11fae7160c1a671b8028e0c4d73ef7f3fb6e6812",
+    "src/cpu/src/ct_scalar.cpp": "a7cc33a850084856624ab8a5c90a8048746d833fe0a643d6c1541ee6359179a9",
+    "src/cpu/include/secp256k1/config.hpp": "fd5596e13d41f7ec566af10862a31d30acde06b73570cae67f8a23540cc6b956",
+    "src/cpu/include/secp256k1/field_52.hpp": "95ca595490b827c6cc1965a7ae2feb1ae72546c3b60dba0562f94f842f998898",
+    "src/cpu/include/secp256k1/field_52_impl.hpp": "2c3f77d7855e9881ebeaf2b7f53de61e683de5201c77d23caaa288df8bf2afb3",
+    "src/cpu/include/secp256k1/point.hpp": "61c35951040476ca8b0b96807dd12af2dc3a8f7b3f3f1f9f83ddfcea9ec4b2ec",
+    "src/cpu/src/point.cpp": "1bbbac53248572ee52df6c1b84cd40529bbf676360dee8fb2df60c245c3726f0",
+    "src/cpu/src/ecdsa.cpp": "25e445afedc8b77e69015c1da1bf452c88bbbbf5ce3bbfb43a4c302bb80fda07",
+    "src/cpu/src/schnorr.cpp": "c6d66ed1a096079c674cb336142cca446d46518ef9adfdfecda9af9a6a29e2d5",
+    "experiments/parseatlas_secp256k1/data/l0_native_state_cpu4_run1_20260905.json": "6bd0aa70f7238f55d3174b1cd3953b82c8bf13a3822a1131b5af48e2b00a6a17",
+    "experiments/parseatlas_secp256k1/data/l0_native_state_cpu4_run2_20260905.json": "0a145f5e44726ea3cfa0b2b680ba2aa4da010ec49f32bcd7f7e40cc257de6dcf",
+    "experiments/parseatlas_secp256k1/data/l0_native_state_disassembly_20260905.txt": "2947adab30da9198494c80eb14845d5e2fb08e2ff9460dd096b6f66bcd23dab6",
+    "experiments/parseatlas_secp256k1/data/l0_native_state_smoke_20260905.json": "bd80a857c4c382435e129c213a47a64019f58e12351497692e93a737bdfbfd70",
+    "experiments/parseatlas_secp256k1/L0_NATIVE_CALLSITE_MAP.md": "529440ee92bd6971ca4f21ea6fb7a009ac4032049f607a6fff2e01b2b7dc00e3",
+    "experiments/parseatlas_secp256k1/data/l0_native_state_validation_20260905.json": "10226bbc353eb92425bd088cdbf09dff1bb395317152a11919362ceb1625538d",
+    "experiments/parseatlas_secp256k1/L0_NATIVE_STATE_CONTROL.md": "8f150f917b6f84e4d38302d9ad8ece21ad595b58f970de2a086f4c32b6a4125c"
+  },
+  "hash_notes": [
+    "Manifest does not hash itself.",
+    "Temporary binaries are bound for this local run; commands reproduce builds, not guaranteed byte-identical system toolchains.",
+    "Reference/call-site hashes were verified after all measurements.",
+    "Earlier hash-bound ROADMAP and result ledgers were not rewritten."
+  ],
+  "run_plan": {
+    "format": "parseatlas_l0_native_state_run_plan_v1",
+    "declared_at_utc": "2026-09-05 11:44:33 UTC",
+    "reference_commit": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+    "cpu": 4,
+    "compiler": "/usr/bin/g++",
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-march=native",
+      "-DNDEBUG",
+      "-Wall",
+      "-Wextra",
+      "-Isrc/cpu/include"
+    ],
+    "seed": 20260905,
+    "series": 2,
+    "methods": [
+      "Original",
+      "GpMaterialized",
+      "GpRecomputed",
+      "Blocked2"
+    ],
+    "state_forms": [
+      "Aggregate",
+      "ScalarLocal"
+    ],
+    "measured_rounds": 8,
+    "warmup_rounds": 2,
+    "target_ms": 200,
+    "primary_control": "Fresh Original Aggregate in each balanced8variant round, same native executable and count/passes.",
+    "secondary_control": "Within each state form, same-round Original; never historical best or baseline from another executable.",
+    "boundary": "Complete a/b/carry state; identical rotate13/XOR conditioning; symmetric inside-timer input unpack+finalwriteback.",
+    "pre_measurement": "Independent native correctness gates+full manager review+actual binary assembly required; all measurements serialCPU4 with other delegated builds/tests stopped.",
+    "limits": [
+      "A source scalarization may collapse in compiledcode; retain null.",
+      "Scalarization also changes scheduling and allocation, not only spills.",
+      "Calibration on Original may produce belowtarget candidates orlaterOriginalsamples; retain andlabel.",
+      "No productionmodularcallsite measured by thisstate experiment.",
+      "No PMU/CT/novelty/provenproductiongain; allrawsamplesretained."
+    ]
+  },
+  "build_commands": [
+    {
+      "name": "test_gcc_native",
+      "command": "/usr/bin/g++ -std=c++17 -O3 -march=native -DNDEBUG -Wall -Wextra -Isrc/cpu/include experiments/parseatlas_secp256k1/tests/test_l0_state_control.cpp -o /tmp/parseatlas-state-review.P8G2Ft/test_gcc_native"
+    },
+    {
+      "name": "test_gcc_portable",
+      "command": "/usr/bin/g++ -std=c++17 -O3 -march=native -DNDEBUG -Wall -Wextra -DSECP256K1_NO_INT128 -Isrc/cpu/include experiments/parseatlas_secp256k1/tests/test_l0_state_control.cpp -o /tmp/parseatlas-state-review.P8G2Ft/test_gcc_portable"
+    },
+    {
+      "name": "test_clang_native",
+      "command": "/usr/bin/clang++ -std=c++17 -O3 -march=native -DNDEBUG -Wall -Wextra -Isrc/cpu/include experiments/parseatlas_secp256k1/tests/test_l0_state_control.cpp -o /tmp/parseatlas-state-review.P8G2Ft/test_clang_native"
+    },
+    {
+      "name": "test_gcc_ubsan",
+      "command": "/usr/bin/g++ -std=c++17 -O1 -g -fsanitize=undefined -fno-sanitize-recover=undefined -Wall -Wextra -Isrc/cpu/include experiments/parseatlas_secp256k1/tests/test_l0_state_control.cpp -o /tmp/parseatlas-state-review.P8G2Ft/test_gcc_ubsan"
+    },
+    {
+      "name": "l0_state_compare",
+      "command": "/usr/bin/g++ -std=c++17 -O3 -march=native -DNDEBUG -Wall -Wextra -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/l0_state_compare.cpp -o /tmp/parseatlas-state-review.P8G2Ft/l0_state_compare"
+    },
+    {
+      "name": "compare_ubsan",
+      "command": "/usr/bin/g++ -std=c++17 -O1 -g -fsanitize=undefined -fno-sanitize-recover=undefined -Wall -Wextra -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/l0_state_compare.cpp -o /tmp/parseatlas-state-review.P8G2Ft/compare_ubsan"
+    }
+  ],
+  "measured_binary": "/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare",
+  "environment": {
+    "cpu_model": "Intel Core i5-14400F",
+    "observed_logical_cores": 16,
+    "physical_cores": 10,
+    "measurement_cpu": 4,
+    "measurement_workers": 1,
+    "compiler_gcc": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "compiler_target": "x86_64-linux-gnu",
+    "compiler_clang": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin",
+    "historical_machine_capture": {
+      "scope": "Prior native experiment on same host; not re-observed as full settings during state-control runs",
+      "timestamp_from_prior_corrections": "2026-09-05T11:01:03Z",
+      "governor": "performance",
+      "intel_pstate_no_turbo": "1"
+    },
+    "state_control_frequency_khz": {
+      "before": 2499560,
+      "after": 2500000,
+      "scope": "Endpoint observations only; no continuous clock/thermal/sibling/load isolation"
+    },
+    "compile_only_dispatch_probe": {
+      "command": "/usr/bin/g++ -std=c++17 -O3 -march=native -DNDEBUG -Isrc/cpu/include -include secp256k1/config.hpp -include secp256k1/point.hpp -dM -E -x c++ /dev/null",
+      "exit_code": 0,
+      "selected_definitions": [
+        "#define SECP256K1_FE52_COMPUTE 1",
+        "#define SECP256K1_FAST_52BIT 1",
+        "#define __x86_64__ 1",
+        "#define __SIZEOF_INT128__ 16"
+      ],
+      "absent_macros": [
+        "SECP256K1_NO_INT128",
+        "SECP256K1_USE_4X64_POINT_OPS"
+      ],
+      "scope": "Header selection with stated flags; not runtime profiling of full engine"
+    },
+    "limitations": [
+      "External load, sibling activity and temperature were not isolated.",
+      "No PMU or DRAM bandwidth counters collected.",
+      "No multi-architecture or held-out production measurements."
+    ]
+  },
+  "runs": [
+    {
+      "series": 1,
+      "command": "/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare --measure --cpu 4 --target-ms 200",
+      "exit_code": 0,
+      "raw_path": "experiments/parseatlas_secp256k1/data/l0_native_state_cpu4_run1_20260905.json",
+      "started_unix_ns": "1788609334706035897",
+      "finished_unix_ns": "1788609359711037190",
+      "cpu": 4,
+      "count": 4096,
+      "passes": 10563,
+      "operations_per_sample": 43266048,
+      "measured_samples": 64,
+      "reference_checksum": "722426a5e8cdd372",
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "form": "aggregate",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 6.0615286032133096,
+            "min": 5.641085199184358,
+            "max": 7.355673621958724,
+            "mad": 0.415665997504556,
+            "inclusive_iqr": 1.4692899788305134
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "aggregate_ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "within_form_ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "gp_materialized",
+          "form": "aggregate",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 7.697701763747871,
+            "min": 7.436778649161578,
+            "max": 12.27095356617734,
+            "mad": 0.2229423634901906,
+            "inclusive_iqr": 1.1912296103401916
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 0.7561670128829823,
+            "min": 0.5130931792847115,
+            "max": 0.9546809261213718,
+            "mad": 0.058794637555293294,
+            "inclusive_iqr": 0.08704152714944535
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 0.7561670128829823,
+            "min": 0.5130931792847115,
+            "max": 0.9546809261213718,
+            "mad": 0.058794637555293294,
+            "inclusive_iqr": 0.08704152714944535
+          },
+          "aggregate_ratio_by_round": [
+            0.9546809261213718,
+            0.7614648241780665,
+            0.7702273777194111,
+            0.9017302942043897,
+            0.7347507840547319,
+            0.659993966600646,
+            0.5130931792847115,
+            0.750869201587898
+          ],
+          "within_form_ratio_by_round": [
+            0.9546809261213718,
+            0.7614648241780665,
+            0.7702273777194111,
+            0.9017302942043897,
+            0.7347507840547319,
+            0.659993966600646,
+            0.5130931792847115,
+            0.750869201587898
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "form": "aggregate",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 7.9888403257907905,
+            "min": 7.299062904936453,
+            "max": 11.216483349715693,
+            "mad": 0.6722977679865738,
+            "inclusive_iqr": 1.301453734577283
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 0.7742246615161739,
+            "min": 0.5613294632389919,
+            "max": 0.9173109841191955,
+            "mad": 0.04591683581904188,
+            "inclusive_iqr": 0.06081428064058092
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 0.7742246615161739,
+            "min": 0.5613294632389919,
+            "max": 0.9173109841191955,
+            "mad": 0.04591683581904188,
+            "inclusive_iqr": 0.06081428064058092
+          },
+          "aggregate_ratio_by_round": [
+            0.9173109841191955,
+            0.7742896691387572,
+            0.7196946318856493,
+            0.8358667547616194,
+            0.7741596538935904,
+            0.8115283035237331,
+            0.5613294632389919,
+            0.7691666369616152
+          ],
+          "within_form_ratio_by_round": [
+            0.9173109841191955,
+            0.7742896691387572,
+            0.7196946318856493,
+            0.8358667547616194,
+            0.7741596538935904,
+            0.8115283035237331,
+            0.5613294632389919,
+            0.7691666369616152
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "blocked2",
+          "form": "aggregate",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 5.515534501787638,
+            "min": 5.382805242577274,
+            "max": 6.051834015438618,
+            "mad": 0.09943140635354553,
+            "inclusive_iqr": 0.2141759053195713
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 1.1122514347333925,
+            "min": 1.0226269896622218,
+            "max": 1.364965283799566,
+            "mad": 0.08122982097334208,
+            "inclusive_iqr": 0.16434561705089124
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 1.1122514347333925,
+            "min": 1.0226269896622218,
+            "max": 1.364965283799566,
+            "mad": 0.08122982097334208,
+            "inclusive_iqr": 0.16434561705089124
+          },
+          "aggregate_ratio_by_round": [
+            1.2638198215080205,
+            1.0565957514382525,
+            1.0247209860166948,
+            1.364965283799566,
+            1.037322241503406,
+            1.1767501190741525,
+            1.1679071180285328,
+            1.0226269896622218
+          ],
+          "within_form_ratio_by_round": [
+            1.2638198215080205,
+            1.0565957514382525,
+            1.0247209860166948,
+            1.364965283799566,
+            1.037322241503406,
+            1.1767501190741525,
+            1.1679071180285328,
+            1.0226269896622218
+          ]
+        },
+        {
+          "variant": 4,
+          "method": "original",
+          "form": "scalar_local",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 5.737932154099214,
+            "min": 5.478651181637852,
+            "max": 7.090039238157365,
+            "mad": 0.19204022285557487,
+            "inclusive_iqr": 0.5492298545501537
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 1.0401833729805703,
+            "min": 0.8880264786463028,
+            "max": 1.285262499450307,
+            "mad": 0.045588524617148796,
+            "inclusive_iqr": 0.09492919777838682
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "aggregate_ratio_by_round": [
+            1.285262499450307,
+            1.0473724685526404,
+            1.0329942774085004,
+            1.2391927678774541,
+            1.031392549898364,
+            1.0717623118484436,
+            0.8880264786463028,
+            0.980585262614146
+          ],
+          "within_form_ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 5,
+          "method": "gp_materialized",
+          "form": "scalar_local",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 7.597050451661312,
+            "min": 7.292892177256402,
+            "max": 10.582235798379367,
+            "mad": 0.24532690159267645,
+            "inclusive_iqr": 0.7794223544521568
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 0.7648928701284727,
+            "min": 0.6729670869151332,
+            "max": 0.9914699185194062,
+            "mad": 0.03447257742169024,
+            "inclusive_iqr": 0.08218305331932674
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 0.7437475977786869,
+            "min": 0.6279070270296054,
+            "max": 0.834389082567598,
+            "mad": 0.05070871624137091,
+            "inclusive_iqr": 0.06894963047534741
+          },
+          "aggregate_ratio_by_round": [
+            0.9509783802889629,
+            0.7198809866001418,
+            0.772251386157932,
+            0.9914699185194062,
+            0.7575343540990136,
+            0.6729670869151332,
+            0.7409595988134232,
+            0.7735045386762518
+          ],
+          "within_form_ratio_by_round": [
+            0.7399098477514797,
+            0.6873208989300074,
+            0.7475853478058941,
+            0.8000933706364677,
+            0.7344772406720049,
+            0.6279070270296054,
+            0.834389082567598,
+            0.788819257403648
+          ]
+        },
+        {
+          "variant": 6,
+          "method": "gp_recomputed",
+          "form": "scalar_local",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 7.564717651124503,
+            "min": 7.277623160774934,
+            "max": 11.774438238500544,
+            "mad": 0.21753951273756256,
+            "inclusive_iqr": 1.106518938360166
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 0.7657234452891867,
+            "min": 0.5347297637977847,
+            "max": 0.9800506539530974,
+            "mad": 0.06600092678072877,
+            "inclusive_iqr": 0.09808323712280187
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 0.7426291628059362,
+            "min": 0.6012886004004471,
+            "max": 0.79087828734812,
+            "mad": 0.034553573490467504,
+            "inclusive_iqr": 0.07405708594512861
+          },
+          "aggregate_ratio_by_round": [
+            0.9731164975378819,
+            0.7552220102125479,
+            0.7566172439183969,
+            0.9800506539530974,
+            0.7764403140147558,
+            0.6444384604532982,
+            0.5347297637977847,
+            0.7748296466599764
+          ],
+          "within_form_ratio_by_round": [
+            0.7571344359257921,
+            0.7210634543947732,
+            0.7324505667316399,
+            0.79087828734812,
+            0.7528077588802324,
+            0.6012886004004471,
+            0.6021552021882507,
+            0.7901706013757082
+          ]
+        },
+        {
+          "variant": 7,
+          "method": "blocked2",
+          "form": "scalar_local",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 5.653792669023064,
+            "min": 5.332627606755302,
+            "max": 6.884753745015029,
+            "mad": 0.271853267023602,
+            "inclusive_iqr": 0.7048822843722631
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 1.0278137259639002,
+            "min": 0.9145051241206386,
+            "max": 1.3793713276810582,
+            "mad": 0.11022901011953251,
+            "inclusive_iqr": 0.19898411735110566
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 1.041002237213563,
+            "min": 0.8926419990708886,
+            "max": 1.0916703446792297,
+            "mad": 0.04102797822643328,
+            "inclusive_iqr": 0.0800686713686587
+          },
+          "aggregate_ratio_by_round": [
+            1.3793713276810582,
+            1.019920686211814,
+            1.0238683184765005,
+            1.3527899960327892,
+            0.9206643075680968,
+            1.1411909465250574,
+            0.9145051241206386,
+            1.0317591334512999
+          ],
+          "within_form_ratio_by_round": [
+            1.073221484537984,
+            0.9737898568417003,
+            0.9911655280851174,
+            1.0916703446792297,
+            0.8926419990708886,
+            1.0647798806779012,
+            1.0298174053488804,
+            1.0521870690782456
+          ]
+        }
+      ]
+    },
+    {
+      "series": 2,
+      "command": "/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare --measure --cpu 4 --target-ms 200",
+      "exit_code": 0,
+      "raw_path": "experiments/parseatlas_secp256k1/data/l0_native_state_cpu4_run2_20260905.json",
+      "started_unix_ns": "1788609403461046589",
+      "finished_unix_ns": "1788609426833402931",
+      "cpu": 4,
+      "count": 4096,
+      "passes": 10710,
+      "operations_per_sample": 43868160,
+      "measured_samples": 64,
+      "reference_checksum": "0c4efa38bb2f2916",
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "form": "aggregate",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 5.576808008359594,
+            "min": 5.496068218954249,
+            "max": 6.096251495389823,
+            "mad": 0.05103439487774253,
+            "inclusive_iqr": 0.08724308245433576
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "aggregate_ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "within_form_ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "gp_materialized",
+          "form": "aggregate",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 7.285764116844654,
+            "min": 7.247944887590453,
+            "max": 8.390944890325923,
+            "mad": 0.02617513476744815,
+            "inclusive_iqr": 0.7543766766146573
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 0.7573573310017054,
+            "min": 0.6559254194485681,
+            "max": 0.7705676438711813,
+            "mad": 0.011956747027191073,
+            "inclusive_iqr": 0.04532360722515738
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 0.7573573310017054,
+            "min": 0.6559254194485681,
+            "max": 0.7705676438711813,
+            "mad": 0.011956747027191073,
+            "inclusive_iqr": 0.04532360722515738
+          },
+          "aggregate_ratio_by_round": [
+            0.7705676438711813,
+            0.7655833830112637,
+            0.7563279820129725,
+            0.7039339891739604,
+            0.7583866799904385,
+            0.7680605121866118,
+            0.6559254194485681,
+            0.7265274143819376
+          ],
+          "within_form_ratio_by_round": [
+            0.7705676438711813,
+            0.7655833830112637,
+            0.7563279820129725,
+            0.7039339891739604,
+            0.7583866799904385,
+            0.7680605121866118,
+            0.6559254194485681,
+            0.7265274143819376
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "form": "aggregate",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 7.323363836094334,
+            "min": 7.269148671838527,
+            "max": 8.068208696238912,
+            "mad": 0.02874433301966617,
+            "inclusive_iqr": 0.058291298290148674
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 0.7637308282351973,
+            "min": 0.6812844172729154,
+            "max": 0.8234534049341835,
+            "mad": 0.006150086285518941,
+            "inclusive_iqr": 0.01192627686001213
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 0.7637308282351973,
+            "min": 0.6812844172729154,
+            "max": 0.8234534049341835,
+            "mad": 0.006150086285518941,
+            "inclusive_iqr": 0.01192627686001213
+          },
+          "aggregate_ratio_by_round": [
+            0.7639551290848776,
+            0.7647697802094037,
+            0.7508459573606985,
+            0.7663293967702888,
+            0.6812844172729154,
+            0.763506527385517,
+            0.7540292241992509,
+            0.8234534049341835
+          ],
+          "within_form_ratio_by_round": [
+            0.7639551290848776,
+            0.7647697802094037,
+            0.7508459573606985,
+            0.7663293967702888,
+            0.6812844172729154,
+            0.763506527385517,
+            0.7540292241992509,
+            0.8234534049341835
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "blocked2",
+          "form": "aggregate",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 5.416382257655666,
+            "min": 5.351023111067343,
+            "max": 5.875463114933473,
+            "mad": 0.050037065607493325,
+            "inclusive_iqr": 0.09841992461046889
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 1.029956420391505,
+            "min": 0.9355423993867817,
+            "max": 1.1134717285910836,
+            "mad": 0.005841401566041848,
+            "inclusive_iqr": 0.010933539775142664
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 1.029956420391505,
+            "min": 0.9355423993867817,
+            "max": 1.1134717285910836,
+            "mad": 0.005841401566041848,
+            "inclusive_iqr": 0.010933539775142664
+          },
+          "aggregate_ratio_by_round": [
+            1.0328067893090564,
+            1.0198411410214778,
+            1.0243630404100033,
+            1.036045843542087,
+            0.9355423993867817,
+            1.0335395259366569,
+            1.0271060514739534,
+            1.1134717285910836
+          ],
+          "within_form_ratio_by_round": [
+            1.0328067893090564,
+            1.0198411410214778,
+            1.0243630404100033,
+            1.036045843542087,
+            0.9355423993867817,
+            1.0335395259366569,
+            1.0271060514739534,
+            1.1134717285910836
+          ]
+        },
+        {
+          "variant": 4,
+          "method": "original",
+          "form": "scalar_local",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 5.492658205860469,
+            "min": 5.4783005031439655,
+            "max": 6.028022602270075,
+            "mad": 0.012653949926324515,
+            "inclusive_iqr": 0.10215891776632535
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 1.0136885086597875,
+            "min": 0.9455645699831433,
+            "max": 1.0229229798986865,
+            "mad": 0.00611878928194487,
+            "inclusive_iqr": 0.013187770852341352
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "aggregate_ratio_by_round": [
+            1.0229229798986865,
+            1.0160583979942173,
+            1.0049277688041822,
+            1.0160898873096789,
+            0.9979006194751967,
+            1.017165347368072,
+            0.9455645699831433,
+            1.0113186193253578
+          ],
+          "within_form_ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 5,
+          "method": "gp_materialized",
+          "form": "scalar_local",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 7.292252102663982,
+            "min": 7.193559884891457,
+            "max": 8.259745929621849,
+            "mad": 0.08868888050011625,
+            "inclusive_iqr": 0.30588431905965585
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 0.7649391005903067,
+            "min": 0.6975376252241774,
+            "max": 0.7763537233829834,
+            "mad": 0.008448541206931892,
+            "inclusive_iqr": 0.0281748444402643
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 0.7569802198909568,
+            "min": 0.6990051029239942,
+            "max": 0.7837568438738054,
+            "mad": 0.006870754153291525,
+            "inclusive_iqr": 0.015811266393566337
+          },
+          "aggregate_ratio_by_round": [
+            0.7666917446473113,
+            0.7678745347471512,
+            0.7631864565333021,
+            0.7704215602114938,
+            0.6975376252241774,
+            0.7763537233829834,
+            0.7410927030488803,
+            0.7380676775452492
+          ],
+          "within_form_ratio_by_round": [
+            0.7495107253561231,
+            0.75573858378908,
+            0.7594440916300471,
+            0.7582218559928336,
+            0.6990051029239942,
+            0.7632522336627061,
+            0.7837568438738054,
+            0.7298072669102126
+          ]
+        },
+        {
+          "variant": 6,
+          "method": "gp_recomputed",
+          "form": "scalar_local",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 7.3413058924741765,
+            "min": 7.261717245491947,
+            "max": 8.660745948770133,
+            "mad": 0.06717827918927943,
+            "inclusive_iqr": 0.19992713393951345
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 0.7632028216830627,
+            "min": 0.6345952475069098,
+            "max": 0.7946329281011887,
+            "mad": 0.006964122340830992,
+            "inclusive_iqr": 0.016595623916025204
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 0.7512362579856184,
+            "min": 0.6711284111652183,
+            "max": 0.7857394424630306,
+            "mad": 0.005754278096048171,
+            "inclusive_iqr": 0.011383121039745592
+          },
+          "aggregate_ratio_by_round": [
+            0.7605000236990789,
+            0.7662148628737073,
+            0.7531853908956188,
+            0.7671136355772807,
+            0.7398195558474459,
+            0.7659056196670466,
+            0.6345952475069098,
+            0.7946329281011887
+          ],
+          "within_form_ratio_by_round": [
+            0.7434577564915017,
+            0.7541051423680749,
+            0.7494920672675557,
+            0.754966312683598,
+            0.7413759861543351,
+            0.7529804487036812,
+            0.6711284111652183,
+            0.7857394424630306
+          ]
+        },
+        {
+          "variant": 7,
+          "method": "blocked2",
+          "form": "scalar_local",
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_addition": {
+            "median": 5.450202652675653,
+            "min": 5.39306925569707,
+            "max": 6.319703060260562,
+            "mad": 0.030537797801412303,
+            "inclusive_iqr": 0.1178392084372808
+          },
+          "paired_original_aggregate_over_variant": {
+            "median": 1.0117147204802852,
+            "min": 0.9646420784742493,
+            "max": 1.0352275180033816,
+            "mad": 0.013808508184809831,
+            "inclusive_iqr": 0.027010501102486928
+          },
+          "paired_within_form_original_over_variant": {
+            "median": 1.0093427983439534,
+            "min": 0.9538458602865968,
+            "max": 1.0592798396264764,
+            "mad": 0.007313953228417769,
+            "inclusive_iqr": 0.022964210494239135
+          },
+          "aggregate_ratio_by_round": [
+            0.9775290405972131,
+            1.0352275180033816,
+            1.0117814934860292,
+            1.020396333577995,
+            1.011647947474541,
+            1.0292345024178418,
+            1.001617486048222,
+            0.9646420784742493
+          ],
+          "within_form_ratio_by_round": [
+            0.9556233067459592,
+            1.0188661597079516,
+            1.0068201167234165,
+            1.004238253251116,
+            1.0137762495894374,
+            1.0118654799644904,
+            1.0592798396264764,
+            0.9538458602865968
+          ]
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "artifact": "experiments/parseatlas_secp256k1/data/l0_native_state_validation_20260905.json",
+    "four_cpp_builds_pass": true,
+    "normal_and_ubsan_driver_smoke_pass": true,
+    "root_invalid_cli_cases": 6,
+    "mismatches": 0,
+    "state_checksum_fnv1a64": "47a6929ecb7b3c6d",
+    "comparison": "Serialized complete a/b state plus full carry against Original and independent Boost cpp_int checks",
+    "coverage_limits": "Finite repeated corpus, not exhaustive proof or CT proof; boundary fixtures contain duplicates",
+    "json_numeric_audit": {
+      "method": "Manager JavaScript audit of emitted numeric JSON only; no kernel timing or Python",
+      "samples_checked": 128,
+      "errors": [],
+      "observations": [
+        {
+          "series": 1,
+          "passes": 10563,
+          "operations": 43266048,
+          "below_target": 0,
+          "min_ms": 230.721722,
+          "within_form_favorable": [
+            {
+              "variant": 0,
+              "favorable": 0,
+              "ratios": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "variant": 1,
+              "favorable": 0,
+              "ratios": [
+                0.9546809261213718,
+                0.7614648241780665,
+                0.7702273777194111,
+                0.9017302942043897,
+                0.7347507840547319,
+                0.659993966600646,
+                0.5130931792847115,
+                0.750869201587898
+              ]
+            },
+            {
+              "variant": 2,
+              "favorable": 0,
+              "ratios": [
+                0.9173109841191955,
+                0.7742896691387572,
+                0.7196946318856493,
+                0.8358667547616194,
+                0.7741596538935904,
+                0.8115283035237331,
+                0.5613294632389919,
+                0.7691666369616152
+              ]
+            },
+            {
+              "variant": 3,
+              "favorable": 8,
+              "ratios": [
+                1.2638198215080205,
+                1.0565957514382525,
+                1.0247209860166948,
+                1.364965283799566,
+                1.037322241503406,
+                1.1767501190741525,
+                1.1679071180285328,
+                1.0226269896622218
+              ]
+            },
+            {
+              "variant": 4,
+              "favorable": 0,
+              "ratios": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "variant": 5,
+              "favorable": 0,
+              "ratios": [
+                0.7399098477514797,
+                0.6873208989300074,
+                0.7475853478058941,
+                0.8000933706364677,
+                0.7344772406720049,
+                0.6279070270296054,
+                0.834389082567598,
+                0.788819257403648
+              ]
+            },
+            {
+              "variant": 6,
+              "favorable": 0,
+              "ratios": [
+                0.7571344359257921,
+                0.7210634543947732,
+                0.7324505667316399,
+                0.79087828734812,
+                0.7528077588802324,
+                0.6012886004004471,
+                0.6021552021882507,
+                0.7901706013757082
+              ]
+            },
+            {
+              "variant": 7,
+              "favorable": 5,
+              "ratios": [
+                1.073221484537984,
+                0.9737898568417003,
+                0.9911655280851174,
+                1.0916703446792297,
+                0.8926419990708886,
+                1.0647798806779012,
+                1.0298174053488804,
+                1.0521870690782456
+              ]
+            }
+          ]
+        },
+        {
+          "series": 2,
+          "passes": 10710,
+          "operations": 43868160,
+          "below_target": 0,
+          "min_ms": 234.739538,
+          "within_form_favorable": [
+            {
+              "variant": 0,
+              "favorable": 0,
+              "ratios": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "variant": 1,
+              "favorable": 0,
+              "ratios": [
+                0.7705676438711813,
+                0.7655833830112637,
+                0.7563279820129725,
+                0.7039339891739604,
+                0.7583866799904385,
+                0.7680605121866118,
+                0.6559254194485681,
+                0.7265274143819376
+              ]
+            },
+            {
+              "variant": 2,
+              "favorable": 0,
+              "ratios": [
+                0.7639551290848776,
+                0.7647697802094037,
+                0.7508459573606985,
+                0.7663293967702888,
+                0.6812844172729154,
+                0.763506527385517,
+                0.7540292241992509,
+                0.8234534049341835
+              ]
+            },
+            {
+              "variant": 3,
+              "favorable": 7,
+              "ratios": [
+                1.0328067893090564,
+                1.0198411410214778,
+                1.0243630404100033,
+                1.036045843542087,
+                0.9355423993867817,
+                1.0335395259366569,
+                1.0271060514739534,
+                1.1134717285910836
+              ]
+            },
+            {
+              "variant": 4,
+              "favorable": 0,
+              "ratios": [
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1,
+                1
+              ]
+            },
+            {
+              "variant": 5,
+              "favorable": 0,
+              "ratios": [
+                0.7495107253561231,
+                0.75573858378908,
+                0.7594440916300471,
+                0.7582218559928336,
+                0.6990051029239942,
+                0.7632522336627061,
+                0.7837568438738054,
+                0.7298072669102126
+              ]
+            },
+            {
+              "variant": 6,
+              "favorable": 0,
+              "ratios": [
+                0.7434577564915017,
+                0.7541051423680749,
+                0.7494920672675557,
+                0.754966312683598,
+                0.7413759861543351,
+                0.7529804487036812,
+                0.6711284111652183,
+                0.7857394424630306
+              ]
+            },
+            {
+              "variant": 7,
+              "favorable": 6,
+              "ratios": [
+                0.9556233067459592,
+                1.0188661597079516,
+                1.0068201167234165,
+                1.004238253251116,
+                1.0137762495894374,
+                1.0118654799644904,
+                1.0592798396264764,
+                0.9538458602865968
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "full_width_fixtures_per_build": 143762,
+    "fixture_count_note": "143762 fixtures include boundary duplicates; count is not unique inputs and is not multiplied by repeated builds."
+  },
+  "assembly": {
+    "artifact": "experiments/parseatlas_secp256k1/data/l0_native_state_disassembly_20260905.txt",
+    "timed_symbols": [
+      {
+        "start": 38016,
+        "size": 705,
+        "method": 0,
+        "form": 0
+      },
+      {
+        "start": 38736,
+        "size": 705,
+        "method": 0,
+        "form": 1
+      },
+      {
+        "start": 51456,
+        "size": 847,
+        "method": 1,
+        "form": 0
+      },
+      {
+        "start": 49792,
+        "size": 837,
+        "method": 1,
+        "form": 1
+      },
+      {
+        "start": 48976,
+        "size": 811,
+        "method": 2,
+        "form": 0
+      },
+      {
+        "start": 50640,
+        "size": 811,
+        "method": 2,
+        "form": 1
+      },
+      {
+        "start": 48304,
+        "size": 670,
+        "method": 3,
+        "form": 0
+      },
+      {
+        "start": 47632,
+        "size": 657,
+        "method": 3,
+        "form": 1
+      }
+    ],
+    "commands": [
+      {
+        "command": "objdump -d -C --no-show-raw-insn --start-address=0x9480 --stop-address=0x9741 /tmp/parseatlas-state-review.P8G2Ft/l0_state_compare",
+        "exit_code": 0
+      },
+      {
+        "command": "objdump -d -C --no-show-raw-insn --start-address=0x9750 --stop-address=0x9a11 /tmp/parseatlas-state-review.P8G2Ft/l0_state_compare",
+        "exit_code": 0
+      },
+      {
+        "command": "objdump -d -C --no-show-raw-insn --start-address=0xc900 --stop-address=0xcc4f /tmp/parseatlas-state-review.P8G2Ft/l0_state_compare",
+        "exit_code": 0
+      },
+      {
+        "command": "objdump -d -C --no-show-raw-insn --start-address=0xc280 --stop-address=0xc5c5 /tmp/parseatlas-state-review.P8G2Ft/l0_state_compare",
+        "exit_code": 0
+      },
+      {
+        "command": "objdump -d -C --no-show-raw-insn --start-address=0xbf50 --stop-address=0xc27b /tmp/parseatlas-state-review.P8G2Ft/l0_state_compare",
+        "exit_code": 0
+      },
+      {
+        "command": "objdump -d -C --no-show-raw-insn --start-address=0xc5d0 --stop-address=0xc8fb /tmp/parseatlas-state-review.P8G2Ft/l0_state_compare",
+        "exit_code": 0
+      },
+      {
+        "command": "objdump -d -C --no-show-raw-insn --start-address=0xbcb0 --stop-address=0xbf4e /tmp/parseatlas-state-review.P8G2Ft/l0_state_compare",
+        "exit_code": 0
+      },
+      {
+        "command": "objdump -d -C --no-show-raw-insn --start-address=0xba10 --stop-address=0xbca1 /tmp/parseatlas-state-review.P8G2Ft/l0_state_compare",
+        "exit_code": 0
+      }
+    ],
+    "normalized_form_comparison": [
+      {
+        "method": 0,
+        "aggregate_timed_lines": 97,
+        "scalar_timed_lines": 97,
+        "identical_normalized_timed_instructions": false,
+        "differing_positions": 8
+      },
+      {
+        "method": 1,
+        "aggregate_timed_lines": 147,
+        "scalar_timed_lines": 145,
+        "identical_normalized_timed_instructions": false,
+        "differing_positions": 142
+      },
+      {
+        "method": 2,
+        "aggregate_timed_lines": 141,
+        "scalar_timed_lines": 141,
+        "identical_normalized_timed_instructions": false,
+        "differing_positions": 49
+      },
+      {
+        "method": 3,
+        "aggregate_timed_lines": 106,
+        "scalar_timed_lines": 103,
+        "identical_normalized_timed_instructions": false,
+        "differing_positions": 102
+      }
+    ],
+    "inspection": "All eight measured wrappers retain both loops, all state loads after first clock and complete writeback before second clock; no per-step function calls",
+    "limits": "Listed line comparisons include setup and writeback inside clock boundaries; not executed instruction/µop/cycle counts or measured traffic. ScalarLocal still spills and changes scheduling/allocation as well."
+  },
+  "review": {
+    "manager": "Independent of feature implementation; mechanical gates followed by full source/protocol read and scoped assembly/call-site review",
+    "additional_read_only_reviewer": "native_method_review",
+    "final_binary_assembly": "Clean on deb956882d99578c194ed0ed668f5cc66c379209566bfb36691f0f224fd2e578",
+    "independent_numeric_audit": "Clean:128 samples, both paired denominators, summary groups, order balance, state checksums and timestamp intervals",
+    "corrected_before_measurements": "Renamed overbroad JSON validation claim to every_warmup_and_measured_final_state_compared_exactly; final calibration replay only is explicitly documented",
+    "final_report_review": "Pending final snapshot read when this manifest was authored; final result will be recorded in session handoff"
+  },
+  "interpretation": {
+    "historical_gp_1_5x": "Does not survive this new region-local control; historical result remains a separate context observation",
+    "gp_recomputed": "Loses all 32 within-form pairs across both series and both forms",
+    "blocked2": "15/16 Aggregate and 11/16 ScalarLocal favorable pairs; small variable signal, not production acceptance",
+    "confounding": "New Aggregate itself copies state into region-local storage unlike historical direct-reference harness; no isolated scalarization/spill causal attribution",
+    "next_scope": [
+      "Complete fast Scalar mod-n API including ORDER reduction and alias gates",
+      "Complete 4x64 FieldElement mod-p API including both carries and selection",
+      "Separate ct::scalar_add baseline, masks/barriers, compiled security and signing-context gates"
+    ],
+    "not_claimed": [
+      "1.5x production speedup",
+      "Whole-engine speedup",
+      "Constant-time proof",
+      "Novel mathematical discovery",
+      "Completed 25x25 representation/lens search"
+    ]
+  },
+  "obstacles": [
+    {
+      "kind": "NeedFix",
+      "evidence": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted",
+      "handling": "Exact bounded commands used approved sandbox escalation. apply_patch Add File used for new documents; no global sandbox change."
+    }
+  ]
+}

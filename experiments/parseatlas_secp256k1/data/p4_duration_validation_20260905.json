@@ -1,0 +1,69 @@
+{
+  "schema": "parseatlas_p4_duration_validation_v1",
+  "recorded_utc": "2026-09-05 21:41:27 UTC",
+  "status": "pass",
+  "purpose": "Synthetic harness-contract diagnostic only; fabricated monotonic timestamps are NOT performance measurements.",
+  "source": "experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp",
+  "source_sha256": "64864414f76541d5804af821f8e685f227f7efe126d984ed3f4e274f39159753",
+  "unchanged_driver_sha256": "29c9fa86318a35b58a440245779f51b66e8327e68f83e4bec0f00bdd6cd1013a",
+  "technique": "Test TU includes exact driver with renamed main. Linux CLOCK_MONOTONIC interposition enabled only in scoped synthetic tests; other clock calls forward via syscall. No system clock or performance driver source changes.",
+  "configs": {
+    "gcc": {
+      "compile_command": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_gcc",
+      "compile_result": {
+        "chunk_id": "3732cb",
+        "wall_time_seconds": 0.000001441,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "taskset -c 4 /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_gcc",
+      "run_result": {
+        "chunk_id": "a8850c",
+        "wall_time_seconds": 0.373253716,
+        "exit_code": 0,
+        "original_token_count": 99,
+        "output": "SYNTHETIC duration diagnostic: all clock values below are fabricated, NOT performance.\nP4 duration_unqualified cells=48 raw_regions=97 output=/tmp/parseatlas-p4-duration.AOKPZM/SYNTHETIC_duration_failure.json\nlater-phase region failed duration: 96 stop=extension_limit\nPASS synthetic_duration_cases=48 assertions=3163 artifact=/tmp/parseatlas-p4-duration.AOKPZM/SYNTHETIC_duration_failure.json\n"
+      }
+    },
+    "clang": {
+      "compile_command": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_duration_regions.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_clang",
+      "compile_result": {
+        "chunk_id": "907a81",
+        "wall_time_seconds": 9.07e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "taskset -c 4 /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_duration_clang",
+      "run_result": {
+        "chunk_id": "ac4876",
+        "wall_time_seconds": 0.371172028,
+        "exit_code": 0,
+        "original_token_count": 99,
+        "output": "later-phase region failed duration: 96 stop=extension_limit\nSYNTHETIC duration diagnostic: all clock values below are fabricated, NOT performance.\nP4 duration_unqualified cells=48 raw_regions=97 output=/tmp/parseatlas-p4-duration.UHHn8w/SYNTHETIC_duration_failure.json\nPASS synthetic_duration_cases=48 assertions=3163 artifact=/tmp/parseatlas-p4-duration.UHHn8w/SYNTHETIC_duration_failure.json\n"
+      }
+    }
+  },
+  "same_cases_repeated": true,
+  "direct_synthetic_cases_per_config": 48,
+  "assertions_per_config": 3163,
+  "coverage": [
+    "All8routes warmup and measurement:3 cumulative1ms probes,6totaljobs frominitial2,2extensions, floorqualified.",
+    "All8routes warmup and measurement:13 cumulative1ns probes,extension_limit stop,notqualified,allprefixesretained.",
+    "All8routes shortcalibration remains one unqualified sample.",
+    "All8routes zeroelapsed invalid_clock stop and verifiedfalse.",
+    "All8routes initialjobcount exceedingworkcap rejected beforeclock.",
+    "Actual unchanged main validates/qualifies all48cells then fails firstwarmup after13probes:exit2,statusduration_unqualified,97retainedregions,fulloutput andinputpreservation."
+  ],
+  "limitations": [
+    "Synthetic timestamps validate control flow/bookkeeping, not physical elapsed time, scheduling or latency.",
+    "Within-region work-cap stop and capped final batch are code-reviewed but not dynamically exercised by these tiny synthetic jobs; over-cap initial request is tested.",
+    "Executable clock interposition is confined to the separate diagnostic binary and is absent from performance binaries."
+  ],
+  "manager_review": {
+    "mechanical_gates_first": true,
+    "complete_source_read_after_gates": true,
+    "blocking_findings": []
+  }
+}

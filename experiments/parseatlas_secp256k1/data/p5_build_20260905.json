@@ -1,0 +1,399 @@
+{
+  "schema": "parseatlas_p5_build_v1",
+  "status": "reviewed_experimental_evidence_no_production_integration",
+  "repository": {
+    "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+    "repo_id": "repo_666797171f0141c58bf05f579b2ee16e",
+    "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+    "branch": "experiment/representation-search",
+    "preexisting_dirty_changes_preserved": true
+  },
+  "authority": {
+    "role": "manager",
+    "session_id": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+    "window_id": "window_598fe5564b71e8ad51cdfa48",
+    "owner_task_mcp_suspension": true,
+    "canonical_task_acceptance": false,
+    "production_integration": false,
+    "workers_authored_feature_code_manager_independent_review": true
+  },
+  "commands": {
+    "oracle_compile": {
+      "native": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_field_product.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_native",
+      "clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_field_product.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp src/cpu/src/field_asm.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_clang",
+      "sanitizer": "g++-14 -std=c++20 -O1 -g -fno-lto -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -DSECP256K1_NO_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_field_product.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_asan"
+    },
+    "oracle_run": {
+      "native": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_native",
+      "clang": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_clang",
+      "sanitizer": "ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_asan"
+    },
+    "smoke_compile": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_kernel_smoke.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_kernel_smoke",
+    "smoke_run": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_kernel_smoke",
+    "benchmark_gcc_compile": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p5_field_product_compare.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_gcc",
+    "benchmark_clang_and_duration_compile": {
+      "clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p5_field_product_compare.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_clang",
+      "duration_gcc": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_product_duration.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_gcc",
+      "duration_clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_product_duration.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_clang"
+    },
+    "benchmark_gcc_smoke": "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_gcc --smoke --output /tmp/parseatlas-p5-field-product.3Z4xU1/p5_final_gcc_smoke.json",
+    "clang_smoke_and_duration_runs": {
+      "clang": "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_clang --smoke --output /tmp/parseatlas-p5-field-product.3Z4xU1/p5_final_clang_smoke.json",
+      "duration_gcc": "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_gcc",
+      "duration_clang": "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_clang"
+    },
+    "full_series": [
+      "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_gcc --seed 20260905 --min-ms 200 --rounds 8 --output experiments/parseatlas_secp256k1/data/p5_run1_20260905.json",
+      "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_gcc --seed 20260905 --min-ms 200 --rounds 8 --reverse-order --output experiments/parseatlas_secp256k1/data/p5_run2_20260905.json"
+    ]
+  },
+  "reference": {
+    "library": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a",
+    "sha256": "238294f2959e1b161428bca9a1baa990b803ee933f7f876b5b6e6cdc9b4fd577",
+    "rebuilt_this_wave": false,
+    "corrected_reference_manifest": "experiments/parseatlas_secp256k1/data/p1_corrected_build_20260905.json",
+    "history": [
+      {
+        "manifest": "experiments/parseatlas_secp256k1/data/p2_build_20260905.json",
+        "mutable_path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+        "historical_path": "experiments/parseatlas_secp256k1/data/p2_frontier_snapshot_20260905.md"
+      },
+      {
+        "manifest": "experiments/parseatlas_secp256k1/data/p3_build_20260905.json",
+        "mutable_path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+        "historical_path": "experiments/parseatlas_secp256k1/data/p3_frontier_snapshot_20260905.md"
+      },
+      {
+        "manifest": "experiments/parseatlas_secp256k1/data/p4_build_20260905.json",
+        "mutable_path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+        "historical_path": "experiments/parseatlas_secp256k1/data/p4_frontier_snapshot_20260905.md"
+      }
+    ],
+    "history_note": "Original reports/manifests unchanged; map their frontier hash to the exact byte snapshot when auditing history. Snapshot links resolve from original frontier directory."
+  },
+  "profile": {
+    "performance_compiler": "GCC14.2.0",
+    "clang_scope": "Independently compiled correctness field sources plus retained GAS object; benchmark smoke links frozen GCC library, no fullClang performance.",
+    "flags": "-std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra",
+    "lto": false,
+    "cpu": "Intel Core i5-14400F",
+    "logical_cpus": 16,
+    "physical_cores": 10,
+    "pinned_cpu": 4,
+    "sibling_cpu": 5,
+    "one_core_reason": "Inspect dependency and independent-state scheduling without thread dispatch; not multicore optimum.",
+    "governor": "powersave unchanged",
+    "turbo": "enabled unchanged",
+    "uncontrolled": [
+      "background services",
+      "SMT sibling activity",
+      "thermals",
+      "frequency"
+    ],
+    "pmu": "unavailable, no retry/policy change"
+  },
+  "corpus": {
+    "seed": 20260905,
+    "hash_fnv1a64": "7c2e57392893ac80",
+    "seeds": 4,
+    "canonical_rhs": 256,
+    "arbitrary512_rhs": 256,
+    "source": "experiments/parseatlas_secp256k1/probes/p5_field_product_compare.cpp",
+    "source_sha256": "9adcabba6473c6d865a62d8980345bf790840e05ec318bc5832701f5f2b9867d",
+    "raw_placeholder_binding": "PENDING IMPORT source_recipe_sha256 in raw JSON is bound by this manifest to exact source; raw files not rewritten.",
+    "work": "1024 canonicalsteps peractive lane, chain1/ILP4; full128BE output, chain96inactivezerobytes; allocation/generation excluded; reset/steps/output included.",
+    "trace_states_per_series": 51200,
+    "observed_zero_or_one_states": 0
+  },
+  "measurement": {
+    "series": 2,
+    "cells_per_series": 20,
+    "warmups_each": 2,
+    "rounds_each": 8,
+    "later_floor_ms": 200,
+    "regions": 523,
+    "probes": 548,
+    "calibration": 123,
+    "short_calibration_retained": 42,
+    "later_regions": 400,
+    "later_below_floor": 0,
+    "extensions": 25,
+    "s1_extensions": 20,
+    "s2_extensions": 5,
+    "no_owned_build_test_competing_benchmark": true,
+    "arithmetic_and_timing": "native C++ only",
+    "numeric_processing": "read-only Node/JS auditing, not arithmetic benchmark"
+  },
+  "qualification": {
+    "arithmetic_configs": 3,
+    "assertions_each": 714283,
+    "mismatches": 0,
+    "checksum": "75711b730275b15a",
+    "distinct_raw_pairs": 14100,
+    "distinct_canonical_pairs": 13073,
+    "distinct_direct_wide": 12058,
+    "finite_not_universal_proof": true,
+    "duration_configs": 2,
+    "duration_cases_each": 120,
+    "duration_assertions_each": 6550,
+    "numeric_checks": 45534,
+    "numeric_errors": 0,
+    "codegen_replay": {
+      "schema": "parseatlas_p5_codegen_replay_v1",
+      "status": "pass",
+      "checks": 424,
+      "slices": 65,
+      "symbols": 65,
+      "jobs": 20,
+      "pairs": 6,
+      "phase_windows": 14,
+      "errors": []
+    },
+    "source_graph_freeze_receipt": "experiments/parseatlas_secp256k1/data/p5_performance_freeze_20260905.json"
+  },
+  "findings": {
+    "row_chain_multiply": {
+      "ratios": [
+        1.1194506608217116,
+        1.107246193225453
+      ],
+      "wins": 15,
+      "total": 16
+    },
+    "row_chain_square": {
+      "ratios": [
+        1.0785326468496605,
+        1.1828486000084748
+      ],
+      "wins": 16,
+      "total": 16
+    },
+    "actual_API_ILP4_wins": "96/96",
+    "actual_API_Comba_wins": "128/128, overlaps ILP4 comparison set",
+    "row_over_Comba_serial_wins": "64/64",
+    "compiled_reducer_pairs": "Fiveof sixnormalizedinstructionidentical; sixthonlytwoXORstagingoperands. Not a distinct arithmetic schedule gain."
+  },
+  "evidence": {
+    "protocol": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_PROTOCOL.md",
+    "contract": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_CONTRACT.md",
+    "results": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_RESULTS.md",
+    "lenses": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_LENS_RESULTS.md",
+    "validation": "experiments/parseatlas_secp256k1/data/p5_validation_20260905.json",
+    "duration": "experiments/parseatlas_secp256k1/data/p5_duration_validation_20260905.json",
+    "numeric": "experiments/parseatlas_secp256k1/data/p5_numeric_audit_20260905.json",
+    "codegen": "experiments/parseatlas_secp256k1/data/p5_codegen_20260905.json",
+    "codegen_replay": "experiments/parseatlas_secp256k1/data/p5_codegen_replay_20260905.json",
+    "obstacles": "experiments/parseatlas_secp256k1/data/p5_environment_obstacles_20260905.json"
+  },
+  "limitations": [
+    "One GCC/nativeprofile; retained rowgain conditional, not a universal replacement.",
+    "C++inline vsactualAPI changes visibility/call/materialization/arithmetic together; no purecalloverhead or singlecause attribution.",
+    "No PMU, CT qualification, novelty/worldrecord, scalar/point/signature gain or productionintegration.",
+    "Synthetic clocks isolated fromperformance. Withinregion workcap/cappedtail staticreview only.",
+    "Temporary binaries/smoke/synthetic files are local reproduction identities, not permanent repositoryartifacts.",
+    "All25lenses observations, not25discoveries. Fieldresearchunfinished."
+  ],
+  "manager_statistics_recompute_js": "\nconst fs=require('fs');\nfunction med(a){a=[...a].sort((a,b)=>a-b);return(a[3]+a[4])/2;}\nconst out=[];\nfor(let s=1;s<=2;s++){\n const p='experiments/parseatlas_secp256k1/data/p5_run'+s+'_20260905.json';\n const j=JSON.parse(fs.readFileSync(p,'utf8'));\n const later=j.regions.filter(r=>r.phase!=='calibration'), rows=[];\n for(const c of j.cells){const rs=j.regions.filter(r=>r.cell===c.id&&r.phase==='measurement').sort((a,b)=>a.round-b.round); rows.push({id:c.id,route:c.route,mode:c.mode,ns:med(rs.map(r=>r.elapsed_ns/r.operations)),min:Math.min(...rs.map(r=>r.elapsed_ns/r.operations)),max:Math.max(...rs.map(r=>r.elapsed_ns/r.operations)),zero:c.trace_zero_states,one:c.trace_one_states});}\n const comparisons={};\n for(const kind of ['primary_comparisons','secondary_comparisons','mode_comparisons']){\n comparisons[kind]=j[kind].map(c=>{let wins=0;const ratios=[];for(let r=0;r<8;r++){let a=j.regions.find(x=>x.phase==='measurement'&&x.cell===c.numerator_cell&&x.round===r),b=j.regions.find(x=>x.phase==='measurement'&&x.cell===c.denominator_cell&&x.round===r);const ratio=(a.elapsed_ns/a.operations)/(b.elapsed_ns/b.operations);ratios.push(ratio);wins+=ratio>1;}return{a:c.numerator_cell,b:c.denominator_cell,ratio:med(ratios),wins,min:Math.min(...ratios),max:Math.max(...ratios)};});}\n out.push({series:s,status:j.status,hash:j.corpus.checksum_fnv1a64,regions:j.regions.length,cal:j.regions.filter(r=>r.phase==='calibration').length,shortcal:j.regions.filter(r=>r.phase==='calibration'&&!r.floor_met).length,warm:later.filter(r=>r.phase==='warmup').length,measured:later.filter(r=>r.phase==='measurement').length,minimum_later_ns:Math.min(...later.map(r=>r.elapsed_ns)),shortlater:later.filter(r=>r.elapsed_ns<200000000).length,extensions:later.reduce((a,r)=>a+r.extensions,0),extendedregions:later.filter(r=>r.extensions>0).length,probes:j.regions.reduce((a,r)=>a+r.clock_checks,0),allverified:j.regions.every(r=>r.verified&&r.actual_final_be128===j.cells[r.cell].expected_final_be128),cpus:[...new Set(j.regions.flatMap(r=>[r.cpu_start,r.cpu_end]))],rows,comparisons});\n}process.stdout.write(JSON.stringify(out));\n",
+  "hashed_files": [
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/p5_field_product_kernels.hpp",
+      "sha256": "4c9bb9f0865a44c4da15480b9ad2adab45db0efceeb2581e1db572ee0ff04d26"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/p5_field_product_compare.cpp",
+      "sha256": "9adcabba6473c6d865a62d8980345bf790840e05ec318bc5832701f5f2b9867d"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_p5_kernel_smoke.cpp",
+      "sha256": "c87e3e923fff45455ce54d5000f2fc003c49c0c1a29f4d9ac3019bef3480e68f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_p5_field_product.cpp",
+      "sha256": "fc6a4830e5428a6d5117820fcecf1cbe4ff975bc006245fd56b67140661d2921"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_p5_product_duration.cpp",
+      "sha256": "a9b138bd0abc4cdc07dff2715ed5fe1e0b0da404cf05eac4b3f1ab775b3202a9"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_PROTOCOL.md",
+      "sha256": "10c8e13c09bddd103689e0ba10d50676672cc37b659df53def7c9c6e7fc82092"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_CONTRACT.md",
+      "sha256": "1886cc57ff5ad813546c649ebf25af57c0fe02270a673fc1acbca8689bc4607a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_LENSES.md",
+      "sha256": "2551d9bb2bed2612ba234828dae27c739dff9f1f37930ef31c0472b9d314f983"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_RESULTS.md",
+      "sha256": "b8a79bdc9ba1d4f00fea5465a28fec245eabf3bf686f3c61884217f3c979638f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_LENS_RESULTS.md",
+      "sha256": "8fc5555cad93581c9a82aafb5b4f8a077084e3779cdfd1e7b9a51211e63e33a0"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_CODEGEN.md",
+      "sha256": "be958efd4f57de32b6854d45e192bc5beb08a5ae33a2557033402b33fe79e18b"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+      "sha256": "25370020b8c7fcada0675f86418667d63ae6673cfe3accd1ab625c73a4bd84be"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p5_validation_20260905.json",
+      "sha256": "6c9d8be770c22c840dcc62aef36c6c3e0878f36dfda0be8150652b83877eebcf"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p5_duration_validation_20260905.json",
+      "sha256": "054c25d771b286ebca1ee6d5fc6873db0341260774cfa711f27a11dbec0cefb0"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p5_environment_obstacles_20260905.json",
+      "sha256": "40989ba9e32c02bdd02c3e17fa8e8e1c8a4b6ad9b08e38a7ce535c7c5888fd2a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p5_performance_freeze_20260905.json",
+      "sha256": "e2b61be9d600276266eef8c3650aea3e2aa545df48133a80d74c4ba0439e2d9f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p5_numeric_audit_20260905.json",
+      "sha256": "d705bda574b359c0cc273cc1f3203ba3dbec21bd77d780733436c7a80414d9e0"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p5_codegen_20260905.json",
+      "sha256": "488f96b6db0b98ca2f57b36cf56edeabc5a2b42c29bee400cfa58d46a9c96e87"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p5_codegen_replay_20260905.json",
+      "sha256": "40ea6638a2c5773e259770ae394c34cf6d5a8838599b19bf58470b6af09afb3d"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p5_run1_20260905.json",
+      "sha256": "87a9b0d009415d251345642620681e3fca92c946143a1fd1d0436f715f7cd17e"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p5_run2_20260905.json",
+      "sha256": "408a44a47b5f5129b8b4cc017df4a097ab89684b1ac0253e9af7f5c1c8606141"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p4_frontier_snapshot_20260905.md",
+      "sha256": "dd09f228bf6b9cf9c9af6b57862eb4f288e1a40398ad0170ed3a00a925253522"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p3_frontier_snapshot_20260905.md",
+      "sha256": "df2995a5f27cfe527e24c0557fd26957641c41f39107dd682bf4a95f612472ae"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_frontier_snapshot_20260905.md",
+      "sha256": "54616857756547e61416bc64a9961b8159df7bb84404e29c02e88e3f7f20c20a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_corrected_build_20260905.json",
+      "sha256": "56757b312d3a9a17799c055c82f2188fcdbe8e3c7dad19aefa44a31be7aaa2e0"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_build_20260905.json",
+      "sha256": "c630ecd08b55374b99691d08edf4f809421bd11e1fc332f3ab168523f50d5bfd"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p3_build_20260905.json",
+      "sha256": "8df77e1bb8fc10b476c8a1d3ff4e559cfc804c82e0e339b20083b54f89130de9"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p4_build_20260905.json",
+      "sha256": "9c88f6493809044d5dc8605c8f26ab90057ecb75aefbdce2b5451afdaa86e1a7"
+    },
+    {
+      "path": "src/cpu/src/field.cpp",
+      "sha256": "6a3d2bf87e1619de395d737a198b228810f09486508bed7203d07fccadfd218c"
+    },
+    {
+      "path": "src/cpu/src/field_asm_x64_gas.S",
+      "sha256": "4be633bc21143cd03834bbbde2ffa3280fd6780f93e6925770f365e0a7471f24"
+    },
+    {
+      "path": "audit/test_regression_field_reduce_carry.cpp",
+      "sha256": "95f40ab0808515f9e6336467921e6c44ddc70529244d7b81be659652ac746cd1"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field.hpp",
+      "sha256": "da944a2803c7ec3f07fd2a3e1ec93581bdc94dc6f3f9db402edc9459b4b1b381"
+    },
+    {
+      "path": "src/cpu/src/field_52.cpp",
+      "sha256": "b797a1c7a1219735424859d912596d5c3f50e1848036865d15d2879adeb8207a"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "sha256": "2c3f77d7855e9881ebeaf2b7f53de61e683de5201c77d23caaa288df8bf2afb3"
+    },
+    {
+      "path": "src/cpu/src/ct_field.cpp",
+      "sha256": "6452c6d58e48676347ac2c3552c68c8a47bf7e29771887f9d820154775194c44"
+    },
+    {
+      "path": "src/cpu/src/field_asm.cpp",
+      "sha256": "f69ff39527bc345bd58883e473b2894052090a36b0fca8372ffcd88f1928517d"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a",
+      "sha256": "238294f2959e1b161428bca9a1baa990b803ee933f7f876b5b6e6cdc9b4fd577"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_gcc",
+      "sha256": "71de9cf785e47f338c480a90757f115d2be2237b6f7eb856264768b6abd50a22"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_clang",
+      "sha256": "12ce182c82cbc75f1d37504e72e384db27ab5d68522f30ce2670fff9f000ce6b"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_native",
+      "sha256": "1702f456cbba421cb612205f4df8f51ad002d2f0cab4f3c6618facadee26f631"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_clang",
+      "sha256": "39e377a17d84a1fec97c66e96b44dc9117d9bffc3cf8d2cf071793fc1b717b0a"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_asan",
+      "sha256": "56bde8537a46728eb1eaab1ef852499ebe9366cb2e3faf019ec3d0a4ce00a55f"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_kernel_smoke",
+      "sha256": "b13074666d8c01536c03ca2ac7799e0ea45b370fd7e7ea91be1bd045977a916c"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_gcc",
+      "sha256": "eba2b911197b1ee4c754ce87de8c63eba2842b9ad1fb12d1394b97d509d7c4a6"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_clang",
+      "sha256": "573fe91cb02ad15de105638e75d31f90821effac993f680a70ef86ced6c43a56"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/p5_final_gcc_smoke.json",
+      "sha256": "36dee2eac5d5c62864a4b071c4e63bac2850b483ec7c6456a071be8b62841962"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/p5_final_clang_smoke.json",
+      "sha256": "8031f2003ba22abb2d09b1eaacbd67d0659898504796fe72492ee3c1462b2d86"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-field-product.3Z4xU1/p5_initial_gcc_smoke.json",
+      "sha256": "43a49522ac81831b8b856c1de3ed193925b25639d64ecc53c7938c4af4173953"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-duration.Cqb247/SYNTHETIC_duration_failure.json",
+      "sha256": "b9d04c124a3fd59a82a47f29432dfeb1bfc5fcf76030bd234d52727a28a3ce92"
+    },
+    {
+      "path": "/tmp/parseatlas-p5-duration.Lgpfkn/SYNTHETIC_duration_failure.json",
+      "sha256": "81d8dd02c1656aad342d1d7cbb30bb1967446dc85a2e1d8d09f29b25ae5e3c0f"
+    }
+  ]
+}

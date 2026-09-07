@@ -1,0 +1,166 @@
+{
+  "schema": "pa_f2_driver_validation_v1",
+  "build": {
+    "cmd": "g++ -std=c++17 -O3 -march=native -DNDEBUG -Wall -Wextra -pthread -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/f2_reduce_compare.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f2-review.WmcyRl/f2_compare",
+    "chunk_id": "3dabce",
+    "wall_time_seconds": 0.000002522,
+    "session_id": 35717,
+    "original_token_count": 65,
+    "output": "src/cpu/src/scalar.cpp:47:20: warning: ‘bool secp256k1::fast::{anonymous}::ge(const limbs4&, const limbs4&)’ defined but not used [-Wunused-function]\n   47 | [[nodiscard]] bool ge(const limbs4& a, const limbs4& b) noexcept {\n      |                    ^~\n",
+    "exit_code": 0
+  },
+  "cli": [
+    {
+      "name": "no_args",
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare ",
+      "chunk_id": "09a3af",
+      "wall_time_seconds": 0.000004008,
+      "exit_code": 2,
+      "original_token_count": 44,
+      "output": "f2_reduce_compare: usage: f2_reduce_compare (--smoke|--measure) [--count 1|16|256|4096|65536|1048576] [--cpu N] [--seed N] [--target-ms 200..1000] [--max-jobs 1..100000000]\n"
+    },
+    {
+      "name": "unknown",
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --unexpected",
+      "chunk_id": "d6cb10",
+      "wall_time_seconds": 0.000003866,
+      "exit_code": 2,
+      "original_token_count": 44,
+      "output": "f2_reduce_compare: usage: f2_reduce_compare (--smoke|--measure) [--count 1|16|256|4096|65536|1048576] [--cpu N] [--seed N] [--target-ms 200..1000] [--max-jobs 1..100000000]\n"
+    },
+    {
+      "name": "invalid_count",
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --count 0",
+      "chunk_id": "d63822",
+      "wall_time_seconds": 0.000004164,
+      "exit_code": 2,
+      "original_token_count": 10,
+      "output": "f2_reduce_compare: unsupported count\n"
+    },
+    {
+      "name": "overflow_count",
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --count 18446744073709551616",
+      "chunk_id": "74d810",
+      "wall_time_seconds": 0.000003556,
+      "exit_code": 2,
+      "original_token_count": 12,
+      "output": "f2_reduce_compare: unsigned decimal overflow\n"
+    },
+    {
+      "name": "nan_duration",
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --target-ms nan",
+      "chunk_id": "c1fb4e",
+      "wall_time_seconds": 0.000003992,
+      "exit_code": 2,
+      "original_token_count": 11,
+      "output": "f2_reduce_compare: invalid unsigned decimal\n"
+    },
+    {
+      "name": "negative_seed",
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --seed -1",
+      "chunk_id": "273253",
+      "wall_time_seconds": 0.000003725,
+      "exit_code": 2,
+      "original_token_count": 11,
+      "output": "f2_reduce_compare: invalid unsigned decimal\n"
+    },
+    {
+      "name": "zero_jobs",
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --max-jobs 0",
+      "chunk_id": "1d08af",
+      "wall_time_seconds": 0.000004179,
+      "exit_code": 2,
+      "original_token_count": 13,
+      "output": "f2_reduce_compare: max-jobs must be 1..100000000\n"
+    }
+  ],
+  "extra_cli": [
+    {
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --count 16 --count 16",
+      "chunk_id": "96afd8",
+      "wall_time_seconds": 0.000005997,
+      "exit_code": 2,
+      "original_token_count": 14,
+      "output": "f2_reduce_compare: unknown or duplicate option: --count\n"
+    },
+    {
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu",
+      "chunk_id": "d50b2b",
+      "wall_time_seconds": 0.000006216,
+      "exit_code": 2,
+      "original_token_count": 10,
+      "output": "f2_reduce_compare: missing option value\n"
+    },
+    {
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --smoke --target-ms 200",
+      "chunk_id": "7584a9",
+      "wall_time_seconds": 0.000005465,
+      "exit_code": 2,
+      "original_token_count": 13,
+      "output": "f2_reduce_compare: smoke has no performance target\n"
+    },
+    {
+      "cmd": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 1023",
+      "chunk_id": "fd4e72",
+      "wall_time_seconds": 0.000005155,
+      "exit_code": 2,
+      "original_token_count": 15,
+      "output": "f2_reduce_compare: coordinator outside inherited affinity\n"
+    }
+  ],
+  "raw_checks": [
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_1_20260905.json",
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --smoke --cpu 4 --count 1 --seed 20260905",
+      "exit_code": 0,
+      "kind": "smoke_not_performance"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_16_20260905.json",
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --smoke --cpu 4 --count 16 --seed 20260905",
+      "exit_code": 0,
+      "kind": "smoke_not_performance"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_256_20260905.json",
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --smoke --cpu 4 --count 256 --seed 20260905",
+      "exit_code": 0,
+      "kind": "smoke_not_performance"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_4096_20260905.json",
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --smoke --cpu 4 --count 4096 --seed 20260905",
+      "exit_code": 0,
+      "kind": "smoke_not_performance"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_65536_20260905.json",
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --smoke --cpu 4 --count 65536 --seed 20260905",
+      "exit_code": 0,
+      "kind": "smoke_not_performance"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_1048576_20260905.json",
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --smoke --cpu 4 --count 1048576 --seed 20260905",
+      "exit_code": 0,
+      "kind": "smoke_not_performance"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f2_unqualified_gate_20260905.json",
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 1 --target-ms 200 --max-jobs 1",
+      "exit_code": 2,
+      "kind": "diagnostic_not_performance"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f2_driver_ubsan_smoke_20260905.json",
+      "command": "g++ -std=c++17 -O1 -g -fsanitize=undefined -fno-sanitize-recover=undefined -Wall -Wextra -pthread -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/f2_reduce_compare.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f2-review.WmcyRl/f2_compare_ubsan && /tmp/parseatlas-f2-review.WmcyRl/f2_compare_ubsan --smoke --cpu 4 --count 256",
+      "exit_code": 0,
+      "kind": "sanitizer_smoke_not_performance"
+    }
+  ],
+  "root_review": "Complete driver/protocol source read; full-job/repetition/worker instruction paths retained. No arithmetic or fulljob loop eliminated; normalization/folds/materialization included. Cold lifecycle calls reachable.",
+  "whitespace_rework": "Only trailing protocol blankline removed before registration; driver unchanged; protocol final1c2d9a8dbae4db1f8950b7c704d7bcd50c7b50657a679939f0facc7f01083ac1",
+  "smoke_is_performance_evidence": false,
+  "unqualified_gate": "16untimed preflight,1timedcalibration,0warmups,0measurements,exit2; pending variants correctly retained",
+  "ubsan_driver_build_warning": "Only frozen scalar.cpp47 unused ge; no sanitizer diagnostics."
+}

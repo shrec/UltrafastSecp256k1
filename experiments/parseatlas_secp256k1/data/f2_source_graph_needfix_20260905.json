@@ -1,0 +1,29 @@
+{
+  "kind": "NeedFix",
+  "scope": "Source Graph file-evidence freshness/coherence, not F2 arithmetic",
+  "observed_utc": "2026-09-05 17:36:43 UTC",
+  "path": "experiments/parseatlas_secp256k1/F2_25_LENSES.md",
+  "source_graph_returned_source_hash": "8dbef1f78c87c793b648bc6864610d5f9a49000fc5e94192139bbbf20f6fa169",
+  "actual_file_sha256": "66cd74f6c403aa2b03fedf61839128f7b7f0d6220b98efe6c23ec4d78d4cf89d",
+  "contradiction": "File preview was current text (two series,12invocations,384samples), but indexed source_hash named its old premeasurement draft. Repeated file call emitted reuse_previous_result. Live bodygrep returned updated V16/V17 text.",
+  "official_refresh": {
+    "requested_utc": "2026-09-05T17:35:06.523946+00:00",
+    "job_id": "013a858983e04a92a22ff37b9cc21c44",
+    "state": "queued",
+    "status": "degraded",
+    "last_error": "RuntimeError:index_subprocess:identity_slot_owned",
+    "last_success_at": "2026-09-05T17:09:09.167067+00:00",
+    "writer_state": "active"
+  },
+  "impact": "Cannot treat old index hash as the identity of fresh file preview. Frozen measurement source/binary hashes matched independently before timing, raw outputs were retained verbatim and numerical audits passed; no F2 code changed because of this issue.",
+  "handling": "Recorded explicitly; used live exact-target Source Graph body evidence and direct known-path SHA gates, not broad discovery or Task MCP lifecycle changes. No plugin repair attempted; official refresh requested only after sustained measurements completed.",
+  "followup_health": {
+    "refresh_job_state": "failed",
+    "refresh_finished_at": "2026-09-05T17:35:06.552722+00:00",
+    "refresh_error": "RuntimeError:index_subprocess:identity_slot_owned",
+    "health_status": "degraded",
+    "later_last_success_at": "2026-09-05T17:36:45.182509+00:00",
+    "interpretation": "The explicit refresh failed; a newer last-success timestamp alone does not establish file-preview/hash coherence. No claim that all Source Graph queries fail."
+  },
+  "resolution": "PENDING IMPORT"
+}

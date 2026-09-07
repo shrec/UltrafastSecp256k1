@@ -1,0 +1,172 @@
+{
+  "timestamp": "2026-09-06T00:10:02.617Z",
+  "files": [
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/p7_cuda_views.hpp",
+      "sha256": "8304c51c721e3429a15b86a20e67b437f904b3554e7c1eda75b91214c0975753"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/p7_cuda_views.cu",
+      "sha256": "19ce07bf4d249523c0f1946352f6e8cf06f3f3a20f69ad6fcc7790fdba9f2819"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/p7_cuda_views_compare.cpp",
+      "sha256": "81a47b5852a471068077def2cdedde588f11009fcb10884ffbd10b76340f9acb"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_p7_cuda_views.cpp",
+      "sha256": "49943e39a4fbde7ce81c5f77de341c9ddba4c8dbcbe4fc4826d7986e53918e5e"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P7_CUDA_VIEW_PROTOCOL.md",
+      "sha256": "9d7684d6bbfbd8234a7e50d6ee92f9f859076a2d2d89e2f939f252b220fa481a"
+    },
+    {
+      "path": "src/cuda/include/secp256k1.cuh",
+      "sha256": "a9c9b2a0dff28c1d0f7376e6ea8b2ffdeea942cb156cad1c6f5260f8affcd2b9"
+    },
+    {
+      "path": "src/cuda/include/secp256k1_32_hybrid_final.cuh",
+      "sha256": "bbd6a5181d8bcd54aac0275e804a86d3dd7e182d0a9e00c8242252bda07e5b09"
+    },
+    {
+      "path": "src/cpu/src/field.cpp",
+      "sha256": "6a3d2bf87e1619de395d737a198b228810f09486508bed7203d07fccadfd218c"
+    },
+    {
+      "path": "src/cpu/src/field_asm_x64_gas.S",
+      "sha256": "4be633bc21143cd03834bbbde2ffa3280fd6780f93e6925770f365e0a7471f24"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a",
+      "sha256": "238294f2959e1b161428bca9a1baa990b803ee933f7f876b5b6e6cdc9b4fd577"
+    },
+    {
+      "path": "/tmp/parseatlas-p7-review.fExnQw/p7_cuda_views.o",
+      "sha256": "1ad922b23d4d8b967add8e88380536a66afe7d547233c74866b69b2197c0233e"
+    },
+    {
+      "path": "/tmp/parseatlas-p7-review.fExnQw/p7_compare",
+      "sha256": "3192d242f3ca627169c60e85dc6abdb9f07ed66ab1d9fd304cc99667393efc09"
+    },
+    {
+      "path": "/tmp/parseatlas-p7-review.fExnQw/test_p7",
+      "sha256": "57d147deaf384eeac471281bbbabf91e8655122c4ce892b3c6157d146dd43093"
+    }
+  ],
+  "status": "admitted_for_experimental_GPU_event_measurement_only",
+  "gates": {
+    "oracle": {
+      "status": "pass",
+      "scope": "finite_P7_eval_raw_only",
+      "seed": "5041375f56494557",
+      "selected_route": -1,
+      "assertions": 78521,
+      "field_pair_entries": 3088,
+      "field_distinct_pairs": 3081,
+      "raw_pair_entries": 3086,
+      "raw_distinct_pairs": 3079,
+      "random_pairs_per_domain": 2048,
+      "cpu_reference_checks": 10545,
+      "field_outputs": 25928,
+      "raw_outputs": 24688,
+      "eval_calls": 80,
+      "raw_calls": 8,
+      "chain_lanes": 17,
+      "chain_max_steps": 256,
+      "prefixes_per_route": 9,
+      "roundtrip_steps_per_route": 8,
+      "alias_fixed_rhs_steps": 7,
+      "error_rejections": 19,
+      "negative_controls": 111,
+      "input_preservation_checks": 107,
+      "host_output_canary_checks": 88,
+      "field_by_route": [
+        6482,
+        6482,
+        6482,
+        6482
+      ],
+      "raw_by_route": [
+        6172,
+        6172,
+        6172,
+        6172
+      ],
+      "host_canaries_only": true,
+      "device_memory_sanitizer_claim": false,
+      "timing_claim": false,
+      "ct_claim": false,
+      "checksum": "faa743e95a5c964d"
+    },
+    "smoke": {
+      "qualified": true,
+      "regions": 56,
+      "performance_eligible": false
+    },
+    "corpus": {
+      "kind": "readonly_JS_input_identity_audit_not_arithmetic_timing",
+      "seed": 20260905,
+      "count": 32768,
+      "draws": 262144,
+      "rejects": 0,
+      "zero": 0,
+      "one": 0,
+      "a": "c2f96be1403a6a21",
+      "b": "6f56c26cf29ee800"
+    },
+    "comba_structure": {
+      "kind": "mechanical_source_structure_not_runtime",
+      "product_terms": 64,
+      "term_order_equal": true,
+      "unique_pairs": 64,
+      "stored_columns": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "sources": [
+        {
+          "path": "src/cuda/include/secp256k1_32_hybrid_final.cuh",
+          "sha256": "bbd6a5181d8bcd54aac0275e804a86d3dd7e182d0a9e00c8242252bda07e5b09"
+        },
+        {
+          "path": "experiments/parseatlas_secp256k1/probes/p7_cuda_views.cu",
+          "sha256": "19ce07bf4d249523c0f1946352f6e8cf06f3f3a20f69ad6fcc7790fdba9f2819"
+        }
+      ],
+      "errors": []
+    },
+    "source_review": "all four sources read; clone term sequence and both field/raw controls retained; CUDA API events exclude setup and reset state each launch",
+    "source_graph": {
+      "test_generation": "2026-09-06T00:08:24.740204+00:00",
+      "all_four_code_files_indexed_hash_match": true
+    }
+  },
+  "limits": [
+    "compute-sanitizer unavailable: injection lookup failure13; explicit discovered injection path and target-processes all both terminate255 before first instrumentedAPI; no device sanitizer pass",
+    "nvcc12.0.140/g++12 allow-unsupported-compiler, compute89 PTX JIT tobinary120; not native Blackwell compiler",
+    "runtime endian probe folded to constant in PTX; full independent byte tests qualify observed pipeline",
+    "benchmark random_field does not reject1 generically; fixed preregistered seed audited32768pairs zero0/1 and hashes match",
+    "SourceGraph refresh status intermittently identity_slot_owned; fresh matching indexed perfile receipts used",
+    "GPU clocks, thermals, display/background not controlled; no dynamic traffic or SASS measurement"
+  ],
+  "commands": {
+    "cuda": "/usr/bin/nvcc -std=c++17 -O3 -ccbin g++-12 -allow-unsupported-compiler -gencode arch=compute_89,code=compute_89 -Isrc/cuda/include -Iinclude -c experiments/parseatlas_secp256k1/probes/p7_cuda_views.cu -o /tmp/parseatlas-p7-review.fExnQw/p7_cuda_views.o",
+    "host": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p7_cuda_views_compare.cpp /tmp/parseatlas-p7-review.fExnQw/p7_cuda_views.o /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -lcudart -pthread -latomic -o /tmp/parseatlas-p7-review.fExnQw/p7_compare",
+    "oracle": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p7_cuda_views.cpp /tmp/parseatlas-p7-review.fExnQw/p7_cuda_views.o /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -lcudart -pthread -latomic -o /tmp/parseatlas-p7-review.fExnQw/test_p7"
+  }
+}

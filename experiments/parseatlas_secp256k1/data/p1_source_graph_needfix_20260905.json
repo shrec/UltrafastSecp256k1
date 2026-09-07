@@ -1,0 +1,33 @@
+{
+  "schema": "parseatlas.needfix.v1",
+  "date": "2026-09-05",
+  "session": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "window": "window_598fe5564b71e8ad51cdfa48",
+  "repo": "repo_666797171f0141c58bf05f579b2ee16e",
+  "issue": "Source Graph manual refresh identity_slot_owned recurs; bounded live source files remain usable and their hashes were independently verified",
+  "refresh_job": {
+    "schema_id": "aiworkhub.source_graph.refresh_job.v1",
+    "job_id": "88e2ab916028444382198c3e00633f64",
+    "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+    "state": "failed",
+    "requested_at": "2026-09-05T18:42:23.566071+00:00",
+    "started_at": "2026-09-05T18:42:23.569299+00:00",
+    "finished_at": "2026-09-05T18:42:23.584413+00:00",
+    "error": "RuntimeError:index_subprocess:identity_slot_owned"
+  },
+  "last_success_at": "2026-09-05T18:43:58.017884+00:00",
+  "bounded_fallbacks": [
+    {
+      "path": "src/cpu/CMakeLists.txt",
+      "reason": "declared_input_unindexed; exact preview plus configured build output",
+      "hash": "7b02ab062ba6fb906dac3c95a8162a718bb1de0b86a611d49adcd0ccefa546a4"
+    },
+    {
+      "path": "src/cpu/src/field_asm_x64_gas.S",
+      "reason": "declared_input_unindexed (.S not in supported indexed extensions); exact preview/current hash",
+      "hash": "d3f816d3b68c0df1b12af190afa5bbb62d99ec980b94aee438ba0bcb2e0fff9e"
+    }
+  ],
+  "worker_routing": "Worker tools not exposed; owner continues Task MCP suspension, root SG provides exact bounded target evidence; no manager-role worker impersonation",
+  "mutations": "No Task claim/launch/accept, no plugin repair; no broad discovery or stale required bundle used."
+}

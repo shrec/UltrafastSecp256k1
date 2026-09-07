@@ -1,0 +1,163 @@
+{
+  "record_format": "parseatlas.diagnostic_observation.v1",
+  "record_kind": "fixed_input_reference_counterexample",
+  "record_id": "L0_MULHI64_REFERENCE_20260905",
+  "classification": "OBSERVED",
+  "candidate_gate_record": false,
+  "schema_scope": "Standalone diagnostic record; not a research_contract.schema.json candidate or a 25-world experiment.",
+  "measurement_started_at_utc": "2026-09-05T02:09:37Z",
+  "source": {
+    "commit": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+    "commit_verified_by": "git rev-parse HEAD",
+    "header": "src/cpu/include/secp256k1/detail/arith64.hpp",
+    "header_sha256": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d",
+    "pinned_commit_header_sha256": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d",
+    "symbol": "secp256k1::detail::mulhi64",
+    "fallback_lines_at_pinned_commit": [
+      102,
+      111
+    ],
+    "production_modified": false
+  },
+  "probe": {
+    "path": "experiments/parseatlas_secp256k1/probes/mulhi64_reference.cpp",
+    "sha256": "d9965d96b6817aa8ca688feb2d6aecacd50565e34b5a86c4bba121cc5e4bb995",
+    "byte_identical_to_initial_temporary_probe": true,
+    "implementation_source": "Includes the actual repository header; does not duplicate or modify its arithmetic.",
+    "operands_supplied_at_runtime": true,
+    "exit_semantics": "0 means the two-operand probe completed, not that its result matches the oracle; 2 means the operand count is incorrect. Use the separate strict bigint comparison."
+  },
+  "toolchain": {
+    "compiler": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+    "compiler_version_command": "g++ --version",
+    "oracle_interpreter": "Python 3.12.3",
+    "oracle_version_command": "python3 --version",
+    "common_compiler_arguments": [
+      "-std=c++17",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-Isrc/cpu/include"
+    ],
+    "macro_override_scope": "Only each diagnostic translation unit; no repository configuration or source changes.",
+    "sandbox_note": "Default compiler execution failed before startup with bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted. Exact diagnostic compilation and execution succeeded using approved escalation.",
+    "compiler_target": "x86_64-linux-gnu",
+    "compiler_target_command": "g++ -dumpmachine"
+  },
+  "case": {
+    "input_count": 1,
+    "a_hex": "ffffffffffffffff",
+    "b_hex": "ffffffffffffffff",
+    "input_domain": "Both operands are valid uint64_t values; the header documents the upper 64 bits of unsigned 64x64 multiplication without a narrower operand precondition.",
+    "generation": "fixed_counterexample",
+    "random_seed": null,
+    "seed_explanation": "No randomness: the sole deterministic case uses UINT64_MAX for both operands."
+  },
+  "oracle": {
+    "kind": "Python arbitrary-precision unsigned integer arithmetic",
+    "expression": "(a * b) >> 64",
+    "product_hex": "fffffffffffffffe0000000000000001",
+    "expected_high_hex": "fffffffffffffffe",
+    "command": "python3 -c 'a = b = (1 << 64) - 1; print(f\"{(a*b)>>64:016x}\")'",
+    "exit_code": 0,
+    "command_decoded_and_executed": true,
+    "stdout": "fffffffffffffffe\n"
+  },
+  "runs": [
+    {
+      "configuration": "native",
+      "extra_compiler_arguments": [],
+      "compile_command": "g++ -std=c++17 -O2 -Wall -Wextra -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/mulhi64_reference.cpp -o /tmp/parseatlas-mulhi64-durable.1GCiSK/native",
+      "compile_exit_code": 0,
+      "compile_diagnostics": "",
+      "run_command": "/tmp/parseatlas-mulhi64-durable.1GCiSK/native ffffffffffffffff ffffffffffffffff",
+      "run_exit_code": 0,
+      "observed_macros": {
+        "__SIZEOF_INT128__": 16,
+        "SECP256K1_NO_INT128": "undefined",
+        "_MSC_VER": "undefined"
+      },
+      "selected_header_branch": "#elif defined(__SIZEOF_INT128__)",
+      "stdout": "__SIZEOF_INT128__=16 SECP256K1_NO_INT128=undefined _MSC_VER=undefined\na=ffffffffffffffff b=ffffffffffffffff high=fffffffffffffffe\n",
+      "observed_high_hex": "fffffffffffffffe",
+      "matches_bigint": true,
+      "status": "MATCH_ON_FIXED_INPUT",
+      "binary_sha256": "a2b560f3facd409facda05205ada226fad5c6a4bda63f22411d97bb37a6373ce"
+    },
+    {
+      "configuration": "no_int128_define_only",
+      "extra_compiler_arguments": [
+        "-DSECP256K1_NO_INT128"
+      ],
+      "compile_command": "g++ -std=c++17 -O2 -Wall -Wextra -DSECP256K1_NO_INT128 -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/mulhi64_reference.cpp -o /tmp/parseatlas-mulhi64-durable.1GCiSK/no_int128_define_only",
+      "compile_exit_code": 0,
+      "compile_diagnostics": "",
+      "run_command": "/tmp/parseatlas-mulhi64-durable.1GCiSK/no_int128_define_only ffffffffffffffff ffffffffffffffff",
+      "run_exit_code": 0,
+      "observed_macros": {
+        "__SIZEOF_INT128__": 16,
+        "SECP256K1_NO_INT128": "defined",
+        "_MSC_VER": "undefined"
+      },
+      "selected_header_branch": "#elif defined(__SIZEOF_INT128__)",
+      "stdout": "__SIZEOF_INT128__=16 SECP256K1_NO_INT128=defined _MSC_VER=undefined\na=ffffffffffffffff b=ffffffffffffffff high=fffffffffffffffe\n",
+      "observed_high_hex": "fffffffffffffffe",
+      "matches_bigint": true,
+      "status": "MATCH_ON_FIXED_INPUT",
+      "binary_sha256": "d37145b48f317c264a9fbcddaa78b296cfe4d5eeca05a0073ac8590c1fe8eacb"
+    },
+    {
+      "configuration": "fallback",
+      "extra_compiler_arguments": [
+        "-U__SIZEOF_INT128__",
+        "-DSECP256K1_NO_INT128"
+      ],
+      "compile_command": "g++ -std=c++17 -O2 -Wall -Wextra -U__SIZEOF_INT128__ -DSECP256K1_NO_INT128 -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/mulhi64_reference.cpp -o /tmp/parseatlas-mulhi64-durable.1GCiSK/fallback",
+      "compile_exit_code": 0,
+      "compile_diagnostics": "",
+      "run_command": "/tmp/parseatlas-mulhi64-durable.1GCiSK/fallback ffffffffffffffff ffffffffffffffff",
+      "run_exit_code": 0,
+      "observed_macros": {
+        "__SIZEOF_INT128__": "undefined",
+        "SECP256K1_NO_INT128": "defined",
+        "_MSC_VER": "undefined"
+      },
+      "selected_header_branch": "mulhi64 #else: schoolbook 32x32 multiply",
+      "stdout": "__SIZEOF_INT128__=undefined SECP256K1_NO_INT128=defined _MSC_VER=undefined\na=ffffffffffffffff b=ffffffffffffffff high=fffffffefffffffe\n",
+      "observed_high_hex": "fffffffefffffffe",
+      "matches_bigint": false,
+      "expected_minus_observed_hex": "0000000100000000",
+      "status": "MISMATCH_ON_FIXED_INPUT",
+      "binary_sha256": "65cd6827891b4ce1c0327852a2299a4e54d4e2d1ef44397abb51ffeac911134b"
+    }
+  ],
+  "strict_bigint_comparison": {
+    "source": "L0_REFERENCE_CHECK.md reproduction Python block",
+    "binary_directory_used": "/tmp/parseatlas-mulhi64-durable.1GCiSK",
+    "exit_code": 1,
+    "stdout": "native: expected=fffffffffffffffe actual=fffffffffffffffe matches=True\nno_int128_define_only: expected=fffffffffffffffe actual=fffffffffffffffe matches=True\nfallback: expected=fffffffffffffffe actual=fffffffefffffffe matches=False\n",
+    "exit_semantics": "A mismatch produces exit 1. The known failure is not converted into a passing arithmetic test."
+  },
+  "explanation": {
+    "kind": "Exact carry derivation for this counterexample, not a performance measurement or full-domain correctness proof.",
+    "limb32_hex": "ffffffff",
+    "exact_mid_hex": "1fffffffd00000000",
+    "exact_mid_bits": 65,
+    "wrapped_uint64_mid_hex": "fffffffd00000000",
+    "lost_high_word_contribution_hex": "0000000100000000",
+    "derivation": "With M=2^32-1, exact mid=2*M*M+floor(M*M/2^32)=2^65-3*2^32. uint64_t storage removes 2^64; shifting this wrapped value right by 32 loses a contribution of 2^32 to the returned high word."
+  },
+  "conclusions": {
+    "existing_fallback_counterexample": "OBSERVED",
+    "native_control": "The actual native probe selected __int128 and matched on the one fixed input; not a full-domain proof.",
+    "define_only_control": "SECP256K1_NO_INT128 alone did not select mulhi64 fallback when __SIZEOF_INT128__ remained defined.",
+    "deployment_impact": "NOT_ESTABLISHED",
+    "deployment_scope": "No build evidence collected for production, MSVC, or any embedded target. Forced preprocessing on GCC is not evidence that those deployments select this branch.",
+    "reference_policy": "The divergent fallback cannot serve as the sole correctness oracle. Retain frozen-reference byte comparison and an independent bigint oracle; record disagreement explicitly instead of requiring reproduction of a known incorrect result.",
+    "novelty_claim": false,
+    "security_proof_claim": false,
+    "constant_time_claim": false,
+    "performance_claim": false,
+    "fix_implemented": false
+  }
+}

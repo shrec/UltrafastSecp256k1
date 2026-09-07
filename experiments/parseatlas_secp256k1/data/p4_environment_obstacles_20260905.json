@@ -1,0 +1,52 @@
+{
+  "schema": "parseatlas_p4_environment_obstacles_v1",
+  "recorded_utc": "2026-09-05 21:24:57 UTC",
+  "items": [
+    {
+      "status": "NeedFix",
+      "component": "worker_role_source_graph_tool_exposure",
+      "evidence": "Each of the four P4 workers reports fresh discovery has no worker Source Graph tools; manager tool is exposed. Exact verified manager handoffs used. No manager-role impersonation or broad discovery by workers.",
+      "scope": "Owner explicitly suspended Task MCP; bounded local manager/worker research only. Not a canonical task acceptance."
+    },
+    {
+      "status": "recorded_capability_absence",
+      "component": "repository_current_project_context_tools",
+      "evidence": "Active tool metadata search exposes manager bootstrap/Task health, but no repository_current or project-context acknowledgement interface. Bootstrap repo/manager_route and Task health repo_id agree; no injected project-context receipt available to acknowledge.",
+      "authority": "repo_666797171f0141c58bf05f579b2ee16e / manager session01a06be6-2904-7c62-9e7d-1245c34a5312"
+    },
+    {
+      "status": "prior_measured_unavailability",
+      "component": "PMU",
+      "source": "p3_environment_obstacles_20260905.json",
+      "evidence": "Prior same-session perf stat cycles,instructions denied exit255; perf_event_paranoid4. No redundant PMU attempt and no system-policy changes in P4."
+    },
+    {
+      "status": "resolved_query_scope",
+      "component": "Source Graph orientation",
+      "evidence": "Initial combined-symbol directory focus returned zero; exact sum_fe64 header focus/body returned indexed fresh source, driver slice/bodygrep returned indexed evidence. No filesystem fallback for the zero multi-symbol query."
+    },
+    {
+      "status": "resolved",
+      "component": "new_source_index_lag",
+      "evidence": {
+        "status": "resolved",
+        "refresh_job_id": "7b98406ec1ce423ab39cb038ffb56531",
+        "header_after_refresh": "body sum_fe64_wide no_match at index21:25:54.844502 while frozen handoff exists",
+        "fallback": "Exact handed-off kernel+smoke bounded reads only after refresh requested and no_match; no broad discovery. Re-query before final review.",
+        "first_indexed_generation": {
+          "index_finished_at": "2026-09-05T21:28:34.321650+00:00",
+          "indexed_hash": "19223aa6ea8e9a2cc66dd20729ed051387d5c644a16053d4a4750b9d8d1ef2d6",
+          "disk_hash": "e3fa770e084afe647e9214ca309dbc6caf52cf2684986b43c3ed48141d7da75b",
+          "freshness": "stale",
+          "action": "Final source gate paused; refresh requested. No stale body accepted."
+        },
+        "resolution": "Final header body fresh (e3fa770e...) at index21:30:59.884422; final driver and test file receipts match exact frozen hashes, indexed21:31:01.201872/21:31:01.524473. Two file receipt pages each consumed; complete source read separately after gates."
+      }
+    },
+    {
+      "status": "resolved",
+      "component": "new_duration_diagnostic_indexing",
+      "evidence": "Manager file fallback explicitly declared_input_unindexed with complete hash64864414f76541d5804af821f8e685f227f7efe126d984ed3f4e274f39159753. Final file receipt indexed_at2026-09-05T21:40:21.256620+00:00,statusok,matchinghash; two fresh receipt pages fully consumed. An earlier delayed-page assembly attempt had missing content; discarded and full fresh receipt re-fetched, no incomplete receipt accepted."
+    }
+  ]
+}

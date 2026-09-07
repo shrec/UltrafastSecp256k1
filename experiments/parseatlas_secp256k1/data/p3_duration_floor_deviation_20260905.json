@@ -1,0 +1,138 @@
+{
+  "schema": "parseatlas_p3_duration_floor_deviation_v1",
+  "status": "retained_disclosed_measurement_limitation",
+  "source": "data/p3_run2_20260905.json",
+  "minimum_region_ms": 200,
+  "evidence": {
+    "shorts": [
+      {
+        "phase": "warmup",
+        "round": 0,
+        "cell": 2,
+        "N": 1,
+        "route": "fe52_e2e_full16",
+        "elapsed_ms": 187.318547,
+        "jobs": 14453473
+      },
+      {
+        "phase": "measurement",
+        "round": 0,
+        "cell": 2,
+        "N": 1,
+        "route": "fe52_e2e_full16",
+        "elapsed_ms": 195.343627,
+        "jobs": 14453473
+      },
+      {
+        "phase": "measurement",
+        "round": 1,
+        "cell": 2,
+        "N": 1,
+        "route": "fe52_e2e_full16",
+        "elapsed_ms": 182.181154,
+        "jobs": 14453473
+      },
+      {
+        "phase": "measurement",
+        "round": 2,
+        "cell": 2,
+        "N": 1,
+        "route": "fe52_e2e_full16",
+        "elapsed_ms": 178.760513,
+        "jobs": 14453473
+      },
+      {
+        "phase": "measurement",
+        "round": 3,
+        "cell": 2,
+        "N": 1,
+        "route": "fe52_e2e_full16",
+        "elapsed_ms": 173.934008,
+        "jobs": 14453473
+      },
+      {
+        "phase": "measurement",
+        "round": 4,
+        "cell": 2,
+        "N": 1,
+        "route": "fe52_e2e_full16",
+        "elapsed_ms": 186.318661,
+        "jobs": 14453473
+      },
+      {
+        "phase": "measurement",
+        "round": 5,
+        "cell": 2,
+        "N": 1,
+        "route": "fe52_e2e_full16",
+        "elapsed_ms": 188.767236,
+        "jobs": 14453473
+      },
+      {
+        "phase": "measurement",
+        "round": 6,
+        "cell": 2,
+        "N": 1,
+        "route": "fe52_e2e_full16",
+        "elapsed_ms": 188.921643,
+        "jobs": 14453473
+      },
+      {
+        "phase": "measurement",
+        "round": 7,
+        "cell": 2,
+        "N": 1,
+        "route": "fe52_e2e_full16",
+        "elapsed_ms": 189.365296,
+        "jobs": 14453473
+      }
+    ],
+    "calibration": [
+      {
+        "cell": 2,
+        "attempt": 0,
+        "jobs": 1,
+        "ms": 0.000489,
+        "streak": 0
+      },
+      {
+        "cell": 2,
+        "attempt": 1,
+        "jobs": 613497,
+        "ms": 12.733902,
+        "streak": 0
+      },
+      {
+        "cell": 2,
+        "attempt": 2,
+        "jobs": 14453473,
+        "ms": 279.320339,
+        "streak": 1
+      },
+      {
+        "cell": 2,
+        "attempt": 3,
+        "jobs": 14453473,
+        "ms": 283.242527,
+        "streak": 2
+      }
+    ],
+    "warmup": [
+      {
+        "cell": 2,
+        "round": 0,
+        "jobs": 14453473,
+        "ms": 187.318547
+      },
+      {
+        "cell": 2,
+        "round": 1,
+        "jobs": 14453473,
+        "ms": 216.020731
+      }
+    ]
+  },
+  "interpretation": "Same-count calibration qualified; elapsed duration later shortened. Process completion and calibrated qualification do not imply every later region meets the target. Only N=1 full16 is affected; all N>=16 warmup/measurement regions meet the target.",
+  "action": "No selective rerun, deletion, or rewriting of raw evidence. Negative N=1 comparison retains all records with explicit duration-floor caveat. Future measurement protocol should predeclare later-phase qualification handling.",
+  "production_change": false
+}

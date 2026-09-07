@@ -1,0 +1,52 @@
+{
+  "schema": "parseatlas_p5_duration_validation_v1",
+  "status": "pass",
+  "performance_evidence": false,
+  "driver_sha256": "9adcabba6473c6d865a62d8980345bf790840e05ec318bc5832701f5f2b9867d",
+  "source_sha256": "a9b138bd0abc4cdc07dff2715ed5fe1e0b0da404cf05eac4b3f1ab775b3202a9",
+  "cases_each": 120,
+  "assertions_each": 6550,
+  "expected_failed_main_exit_code": 2,
+  "expected_failed_main_status": "duration_unqualified",
+  "retained_failure_regions_each": 41,
+  "retained_failure_probes": 13,
+  "configs": {
+    "duration_gcc": {
+      "compile_command": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_product_duration.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_gcc",
+      "compile": {
+        "chunk_id": "91cc2e",
+        "wall_time_seconds": 7.24e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_gcc",
+      "run": {
+        "chunk_id": "380a1f",
+        "wall_time_seconds": 0.000004021,
+        "exit_code": 0,
+        "original_token_count": 99,
+        "output": "later-phase region failed duration: 40 stop=extension_limit\nSYNTHETIC duration diagnostic: all clock values below are fabricated, NOT performance.\nP5 duration_unqualified cells=20 raw_regions=41 output=/tmp/parseatlas-p5-duration.Cqb247/SYNTHETIC_duration_failure.json\nPASS synthetic_duration_cases=120 assertions=6550 artifact=/tmp/parseatlas-p5-duration.Cqb247/SYNTHETIC_duration_failure.json\n"
+      }
+    },
+    "duration_clang": {
+      "compile_command": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_product_duration.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_clang",
+      "compile": {
+        "chunk_id": "4b7267",
+        "wall_time_seconds": 6.75e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_duration_clang",
+      "run": {
+        "chunk_id": "cbf135",
+        "wall_time_seconds": 0.000003011,
+        "exit_code": 0,
+        "original_token_count": 99,
+        "output": "SYNTHETIC duration diagnostic: all clock values below are fabricated, NOT performance.\nP5 duration_unqualified cells=20 raw_regions=41 output=/tmp/parseatlas-p5-duration.Lgpfkn/SYNTHETIC_duration_failure.json\nlater-phase region failed duration: 40 stop=extension_limit\nPASS synthetic_duration_cases=120 assertions=6550 artifact=/tmp/parseatlas-p5-duration.Lgpfkn/SYNTHETIC_duration_failure.json\n"
+      }
+    }
+  },
+  "limits": "Fake CLOCK_MONOTONIC interposition only in separate synthetic diagnostic, never performance binary. Initial over-cap rejection and invalid clock tested; within-region work-cap/capped-final-batch path statically reviewed only."
+}

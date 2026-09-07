@@ -1,0 +1,441 @@
+{
+  "same_corpora": true,
+  "runs": [
+    {
+      "status": "complete",
+      "phases": {
+        "calibration": 60,
+        "warmup": 40,
+        "measurement": 160
+      },
+      "short_measured": [],
+      "power": [
+        {
+          "cpu": 4,
+          "governor": "powersave",
+          "current_khz": "4099904",
+          "no_turbo": "0"
+        },
+        {
+          "cpu": 4,
+          "governor": "powersave",
+          "current_khz": "4600000",
+          "no_turbo": "0"
+        }
+      ],
+      "measured_ms_range": [
+        206.897479,
+        345.234326
+      ]
+    },
+    {
+      "status": "complete",
+      "phases": {
+        "calibration": 60,
+        "warmup": 40,
+        "measurement": 160
+      },
+      "short_measured": [],
+      "power": [
+        {
+          "cpu": 4,
+          "governor": "powersave",
+          "current_khz": "1122835",
+          "no_turbo": "0"
+        },
+        {
+          "cpu": 4,
+          "governor": "powersave",
+          "current_khz": "4600046",
+          "no_turbo": "0"
+        }
+      ],
+      "measured_ms_range": [
+        204.79403,
+        343.413639
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "type": "field_fp",
+      "op": "add",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 9.299503249991057,
+        "median": 9.543638407331095,
+        "max": 9.939829223143693,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 9.16864570501712,
+        "median": 9.46833368457178,
+        "max": 10.46123515011692,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "field_fp",
+      "op": "add",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 5.682883746413074,
+        "median": 5.771925653554085,
+        "max": 6.015392405003661,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 5.5400687981037695,
+        "median": 5.815436992786739,
+        "max": 6.416174345215832,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "field_fp",
+      "op": "sub",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 13.06315866897038,
+        "median": 13.402228916705205,
+        "max": 14.27274412902793,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 13.020174264450958,
+        "median": 13.744285336493004,
+        "max": 14.326570133241932,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "field_fp",
+      "op": "sub",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 5.8483273738905,
+        "median": 5.91563609027938,
+        "max": 6.091765743261985,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 5.623457556804959,
+        "median": 5.82302875114635,
+        "max": 6.283171132815963,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "field_fp",
+      "op": "mul",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 22.40682859085197,
+        "median": 23.153941561308287,
+        "max": 25.100302312873765,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 22.082910443397488,
+        "median": 22.80239371366279,
+        "max": 23.652659090149694,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "field_fp",
+      "op": "mul",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 11.59398280661857,
+        "median": 11.764741122541002,
+        "max": 12.387811015639004,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 11.333953092899813,
+        "median": 11.81668905498918,
+        "max": 12.485230251839996,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "field_fp",
+      "op": "square",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 20.26721278647265,
+        "median": 20.76729308176067,
+        "max": 23.16814846649086,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 20.08968704625878,
+        "median": 20.752341589974435,
+        "max": 21.71327698428914,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "field_fp",
+      "op": "square",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 10.786721201621338,
+        "median": 11.056023858361662,
+        "max": 12.16463483100157,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 10.816234110443576,
+        "median": 11.270838103757866,
+        "max": 11.732486356585838,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "field_fp",
+      "op": "inverse",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 904.7789027622767,
+        "median": 932.9195417131696,
+        "max": 962.8983712332589,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 878.7360551727485,
+        "median": 918.1590962854232,
+        "max": 960.8627687063276,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "field_fp",
+      "op": "inverse",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 891.7183004239711,
+        "median": 896.6542626357659,
+        "max": 963.3807105087652,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 873.4742799322289,
+        "median": 900.4573165709714,
+        "max": 940.2392078077937,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "add",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 10.835814369715761,
+        "median": 11.12764606137809,
+        "max": 11.939292406010384,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 10.608190655481046,
+        "median": 11.081350578793504,
+        "max": 12.182144211718576,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "add",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 7.587814305841126,
+        "median": 7.814263519016636,
+        "max": 8.491465090201103,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 7.524235136263168,
+        "median": 8.087906423415163,
+        "max": 8.395642209250376,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "sub",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 9.27910736274782,
+        "median": 9.773647618395751,
+        "max": 10.29652132145391,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 9.615284034876847,
+        "median": 10.299449506981647,
+        "max": 10.88128673604717,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "sub",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 5.7409991704309435,
+        "median": 5.826897509298979,
+        "max": 6.378492260890666,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 5.698901987772106,
+        "median": 5.878276356624358,
+        "max": 6.06395200953218,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "mul",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 30.478798715027477,
+        "median": 31.55043410984401,
+        "max": 32.59910239803681,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 30.591466185944906,
+        "median": 31.929181920634626,
+        "max": 32.906324746371446,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "mul",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 23.86295982225407,
+        "median": 24.77432395438471,
+        "max": 26.34527353140024,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 23.449801996809157,
+        "median": 24.725362451884116,
+        "max": 25.823267590787076,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "square",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 31.223509715512883,
+        "median": 32.34282136631002,
+        "max": 34.0668570511285,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 31.265628823097625,
+        "median": 32.036894863381605,
+        "max": 34.28811102657817,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "square",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 23.27545876936479,
+        "median": 23.836876522411,
+        "max": 24.83036084608598,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 23.0114802568918,
+        "median": 23.842867766294155,
+        "max": 26.208571572048882,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "inverse",
+      "mode": "chain1",
+      "run1": {
+        "count": 8,
+        "min": 881.326279609653,
+        "median": 926.9321532334297,
+        "max": 963.1445382006227,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 869.8557882426697,
+        "median": 928.9537398726852,
+        "max": 1008.733139226466,
+        "short_regions": 0
+      }
+    },
+    {
+      "type": "scalar_n",
+      "op": "inverse",
+      "mode": "ilp4",
+      "run1": {
+        "count": 8,
+        "min": 879.0707154791039,
+        "median": 912.678021166698,
+        "max": 953.8278514448418,
+        "short_regions": 0
+      },
+      "run2": {
+        "count": 8,
+        "min": 886.6587046030405,
+        "median": 924.2293783651817,
+        "max": 978.9647777660473,
+        "short_regions": 0
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "schema": "parseatlas.p6.measurement_environment_note.v1",
+  "classification": "retained_measurement_limitation_no_selective_rerun",
+  "full_series1_start_utc": "2026-09-05T23:14:38.933607618Z",
+  "known": "All owned builds, arithmetic tests, smokes, synthetic tests and substantive disassembly collection finished before full timing; root JSON replay and byte/source freeze preceded both series.",
+  "uncertainty": "Codegen worker's final lightweight jq/sha256sum/xxd artifact check has no retained exact UTC timestamp. Worker cannot establish completion before23:14:38; receipt-of-pause ordering is not wall-clock proof. Brief metadata-check overlap cannot be excluded.",
+  "scope": "No competing owned arithmetic benchmark, compiler or test was launched. Report finalization and MCP/background services remain potential small noise; frequency/thermals/SMT already uncontrolled. Retain every raw sample and do not claim isolated causal cycles or robust1percent advantage.",
+  "report_rework": "Only final prose sentence corrected chronology: rawJSON independently replayed before timing, prose reviewed after both series. No arithmetic/source/JSON/binary changes.",
+  "raw_results_changed": false
+}

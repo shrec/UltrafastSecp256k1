@@ -1,0 +1,1543 @@
+
+/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000009480 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)>:
+    9480:	push   %rbp
+    9481:	mov    %rsp,%rbp
+    9484:	push   %r15
+    9486:	push   %r14
+    9488:	push   %r13
+    948a:	push   %r12
+    948c:	push   %rbx
+    948d:	and    $0xffffffffffffffe0,%rsp
+    9491:	sub    $0xa0,%rsp
+    9498:	mov    %rdi,0x20(%rsp)
+    949d:	mov    %rdx,0x38(%rsp)
+    94a2:	mov    %rcx,0x48(%rsp)
+    94a7:	mov    %fs:0x28,%rax
+    94b0:	mov    %rax,0x98(%rsp)
+    94b8:	xor    %eax,%eax
+    94ba:	mov    %rsi,0x50(%rsp)
+    94bf:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    94c4:	mov    0x48(%rsp),%rdx
+    94c9:	mov    0x50(%rsp),%rdi
+    94ce:	mov    %rax,0x18(%rsp)
+    94d3:	test   %rdx,%rdx
+    94d6:	mov    (%rdi),%r12
+    94d9:	mov    0x8(%rdi),%rbx
+    94dd:	mov    0x10(%rdi),%r13
+    94e1:	mov    0x18(%rdi),%r14
+    94e5:	vmovdqu 0x20(%rdi),%ymm0
+    94ea:	mov    0x40(%rdi),%rsi
+    94ee:	je     963b <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x1bb>
+    94f4:	cmpq   $0x0,0x38(%rsp)
+    94fa:	je     963b <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x1bb>
+    9500:	mov    0x28(%rdi),%rax
+    9504:	mov    0x20(%rdi),%r15
+    9508:	mov    %rdi,0x10(%rsp)
+    950d:	mov    %rbx,%r10
+    9510:	mov    %rdx,0x28(%rsp)
+    9515:	mov    %rax,0x48(%rsp)
+    951a:	mov    0x30(%rdi),%rax
+    951e:	mov    %rax,0x40(%rsp)
+    9523:	mov    0x38(%rdi),%rax
+    9527:	mov    %rax,0x50(%rsp)
+    952c:	xor    %eax,%eax
+    952e:	xchg   %ax,%ax
+    9530:	mov    %rax,0x30(%rsp)
+    9535:	xor    %r11d,%r11d
+    9538:	nopl   0x0(%rax,%rax,1)
+    9540:	mov    %r15,%r8
+    9543:	vpsllq $0xd,%ymm0,%ymm2
+    9548:	xor    %r9d,%r9d
+    954b:	movzbl %sil,%esi
+    954f:	add    %r12,%r8
+    9552:	vpsrlq $0x33,%ymm0,%ymm0
+    9557:	adc    $0x0,%r9
+    955b:	add    %rsi,%r8
+    955e:	vpor   %ymm0,%ymm2,%ymm2
+    9562:	adc    $0x0,%r9
+    9566:	xor    %ebx,%ebx
+    9568:	vmovq  %r8,%xmm4
+    956d:	mov    %r8,%r12
+    9570:	mov    %r9,%rcx
+    9573:	add    0x48(%rsp),%rcx
+    9578:	adc    $0x0,%rbx
+    957c:	add    %r10,%rcx
+    957f:	adc    $0x0,%rbx
+    9583:	xor    %edx,%edx
+    9585:	vpinsrq $0x1,%rcx,%xmm4,%xmm0
+    958b:	mov    %rcx,%r10
+    958e:	mov    %rbx,%rax
+    9591:	add    0x40(%rsp),%rax
+    9596:	adc    $0x0,%rdx
+    959a:	add    %r13,%rax
+    959d:	adc    $0x0,%rdx
+    95a1:	xor    %edi,%edi
+    95a3:	vmovq  %rax,%xmm3
+    95a8:	mov    %rax,%r13
+    95ab:	mov    %rdx,%rsi
+    95ae:	add    0x50(%rsp),%rsi
+    95b3:	rorx   $0x33,%r15,%rax
+    95b9:	mov    %rax,%r15
+    95bc:	adc    $0x0,%rdi
+    95c0:	add    %r14,%rsi
+    95c3:	rorx   $0x33,0x48(%rsp),%rax
+    95cb:	adc    $0x0,%rdi
+    95cf:	xor    %rcx,%rax
+    95d2:	mov    %rsi,%r14
+    95d5:	xor    %r8,%r15
+    95d8:	vpinsrq $0x1,%rsi,%xmm3,%xmm1
+    95de:	mov    %rax,0x48(%rsp)
+    95e3:	add    $0x1,%r11
+    95e7:	mov    %rdi,%rsi
+    95ea:	rorx   $0x33,0x40(%rsp),%rax
+    95f2:	xor    %r13,%rax
+    95f5:	vinserti128 $0x1,%xmm1,%ymm0,%ymm0
+    95fb:	mov    %rax,0x40(%rsp)
+    9600:	rorx   $0x33,0x50(%rsp),%rax
+    9608:	xor    %r14,%rax
+    960b:	cmp    %r11,0x38(%rsp)
+    9610:	mov    %rax,0x50(%rsp)
+    9615:	vpxor  %ymm0,%ymm2,%ymm0
+    9619:	jne    9540 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0xc0>
+    961f:	mov    0x30(%rsp),%rax
+    9624:	add    $0x1,%rax
+    9628:	cmp    %rax,0x28(%rsp)
+    962d:	jne    9530 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0xb0>
+    9633:	mov    0x10(%rsp),%rdi
+    9638:	mov    %rcx,%rbx
+    963b:	mov    %r12,(%rdi)
+    963e:	mov    %rbx,0x8(%rdi)
+    9642:	mov    %r13,0x10(%rdi)
+    9646:	mov    %r14,0x18(%rdi)
+    964a:	mov    %rsi,0x40(%rdi)
+    964e:	vmovdqu %ymm0,0x20(%rdi)
+    9653:	lea    0x70(%rsp),%r12
+    9658:	vzeroupper
+    965b:	lea    0x80(%rsp),%r14
+    9663:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    9668:	xor    %edx,%edx
+    966a:	mov    %r12,%rdi
+    966d:	lea    0x68(%rsp),%rsi
+    9672:	mov    0x18(%rsp),%r15
+    9677:	mov    %rax,%r13
+    967a:	mov    %rax,%rbx
+    967d:	mov    %r14,0x70(%rsp)
+    9682:	movq   $0x18,0x68(%rsp)
+    968b:	call   2610 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    9690:	mov    0x68(%rsp),%rdx
+    9695:	sub    %r15,%rbx
+    9698:	vmovdqa 0xa8b0(%rip),%xmm1        # 13f50 <(anonymous namespace)::variants+0x150>
+    96a0:	mov    %rax,0x70(%rsp)
+    96a5:	vmovq  %r15,%xmm5
+    96aa:	test   %rbx,%rbx
+    96ad:	movabs $0x656d697420646573,%rdi
+    96b7:	mov    %rdx,0x80(%rsp)
+    96bf:	vpinsrq $0x1,%r13,%xmm5,%xmm0
+    96c5:	vmovdqu %xmm1,(%rax)
+    96c9:	mov    %rdi,0x10(%rax)
+    96cd:	mov    0x70(%rsp),%rax
+    96d2:	mov    %rdx,0x78(%rsp)
+    96d7:	movb   $0x0,(%rax,%rdx,1)
+    96db:	jle    2956 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long) [clone .cold]>
+    96e1:	mov    0x70(%rsp),%rdi
+    96e6:	cmp    %r14,%rdi
+    96e9:	je     9708 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x288>
+    96eb:	mov    0x80(%rsp),%rax
+    96f3:	vmovdqa %xmm0,0x50(%rsp)
+    96f9:	lea    0x1(%rax),%rsi
+    96fd:	call   24a0 <operator delete(void*, unsigned long)@plt>
+    9702:	vmovdqa 0x50(%rsp),%xmm0
+    9708:	mov    0x20(%rsp),%rax
+    970d:	mov    %rbx,0x10(%rax)
+    9711:	vmovdqu %xmm0,(%rax)
+    9715:	mov    0x98(%rsp),%rax
+    971d:	sub    %fs:0x28,%rax
+    9726:	jne    973c <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x2bc>
+    9728:	mov    0x20(%rsp),%rax
+    972d:	lea    -0x28(%rbp),%rsp
+    9731:	pop    %rbx
+    9732:	pop    %r12
+    9734:	pop    %r13
+    9736:	pop    %r14
+    9738:	pop    %r15
+    973a:	pop    %rbp
+    973b:	ret
+    973c:	call   24b0 <__stack_chk_fail@plt>
+
+
+/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000009750 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)>:
+    9750:	push   %rbp
+    9751:	mov    %rsp,%rbp
+    9754:	push   %r15
+    9756:	push   %r14
+    9758:	push   %r13
+    975a:	push   %r12
+    975c:	push   %rbx
+    975d:	and    $0xffffffffffffffe0,%rsp
+    9761:	sub    $0xa0,%rsp
+    9768:	mov    %rdi,0x20(%rsp)
+    976d:	mov    %rdx,0x38(%rsp)
+    9772:	mov    %rcx,0x48(%rsp)
+    9777:	mov    %fs:0x28,%rax
+    9780:	mov    %rax,0x98(%rsp)
+    9788:	xor    %eax,%eax
+    978a:	mov    %rsi,0x50(%rsp)
+    978f:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    9794:	mov    0x48(%rsp),%rdx
+    9799:	mov    0x50(%rsp),%rdi
+    979e:	mov    %rax,0x18(%rsp)
+    97a3:	test   %rdx,%rdx
+    97a6:	mov    (%rdi),%r12
+    97a9:	mov    0x8(%rdi),%rbx
+    97ad:	mov    0x10(%rdi),%r13
+    97b1:	mov    0x18(%rdi),%r14
+    97b5:	vmovdqu 0x20(%rdi),%ymm0
+    97ba:	mov    0x40(%rdi),%rsi
+    97be:	je     990b <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x1bb>
+    97c4:	cmpq   $0x0,0x38(%rsp)
+    97ca:	je     990b <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x1bb>
+    97d0:	mov    0x28(%rdi),%rax
+    97d4:	mov    0x20(%rdi),%r15
+    97d8:	mov    %rdi,0x10(%rsp)
+    97dd:	mov    %rbx,%r10
+    97e0:	mov    %rdx,0x28(%rsp)
+    97e5:	mov    %rax,0x40(%rsp)
+    97ea:	mov    0x30(%rdi),%rax
+    97ee:	mov    %rax,0x48(%rsp)
+    97f3:	mov    0x38(%rdi),%rax
+    97f7:	mov    %rax,0x50(%rsp)
+    97fc:	xor    %eax,%eax
+    97fe:	xchg   %ax,%ax
+    9800:	mov    %rax,0x30(%rsp)
+    9805:	xor    %r11d,%r11d
+    9808:	nopl   0x0(%rax,%rax,1)
+    9810:	mov    %r15,%r8
+    9813:	vpsllq $0xd,%ymm0,%ymm2
+    9818:	xor    %r9d,%r9d
+    981b:	movzbl %sil,%esi
+    981f:	add    %r12,%r8
+    9822:	vpsrlq $0x33,%ymm0,%ymm0
+    9827:	adc    $0x0,%r9
+    982b:	add    %rsi,%r8
+    982e:	vpor   %ymm0,%ymm2,%ymm2
+    9832:	adc    $0x0,%r9
+    9836:	xor    %ebx,%ebx
+    9838:	vmovq  %r8,%xmm4
+    983d:	mov    %r8,%r12
+    9840:	mov    %r9,%rcx
+    9843:	add    0x40(%rsp),%rcx
+    9848:	adc    $0x0,%rbx
+    984c:	add    %r10,%rcx
+    984f:	adc    $0x0,%rbx
+    9853:	xor    %edx,%edx
+    9855:	vpinsrq $0x1,%rcx,%xmm4,%xmm0
+    985b:	mov    %rcx,%r10
+    985e:	mov    %rbx,%rax
+    9861:	add    0x48(%rsp),%rax
+    9866:	adc    $0x0,%rdx
+    986a:	add    %r13,%rax
+    986d:	adc    $0x0,%rdx
+    9871:	xor    %edi,%edi
+    9873:	vmovq  %rax,%xmm3
+    9878:	mov    %rax,%r13
+    987b:	mov    %rdx,%rsi
+    987e:	add    0x50(%rsp),%rsi
+    9883:	rorx   $0x33,%r15,%rax
+    9889:	mov    %rax,%r15
+    988c:	adc    $0x0,%rdi
+    9890:	add    %r14,%rsi
+    9893:	rorx   $0x33,0x40(%rsp),%rax
+    989b:	adc    $0x0,%rdi
+    989f:	xor    %rcx,%rax
+    98a2:	mov    %rsi,%r14
+    98a5:	xor    %r8,%r15
+    98a8:	vpinsrq $0x1,%rsi,%xmm3,%xmm1
+    98ae:	mov    %rax,0x40(%rsp)
+    98b3:	add    $0x1,%r11
+    98b7:	mov    %rdi,%rsi
+    98ba:	rorx   $0x33,0x48(%rsp),%rax
+    98c2:	xor    %r13,%rax
+    98c5:	vinserti128 $0x1,%xmm1,%ymm0,%ymm0
+    98cb:	mov    %rax,0x48(%rsp)
+    98d0:	rorx   $0x33,0x50(%rsp),%rax
+    98d8:	xor    %r14,%rax
+    98db:	cmp    %r11,0x38(%rsp)
+    98e0:	mov    %rax,0x50(%rsp)
+    98e5:	vpxor  %ymm0,%ymm2,%ymm0
+    98e9:	jne    9810 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0xc0>
+    98ef:	mov    0x30(%rsp),%rax
+    98f4:	add    $0x1,%rax
+    98f8:	cmp    %rax,0x28(%rsp)
+    98fd:	jne    9800 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0xb0>
+    9903:	mov    0x10(%rsp),%rdi
+    9908:	mov    %rcx,%rbx
+    990b:	mov    %r12,(%rdi)
+    990e:	mov    %rbx,0x8(%rdi)
+    9912:	mov    %r13,0x10(%rdi)
+    9916:	mov    %r14,0x18(%rdi)
+    991a:	mov    %rsi,0x40(%rdi)
+    991e:	vmovdqu %ymm0,0x20(%rdi)
+    9923:	lea    0x70(%rsp),%r12
+    9928:	vzeroupper
+    992b:	lea    0x80(%rsp),%r14
+    9933:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    9938:	xor    %edx,%edx
+    993a:	mov    %r12,%rdi
+    993d:	lea    0x68(%rsp),%rsi
+    9942:	mov    0x18(%rsp),%r15
+    9947:	mov    %rax,%r13
+    994a:	mov    %rax,%rbx
+    994d:	mov    %r14,0x70(%rsp)
+    9952:	movq   $0x18,0x68(%rsp)
+    995b:	call   2610 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    9960:	mov    0x68(%rsp),%rdx
+    9965:	sub    %r15,%rbx
+    9968:	vmovdqa 0xa5e0(%rip),%xmm1        # 13f50 <(anonymous namespace)::variants+0x150>
+    9970:	mov    %rax,0x70(%rsp)
+    9975:	vmovq  %r15,%xmm5
+    997a:	test   %rbx,%rbx
+    997d:	movabs $0x656d697420646573,%rdi
+    9987:	mov    %rdx,0x80(%rsp)
+    998f:	vpinsrq $0x1,%r13,%xmm5,%xmm0
+    9995:	vmovdqu %xmm1,(%rax)
+    9999:	mov    %rdi,0x10(%rax)
+    999d:	mov    0x70(%rsp),%rax
+    99a2:	mov    %rdx,0x78(%rsp)
+    99a7:	movb   $0x0,(%rax,%rdx,1)
+    99ab:	jle    29e2 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long) [clone .cold]>
+    99b1:	mov    0x70(%rsp),%rdi
+    99b6:	cmp    %r14,%rdi
+    99b9:	je     99d8 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x288>
+    99bb:	mov    0x80(%rsp),%rax
+    99c3:	vmovdqa %xmm0,0x50(%rsp)
+    99c9:	lea    0x1(%rax),%rsi
+    99cd:	call   24a0 <operator delete(void*, unsigned long)@plt>
+    99d2:	vmovdqa 0x50(%rsp),%xmm0
+    99d8:	mov    0x20(%rsp),%rax
+    99dd:	mov    %rbx,0x10(%rax)
+    99e1:	vmovdqu %xmm0,(%rax)
+    99e5:	mov    0x98(%rsp),%rax
+    99ed:	sub    %fs:0x28,%rax
+    99f6:	jne    9a0c <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)0, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x2bc>
+    99f8:	mov    0x20(%rsp),%rax
+    99fd:	lea    -0x28(%rbp),%rsp
+    9a01:	pop    %rbx
+    9a02:	pop    %r12
+    9a04:	pop    %r13
+    9a06:	pop    %r14
+    9a08:	pop    %r15
+    9a0a:	pop    %rbp
+    9a0b:	ret
+    9a0c:	call   24b0 <__stack_chk_fail@plt>
+
+
+/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000c900 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)>:
+    c900:	push   %r15
+    c902:	push   %r14
+    c904:	push   %r13
+    c906:	mov    %rdi,%r13
+    c909:	push   %r12
+    c90b:	push   %rbp
+    c90c:	push   %rbx
+    c90d:	mov    %rsi,%rbx
+    c910:	sub    $0xa8,%rsp
+    c917:	mov    %rdx,0x30(%rsp)
+    c91c:	mov    %fs:0x28,%r12
+    c925:	mov    %r12,0x98(%rsp)
+    c92d:	mov    %rcx,%r12
+    c930:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    c935:	mov    0x20(%rbx),%rsi
+    c939:	test   %r12,%r12
+    c93c:	mov    (%rbx),%rdx
+    c93f:	mov    %rax,%r14
+    c942:	mov    0x10(%rbx),%rcx
+    c946:	mov    0x8(%rbx),%rax
+    c94a:	mov    0x18(%rbx),%rdi
+    c94e:	mov    0x38(%rbx),%r15
+    c952:	mov    %rsi,(%rsp)
+    c956:	mov    0x28(%rbx),%rsi
+    c95a:	mov    0x40(%rbx),%r9
+    c95e:	mov    %rsi,0x10(%rsp)
+    c963:	mov    0x30(%rbx),%rsi
+    c967:	mov    %rsi,0x18(%rsp)
+    c96c:	je     cb3c <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x23c>
+    c972:	xor    %esi,%esi
+    c974:	cmpq   $0x0,0x30(%rsp)
+    c97a:	je     cb3c <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x23c>
+    c980:	mov    %r14,0x48(%rsp)
+    c985:	mov    %rdi,%r8
+    c988:	mov    %rsi,%rdi
+    c98b:	mov    %r13,0x50(%rsp)
+    c990:	mov    %rbx,0x58(%rsp)
+    c995:	mov    %r12,0x40(%rsp)
+    c99a:	nopw   0x0(%rax,%rax,1)
+    c9a0:	mov    %rdi,0x38(%rsp)
+    c9a5:	xor    %r14d,%r14d
+    c9a8:	nopl   0x0(%rax,%rax,1)
+    c9b0:	mov    (%rsp),%rbx
+    c9b4:	mov    0x10(%rsp),%rdi
+    c9b9:	mov    0x18(%rsp),%rsi
+    c9be:	add    %rbx,%rdx
+    c9c1:	setb   %r11b
+    c9c5:	add    %rdi,%rax
+    c9c8:	mov    %rdx,%rbp
+    c9cb:	setb   %bl
+    c9ce:	add    %rsi,%rcx
+    c9d1:	movzbl %r11b,%edi
+    c9d5:	setb   %r13b
+    c9d9:	xor    %r10d,%r10d
+    c9dc:	add    %r15,%r8
+    c9df:	mov    %rcx,%r12
+    c9e2:	setb   %r10b
+    c9e6:	xor    %esi,%esi
+    c9e8:	cmp    $0xffffffffffffffff,%rdx
+    c9ec:	rorx   $0x33,%r15,%r15
+    c9f2:	sete   %sil
+    c9f6:	mov    %r10,0x28(%rsp)
+    c9fb:	and    %r9,%rsi
+    c9fe:	mov    %rsi,%r10
+    ca01:	or     %rdi,%r10
+    ca04:	cmp    $0xffffffffffffffff,%rax
+    ca08:	sete   %dil
+    ca0c:	and    %rax,%rbp
+    ca0f:	mov    %r10,0x20(%rsp)
+    ca14:	and    %r11d,%edi
+    ca17:	or     %ebx,%edi
+    ca19:	cmp    $0xffffffffffffffff,%rbp
+    ca1d:	mov    %rax,%rbp
+    ca20:	sete   %sil
+    ca24:	movzbl %dil,%edi
+    ca28:	and    %rcx,%rbp
+    ca2b:	movzbl %sil,%esi
+    ca2f:	mov    %rbp,%r10
+    ca32:	and    %r9,%rsi
+    ca35:	or     %rsi,%rdi
+    ca38:	cmp    $0xffffffffffffffff,%rcx
+    ca3c:	sete   %sil
+    ca40:	and    %ebx,%esi
+    ca42:	or     %r13d,%esi
+    ca45:	cmp    $0xffffffffffffffff,%rbp
+    ca49:	sete   %bpl
+    ca4d:	and    %rdx,%r10
+    ca50:	and    %r11d,%ebp
+    ca53:	or     %ebp,%esi
+    ca55:	cmp    $0xffffffffffffffff,%r10
+    ca59:	mov    %rax,%rbp
+    ca5c:	sete   %r10b
+    ca60:	movzbl %sil,%esi
+    ca64:	and    %r8,%r12
+    ca67:	movzbl %r10b,%r10d
+    ca6b:	and    %r12,%rbp
+    ca6e:	and    %r9,%r10
+    ca71:	or     %r10,%rsi
+    ca74:	cmp    $0xffffffffffffffff,%r8
+    ca78:	mov    %rbp,%r10
+    ca7b:	mov    %r9,%rbp
+    ca7e:	sete   %r9b
+    ca82:	and    %r13d,%r9d
+    ca85:	or     0x28(%rsp),%r9b
+    ca8a:	cmp    $0xffffffffffffffff,%r12
+    ca8e:	sete   %r12b
+    ca92:	and    %ebx,%r12d
+    ca95:	or     %r9d,%r12d
+    ca98:	cmp    $0xffffffffffffffff,%r10
+    ca9c:	sete   %r9b
+    caa0:	and    %rdx,%r10
+    caa3:	and    %r11d,%r9d
+    caa6:	or     %r9d,%r12d
+    caa9:	cmp    $0xffffffffffffffff,%r10
+    caad:	sete   %r10b
+    cab1:	movzbl %r12b,%r9d
+    cab5:	add    %rsi,%r8
+    cab8:	add    %rbp,%rdx
+    cabb:	movzbl %r10b,%r10d
+    cabf:	rorx   $0x33,(%rsp),%rsi
+    cac6:	mov    %rsi,%rbx
+    cac9:	add    %rdi,%rcx
+    cacc:	and    %rbp,%r10
+    cacf:	xor    %rdx,%rbx
+    cad2:	rorx   $0x33,0x10(%rsp),%rsi
+    cada:	xor    %r8,%r15
+    cadd:	or     %r10,%r9
+    cae0:	mov    0x20(%rsp),%r10
+    cae5:	mov    %rbx,(%rsp)
+    cae9:	mov    %rsi,%rbx
+    caec:	add    $0x1,%r14
+    caf0:	rorx   $0x33,0x18(%rsp),%rsi
+    caf8:	xor    %rcx,%rsi
+    cafb:	add    %r10,%rax
+    cafe:	mov    %rsi,0x18(%rsp)
+    cb03:	xor    %rax,%rbx
+    cb06:	cmp    %r14,0x30(%rsp)
+    cb0b:	mov    %rbx,0x10(%rsp)
+    cb10:	jne    c9b0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0xb0>
+    cb16:	mov    0x38(%rsp),%rdi
+    cb1b:	add    $0x1,%rdi
+    cb1f:	cmp    %rdi,0x40(%rsp)
+    cb24:	jne    c9a0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0xa0>
+    cb2a:	mov    0x48(%rsp),%r14
+    cb2f:	mov    0x50(%rsp),%r13
+    cb34:	mov    %r8,%rdi
+    cb37:	mov    0x58(%rsp),%rbx
+    cb3c:	mov    %rax,0x8(%rbx)
+    cb40:	mov    (%rsp),%rax
+    cb44:	mov    %rdx,(%rbx)
+    cb47:	mov    %rax,0x20(%rbx)
+    cb4b:	mov    0x10(%rsp),%rax
+    cb50:	mov    %rcx,0x10(%rbx)
+    cb54:	mov    %rax,0x28(%rbx)
+    cb58:	mov    0x18(%rsp),%rax
+    cb5d:	mov    %rdi,0x18(%rbx)
+    cb61:	mov    %rax,0x30(%rbx)
+    cb65:	mov    %r15,0x38(%rbx)
+    cb69:	mov    %r9,0x40(%rbx)
+    cb6d:	lea    0x70(%rsp),%rbp
+    cb72:	lea    0x80(%rsp),%r15
+    cb7a:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    cb7f:	xor    %edx,%edx
+    cb81:	lea    0x68(%rsp),%rsi
+    cb86:	mov    %rbp,%rdi
+    cb89:	mov    %rax,%r12
+    cb8c:	mov    %rax,%rbx
+    cb8f:	mov    %r15,0x70(%rsp)
+    cb94:	movq   $0x18,0x68(%rsp)
+    cb9d:	sub    %r14,%rbx
+    cba0:	call   2610 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    cba5:	mov    0x68(%rsp),%rdx
+    cbaa:	vmovq  %r14,%xmm2
+    cbaf:	test   %rbx,%rbx
+    cbb2:	vmovdqa 0x7396(%rip),%xmm1        # 13f50 <(anonymous namespace)::variants+0x150>
+    cbba:	mov    %rax,0x70(%rsp)
+    cbbf:	movabs $0x656d697420646573,%rcx
+    cbc9:	vpinsrq $0x1,%r12,%xmm2,%xmm0
+    cbcf:	mov    %rdx,0x80(%rsp)
+    cbd7:	vmovdqu %xmm1,(%rax)
+    cbdb:	mov    %rcx,0x10(%rax)
+    cbdf:	mov    0x70(%rsp),%rax
+    cbe4:	mov    %rdx,0x78(%rsp)
+    cbe9:	movb   $0x0,(%rax,%rdx,1)
+    cbed:	jle    30b4 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long) [clone .cold]>
+    cbf3:	mov    0x70(%rsp),%rdi
+    cbf8:	cmp    %r15,%rdi
+    cbfb:	je     cc18 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x318>
+    cbfd:	mov    0x80(%rsp),%rax
+    cc05:	vmovdqa %xmm0,(%rsp)
+    cc0a:	lea    0x1(%rax),%rsi
+    cc0e:	call   24a0 <operator delete(void*, unsigned long)@plt>
+    cc13:	vmovdqa (%rsp),%xmm0
+    cc18:	mov    %rbx,0x10(%r13)
+    cc1c:	vmovdqu %xmm0,0x0(%r13)
+    cc22:	mov    0x98(%rsp),%rax
+    cc2a:	sub    %fs:0x28,%rax
+    cc33:	jne    cc4a <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x34a>
+    cc35:	add    $0xa8,%rsp
+    cc3c:	mov    %r13,%rax
+    cc3f:	pop    %rbx
+    cc40:	pop    %rbp
+    cc41:	pop    %r12
+    cc43:	pop    %r13
+    cc45:	pop    %r14
+    cc47:	pop    %r15
+    cc49:	ret
+    cc4a:	call   24b0 <__stack_chk_fail@plt>
+
+
+/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000c280 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)>:
+    c280:	push   %r15
+    c282:	push   %r14
+    c284:	push   %r13
+    c286:	mov    %rdi,%r13
+    c289:	push   %r12
+    c28b:	push   %rbp
+    c28c:	push   %rbx
+    c28d:	mov    %rsi,%rbx
+    c290:	sub    $0xa8,%rsp
+    c297:	mov    %rdx,0x30(%rsp)
+    c29c:	mov    %fs:0x28,%rbp
+    c2a5:	mov    %rbp,0x98(%rsp)
+    c2ad:	mov    %rcx,%rbp
+    c2b0:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    c2b5:	mov    0x20(%rbx),%rcx
+    c2b9:	test   %rbp,%rbp
+    c2bc:	mov    0x8(%rbx),%rdx
+    c2c0:	mov    %rax,%r14
+    c2c3:	mov    0x10(%rbx),%rsi
+    c2c7:	mov    (%rbx),%rax
+    c2ca:	mov    0x18(%rbx),%rdi
+    c2ce:	mov    0x38(%rbx),%r15
+    c2d2:	mov    %rcx,0x10(%rsp)
+    c2d7:	mov    0x28(%rbx),%rcx
+    c2db:	mov    0x40(%rbx),%r8
+    c2df:	mov    %rcx,0x18(%rsp)
+    c2e4:	mov    0x30(%rbx),%rcx
+    c2e8:	mov    %rcx,(%rsp)
+    c2ec:	je     c4b2 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x232>
+    c2f2:	xor    %ecx,%ecx
+    c2f4:	cmpq   $0x0,0x30(%rsp)
+    c2fa:	je     c4b2 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x232>
+    c300:	mov    %r14,0x48(%rsp)
+    c305:	mov    %rcx,%r9
+    c308:	mov    %r13,0x50(%rsp)
+    c30d:	mov    %rbx,0x58(%rsp)
+    c312:	mov    %rbp,0x40(%rsp)
+    c317:	nopw   0x0(%rax,%rax,1)
+    c320:	mov    %r9,0x38(%rsp)
+    c325:	xor    %r14d,%r14d
+    c328:	nopl   0x0(%rax,%rax,1)
+    c330:	mov    0x10(%rsp),%rbx
+    c335:	mov    0x18(%rsp),%r10
+    c33a:	xor    %ecx,%ecx
+    c33c:	mov    (%rsp),%r11
+    c340:	add    %rbx,%rax
+    c343:	setb   %cl
+    c346:	add    %r10,%rdx
+    c349:	setb   %r10b
+    c34d:	xor    %ebx,%ebx
+    c34f:	add    %r11,%rsi
+    c352:	mov    %ecx,%ebp
+    c354:	setb   %bl
+    c357:	xor    %r9d,%r9d
+    c35a:	add    %r15,%rdi
+    c35d:	movzbl %r10b,%r10d
+    c361:	setb   %r9b
+    c365:	mov    %rdx,%r13
+    c368:	rorx   $0x33,%r15,%r15
+    c36e:	mov    %r9,0x28(%rsp)
+    c373:	xor    %r9d,%r9d
+    c376:	cmp    $0xffffffffffffffff,%rax
+    c37a:	sete   %r9b
+    c37e:	and    %r8,%r9
+    c381:	or     %r9,%rcx
+    c384:	cmp    $0xffffffffffffffff,%rdx
+    c388:	sete   %r9b
+    c38c:	mov    %rcx,0x20(%rsp)
+    c391:	mov    %rax,%rcx
+    c394:	and    %ebp,%r9d
+    c397:	and    %rdx,%rcx
+    c39a:	or     %r10d,%r9d
+    c39d:	cmp    $0xffffffffffffffff,%rcx
+    c3a1:	sete   %cl
+    c3a4:	movzbl %r9b,%r9d
+    c3a8:	and    %rsi,%r13
+    c3ab:	movzbl %cl,%ecx
+    c3ae:	mov    %r13,%r11
+    c3b1:	and    %r8,%rcx
+    c3b4:	or     %rcx,%r9
+    c3b7:	cmp    $0xffffffffffffffff,%rsi
+    c3bb:	sete   %cl
+    c3be:	and    %r10d,%ecx
+    c3c1:	or     %ebx,%ecx
+    c3c3:	cmp    $0xffffffffffffffff,%r13
+    c3c7:	mov    %rsi,%r13
+    c3ca:	sete   %r12b
+    c3ce:	and    %rax,%r11
+    c3d1:	and    %ebp,%r12d
+    c3d4:	or     %r12d,%ecx
+    c3d7:	cmp    $0xffffffffffffffff,%r11
+    c3db:	mov    %rdx,%r12
+    c3de:	sete   %r11b
+    c3e2:	movzbl %cl,%ecx
+    c3e5:	and    %rdi,%r13
+    c3e8:	movzbl %r11b,%r11d
+    c3ec:	and    %r13,%r12
+    c3ef:	and    %r8,%r11
+    c3f2:	or     %r11,%rcx
+    c3f5:	cmp    $0xffffffffffffffff,%rdi
+    c3f9:	mov    %r12,%r11
+    c3fc:	mov    %r8,%r12
+    c3ff:	sete   %r8b
+    c403:	and    %ebx,%r8d
+    c406:	or     0x28(%rsp),%r8b
+    c40b:	cmp    $0xffffffffffffffff,%r13
+    c40f:	sete   %bl
+    c412:	and    %r10d,%ebx
+    c415:	or     %r8d,%ebx
+    c418:	cmp    $0xffffffffffffffff,%r11
+    c41c:	sete   %r8b
+    c420:	and    %rax,%r11
+    c423:	xor    %r10d,%r10d
+    c426:	and    %ebp,%r8d
+    c429:	mov    0x20(%rsp),%rbp
+    c42e:	or     %r8d,%ebx
+    c431:	cmp    $0xffffffffffffffff,%r11
+    c435:	sete   %r10b
+    c439:	add    %r12,%rax
+    c43c:	add    %rcx,%rdi
+    c43f:	add    %rbp,%rdx
+    c442:	rorx   $0x33,0x10(%rsp),%rcx
+    c44a:	xor    %rax,%rcx
+    c44d:	and    %r12,%r10
+    c450:	add    %r9,%rsi
+    c453:	mov    %rcx,0x10(%rsp)
+    c458:	movzbl %bl,%r8d
+    c45c:	xor    %rdi,%r15
+    c45f:	add    $0x1,%r14
+    c463:	rorx   $0x33,0x18(%rsp),%rcx
+    c46b:	xor    %rdx,%rcx
+    c46e:	or     %r10,%r8
+    c471:	mov    %rcx,0x18(%rsp)
+    c476:	rorx   $0x33,(%rsp),%rcx
+    c47d:	xor    %rsi,%rcx
+    c480:	cmp    %r14,0x30(%rsp)
+    c485:	mov    %rcx,(%rsp)
+    c489:	jne    c330 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0xb0>
+    c48f:	mov    0x38(%rsp),%r9
+    c494:	add    $0x1,%r9
+    c498:	cmp    %r9,0x40(%rsp)
+    c49d:	jne    c320 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0xa0>
+    c4a3:	mov    0x48(%rsp),%r14
+    c4a8:	mov    0x50(%rsp),%r13
+    c4ad:	mov    0x58(%rsp),%rbx
+    c4b2:	mov    %rax,(%rbx)
+    c4b5:	mov    0x10(%rsp),%rax
+    c4ba:	mov    %rdx,0x8(%rbx)
+    c4be:	mov    %rax,0x20(%rbx)
+    c4c2:	mov    0x18(%rsp),%rax
+    c4c7:	mov    %rsi,0x10(%rbx)
+    c4cb:	mov    %rax,0x28(%rbx)
+    c4cf:	mov    (%rsp),%rax
+    c4d3:	mov    %rdi,0x18(%rbx)
+    c4d7:	mov    %rax,0x30(%rbx)
+    c4db:	mov    %r15,0x38(%rbx)
+    c4df:	mov    %r8,0x40(%rbx)
+    c4e3:	lea    0x70(%rsp),%rbp
+    c4e8:	lea    0x80(%rsp),%r15
+    c4f0:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    c4f5:	xor    %edx,%edx
+    c4f7:	mov    %rbp,%rdi
+    c4fa:	lea    0x68(%rsp),%rsi
+    c4ff:	mov    %rax,%r12
+    c502:	mov    %rax,%rbx
+    c505:	mov    %r15,0x70(%rsp)
+    c50a:	movq   $0x18,0x68(%rsp)
+    c513:	sub    %r14,%rbx
+    c516:	call   2610 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    c51b:	mov    0x68(%rsp),%rdx
+    c520:	vmovq  %r14,%xmm2
+    c525:	test   %rbx,%rbx
+    c528:	vmovdqa 0x7a20(%rip),%xmm1        # 13f50 <(anonymous namespace)::variants+0x150>
+    c530:	mov    %rax,0x70(%rsp)
+    c535:	movabs $0x656d697420646573,%rdi
+    c53f:	vpinsrq $0x1,%r12,%xmm2,%xmm0
+    c545:	mov    %rdx,0x80(%rsp)
+    c54d:	vmovdqu %xmm1,(%rax)
+    c551:	mov    %rdi,0x10(%rax)
+    c555:	mov    0x70(%rsp),%rax
+    c55a:	mov    %rdx,0x78(%rsp)
+    c55f:	movb   $0x0,(%rax,%rdx,1)
+    c563:	jle    2f9c <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long) [clone .cold]>
+    c569:	mov    0x70(%rsp),%rdi
+    c56e:	cmp    %r15,%rdi
+    c571:	je     c58e <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x30e>
+    c573:	mov    0x80(%rsp),%rax
+    c57b:	vmovdqa %xmm0,(%rsp)
+    c580:	lea    0x1(%rax),%rsi
+    c584:	call   24a0 <operator delete(void*, unsigned long)@plt>
+    c589:	vmovdqa (%rsp),%xmm0
+    c58e:	mov    %rbx,0x10(%r13)
+    c592:	vmovdqu %xmm0,0x0(%r13)
+    c598:	mov    0x98(%rsp),%rax
+    c5a0:	sub    %fs:0x28,%rax
+    c5a9:	jne    c5c0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)1, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x340>
+    c5ab:	add    $0xa8,%rsp
+    c5b2:	mov    %r13,%rax
+    c5b5:	pop    %rbx
+    c5b6:	pop    %rbp
+    c5b7:	pop    %r12
+    c5b9:	pop    %r13
+    c5bb:	pop    %r14
+    c5bd:	pop    %r15
+    c5bf:	ret
+    c5c0:	call   24b0 <__stack_chk_fail@plt>
+
+
+/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000bf50 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)>:
+    bf50:	push   %r15
+    bf52:	push   %r14
+    bf54:	push   %r13
+    bf56:	mov    %rdi,%r13
+    bf59:	push   %r12
+    bf5b:	push   %rbp
+    bf5c:	push   %rbx
+    bf5d:	mov    %rsi,%rbx
+    bf60:	sub    $0xa8,%rsp
+    bf67:	mov    %rdx,0x30(%rsp)
+    bf6c:	mov    %fs:0x28,%r12
+    bf75:	mov    %r12,0x98(%rsp)
+    bf7d:	mov    %rcx,%r12
+    bf80:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    bf85:	mov    0x20(%rbx),%rcx
+    bf89:	test   %r12,%r12
+    bf8c:	mov    (%rbx),%rdx
+    bf8f:	mov    %rax,%r14
+    bf92:	mov    0x10(%rbx),%rdi
+    bf96:	mov    0x8(%rbx),%rax
+    bf9a:	mov    0x18(%rbx),%rsi
+    bf9e:	mov    0x30(%rbx),%r10
+    bfa2:	mov    %rcx,0x10(%rsp)
+    bfa7:	mov    0x28(%rbx),%rcx
+    bfab:	mov    0x38(%rbx),%r15
+    bfaf:	mov    0x40(%rbx),%r9
+    bfb3:	mov    %rcx,(%rsp)
+    bfb7:	je     c16d <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x21d>
+    bfbd:	xor    %ecx,%ecx
+    bfbf:	cmpq   $0x0,0x30(%rsp)
+    bfc5:	je     c16d <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x21d>
+    bfcb:	mov    %r14,0x48(%rsp)
+    bfd0:	mov    %r13,0x50(%rsp)
+    bfd5:	mov    %rbx,0x58(%rsp)
+    bfda:	mov    %r12,0x40(%rsp)
+    bfdf:	nop
+    bfe0:	mov    %rcx,0x38(%rsp)
+    bfe5:	xor    %r14d,%r14d
+    bfe8:	mov    %r10,%r13
+    bfeb:	nopl   0x0(%rax,%rax,1)
+    bff0:	mov    0x10(%rsp),%rbx
+    bff5:	add    %rbx,%rdx
+    bff8:	setb   %r10b
+    bffc:	xor    %ecx,%ecx
+    bffe:	cmp    $0xffffffffffffffff,%rdx
+    c002:	mov    %rdx,%rbp
+    c005:	sete   %cl
+    c008:	movzbl %r10b,%r8d
+    c00c:	and    %r9,%rcx
+    c00f:	or     %r8,%rcx
+    c012:	mov    (%rsp),%r8
+    c016:	mov    %rcx,0x20(%rsp)
+    c01b:	add    %r8,%rax
+    c01e:	setb   %r11b
+    c022:	cmp    $0xffffffffffffffff,%rax
+    c026:	sete   %cl
+    c029:	and    %rax,%rbp
+    c02c:	and    %r10d,%ecx
+    c02f:	or     %r11d,%ecx
+    c032:	cmp    $0xffffffffffffffff,%rbp
+    c036:	mov    %rax,%rbp
+    c039:	sete   %r8b
+    c03d:	movzbl %cl,%ecx
+    c040:	movzbl %r8b,%r8d
+    c044:	and    %r9,%r8
+    c047:	or     %r8,%rcx
+    c04a:	add    %r13,%rdi
+    c04d:	setb   %r12b
+    c051:	and    %rdi,%rbp
+    c054:	cmp    $0xffffffffffffffff,%rdi
+    c058:	mov    %rcx,0x28(%rsp)
+    c05d:	sete   %cl
+    c060:	mov    %rbp,%r8
+    c063:	and    %r11d,%ecx
+    c066:	or     %r12d,%ecx
+    c069:	cmp    $0xffffffffffffffff,%rbp
+    c06d:	sete   %bl
+    c070:	and    %rdx,%r8
+    c073:	and    %r10d,%ebx
+    c076:	or     %ebx,%ecx
+    c078:	cmp    $0xffffffffffffffff,%r8
+    c07c:	mov    %r9,%rbx
+    c07f:	sete   %r8b
+    c083:	movzbl %cl,%ecx
+    c086:	xor    %ebp,%ebp
+    c088:	movzbl %r8b,%r8d
+    c08c:	and    %r9,%r8
+    c08f:	or     %r8,%rcx
+    c092:	add    %r15,%rsi
+    c095:	mov    %rax,%r8
+    c098:	rorx   $0x33,%r15,%r15
+    c09e:	setb   %bpl
+    c0a2:	mov    %rbp,0x18(%rsp)
+    c0a7:	mov    %rdi,%rbp
+    c0aa:	and    %rsi,%rbp
+    c0ad:	and    %rbp,%r8
+    c0b0:	cmp    $0xffffffffffffffff,%rsi
+    c0b4:	sete   %r9b
+    c0b8:	and    %r12d,%r9d
+    c0bb:	or     0x18(%rsp),%r9b
+    c0c0:	cmp    $0xffffffffffffffff,%rbp
+    c0c4:	sete   %bpl
+    c0c8:	and    %r11d,%ebp
+    c0cb:	mov    0x20(%rsp),%r11
+    c0d0:	or     %r9d,%ebp
+    c0d3:	cmp    $0xffffffffffffffff,%r8
+    c0d7:	sete   %r9b
+    c0db:	and    %rdx,%r8
+    c0de:	and    %r10d,%r9d
+    c0e1:	mov    0x28(%rsp),%r10
+    c0e6:	or     %r9d,%ebp
+    c0e9:	cmp    $0xffffffffffffffff,%r8
+    c0ed:	sete   %r8b
+    c0f1:	add    %rbx,%rdx
+    c0f4:	add    %rcx,%rsi
+    c0f7:	add    %r11,%rax
+    c0fa:	rorx   $0x33,0x10(%rsp),%rcx
+    c102:	movzbl %r8b,%r8d
+    c106:	xor    %rdx,%rcx
+    c109:	add    %r10,%rdi
+    c10c:	and    %rbx,%r8
+    c10f:	mov    %rcx,0x10(%rsp)
+    c114:	movzbl %bpl,%r9d
+    c118:	xor    %rsi,%r15
+    c11b:	rorx   $0x33,(%rsp),%rcx
+    c122:	xor    %rax,%rcx
+    c125:	or     %r8,%r9
+    c128:	add    $0x1,%r14
+    c12c:	mov    %rcx,(%rsp)
+    c130:	rorx   $0x33,%r13,%rcx
+    c136:	xor    %rdi,%rcx
+    c139:	cmp    %r14,0x30(%rsp)
+    c13e:	mov    %rcx,%r13
+    c141:	jne    bff0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0xa0>
+    c147:	mov    %rcx,%r10
+    c14a:	mov    0x38(%rsp),%rcx
+    c14f:	add    $0x1,%rcx
+    c153:	cmp    %rcx,0x40(%rsp)
+    c158:	jne    bfe0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x90>
+    c15e:	mov    0x48(%rsp),%r14
+    c163:	mov    0x50(%rsp),%r13
+    c168:	mov    0x58(%rsp),%rbx
+    c16d:	mov    %rax,0x8(%rbx)
+    c171:	mov    0x10(%rsp),%rax
+    c176:	mov    %rdx,(%rbx)
+    c179:	mov    %rax,0x20(%rbx)
+    c17d:	mov    (%rsp),%rax
+    c181:	mov    %rdi,0x10(%rbx)
+    c185:	mov    %rsi,0x18(%rbx)
+    c189:	mov    %rax,0x28(%rbx)
+    c18d:	mov    %r10,0x30(%rbx)
+    c191:	mov    %r15,0x38(%rbx)
+    c195:	mov    %r9,0x40(%rbx)
+    c199:	lea    0x70(%rsp),%rbp
+    c19e:	lea    0x80(%rsp),%r15
+    c1a6:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    c1ab:	xor    %edx,%edx
+    c1ad:	lea    0x68(%rsp),%rsi
+    c1b2:	mov    %rbp,%rdi
+    c1b5:	mov    %rax,%r12
+    c1b8:	mov    %rax,%rbx
+    c1bb:	mov    %r15,0x70(%rsp)
+    c1c0:	movq   $0x18,0x68(%rsp)
+    c1c9:	sub    %r14,%rbx
+    c1cc:	call   2610 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    c1d1:	mov    0x68(%rsp),%rdx
+    c1d6:	vmovq  %r14,%xmm2
+    c1db:	test   %rbx,%rbx
+    c1de:	vmovdqa 0x7d6a(%rip),%xmm1        # 13f50 <(anonymous namespace)::variants+0x150>
+    c1e6:	mov    %rax,0x70(%rsp)
+    c1eb:	movabs $0x656d697420646573,%rsi
+    c1f5:	vpinsrq $0x1,%r12,%xmm2,%xmm0
+    c1fb:	mov    %rdx,0x80(%rsp)
+    c203:	vmovdqu %xmm1,(%rax)
+    c207:	mov    %rsi,0x10(%rax)
+    c20b:	mov    0x70(%rsp),%rax
+    c210:	mov    %rdx,0x78(%rsp)
+    c215:	movb   $0x0,(%rax,%rdx,1)
+    c219:	jle    2f10 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long) [clone .cold]>
+    c21f:	mov    0x70(%rsp),%rdi
+    c224:	cmp    %r15,%rdi
+    c227:	je     c244 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x2f4>
+    c229:	mov    0x80(%rsp),%rax
+    c231:	vmovdqa %xmm0,(%rsp)
+    c236:	lea    0x1(%rax),%rsi
+    c23a:	call   24a0 <operator delete(void*, unsigned long)@plt>
+    c23f:	vmovdqa (%rsp),%xmm0
+    c244:	mov    %rbx,0x10(%r13)
+    c248:	vmovdqu %xmm0,0x0(%r13)
+    c24e:	mov    0x98(%rsp),%rax
+    c256:	sub    %fs:0x28,%rax
+    c25f:	jne    c276 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x326>
+    c261:	add    $0xa8,%rsp
+    c268:	mov    %r13,%rax
+    c26b:	pop    %rbx
+    c26c:	pop    %rbp
+    c26d:	pop    %r12
+    c26f:	pop    %r13
+    c271:	pop    %r14
+    c273:	pop    %r15
+    c275:	ret
+    c276:	call   24b0 <__stack_chk_fail@plt>
+
+
+/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000c5d0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)>:
+    c5d0:	push   %r15
+    c5d2:	push   %r14
+    c5d4:	push   %r13
+    c5d6:	mov    %rdi,%r13
+    c5d9:	push   %r12
+    c5db:	push   %rbp
+    c5dc:	push   %rbx
+    c5dd:	mov    %rsi,%rbx
+    c5e0:	sub    $0xa8,%rsp
+    c5e7:	mov    %rdx,0x30(%rsp)
+    c5ec:	mov    %fs:0x28,%r12
+    c5f5:	mov    %r12,0x98(%rsp)
+    c5fd:	mov    %rcx,%r12
+    c600:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    c605:	mov    0x20(%rbx),%rcx
+    c609:	test   %r12,%r12
+    c60c:	mov    0x8(%rbx),%rdx
+    c610:	mov    %rax,%r14
+    c613:	mov    0x10(%rbx),%rsi
+    c617:	mov    (%rbx),%rax
+    c61a:	mov    0x18(%rbx),%rdi
+    c61e:	mov    0x30(%rbx),%r10
+    c622:	mov    %rcx,(%rsp)
+    c626:	mov    0x28(%rbx),%rcx
+    c62a:	mov    0x38(%rbx),%r15
+    c62e:	mov    0x40(%rbx),%r9
+    c632:	mov    %rcx,0x10(%rsp)
+    c637:	je     c7ed <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x21d>
+    c63d:	xor    %ecx,%ecx
+    c63f:	cmpq   $0x0,0x30(%rsp)
+    c645:	je     c7ed <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x21d>
+    c64b:	mov    %r14,0x48(%rsp)
+    c650:	mov    %r13,0x50(%rsp)
+    c655:	mov    %rbx,0x58(%rsp)
+    c65a:	mov    %r12,0x40(%rsp)
+    c65f:	nop
+    c660:	mov    %rcx,0x38(%rsp)
+    c665:	xor    %r14d,%r14d
+    c668:	mov    %r10,%r13
+    c66b:	nopl   0x0(%rax,%rax,1)
+    c670:	mov    (%rsp),%rbx
+    c674:	add    %rbx,%rax
+    c677:	setb   %r10b
+    c67b:	xor    %ecx,%ecx
+    c67d:	cmp    $0xffffffffffffffff,%rax
+    c681:	mov    %rax,%rbp
+    c684:	sete   %cl
+    c687:	movzbl %r10b,%r8d
+    c68b:	and    %r9,%rcx
+    c68e:	or     %r8,%rcx
+    c691:	mov    0x10(%rsp),%r8
+    c696:	mov    %rcx,0x18(%rsp)
+    c69b:	add    %r8,%rdx
+    c69e:	setb   %r11b
+    c6a2:	cmp    $0xffffffffffffffff,%rdx
+    c6a6:	sete   %cl
+    c6a9:	and    %rdx,%rbp
+    c6ac:	and    %r10d,%ecx
+    c6af:	or     %r11d,%ecx
+    c6b2:	cmp    $0xffffffffffffffff,%rbp
+    c6b6:	mov    %rdx,%rbp
+    c6b9:	sete   %r8b
+    c6bd:	movzbl %cl,%ecx
+    c6c0:	movzbl %r8b,%r8d
+    c6c4:	and    %r9,%r8
+    c6c7:	or     %r8,%rcx
+    c6ca:	add    %r13,%rsi
+    c6cd:	setb   %r12b
+    c6d1:	and    %rsi,%rbp
+    c6d4:	cmp    $0xffffffffffffffff,%rsi
+    c6d8:	mov    %rcx,0x20(%rsp)
+    c6dd:	sete   %cl
+    c6e0:	mov    %rbp,%r8
+    c6e3:	and    %r11d,%ecx
+    c6e6:	or     %r12d,%ecx
+    c6e9:	cmp    $0xffffffffffffffff,%rbp
+    c6ed:	sete   %bl
+    c6f0:	and    %rax,%r8
+    c6f3:	and    %r10d,%ebx
+    c6f6:	or     %ebx,%ecx
+    c6f8:	cmp    $0xffffffffffffffff,%r8
+    c6fc:	mov    %r9,%rbx
+    c6ff:	sete   %r8b
+    c703:	movzbl %cl,%ecx
+    c706:	xor    %ebp,%ebp
+    c708:	movzbl %r8b,%r8d
+    c70c:	and    %r9,%r8
+    c70f:	or     %r8,%rcx
+    c712:	add    %r15,%rdi
+    c715:	mov    %rdx,%r8
+    c718:	rorx   $0x33,%r15,%r15
+    c71e:	setb   %bpl
+    c722:	mov    %rbp,0x28(%rsp)
+    c727:	mov    %rsi,%rbp
+    c72a:	and    %rdi,%rbp
+    c72d:	and    %rbp,%r8
+    c730:	cmp    $0xffffffffffffffff,%rdi
+    c734:	sete   %r9b
+    c738:	and    %r12d,%r9d
+    c73b:	or     0x28(%rsp),%r9b
+    c740:	cmp    $0xffffffffffffffff,%rbp
+    c744:	sete   %bpl
+    c748:	and    %r11d,%ebp
+    c74b:	mov    0x18(%rsp),%r11
+    c750:	or     %r9d,%ebp
+    c753:	cmp    $0xffffffffffffffff,%r8
+    c757:	sete   %r9b
+    c75b:	and    %rax,%r8
+    c75e:	and    %r10d,%r9d
+    c761:	mov    0x20(%rsp),%r10
+    c766:	or     %r9d,%ebp
+    c769:	cmp    $0xffffffffffffffff,%r8
+    c76d:	sete   %r8b
+    c771:	add    %rbx,%rax
+    c774:	add    %rcx,%rdi
+    c777:	add    %r11,%rdx
+    c77a:	rorx   $0x33,(%rsp),%rcx
+    c781:	movzbl %r8b,%r8d
+    c785:	xor    %rax,%rcx
+    c788:	add    %r10,%rsi
+    c78b:	and    %rbx,%r8
+    c78e:	mov    %rcx,(%rsp)
+    c792:	movzbl %bpl,%r9d
+    c796:	xor    %rdi,%r15
+    c799:	rorx   $0x33,0x10(%rsp),%rcx
+    c7a1:	xor    %rdx,%rcx
+    c7a4:	or     %r8,%r9
+    c7a7:	add    $0x1,%r14
+    c7ab:	mov    %rcx,0x10(%rsp)
+    c7b0:	rorx   $0x33,%r13,%rcx
+    c7b6:	xor    %rsi,%rcx
+    c7b9:	cmp    %r14,0x30(%rsp)
+    c7be:	mov    %rcx,%r13
+    c7c1:	jne    c670 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0xa0>
+    c7c7:	mov    %rcx,%r10
+    c7ca:	mov    0x38(%rsp),%rcx
+    c7cf:	add    $0x1,%rcx
+    c7d3:	cmp    %rcx,0x40(%rsp)
+    c7d8:	jne    c660 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x90>
+    c7de:	mov    0x48(%rsp),%r14
+    c7e3:	mov    0x50(%rsp),%r13
+    c7e8:	mov    0x58(%rsp),%rbx
+    c7ed:	mov    %rax,(%rbx)
+    c7f0:	mov    (%rsp),%rax
+    c7f4:	mov    %rdx,0x8(%rbx)
+    c7f8:	mov    %rax,0x20(%rbx)
+    c7fc:	mov    0x10(%rsp),%rax
+    c801:	mov    %rsi,0x10(%rbx)
+    c805:	mov    %rdi,0x18(%rbx)
+    c809:	mov    %rax,0x28(%rbx)
+    c80d:	mov    %r10,0x30(%rbx)
+    c811:	mov    %r15,0x38(%rbx)
+    c815:	mov    %r9,0x40(%rbx)
+    c819:	lea    0x70(%rsp),%rbp
+    c81e:	lea    0x80(%rsp),%r15
+    c826:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    c82b:	xor    %edx,%edx
+    c82d:	mov    %rbp,%rdi
+    c830:	lea    0x68(%rsp),%rsi
+    c835:	mov    %rax,%r12
+    c838:	mov    %rax,%rbx
+    c83b:	mov    %r15,0x70(%rsp)
+    c840:	movq   $0x18,0x68(%rsp)
+    c849:	sub    %r14,%rbx
+    c84c:	call   2610 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    c851:	mov    0x68(%rsp),%rdx
+    c856:	vmovq  %r14,%xmm2
+    c85b:	test   %rbx,%rbx
+    c85e:	vmovdqa 0x76ea(%rip),%xmm1        # 13f50 <(anonymous namespace)::variants+0x150>
+    c866:	mov    %rax,0x70(%rsp)
+    c86b:	movabs $0x656d697420646573,%rdi
+    c875:	vpinsrq $0x1,%r12,%xmm2,%xmm0
+    c87b:	mov    %rdx,0x80(%rsp)
+    c883:	vmovdqu %xmm1,(%rax)
+    c887:	mov    %rdi,0x10(%rax)
+    c88b:	mov    0x70(%rsp),%rax
+    c890:	mov    %rdx,0x78(%rsp)
+    c895:	movb   $0x0,(%rax,%rdx,1)
+    c899:	jle    3028 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long) [clone .cold]>
+    c89f:	mov    0x70(%rsp),%rdi
+    c8a4:	cmp    %r15,%rdi
+    c8a7:	je     c8c4 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x2f4>
+    c8a9:	mov    0x80(%rsp),%rax
+    c8b1:	vmovdqa %xmm0,(%rsp)
+    c8b6:	lea    0x1(%rax),%rsi
+    c8ba:	call   24a0 <operator delete(void*, unsigned long)@plt>
+    c8bf:	vmovdqa (%rsp),%xmm0
+    c8c4:	mov    %rbx,0x10(%r13)
+    c8c8:	vmovdqu %xmm0,0x0(%r13)
+    c8ce:	mov    0x98(%rsp),%rax
+    c8d6:	sub    %fs:0x28,%rax
+    c8df:	jne    c8f6 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)2, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x326>
+    c8e1:	add    $0xa8,%rsp
+    c8e8:	mov    %r13,%rax
+    c8eb:	pop    %rbx
+    c8ec:	pop    %rbp
+    c8ed:	pop    %r12
+    c8ef:	pop    %r13
+    c8f1:	pop    %r14
+    c8f3:	pop    %r15
+    c8f5:	ret
+    c8f6:	call   24b0 <__stack_chk_fail@plt>
+
+
+/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000bcb0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)>:
+    bcb0:	push   %r15
+    bcb2:	push   %r14
+    bcb4:	mov    %rdi,%r14
+    bcb7:	push   %r13
+    bcb9:	push   %r12
+    bcbb:	push   %rbp
+    bcbc:	push   %rbx
+    bcbd:	mov    %rsi,%rbx
+    bcc0:	sub    $0x88,%rsp
+    bcc7:	mov    %rdx,0x10(%rsp)
+    bccc:	mov    %fs:0x28,%rbp
+    bcd5:	mov    %rbp,0x78(%rsp)
+    bcda:	mov    %rcx,%rbp
+    bcdd:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    bce2:	test   %rbp,%rbp
+    bce5:	mov    (%rbx),%r12
+    bce8:	mov    0x8(%rbx),%rsi
+    bcec:	mov    %rax,%r15
+    bcef:	mov    0x10(%rbx),%r10
+    bcf3:	mov    0x18(%rbx),%rcx
+    bcf7:	mov    0x20(%rbx),%r9
+    bcfb:	mov    0x28(%rbx),%r8
+    bcff:	mov    0x30(%rbx),%rdi
+    bd03:	mov    0x38(%rbx),%r13
+    bd07:	mov    0x40(%rbx),%rax
+    bd0b:	je     be56 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x1a6>
+    bd11:	xor    %edx,%edx
+    bd13:	cmpq   $0x0,0x10(%rsp)
+    bd19:	je     be56 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x1a6>
+    bd1f:	mov    %r14,0x30(%rsp)
+    bd24:	mov    %rbx,0x38(%rsp)
+    bd29:	mov    %rbp,0x20(%rsp)
+    bd2e:	mov    %r15,0x28(%rsp)
+    bd33:	mov    %r13,%r15
+    bd36:	cs nopw 0x0(%rax,%rax,1)
+    bd40:	mov    %rdx,0x18(%rsp)
+    bd45:	xor    %r14d,%r14d
+    bd48:	nopl   0x0(%rax,%rax,1)
+    bd50:	add    %r9,%r12
+    bd53:	rorx   $0x33,%r9,%r9
+    bd59:	setb   %r13b
+    bd5d:	xor    %ebx,%ebx
+    bd5f:	add    %r8,%rsi
+    bd62:	rorx   $0x33,%r8,%r8
+    bd68:	setb   %bl
+    bd6b:	add    %rdi,%r10
+    bd6e:	movzbl %r13b,%edx
+    bd72:	rorx   $0x33,%rdi,%rdi
+    bd78:	mov    %rbx,(%rsp)
+    bd7c:	mov    %rcx,%rbx
+    bd7f:	setb   %r11b
+    bd83:	xor    %ecx,%ecx
+    bd85:	add    %r15,%rbx
+    bd88:	mov    %r10,%rbp
+    bd8b:	rorx   $0x33,%r15,%r15
+    bd91:	setb   %cl
+    bd94:	xor    %r10d,%r10d
+    bd97:	cmp    $0xffffffffffffffff,%r12
+    bd9b:	sete   %r10b
+    bd9f:	and    %rax,%r10
+    bda2:	or     %rdx,%r10
+    bda5:	cmp    $0xffffffffffffffff,%rsi
+    bda9:	sete   %dl
+    bdac:	and    %r13d,%edx
+    bdaf:	mov    %r12,%r13
+    bdb2:	or     (%rsp),%dl
+    bdb5:	and    %rsi,%r13
+    bdb8:	movzbl %dl,%edx
+    bdbb:	cmp    $0xffffffffffffffff,%r13
+    bdbf:	sete   %r13b
+    bdc3:	movzbl %r13b,%r13d
+    bdc7:	and    %rax,%r13
+    bdca:	or     %r13,%rdx
+    bdcd:	cmp    $0xffffffffffffffff,%rbx
+    bdd1:	mov    %rax,%r13
+    bdd4:	sete   %al
+    bdd7:	and    %r11d,%eax
+    bdda:	movzbl %r11b,%r11d
+    bdde:	or     %ecx,%eax
+    bde0:	mov    %rbp,%rcx
+    bde3:	and    %rbx,%rcx
+    bde6:	movzbl %al,%eax
+    bde9:	cmp    $0xffffffffffffffff,%rcx
+    bded:	sete   %cl
+    bdf0:	add    %r10,%rsi
+    bdf3:	lea    (%rdx,%rbp,1),%r10
+    bdf7:	add    %r13,%r12
+    bdfa:	movzbl %cl,%ecx
+    bdfd:	and    %rdx,%rcx
+    be00:	or     %rcx,%rax
+    be03:	xor    %ecx,%ecx
+    be05:	cmp    $0xffffffffffffffff,%rbp
+    be09:	sete   %cl
+    be0c:	xor    %r12,%r9
+    be0f:	xor    %rsi,%r8
+    be12:	xor    %r10,%rdi
+    be15:	and    %rdx,%rcx
+    be18:	add    $0x1,%r14
+    be1c:	or     %r11,%rcx
+    be1f:	add    %rbx,%rcx
+    be22:	xor    %rcx,%r15
+    be25:	cmp    %r14,0x10(%rsp)
+    be2a:	jne    bd50 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0xa0>
+    be30:	mov    0x18(%rsp),%rdx
+    be35:	add    $0x1,%rdx
+    be39:	cmp    %rdx,0x20(%rsp)
+    be3e:	jne    bd40 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x90>
+    be44:	mov    %r15,%r13
+    be47:	mov    0x30(%rsp),%r14
+    be4c:	mov    0x28(%rsp),%r15
+    be51:	mov    0x38(%rsp),%rbx
+    be56:	mov    %r12,(%rbx)
+    be59:	mov    %rsi,0x8(%rbx)
+    be5d:	mov    %r10,0x10(%rbx)
+    be61:	mov    %rcx,0x18(%rbx)
+    be65:	mov    %r9,0x20(%rbx)
+    be69:	mov    %r8,0x28(%rbx)
+    be6d:	mov    %rdi,0x30(%rbx)
+    be71:	mov    %r13,0x38(%rbx)
+    be75:	mov    %rax,0x40(%rbx)
+    be79:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    be7e:	lea    0x50(%rsp),%rbp
+    be83:	xor    %edx,%edx
+    be85:	lea    0x60(%rsp),%r13
+    be8a:	mov    %rbp,%rdi
+    be8d:	lea    0x48(%rsp),%rsi
+    be92:	mov    %rax,%r12
+    be95:	mov    %rax,%rbx
+    be98:	mov    %r13,0x50(%rsp)
+    be9d:	sub    %r15,%rbx
+    bea0:	movq   $0x18,0x48(%rsp)
+    bea9:	call   2610 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    beae:	mov    0x48(%rsp),%rdx
+    beb3:	vmovq  %r15,%xmm2
+    beb8:	test   %rbx,%rbx
+    bebb:	vmovdqa 0x808d(%rip),%xmm1        # 13f50 <(anonymous namespace)::variants+0x150>
+    bec3:	mov    %rax,0x50(%rsp)
+    bec8:	movabs $0x656d697420646573,%rdi
+    bed2:	vpinsrq $0x1,%r12,%xmm2,%xmm0
+    bed8:	mov    %rdx,0x60(%rsp)
+    bedd:	vmovdqu %xmm1,(%rax)
+    bee1:	mov    %rdi,0x10(%rax)
+    bee5:	mov    0x50(%rsp),%rax
+    beea:	mov    %rdx,0x58(%rsp)
+    beef:	movb   $0x0,(%rax,%rdx,1)
+    bef3:	jle    2e8a <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long) [clone .cold]>
+    bef9:	mov    0x50(%rsp),%rdi
+    befe:	cmp    %r13,%rdi
+    bf01:	je     bf1b <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x26b>
+    bf03:	mov    0x60(%rsp),%rax
+    bf08:	vmovdqa %xmm0,(%rsp)
+    bf0d:	lea    0x1(%rax),%rsi
+    bf11:	call   24a0 <operator delete(void*, unsigned long)@plt>
+    bf16:	vmovdqa (%rsp),%xmm0
+    bf1b:	mov    %rbx,0x10(%r14)
+    bf1f:	vmovdqu %xmm0,(%r14)
+    bf24:	mov    0x78(%rsp),%rax
+    bf29:	sub    %fs:0x28,%rax
+    bf32:	jne    bf49 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)0>(pa_l0_native::Input&, unsigned long, unsigned long)+0x299>
+    bf34:	add    $0x88,%rsp
+    bf3b:	mov    %r14,%rax
+    bf3e:	pop    %rbx
+    bf3f:	pop    %rbp
+    bf40:	pop    %r12
+    bf42:	pop    %r13
+    bf44:	pop    %r14
+    bf46:	pop    %r15
+    bf48:	ret
+    bf49:	call   24b0 <__stack_chk_fail@plt>
+
+
+/tmp/parseatlas-state-review.P8G2Ft/l0_state_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000ba10 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)>:
+    ba10:	push   %r15
+    ba12:	push   %r14
+    ba14:	push   %r13
+    ba16:	push   %r12
+    ba18:	push   %rbp
+    ba19:	push   %rbx
+    ba1a:	mov    %rsi,%rbx
+    ba1d:	sub    $0x88,%rsp
+    ba24:	mov    %rdi,0x28(%rsp)
+    ba29:	mov    %rdx,0x10(%rsp)
+    ba2e:	mov    %fs:0x28,%r14
+    ba37:	mov    %r14,0x78(%rsp)
+    ba3c:	mov    %rcx,%r14
+    ba3f:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    ba44:	test   %r14,%r14
+    ba47:	mov    (%rbx),%rbp
+    ba4a:	mov    0x8(%rbx),%rcx
+    ba4e:	mov    %rax,%r12
+    ba51:	mov    0x10(%rbx),%r13
+    ba55:	mov    0x18(%rbx),%r10
+    ba59:	mov    0x20(%rbx),%r9
+    ba5d:	mov    0x28(%rbx),%rdi
+    ba61:	mov    0x30(%rbx),%rsi
+    ba65:	mov    0x38(%rbx),%r15
+    ba69:	mov    0x40(%rbx),%rax
+    ba6d:	je     bba3 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x193>
+    ba73:	xor    %edx,%edx
+    ba75:	cmpq   $0x0,0x10(%rsp)
+    ba7b:	je     bba3 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x193>
+    ba81:	mov    %r12,0x30(%rsp)
+    ba86:	mov    %rcx,%r8
+    ba89:	mov    %rbx,0x38(%rsp)
+    ba8e:	mov    %r14,0x20(%rsp)
+    ba93:	nopl   0x0(%rax,%rax,1)
+    ba98:	mov    %rdx,0x18(%rsp)
+    ba9d:	xor    %r14d,%r14d
+    baa0:	xor    %edx,%edx
+    baa2:	add    %r9,%rbp
+    baa5:	rorx   $0x33,%r9,%r9
+    baab:	setb   %dl
+    baae:	xor    %ebx,%ebx
+    bab0:	add    %rdi,%r8
+    bab3:	rorx   $0x33,%rdi,%rdi
+    bab9:	setb   %bl
+    babc:	xor    %r11d,%r11d
+    babf:	mov    %rbx,(%rsp)
+    bac3:	mov    %r13,%rbx
+    bac6:	add    %rsi,%rbx
+    bac9:	rorx   $0x33,%rsi,%rsi
+    bacf:	setb   %r11b
+    bad3:	xor    %r12d,%r12d
+    bad6:	add    %r15,%r10
+    bad9:	rorx   $0x33,%r15,%r15
+    badf:	setb   %r12b
+    bae3:	xor    %ecx,%ecx
+    bae5:	cmp    $0xffffffffffffffff,%rbp
+    bae9:	sete   %cl
+    baec:	and    %rax,%rcx
+    baef:	or     %rdx,%rcx
+    baf2:	cmp    $0xffffffffffffffff,%r8
+    baf6:	sete   %r13b
+    bafa:	and    %r13,%rdx
+    bafd:	mov    (%rsp),%r13
+    bb01:	or     %r13,%rdx
+    bb04:	mov    %rbp,%r13
+    bb07:	and    %r8,%r13
+    bb0a:	cmp    $0xffffffffffffffff,%r13
+    bb0e:	sete   %r13b
+    bb12:	movzbl %r13b,%r13d
+    bb16:	and    %rax,%r13
+    bb19:	or     %r13,%rdx
+    bb1c:	cmp    $0xffffffffffffffff,%r10
+    bb20:	mov    %rax,%r13
+    bb23:	sete   %al
+    bb26:	and    %r11d,%eax
+    bb29:	movzbl %r11b,%r11d
+    bb2d:	or     %r12d,%eax
+    bb30:	mov    %rbx,%r12
+    bb33:	and    %r10,%r12
+    bb36:	movzbl %al,%eax
+    bb39:	cmp    $0xffffffffffffffff,%r12
+    bb3d:	sete   %r12b
+    bb41:	add    %r13,%rbp
+    bb44:	lea    (%rbx,%rdx,1),%r13
+    bb48:	add    %rcx,%r8
+    bb4b:	movzbl %r12b,%r12d
+    bb4f:	xor    %ecx,%ecx
+    bb51:	and    %rdx,%r12
+    bb54:	or     %r12,%rax
+    bb57:	cmp    $0xffffffffffffffff,%rbx
+    bb5b:	sete   %cl
+    bb5e:	xor    %rbp,%r9
+    bb61:	xor    %r8,%rdi
+    bb64:	xor    %r13,%rsi
+    bb67:	and    %rdx,%rcx
+    bb6a:	add    $0x1,%r14
+    bb6e:	or     %r11,%rcx
+    bb71:	add    %rcx,%r10
+    bb74:	xor    %r10,%r15
+    bb77:	cmp    %r14,0x10(%rsp)
+    bb7c:	jne    baa0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x90>
+    bb82:	mov    0x18(%rsp),%rdx
+    bb87:	add    $0x1,%rdx
+    bb8b:	cmp    %rdx,0x20(%rsp)
+    bb90:	jne    ba98 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x88>
+    bb96:	mov    0x30(%rsp),%r12
+    bb9b:	mov    0x38(%rsp),%rbx
+    bba0:	mov    %r8,%rcx
+    bba3:	mov    %rbp,(%rbx)
+    bba6:	mov    %rcx,0x8(%rbx)
+    bbaa:	mov    %r13,0x10(%rbx)
+    bbae:	mov    %r10,0x18(%rbx)
+    bbb2:	mov    %r9,0x20(%rbx)
+    bbb6:	mov    %rdi,0x28(%rbx)
+    bbba:	mov    %rsi,0x30(%rbx)
+    bbbe:	mov    %r15,0x38(%rbx)
+    bbc2:	mov    %rax,0x40(%rbx)
+    bbc6:	call   2510 <std::chrono::_V2::steady_clock::now()@plt>
+    bbcb:	lea    0x50(%rsp),%rbp
+    bbd0:	xor    %edx,%edx
+    bbd2:	lea    0x60(%rsp),%r14
+    bbd7:	mov    %rbp,%rdi
+    bbda:	lea    0x48(%rsp),%rsi
+    bbdf:	mov    %rax,%r13
+    bbe2:	mov    %rax,%rbx
+    bbe5:	mov    %r14,0x50(%rsp)
+    bbea:	sub    %r12,%rbx
+    bbed:	movq   $0x18,0x48(%rsp)
+    bbf6:	call   2610 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    bbfb:	mov    0x48(%rsp),%rdx
+    bc00:	vmovq  %r12,%xmm2
+    bc05:	test   %rbx,%rbx
+    bc08:	vmovdqa 0x8340(%rip),%xmm1        # 13f50 <(anonymous namespace)::variants+0x150>
+    bc10:	mov    %rax,0x50(%rsp)
+    bc15:	movabs $0x656d697420646573,%rdi
+    bc1f:	vpinsrq $0x1,%r13,%xmm2,%xmm0
+    bc25:	mov    %rdx,0x60(%rsp)
+    bc2a:	vmovdqu %xmm1,(%rax)
+    bc2e:	mov    %rdi,0x10(%rax)
+    bc32:	mov    0x50(%rsp),%rax
+    bc37:	mov    %rdx,0x58(%rsp)
+    bc3c:	movb   $0x0,(%rax,%rdx,1)
+    bc40:	jle    2e04 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long) [clone .cold]>
+    bc46:	mov    0x50(%rsp),%rdi
+    bc4b:	cmp    %r14,%rdi
+    bc4e:	je     bc68 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x258>
+    bc50:	mov    0x60(%rsp),%rax
+    bc55:	vmovdqa %xmm0,(%rsp)
+    bc5a:	lea    0x1(%rax),%rsi
+    bc5e:	call   24a0 <operator delete(void*, unsigned long)@plt>
+    bc63:	vmovdqa (%rsp),%xmm0
+    bc68:	mov    0x28(%rsp),%rax
+    bc6d:	mov    %rbx,0x10(%rax)
+    bc71:	vmovdqu %xmm0,(%rax)
+    bc75:	mov    0x78(%rsp),%rax
+    bc7a:	sub    %fs:0x28,%rax
+    bc83:	jne    bc9c <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<(pa_l0_native::Method)3, (pa_l0_state::Form)1>(pa_l0_native::Input&, unsigned long, unsigned long)+0x28c>
+    bc85:	mov    0x28(%rsp),%rax
+    bc8a:	add    $0x88,%rsp
+    bc91:	pop    %rbx
+    bc92:	pop    %rbp
+    bc93:	pop    %r12
+    bc95:	pop    %r13
+    bc97:	pop    %r14
+    bc99:	pop    %r15
+    bc9b:	ret
+    bc9c:	call   24b0 <__stack_chk_fail@plt>

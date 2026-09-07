@@ -1,0 +1,15 @@
+{
+  "schema": "parseatlas.p6.manager_numeric_replay.v1",
+  "status": "pass",
+  "audit_sha256": "9fd6a75a665abd175e0482a5cce6a64bef5941109ee46387e52e4228a6625d97",
+  "program_sha256": "bd8eaacaae6b3e9977dfdbfeaceeb23e5654f40bcdf18d36d9adcb588c22ed32",
+  "full_object_equality": true,
+  "check_count": 42411,
+  "errors": [],
+  "max_absolute_float_difference": 0,
+  "regions": 422,
+  "probes": 431,
+  "ratios": 512,
+  "sources": 31,
+  "replay_js": "const fs=require('fs'),crypto=require('crypto'),vm=require('vm');\nconst path='experiments/parseatlas_secp256k1/data/p6_numeric_audit_20260905.json',raw=fs.readFileSync(path,'utf8'),j=JSON.parse(raw),sha=s=>crypto.createHash('sha256').update(s).digest('hex');\nlet output='';vm.runInNewContext(j.reproduction.program,{require,console:{log:s=>{if(output)throw Error('multiple output');output=s;}},process:{_eval:j.reproduction.program}});\nconst replay=JSON.parse(output),equal=JSON.stringify(j)===JSON.stringify(replay),hashOK=sha(j.reproduction.program)===j.reproduction.program_sha256&&j.numeric_policy.program_sha256===j.reproduction.program_sha256;\nif(!equal||!hashOK||replay.status!=='pass'||replay.error_count!==0)throw Error('audit replay mismatch');\nconsole.log(JSON.stringify({schema:'parseatlas.p6.manager_numeric_replay.v1',status:'pass',audit_sha256:sha(raw),program_sha256:sha(j.reproduction.program),full_object_equality:equal,check_count:replay.check_count,errors:replay.errors,max_absolute_float_difference:replay.numeric_policy.max_absolute_float_difference,regions:replay.aggregate.raw_regions,probes:replay.aggregate.cumulative_probes,ratios:replay.aggregate.same_round_ratios,sources:replay.sources.length}));"
+}

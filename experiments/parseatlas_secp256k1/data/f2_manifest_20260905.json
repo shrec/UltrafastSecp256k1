@@ -1,0 +1,678 @@
+{
+  "schema": "parseatlas_f2_delayed_normalization_manifest_v1",
+  "repository": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+  "repository_id": "repo_666797171f0141c58bf05f579b2ee16e",
+  "branch": "experiment/representation-search",
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "session_id": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "window_id": "window_de017c2a746dfe4337ab093f",
+  "assembled_utc": "2026-09-05 17:41:41 UTC",
+  "task_mode": {
+    "mode": "direct owner-authorized research; Tasks suspended",
+    "canonical_task": "PA_SECP_M1_MODN_NATIVE_015",
+    "lifecycle_mutation": false,
+    "task_system_needfix": "NF-2026-00012",
+    "note": "This research review does not accept, claim, retry or otherwise mutate the pending canonical task."
+  },
+  "scope": {
+    "primitive": "final-only scalar-order-n sum",
+    "invariant": "candidate exact intermediate decode=x0+sum(rhs); canonical final32bytes equal unchangedScalar recurrence",
+    "methods": [
+      "frozen eager serial",
+      "exactWide5 thenreduce320",
+      "4UInt128columns thennormalize/reduce320",
+      "frozen coldmulticore"
+    ],
+    "input": "canonical x0/RHS, runtime independent of intermediate outputs,0<=N<=1e9 withinaddressability, validextents",
+    "security": "Variabletime experimentalprobes, notCT eligibility; futuredispatch depends onlypublicN/resources/securitycontract",
+    "not_claimed": [
+      "newmathematicaldiscovery",
+      "wholeengine/fieldp/curvepointgain",
+      "allprefixoronlinegain",
+      "equalCPUresourceorenergygain",
+      "fixedfrequency/cachebandwidthcausality",
+      "formalexhaustivecompiledproof",
+      "full625cellcompletion",
+      "productionintegration"
+    ]
+  },
+  "decision": {
+    "research_evidence": "accepted after mechanical, source, binary, numeric and report reviews",
+    "production_replacement": false,
+    "dispatch_installed": false,
+    "tinyN1": "Serial medianbetterbothseries;oneN1series2pairfavorseachdelayedcandidate",
+    "N_ge16": "ColumnsbeatsSerialandWide5 inall80/80registeredpairs",
+    "N65536_columns_over_serial": [
+      7.311925459315063,
+      7.381772333132661
+    ],
+    "N1048576_columns_over_serial": [
+      4.071732681724576,
+      4.051064396986396
+    ],
+    "N1048576_direct_cold_over_columns": [
+      0.9743425688473083,
+      1.0208626236865992
+    ],
+    "N1048576_columns_favorable_over_cold": "3/8 then5/8;no stablewalltimewinner;onecorevs8workercorespluscoordinator",
+    "next": "Real caller-sized batches and constant-time adapter/callersecurity gates before production replacement"
+  },
+  "measurement": {
+    "protocol": "F2_REDUCTION_PROTOCOL.md",
+    "run_plan": "data/f2_run_plan_20260905.json",
+    "plan_sha256": "70b739ce35f63e3709cb7edfc8c985275b5960c19d4a653c26972ae77ca84f62",
+    "compiler": "g++14.2.0",
+    "command": "g++ -std=c++17 -O3 -march=native -DNDEBUG -Wall -Wextra -pthread -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/f2_reduce_compare.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f2-review.WmcyRl/f2_compare",
+    "no_lto": true,
+    "seed": 20260905,
+    "same_corpus_reused": true,
+    "series": 2,
+    "counts": [
+      1,
+      16,
+      256,
+      4096,
+      65536,
+      1048576
+    ],
+    "measured_regions": 384,
+    "warmup_regions": 96,
+    "untimed_preconditioning_jobs": 192,
+    "calibration_attempts": 178,
+    "short_measured_regions": 6,
+    "short_detail": {
+      "short_ms": [
+        {
+          "round": 0,
+          "ms": 172.682597
+        },
+        {
+          "round": 1,
+          "ms": 171.098046
+        },
+        {
+          "round": 3,
+          "ms": 187.207996
+        },
+        {
+          "round": 4,
+          "ms": 174.955514
+        },
+        {
+          "round": 5,
+          "ms": 184.920545
+        },
+        {
+          "round": 6,
+          "ms": 182.16966
+        }
+      ],
+      "cold_calibration": [
+        {
+          "jobs": 1,
+          "ms": 0.447646,
+          "streak": 0
+        },
+        {
+          "jobs": 671,
+          "ms": 312.730955,
+          "streak": 1
+        },
+        {
+          "jobs": 671,
+          "ms": 263.167142,
+          "streak": 2
+        }
+      ]
+    },
+    "measured_ms_range": [
+      171.098046,
+      563.971241
+    ],
+    "statistic": "medianof8same-roundnormalizedregionmeanratios;pervariantjobsdiffer;notindividualjoblatencyormatchedwork",
+    "materialization": "eachfulljob32bytes retained;onlylastidenticaljobresultperregionbytecompared, alluntimedjobsbytecompared",
+    "costs": "F2 initialization/checks/accumulation/normalization/folds/canonicalization included; coldalloc/create/pin/join/merge/destroyincluded",
+    "raw_output_custody": "Native JSON preserved without rounding64bitintegerlexemes; managerandauditor replaymetadataoffclock usingBigInt. NoPython arithmetic/timings."
+  },
+  "machine": {
+    "cpu": "IntelCorei5-14400F",
+    "logical_cpus": 16,
+    "observed_physical_cores": 10,
+    "coordinator": 4,
+    "worker_pool": [
+      0,
+      2,
+      6,
+      8,
+      10,
+      12,
+      13,
+      14
+    ],
+    "actual_workers": "min(N,8):1atN1,8otherwise",
+    "heterogeneous": true,
+    "headroom": "Coordinatorwholecore+oneadditionalphysicalcorereserved",
+    "os": "Linux6.8.0-138-generic",
+    "environment_endpoints": "All24before/afterendpoints performancegovernor,no_turbo1;frequencyvaries;notcontinuous",
+    "owned_competing_builds_tests_benchmarks_during_measurement": false,
+    "external_load_and_thermals": "uncontrolled",
+    "global_setting_mutation": false
+  },
+  "validation": {
+    "five_configs": [
+      "GCCnative",
+      "GCCNO_INT128carryhelper",
+      "Clangnative",
+      "UBSan",
+      "ASanUBSan"
+    ],
+    "same_corpus_each": true,
+    "reducer_cases": 101445,
+    "column_cases": 10153,
+    "array_cases": 2276,
+    "fixture_categories_overlap": true,
+    "mismatches_each": 0,
+    "checksum_each": "6dfb20c5e053ec85",
+    "billion_array_allocated": false,
+    "new_uint128_required_even_NO_INT128": true,
+    "driver_smokes": 6,
+    "driver_ubsan_smokes": 1,
+    "unqualified_gate": "retainedJSONexit2beforewarmup/measure",
+    "details": "data/f2_validation_20260905.json anddata/f2_driver_validation_20260905.json"
+  },
+  "reviews": {
+    "mechanical_before_source": true,
+    "manager_did_not_author_kernels_or_tests_or_driver": true,
+    "independent_source_binary": "CLEAN",
+    "independent_numeric": "CLEAN0discrepancies",
+    "independent_report": "CLEANall213lines/alltables",
+    "final_report_sha256": "2c38ae0389b5ddc5d7f27717d5f5a6be0b031c3e85b7e76d7fdf46f952664609",
+    "lenses_sha256": "71c39247abdb49f4bac0718f3d2b9137f7e8bc8891c083854f0eb1ff86504976",
+    "receipt": "data/f2_final_review_20260905.json"
+  },
+  "source_graph": {
+    "mandatory_manager_use": "Verifiedroute/session; orientation/focus/file andcontinuousvalidation/review/reworkqueries; exactdeclaredlivefilesandhashes",
+    "workers": "Worker-role toolsabsent; noimpersonation;rootauthorizedexactknownpathreads",
+    "fallbacks": "NewinputsandignoredAtlas declared_input_unindexed; truncatedindexedpreviews boundedexactreads; no broadfilesystemdiscovery",
+    "needfix": "data/f2_source_graph_needfix_20260905.json",
+    "needfix_scope": "Docindexsourcehasholdwhilepreviewfresh;explicitrefresh failedidentity_slot_owned;livebodygrepavailable. Recordedaftermeasurements;no measuredcodechange.",
+    "task_system_mutation": false
+  },
+  "atlas": {
+    "clone_head": "f428fb53948bc15c4668c303366231817a947708",
+    "guidance_sha256": "03d70a369e4df8094091e235fce1bad2635121cd0976795dc9ff22639fb07ca1",
+    "schema_sha256": "73ef7b1b0e457a4501093c8169efc7db060a6b05ca39b21001981a0d1c8bb765",
+    "methodology": "exactdecodeobligation,rangeandobservability,distinctdepth/live-state/costceilings",
+    "formal_atlas_record_admitted": false
+  },
+  "inherited_frozen_hashes_verified": 36,
+  "hash_count": 80,
+  "hashes": [
+    {
+      "sha256": "57ede13d3f0df8b9c12f8578c60e533b416c23da670671d19ec3d731b860c651",
+      "path": "experiments/parseatlas_secp256k1/probes/f2_reduce.hpp"
+    },
+    {
+      "sha256": "1a1359f72b50765dca53783234a1b54cddec96323c5119589f517b132f53878e",
+      "path": "experiments/parseatlas_secp256k1/tests/test_f2_reduce.cpp"
+    },
+    {
+      "sha256": "aa04c645707a15ba126d3d5606789a8d879543f7c186a13e7c00350b465a1c3e",
+      "path": "experiments/parseatlas_secp256k1/probes/f2_reduce_compare.cpp"
+    },
+    {
+      "sha256": "1c2d9a8dbae4db1f8950b7c704d7bcd50c7b50657a679939f0facc7f01083ac1",
+      "path": "experiments/parseatlas_secp256k1/F2_REDUCTION_PROTOCOL.md"
+    },
+    {
+      "sha256": "2c38ae0389b5ddc5d7f27717d5f5a6be0b031c3e85b7e76d7fdf46f952664609",
+      "path": "experiments/parseatlas_secp256k1/F2_REDUCTION_RESULTS.md"
+    },
+    {
+      "sha256": "71c39247abdb49f4bac0718f3d2b9137f7e8bc8891c083854f0eb1ff86504976",
+      "path": "experiments/parseatlas_secp256k1/F2_25_LENSES.md"
+    },
+    {
+      "sha256": "89472617bfece5156468567ce39529e2641e89b9197db082b2dcd62ea6c13d87",
+      "path": "experiments/parseatlas_secp256k1/data/f2_validation_20260905.json"
+    },
+    {
+      "sha256": "f086728518ab6b2e95fd5f5902f09bb1a779ab56cf76e0aec2528aaa1721b3fb",
+      "path": "experiments/parseatlas_secp256k1/data/f2_driver_validation_20260905.json"
+    },
+    {
+      "sha256": "b733200c09d66ce3fc78f37470bcc4e498377f0fa03d87cfa3c2d9021adfda0b",
+      "path": "experiments/parseatlas_secp256k1/data/f2_disassembly_20260905.txt"
+    },
+    {
+      "sha256": "70b739ce35f63e3709cb7edfc8c985275b5960c19d4a653c26972ae77ca84f62",
+      "path": "experiments/parseatlas_secp256k1/data/f2_run_plan_20260905.json"
+    },
+    {
+      "sha256": "b0de824181f25e84f860cd1b52e3cfc7d74f7b52c7f229cfbe5469f985139219",
+      "path": "experiments/parseatlas_secp256k1/data/f2_review_gate_20260905.json"
+    },
+    {
+      "sha256": "45310b505313d3062a1d615123e164a3cbb04338d66fa6cf8ba791fa7cdf8a38",
+      "path": "experiments/parseatlas_secp256k1/data/f2_numeric_audit_20260905.json"
+    },
+    {
+      "sha256": "5059f365e90ef35f7dcecb134fc212cc9da667f8e9cf529847096e24ea964756",
+      "path": "experiments/parseatlas_secp256k1/data/f2_final_review_20260905.json"
+    },
+    {
+      "sha256": "df0f7fd121165353fac92441589c7f0715e0a682af1fc443a79a994c6130171e",
+      "path": "experiments/parseatlas_secp256k1/data/f2_source_graph_needfix_20260905.json"
+    },
+    {
+      "sha256": "15f3eecc657631f4bb6f01a950656e3f423868e2c310f82d9133832cd2b2501b",
+      "path": "experiments/parseatlas_secp256k1/data/f2_256_run1_20260905.json"
+    },
+    {
+      "sha256": "0e4bbeb14a5e040aa00bdc2ead768b24671fb7b76c62cfa2244ac76476736b7b",
+      "path": "experiments/parseatlas_secp256k1/data/f2_1_run1_20260905.json"
+    },
+    {
+      "sha256": "1ba78b91efc25b26cfb62f8b85f70c345c135d3b0eefff9337ff33d53516d08d",
+      "path": "experiments/parseatlas_secp256k1/data/f2_65536_run1_20260905.json"
+    },
+    {
+      "sha256": "faf0fd90a9782b7735c0761f510e502924de6bd11159f2e772338f5dc8d7be96",
+      "path": "experiments/parseatlas_secp256k1/data/f2_16_run1_20260905.json"
+    },
+    {
+      "sha256": "8292262e2ea87e7e6aa06ddbc6dabce470becf941b8bacf082421dc8f15caae9",
+      "path": "experiments/parseatlas_secp256k1/data/f2_1048576_run1_20260905.json"
+    },
+    {
+      "sha256": "8caf51768901db656b4fc23a64fbde103931d98f32c590a50faade17ea22d487",
+      "path": "experiments/parseatlas_secp256k1/data/f2_4096_run1_20260905.json"
+    },
+    {
+      "sha256": "f936a7ed9c24f05f37ed5ebc21e2bb8e416cd102124c5b950af54516c3029e01",
+      "path": "experiments/parseatlas_secp256k1/data/f2_4096_run2_20260905.json"
+    },
+    {
+      "sha256": "99ad1a99aab64fe6abfcaa9ba4fcc9a6834e34420610dac0a33357da6ccc9a92",
+      "path": "experiments/parseatlas_secp256k1/data/f2_1048576_run2_20260905.json"
+    },
+    {
+      "sha256": "e3a4f52dc6b90b23404d960ecee4bf6ce6241adee7f2ecb3415353353e0b4390",
+      "path": "experiments/parseatlas_secp256k1/data/f2_16_run2_20260905.json"
+    },
+    {
+      "sha256": "a52c559763fc33631990c9aab1fc7f26fa12185a6798c0fcb8bf3162d580e03a",
+      "path": "experiments/parseatlas_secp256k1/data/f2_65536_run2_20260905.json"
+    },
+    {
+      "sha256": "7501137614ab005fbbc62921400fb18f2c7082129a79581c221cd57bf626d082",
+      "path": "experiments/parseatlas_secp256k1/data/f2_1_run2_20260905.json"
+    },
+    {
+      "sha256": "c8f65b8a4067aa70c5d755c6dd6afabe7d354c7f51eeb9341502360d63b1ac58",
+      "path": "experiments/parseatlas_secp256k1/data/f2_256_run2_20260905.json"
+    },
+    {
+      "sha256": "cb0570b3640180c2eb93291967a85602c99b33f3d361bc6172412053d88f9c19",
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_1_20260905.json"
+    },
+    {
+      "sha256": "cc339214aef70af8ea868210b902c8e596bcc44ccac57038b12e99b1a055f92e",
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_16_20260905.json"
+    },
+    {
+      "sha256": "fadc1099035fd8a4af340ccff249a08434603f7a3f0453687c3bf354a761aecd",
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_256_20260905.json"
+    },
+    {
+      "sha256": "8c064c4b518d315cf112dd4ea42c694b29b8730a5eca18ff85b0e7df92c67eab",
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_4096_20260905.json"
+    },
+    {
+      "sha256": "5a6c4ae8288950cf07d34e13915874102eeac5c7c5e8073805c6340602c0e748",
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_65536_20260905.json"
+    },
+    {
+      "sha256": "e5493d95058e03b65a9cb9688debfba8c5b134f35410a69821bdae3d3bc5f19f",
+      "path": "experiments/parseatlas_secp256k1/data/f2_smoke_1048576_20260905.json"
+    },
+    {
+      "sha256": "66dbb2bd814f257f999648696fbd00fccd1c6391aea69fbf65814ff345e4138f",
+      "path": "experiments/parseatlas_secp256k1/data/f2_unqualified_gate_20260905.json"
+    },
+    {
+      "sha256": "15c48b34fe7f2f9fca811f9fd17d04d52df795104389b418198af514816a7465",
+      "path": "experiments/parseatlas_secp256k1/data/f2_driver_ubsan_smoke_20260905.json"
+    },
+    {
+      "sha256": "b3e23162acd7b4997f03d14ff4082e538d041f59df60d8ea9cdfbf4655cf7697",
+      "path": "/tmp/parseatlas-f2-review.WmcyRl/gcc_native"
+    },
+    {
+      "sha256": "fd173fb57bfd1e354b8b32a255349e6dfea17740b5d9f4074d7c0b4bb734c3df",
+      "path": "/tmp/parseatlas-f2-review.WmcyRl/gcc_reference_carry"
+    },
+    {
+      "sha256": "44e2ad62ea0d0ade0363b6e9c34d9b14da64dd493589b3ac34a6db8fdeb010bc",
+      "path": "/tmp/parseatlas-f2-review.WmcyRl/clang_native"
+    },
+    {
+      "sha256": "e459d3e8433d0556c4c2710ba793f9a45ae405b9e5a5aab4a46d1d393d17e88a",
+      "path": "/tmp/parseatlas-f2-review.WmcyRl/ubsan"
+    },
+    {
+      "sha256": "f7a319e114f9d2701be82c77f70961defaa55088437a22c16a3ad775007500a7",
+      "path": "/tmp/parseatlas-f2-review.WmcyRl/asan_ubsan"
+    },
+    {
+      "sha256": "b06a6d46c0896c4c579b465e4c5f49dbfc249b3da0604b49671fb50f8da89a76",
+      "path": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare"
+    },
+    {
+      "sha256": "8f33475d746ddef80151d672c0c21c96870b3b460824e42412bc312dcea894a4",
+      "path": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare_ubsan"
+    },
+    {
+      "sha256": "55404fe2a0fa9feccb81d99f5a006a668ecfc0475a18fb3229ca35b27a96a759",
+      "path": "experiments/parseatlas_secp256k1/probes/f1_reduce.hpp"
+    },
+    {
+      "sha256": "bdb127716fce5134227bda33c19d7673a57ef19cba7e0d97ea44181805e08c4a",
+      "path": "experiments/parseatlas_secp256k1/tests/test_f1_reduce.cpp"
+    },
+    {
+      "sha256": "cc9d4d4825427d224a75f8f517d09a6e690f7157dbf1a6d9d312d553f2c5a319",
+      "path": "experiments/parseatlas_secp256k1/probes/f1_reduce_compare.cpp"
+    },
+    {
+      "sha256": "714bdcb963abe95a3ebee1af9382577d13defba7533be43ee80b898191e0406b",
+      "path": "experiments/parseatlas_secp256k1/F1_REDUCTION_PROTOCOL.md"
+    },
+    {
+      "sha256": "628ae5f261cfd5f55b19f6ba33b2057d63cb09944139829d1582727e51e69259",
+      "path": "experiments/parseatlas_secp256k1/F1_REDUCTION_RESULTS.md"
+    },
+    {
+      "sha256": "eb4a8042016973e175e3a83361018197099fa6864486dca1a30cd6401dcf1f19",
+      "path": "experiments/parseatlas_secp256k1/data/f1_run_plan_20260905.json"
+    },
+    {
+      "sha256": "b7a871048c685656edc7267d51faa3c859a7afabbc54462f77f0130f6ed24a50",
+      "path": "experiments/parseatlas_secp256k1/data/f1_validation_20260905.json"
+    },
+    {
+      "sha256": "ee5cd89f6e7c740f0673d12607ce47adbce4a1f25bab1a611358cc44db41aab4",
+      "path": "experiments/parseatlas_secp256k1/data/f1_numeric_audit_20260905.json"
+    },
+    {
+      "sha256": "551dddf86920f7a1dfba1c173c57ce56dda4ba961dd63435e7bebf308393e8bb",
+      "path": "experiments/parseatlas_secp256k1/data/f1_disassembly_20260905.txt"
+    },
+    {
+      "sha256": "0858f280f415d247e569e652e49a6635c999e80c3f7d89494a715c3585daa04f",
+      "path": "experiments/parseatlas_secp256k1/probes/modn_add_control.hpp"
+    },
+    {
+      "sha256": "13966af5531c3d6c2525de00d5e8e41b53245cb3d9244e29117f642e4db2da60",
+      "path": "experiments/parseatlas_secp256k1/probes/l0_native_kernels.hpp"
+    },
+    {
+      "sha256": "eece21b35a4bc44a5d2b04cedb875a02537ae7bab10c23a67f6dcb4f3445fc96",
+      "path": "experiments/parseatlas_secp256k1/L0_25_LENSES.md"
+    },
+    {
+      "sha256": "636db2aa3b9e81cdf52cde265c6c439ad3b61afc4338eac67f4f5c77bba89f4d",
+      "path": "experiments/parseatlas_secp256k1/MODN_NATIVE_RESULTS.md"
+    },
+    {
+      "sha256": "00582ef428f0caa4e5e2708086849b11a9d61544ae7736cf4baf205e60772cdd",
+      "path": "experiments/parseatlas_secp256k1/data/f1_256_run1_20260905.json"
+    },
+    {
+      "sha256": "099fb6a058eebf3588752136977f8fb18b8815263d00685982833d09742e17fd",
+      "path": "experiments/parseatlas_secp256k1/data/f1_4096_run1_20260905.json"
+    },
+    {
+      "sha256": "3e9eb6c89f95d2f31c29b78ca1050310809877d2f4ac493fc8c4f471de1e40fc",
+      "path": "experiments/parseatlas_secp256k1/data/f1_65536_run1_20260905.json"
+    },
+    {
+      "sha256": "9d74b23b03317bc499e59df939258769fab94c92aa6f3440a76ecf9ca2751a4a",
+      "path": "experiments/parseatlas_secp256k1/data/f1_1048576_run1_20260905.json"
+    },
+    {
+      "sha256": "8416ae644e72430914795048434e411f37674bd0ba7a5fe5f25eabaca050ac64",
+      "path": "experiments/parseatlas_secp256k1/data/f1_1048576_run2_20260905.json"
+    },
+    {
+      "sha256": "92b78776412c461d137f7315773ae5ca7b1e8db14ca1a497e19b584a65e30e54",
+      "path": "experiments/parseatlas_secp256k1/data/f1_65536_run2_20260905.json"
+    },
+    {
+      "sha256": "080a6378d77bdf5d4a8bf83698cfb6d2a100444847a5b4e104807280857a84b0",
+      "path": "experiments/parseatlas_secp256k1/data/f1_4096_run2_20260905.json"
+    },
+    {
+      "sha256": "223c27230a44a5d97f5b70c5f566a7f0546e04fc9cce6384ded2ae4d32479961",
+      "path": "experiments/parseatlas_secp256k1/data/f1_256_run2_20260905.json"
+    },
+    {
+      "sha256": "9da20c8fbe95c531b73fd494ff8e7a969d055ae31e8a7b4b588d0885a960050e",
+      "path": "src/cpu/src/scalar.cpp"
+    },
+    {
+      "sha256": "610844d21051f606d418c2e38f9ec273cd3ab3bcc62b6d8841c1931f546bcc25",
+      "path": "src/cpu/include/secp256k1/scalar.hpp"
+    },
+    {
+      "sha256": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d",
+      "path": "src/cpu/include/secp256k1/detail/arith64.hpp"
+    },
+    {
+      "sha256": "a0f2a2d1237a2b0561e84df93b29e87d52277660bda792e0207ba19d833772c4",
+      "path": "src/cpu/include/secp256k1/types.hpp"
+    },
+    {
+      "sha256": "6ac45941eacfbf0666e30ff6d3f4f37254a4c5e66e6f2ae167155ebc3f957fdf",
+      "path": "src/cpu/include/secp256k1/debug_invariants.hpp"
+    },
+    {
+      "sha256": "aff57ae851fdeb138ce55bdb8fd05b91987d318c1ab7558cf6d5a28036d74a56",
+      "path": "src/cpu/src/musig2.cpp"
+    },
+    {
+      "sha256": "281625624eaa0825257a20d631055c7f68b751d8da869f92aebb25f721718e23",
+      "path": "src/cpu/src/frost.cpp"
+    },
+    {
+      "sha256": "a3983b49ee77a742c47511e9b09032ab312aeb2d540ecf72f9288eaaa458aeec",
+      "path": "src/cpu/src/pedersen.cpp"
+    },
+    {
+      "sha256": "338daf9373ee36a1944f9ff481c02f2d886bfe0f2966109aae9854f309e94f1d",
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_gcc"
+    },
+    {
+      "sha256": "8664fd6f895a71e9028f8cbc9a182300efaf6fd89228829bafd531c09f33ab38",
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_portable"
+    },
+    {
+      "sha256": "5455369e8e4db1f40fb6ab7797adbaae38aee90986f9f43f1f9db5829bd8eb96",
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_clang"
+    },
+    {
+      "sha256": "614315f032abf90565197b7b6bc189fa4528010358ca4a4ccce3eb057b8c0c40",
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_ubsan"
+    },
+    {
+      "sha256": "905c7c738180f03771ff5c550308467aa090dfa8f341d7f6d043d2235087e5d4",
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_asan"
+    },
+    {
+      "sha256": "6db8685925eceb4d10be15458bf08c34c3efc700d2656e79e5c9de0a345e8ed0",
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare"
+    },
+    {
+      "sha256": "ce6ca275ba2074551909fd3dea06d7329a96186dcf1afa1aeee92b9d1ffe5d2a",
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare_ubsan"
+    },
+    {
+      "sha256": "a03c1ffaf8fdd769b58626d87775a63787d0b6b7350a713e175166ce6c64d72d",
+      "path": "experiments/parseatlas_secp256k1/data/f1_manifest_20260905.json"
+    },
+    {
+      "sha256": "03d70a369e4df8094091e235fce1bad2635121cd0976795dc9ff22639fb07ca1",
+      "path": "research/ParseAtlas/case_studies/modular_arithmetic_guidance.md"
+    },
+    {
+      "sha256": "73ef7b1b0e457a4501093c8169efc7db060a6b05ca39b21001981a0d1c8bb765",
+      "path": "research/ParseAtlas/case_studies/RECORD_SCHEMA.md"
+    }
+  ],
+  "executions": [
+    {
+      "sequence": 1,
+      "series": 1,
+      "count": 256,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 256 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_256_run1_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629027368002275",
+      "finished_unix_ns": "1788629041322114764"
+    },
+    {
+      "sequence": 2,
+      "series": 1,
+      "count": 1,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 1 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_1_run1_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629041375541785",
+      "finished_unix_ns": "1788629056697321203"
+    },
+    {
+      "sequence": 3,
+      "series": 1,
+      "count": 65536,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 65536 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_65536_run1_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629056749814463",
+      "finished_unix_ns": "1788629072378231050"
+    },
+    {
+      "sequence": 4,
+      "series": 1,
+      "count": 16,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 16 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_16_run1_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629072425635673",
+      "finished_unix_ns": "1788629087389228104"
+    },
+    {
+      "sequence": 5,
+      "series": 1,
+      "count": 1048576,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 1048576 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_1048576_run1_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629087450818173",
+      "finished_unix_ns": "1788629102134799027"
+    },
+    {
+      "sequence": 6,
+      "series": 1,
+      "count": 4096,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 4096 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_4096_run1_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629102185815969",
+      "finished_unix_ns": "1788629115881647582"
+    },
+    {
+      "sequence": 7,
+      "series": 2,
+      "count": 4096,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 4096 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_4096_run2_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629115938815327",
+      "finished_unix_ns": "1788629129874622735"
+    },
+    {
+      "sequence": 8,
+      "series": 2,
+      "count": 1048576,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 1048576 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_1048576_run2_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629129936815474",
+      "finished_unix_ns": "1788629144097054014"
+    },
+    {
+      "sequence": 9,
+      "series": 2,
+      "count": 16,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 16 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_16_run2_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629144156496908",
+      "finished_unix_ns": "1788629159915219940"
+    },
+    {
+      "sequence": 10,
+      "series": 2,
+      "count": 65536,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 65536 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_65536_run2_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629159976814975",
+      "finished_unix_ns": "1788629173367448988"
+    },
+    {
+      "sequence": 11,
+      "series": 2,
+      "count": 1,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 1 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_1_run2_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629173423651475",
+      "finished_unix_ns": "1788629188747488751"
+    },
+    {
+      "sequence": 12,
+      "series": 2,
+      "count": 256,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 256 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_256_run2_20260905.json",
+      "exit_code": 0,
+      "audit": "pass",
+      "started_unix_ns": "1788629188807641677",
+      "finished_unix_ns": "1788629203537445575"
+    }
+  ]
+}

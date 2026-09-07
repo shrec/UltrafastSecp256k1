@@ -119,6 +119,9 @@ tools/k256_helper/target/
 # Local working documents (not for repo)
 INDUSTRIAL_ROADMAP_WORKING.md
 
+# Local research repositories
+/research/ParseAtlas/
+
 # Local scratch/debug files (never commit)
 _*.py
 !ci/_ufsecp.py

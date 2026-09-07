@@ -1,0 +1,96 @@
+{
+  "schema": "parseatlas_modn_preregistered_run_plan_v1",
+  "registered_utc": "2026-09-05 15:12:58 UTC",
+  "measurements_started": false,
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "branch": "experiment/representation-search",
+  "source_and_binary_hashes": [
+    "0858f280f415d247e569e652e49a6635c999e80c3f7d89494a715c3585daa04f  experiments/parseatlas_secp256k1/probes/modn_add_control.hpp\n13966af5531c3d6c2525de00d5e8e41b53245cb3d9244e29117f642e4db2da60  experiments/parseatlas_secp256k1/probes/l0_native_kernels.hpp\n9da20c8fbe95c531b73fd494ff8e7a969d055ae31e8a7b4b588d0885a960050e  src/cpu/src/scalar.cpp\n610844d21051f606d418c2e38f9ec273cd3ab3bcc62b6d8841c1931f546bcc25  src/cpu/include/secp256k1/scalar.hpp\ncc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d  src/cpu/include/secp256k1/detail/arith64.hpp\na0f2a2d1237a2b0561e84df93b29e87d52277660bda792e0207ba19d833772c4  src/cpu/include/secp256k1/types.hpp\n6ac45941eacfbf0666e30ff6d3f4f37254a4c5e66e6f2ae167155ebc3f957fdf  src/cpu/include/secp256k1/debug_invariants.hpp\n",
+    "0ef42ba836bc7b29a567c330d6d6394fcf8ddf85c4dafe39f041082581df991c  /tmp/parseatlas-modn-review.7b5Pcg/modn_compare\n936f918cdaf70a3c78a6ba456cda6aa5f84ef13dcbd458349225d11839889c12  /tmp/parseatlas-modn-review.7b5Pcg/modn_compare_ubsan\nf71d45f79155545e40dc412f2fdd9eac9b453b43a1d43d35626e8bf2fbf9700b  experiments/parseatlas_secp256k1/probes/modn_add_compare.cpp\n75b340846747c9ba222f7c584184f2e74fd4e9438432ccf125dd200c95319c70  experiments/parseatlas_secp256k1/MODN_NATIVE_PROTOCOL.md\n258fc1f4b40b04686d7747a2284257fd3faf2bc1bdbb2c35fa0f40497f2b1eeb  experiments/parseatlas_secp256k1/tests/test_modn_add_control.cpp\n"
+  ],
+  "gates": "Root four C++ correctness configurations, eight native/UBSan smoke combinations, nine negative CLI inputs, full source/protocol review and independent all-eight timed-wrapper/reachable-loop binary review passed before registration.",
+  "cpu": 4,
+  "seed": 20260905,
+  "target_ms": 200,
+  "invocations": 8,
+  "variants": 4,
+  "matched_inline_variants": 3,
+  "measured_rounds_per_invocation": 8,
+  "total_measured_samples": 256,
+  "warmup_rounds": 2,
+  "serial_reason": "Benchmark invocations run serially to avoid self-interference on shared CPU resources; build/test gates ran independently before timing.",
+  "order_design": "Two fixed series; series 2 reverses series 1. Within each invocation the protocol rotates the same seeded four-method permutation over eight rounds.",
+  "entries": [
+    {
+      "series": 1,
+      "shape": "dependent",
+      "count": 256,
+      "ordinal": 1,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_256_run1_20260905.json",
+      "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape dependent --count 256 --cpu 4 --seed 20260905 --target-ms 200"
+    },
+    {
+      "series": 1,
+      "shape": "throughput",
+      "count": 4096,
+      "ordinal": 2,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_4096_run1_20260905.json",
+      "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape throughput --count 4096 --cpu 4 --seed 20260905 --target-ms 200"
+    },
+    {
+      "series": 1,
+      "shape": "dependent",
+      "count": 4096,
+      "ordinal": 3,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_4096_run1_20260905.json",
+      "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape dependent --count 4096 --cpu 4 --seed 20260905 --target-ms 200"
+    },
+    {
+      "series": 1,
+      "shape": "throughput",
+      "count": 256,
+      "ordinal": 4,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_256_run1_20260905.json",
+      "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape throughput --count 256 --cpu 4 --seed 20260905 --target-ms 200"
+    },
+    {
+      "series": 2,
+      "shape": "throughput",
+      "count": 256,
+      "ordinal": 5,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_256_run2_20260905.json",
+      "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape throughput --count 256 --cpu 4 --seed 20260905 --target-ms 200"
+    },
+    {
+      "series": 2,
+      "shape": "dependent",
+      "count": 4096,
+      "ordinal": 6,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_4096_run2_20260905.json",
+      "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape dependent --count 4096 --cpu 4 --seed 20260905 --target-ms 200"
+    },
+    {
+      "series": 2,
+      "shape": "throughput",
+      "count": 4096,
+      "ordinal": 7,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_4096_run2_20260905.json",
+      "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape throughput --count 4096 --cpu 4 --seed 20260905 --target-ms 200"
+    },
+    {
+      "series": 2,
+      "shape": "dependent",
+      "count": 256,
+      "ordinal": 8,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_256_run2_20260905.json",
+      "command": "/tmp/parseatlas-modn-review.7b5Pcg/modn_compare --measure --shape dependent --count 256 --cpu 4 --seed 20260905 --target-ms 200"
+    }
+  ],
+  "policy": [
+    "Retain all calibration, warmup, measured and below-target samples without trimming or cherry-picking.",
+    "Do not pool series; report per-invocation medians and same-round Original/candidate ratios.",
+    "Actual public Scalar+= is diagnostic only and excluded from algebra ratios.",
+    "CPU frequency/governor/turbo observations are endpoints, not continuous controls.",
+    "No production, default-build, CI or frozen reference changes. No Python arithmetic timing. No CT, novelty, whole-engine or 25x25 completion claim."
+  ]
+}

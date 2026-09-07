@@ -1,0 +1,1512 @@
+{
+  "schema_version": "parseatlas.primitive_graph.v1",
+  "reference_revision": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "evidence_class": "SOURCE_OBSERVED",
+  "scope": "Frozen CPU source-family inventory supporting bottom-up modular research. Witnessed presence and call sites are not a proof that every branch is compiled or executed. No runtime timings, arithmetic changes or full-engine completeness claim.",
+  "sources": [
+    {
+      "path": "src/cpu/include/secp256k1/detail/arith64.hpp",
+      "sha256": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field.hpp",
+      "sha256": "da944a2803c7ec3f07fd2a3e1ec93581bdc94dc6f3f9db402edc9459b4b1b381"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field_52.hpp",
+      "sha256": "95ca595490b827c6cc1965a7ae2feb1ae72546c3b60dba0562f94f842f998898"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "sha256": "2c3f77d7855e9881ebeaf2b7f53de61e683de5201c77d23caaa288df8bf2afb3"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field_4x64_inline.hpp",
+      "sha256": "1d505f236f45e6461d8d8ef7f64ed60b1dd0cb451d3e0659238e66961ad9e168"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/scalar.hpp",
+      "sha256": "610844d21051f606d418c2e38f9ec273cd3ab3bcc62b6d8841c1931f546bcc25"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/point.hpp",
+      "sha256": "61c35951040476ca8b0b96807dd12af2dc3a8f7b3f3f1f9f83ddfcea9ec4b2ec"
+    },
+    {
+      "path": "src/cpu/src/field.cpp",
+      "sha256": "db5792d9bc0b51cfd12927af11fae7160c1a671b8028e0c4d73ef7f3fb6e6812"
+    },
+    {
+      "path": "src/cpu/src/field_52.cpp",
+      "sha256": "b797a1c7a1219735424859d912596d5c3f50e1848036865d15d2879adeb8207a"
+    },
+    {
+      "path": "src/cpu/src/scalar.cpp",
+      "sha256": "9da20c8fbe95c531b73fd494ff8e7a969d055ae31e8a7b4b588d0885a960050e"
+    },
+    {
+      "path": "src/cpu/src/point.cpp",
+      "sha256": "1bbbac53248572ee52df6c1b84cd40529bbf676360dee8fb2df60c245c3726f0"
+    },
+    {
+      "path": "src/cpu/src/pippenger.cpp",
+      "sha256": "5b6d2d0c5d04cf763e77d182f765655e639922cb6cf85c8dc5401ae2fc915f38"
+    },
+    {
+      "path": "src/cpu/src/ecdsa.cpp",
+      "sha256": "25e445afedc8b77e69015c1da1bf452c88bbbbf5ce3bbfb43a4c302bb80fda07"
+    },
+    {
+      "path": "src/cpu/src/batch_verify.cpp",
+      "sha256": "e3e6e25525b5dd9558f1dc2ab5736d5d2658f58d32fc35da4855beae04cd498a"
+    },
+    {
+      "path": "src/cpu/tests/test_comprehensive.cpp",
+      "sha256": "757d767788739f80eb75f6eeccc0b7f44ed6b0071d126ea3f0f27be7e2b49a01"
+    },
+    {
+      "path": "experiments/representation_search/README.md",
+      "sha256": "28516a064602bf521202a53c4ff2b3707a6418704d8a26751d68c8c5d8a3c220"
+    }
+  ],
+  "witnesses": [
+    {
+      "id": "word_carry",
+      "path": "src/cpu/include/secp256k1/detail/arith64.hpp",
+      "symbol": "add64",
+      "start_line": 53,
+      "end_line": 71,
+      "tokens": [
+        "unsigned __int128 const sum",
+        "sum >> 64",
+        "sub64",
+        "borrow = borrow1 | borrow2"
+      ]
+    },
+    {
+      "id": "word_product",
+      "path": "src/cpu/src/field.cpp",
+      "symbol": "mul64",
+      "start_line": 31,
+      "end_line": 72,
+      "tokens": [
+        "unsigned __int128 const product",
+        "product >> 64"
+      ]
+    },
+    {
+      "id": "fp_modulus",
+      "path": "src/cpu/src/field.cpp",
+      "symbol": "PRIME",
+      "start_line": 76,
+      "end_line": 86,
+      "tokens": [
+        "0xFFFFFFFEFFFFFC2FULL",
+        "MOD_ADJUST"
+      ]
+    },
+    {
+      "id": "fp_add",
+      "path": "src/cpu/src/field.cpp",
+      "symbol": "add_impl",
+      "start_line": 423,
+      "end_line": 448,
+      "tokens": [
+        "s[0] = add64(a[0], b[0], c1);",
+        "c1 | c2",
+        "MOD_ADJUST"
+      ]
+    },
+    {
+      "id": "fp_mul_dispatch",
+      "path": "src/cpu/src/field.cpp",
+      "symbol": "mul_impl",
+      "start_line": 1136,
+      "end_line": 1178,
+      "tokens": [
+        "has_bmi2_support() && has_adx_support()",
+        "return reduce(mul_wide(a, b));",
+        "field_mul_full_asm(a.data(), b.data(), out.data());"
+      ]
+    },
+    {
+      "id": "fp_inverse",
+      "path": "src/cpu/src/field.cpp",
+      "symbol": "FieldElement::inverse",
+      "start_line": 3541,
+      "end_line": 3554,
+      "tokens": [
+        "Inverse of zero not defined",
+        "return zero();",
+        "fe_inverse_safegcd_impl(*this)",
+        "field_safegcd30::inverse_impl(*this)"
+      ]
+    },
+    {
+      "id": "fp_bytes",
+      "path": "src/cpu/src/field.cpp",
+      "symbol": "FieldElement::to_bytes",
+      "start_line": 2517,
+      "end_line": 2526,
+      "tokens": [
+        "limbs_[3 - i]",
+        "limb >> (56 - 8 * j)"
+      ]
+    },
+    {
+      "id": "fp_raw_boundary",
+      "path": "src/cpu/include/secp256k1/field.hpp",
+      "symbol": "from_limbs_raw",
+      "start_line": 62,
+      "end_line": 70,
+      "tokens": [
+        "fe.limbs_ = limbs;",
+        "return fe;"
+      ]
+    },
+    {
+      "id": "fp52_mul",
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "symbol": "FieldElement52::operator*",
+      "start_line": 2438,
+      "end_line": 2443,
+      "tokens": [
+        "fe52_mul_inner(r.n, n, rhs.n);"
+      ]
+    },
+    {
+      "id": "fp52_lazy",
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "symbol": "FieldElement52::operator+",
+      "start_line": 2494,
+      "end_line": 2527,
+      "tokens": [
+        "r.n[4] = n[4] + rhs.n[4];",
+        "FieldElement52::negate",
+        "r.n[0] = m1 * P0 - n[0];"
+      ]
+    },
+    {
+      "id": "fp52_weak",
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "symbol": "fe52_normalize_weak",
+      "start_line": 2410,
+      "end_line": 2430,
+      "tokens": [
+        "t0 += x * 0x1000003D1ULL;",
+        "t4 += (t3 >> 52);"
+      ]
+    },
+    {
+      "id": "fp52_full",
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "symbol": "fe52_normalize_inline",
+      "start_line": 2636,
+      "end_line": 2668,
+      "tokens": [
+        "t0 >= 0xFFFFEFFFFFC2FULL",
+        "t4 &= M48;"
+      ]
+    },
+    {
+      "id": "fp52_from",
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "symbol": "FieldElement52::from_fe",
+      "start_line": 2744,
+      "end_line": 2754,
+      "tokens": [
+        "const auto& L = fe.limbs();",
+        "r.n[4] =  L[3] >> 16;"
+      ]
+    },
+    {
+      "id": "fp52_to",
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "symbol": "FieldElement52::to_fe",
+      "start_line": 2758,
+      "end_line": 2769,
+      "tokens": [
+        "fe52_normalize_inline(tmp.n);",
+        "return FieldElement::from_limbs_raw(L);"
+      ]
+    },
+    {
+      "id": "fp52_inverse_boundary",
+      "path": "src/cpu/src/field_52.cpp",
+      "symbol": "FieldElement52::inverse",
+      "start_line": 111,
+      "end_line": 126,
+      "tokens": [
+        "SECP256K1_HYBRID_4X64_ACTIVE",
+        "fe52_normalize_and_pack_4x64(n, a);",
+        "field_sqr_full_asm(a, x2);"
+      ]
+    },
+    {
+      "id": "fp52_layout",
+      "path": "src/cpu/include/secp256k1/field_52.hpp",
+      "symbol": "FieldElement52",
+      "start_line": 54,
+      "end_line": 100,
+      "tokens": [
+        "std::uint64_t n[5];",
+        "void normalize_weak() noexcept;",
+        "void normalize() noexcept;"
+      ]
+    },
+    {
+      "id": "fp4_inline_kernel",
+      "path": "src/cpu/include/secp256k1/field_4x64_inline.hpp",
+      "symbol": "void mul",
+      "start_line": 22,
+      "end_line": 76,
+      "tokens": [
+        "defined(__ADX__) && defined(__BMI2__)",
+        "__restrict__ r",
+        "__asm__ __volatile__"
+      ]
+    },
+    {
+      "id": "fn_modulus",
+      "path": "src/cpu/src/scalar.cpp",
+      "symbol": "ORDER",
+      "start_line": 19,
+      "end_line": 27,
+      "tokens": [
+        "0xBFD25E8CD0364141ULL",
+        "0xBAAEDCE6AF48A03BULL"
+      ]
+    },
+    {
+      "id": "fn_add",
+      "path": "src/cpu/src/scalar.cpp",
+      "symbol": "add_impl",
+      "start_line": 83,
+      "end_line": 103,
+      "tokens": [
+        "sum[i] = add64(a[i], b[i], carry);",
+        "reduced[i] = sub64(sum[i], ORDER[i], borrow);"
+      ]
+    },
+    {
+      "id": "fn_mul",
+      "path": "src/cpu/src/scalar.cpp",
+      "symbol": "Scalar::operator*",
+      "start_line": 342,
+      "end_line": 445,
+      "tokens": [
+        "#ifndef SECP256K1_NO_INT128",
+        "0x402DA1732FC9BEBFULL",
+        "const unsigned __int128 p",
+        "extract_to(l6);"
+      ]
+    },
+    {
+      "id": "fn_inverse",
+      "path": "src/cpu/src/scalar.cpp",
+      "symbol": "Scalar::inverse",
+      "start_line": 893,
+      "end_line": 897,
+      "tokens": [
+        "if (is_zero()) return Scalar::zero();",
+        "scalar_safegcd::inverse_impl(limbs_)"
+      ]
+    },
+    {
+      "id": "fn_bytes",
+      "path": "src/cpu/src/scalar.cpp",
+      "symbol": "Scalar::to_bytes",
+      "start_line": 278,
+      "end_line": 289,
+      "tokens": [
+        "write_bytes(out.data());",
+        "store_be64(out32 + 24, limbs_[0]);"
+      ]
+    },
+    {
+      "id": "fn_layout",
+      "path": "src/cpu/include/secp256k1/scalar.hpp",
+      "symbol": "class Scalar",
+      "start_line": 14,
+      "end_line": 41,
+      "tokens": [
+        "std::array<std::uint64_t, 4>",
+        "parse_bytes_strict_nonzero"
+      ]
+    },
+    {
+      "id": "point_layout",
+      "path": "src/cpu/include/secp256k1/point.hpp",
+      "symbol": "FieldElement52",
+      "start_line": 14,
+      "end_line": 32,
+      "tokens": [
+        "SECP256K1_FE52_COMPUTE",
+        "SECP256K1_FAST_52BIT"
+      ]
+    },
+    {
+      "id": "point_add",
+      "path": "src/cpu/src/point.cpp",
+      "symbol": "Point::add",
+      "start_line": 1869,
+      "end_line": 1947,
+      "tokens": [
+        "dx52.to_fe();",
+        "dx.inverse();",
+        "FieldElement const dx = other.x_ - x_;",
+        "jac52_add(p52, q52);",
+        "jacobian_add(p, q);"
+      ]
+    },
+    {
+      "id": "point_double",
+      "path": "src/cpu/src/point.cpp",
+      "symbol": "Point::dbl",
+      "start_line": 1949,
+      "end_line": 1974,
+      "tokens": [
+        "jac52_double_z1_to",
+        "jac52_double_to",
+        "jacobian_double(p)"
+      ]
+    },
+    {
+      "id": "single_mul",
+      "path": "src/cpu/src/point.cpp",
+      "symbol": "Point::scalar_mul",
+      "start_line": 2623,
+      "end_line": 2791,
+      "tokens": [
+        "glv_decompose(scalar)",
+        "result.dbl_inplace();",
+        "result.add_inplace(base);",
+        "scalar_mul_glv52(*this, scalar)",
+        "r.normalize();"
+      ]
+    },
+    {
+      "id": "dual_fe52",
+      "path": "src/cpu/src/point.cpp",
+      "symbol": "Point::dual_scalar_mul_gen_point",
+      "start_line": 4379,
+      "end_line": 4408,
+      "tokens": [
+        "SECP256K1_FE52_COMPUTE",
+        "a.limbs()",
+        "glv_decompose(b)",
+        "aG.add_inplace(P.scalar_mul(b));"
+      ]
+    },
+    {
+      "id": "dual_embedded",
+      "path": "src/cpu/src/point.cpp",
+      "symbol": "Point::dual_scalar_mul_gen_point",
+      "start_line": 4726,
+      "end_line": 4757,
+      "tokens": [
+        "SECP256K1_PLATFORM_ESP32",
+        "glv_decompose(a)",
+        "compute_wnaf_into(decomp_b.k2"
+      ]
+    },
+    {
+      "id": "dual_fallback",
+      "path": "src/cpu/src/point.cpp",
+      "symbol": "Point::dual_scalar_mul_gen_point",
+      "start_line": 4925,
+      "end_line": 4933,
+      "tokens": [
+        "Point::generator().scalar_mul(a);",
+        "aG.add_inplace(P.scalar_mul(b));"
+      ]
+    },
+    {
+      "id": "msm_digits",
+      "path": "src/cpu/src/pippenger.cpp",
+      "symbol": "extract_digit",
+      "start_line": 80,
+      "end_line": 100,
+      "tokens": [
+        "auto const& limbs = s.limbs();",
+        "limbs[limb_idx] >> bit_idx"
+      ]
+    },
+    {
+      "id": "msm_entry",
+      "path": "src/cpu/src/pippenger.cpp",
+      "symbol": "pippenger_msm",
+      "start_line": 479,
+      "end_line": 496,
+      "tokens": [
+        "n == 0",
+        "points[0].scalar_mul(scalars[0])",
+        "n < 48",
+        "pippenger_core"
+      ]
+    },
+    {
+      "id": "msm_dispatch",
+      "path": "src/cpu/src/pippenger.cpp",
+      "symbol": "Point msm",
+      "start_line": 652,
+      "end_line": 669,
+      "tokens": [
+        "kStraussCrossover = 48",
+        "kStraussCrossover = 60",
+        "multi_scalar_mul(scalars, points, n)",
+        "pippenger_msm_glv(scalars, points, n)"
+      ]
+    },
+    {
+      "id": "ecdsa_verify_call",
+      "path": "src/cpu/src/ecdsa.cpp",
+      "symbol": "ecdsa_verify",
+      "start_line": 890,
+      "end_line": 913,
+      "tokens": [
+        "Scalar::from_bytes(msg_hash32)",
+        "sig.s.inverse()",
+        "auto u1 = z * w;",
+        "Point::dual_scalar_mul_gen_point(u1, u2, public_key)"
+      ]
+    },
+    {
+      "id": "ecdsa_coordinate_check",
+      "path": "src/cpu/src/ecdsa.cpp",
+      "symbol": "ecdsa_check_xcoord",
+      "start_line": 798,
+      "end_line": 855,
+      "tokens": [
+        "FE52::from_4x64_limbs(sig.r.limbs().data())",
+        "R_prime.Z52().square()",
+        "FieldElement::from_limbs(sig.r.limbs())"
+      ]
+    },
+    {
+      "id": "ecdsa_ct_handoff",
+      "path": "src/cpu/src/ecdsa.cpp",
+      "symbol": "ecdsa_sign_verified",
+      "start_line": 724,
+      "end_line": 738,
+      "tokens": [
+        "ct::ecdsa_sign(msg_hash, private_key)",
+        "ct::generator_mul(private_key)"
+      ]
+    },
+    {
+      "id": "batch_consumer",
+      "path": "src/cpu/src/batch_verify.cpp",
+      "symbol": "schnorr_batch_verify_impl",
+      "start_line": 361,
+      "end_line": 463,
+      "tokens": [
+        "n <= kSchnorrBatchIndividualCutoff",
+        "secp256k1::detail::csprng_fill",
+        "std::size_t const msm_n = 2 * n;",
+        "auto G_term = Point::generator().scalar_mul(g_coeff);",
+        "auto rest = msm(scalars, points, msm_n);",
+        "auto result = G_term.add(rest);"
+      ]
+    },
+    {
+      "id": "test_fp",
+      "path": "src/cpu/tests/test_comprehensive.cpp",
+      "symbol": "test_field_arith",
+      "start_line": 99,
+      "end_line": 211,
+      "tokens": [
+        "a*(b+c)==a*b+a*c",
+        "a^2==a*a"
+      ]
+    },
+    {
+      "id": "test_fn",
+      "path": "src/cpu/tests/test_comprehensive.cpp",
+      "symbol": "test_scalar_arith",
+      "start_line": 675,
+      "end_line": 768,
+      "tokens": [
+        "s: a*(b+c)==a*b+a*c",
+        "s: a*a^-^1==1"
+      ]
+    },
+    {
+      "id": "test_point",
+      "path": "src/cpu/tests/test_comprehensive.cpp",
+      "symbol": "test_point_basic",
+      "start_line": 968,
+      "end_line": 1060,
+      "tokens": [
+        "G on curve",
+        "dbl(G)==G+G"
+      ]
+    },
+    {
+      "id": "test_msm",
+      "path": "src/cpu/tests/test_comprehensive.cpp",
+      "symbol": "test_msm",
+      "start_line": 1825,
+      "end_line": 1910,
+      "tokens": [
+        "secp256k1::pippenger_msm(scalars, points)",
+        "Pippenger(n=64)",
+        "Pippenger(n=256)"
+      ]
+    },
+    {
+      "id": "test_ecdsa",
+      "path": "src/cpu/tests/test_comprehensive.cpp",
+      "symbol": "test_ecdsa",
+      "start_line": 2050,
+      "end_line": 2117,
+      "tokens": [
+        "ECDSA sign+verify",
+        "ECDSA wrong msg fails"
+      ]
+    },
+    {
+      "id": "history_fp_costs",
+      "path": "experiments/representation_search/README.md",
+      "symbol": "FE52 operation costs",
+      "start_line": 216,
+      "end_line": 251,
+      "tokens": [
+        "21.52",
+        "18.81",
+        "ILP saturates at two field multiplies"
+      ]
+    },
+    {
+      "id": "history_point_negative",
+      "path": "experiments/representation_search/README.md",
+      "symbol": "What the measurements establish",
+      "start_line": 287,
+      "end_line": 311,
+      "tokens": [
+        "No representation beats the production formulas",
+        "inside the noise",
+        "not a speedup"
+      ]
+    },
+    {
+      "id": "history_wins",
+      "path": "experiments/representation_search/README.md",
+      "symbol": "Confirmed wins",
+      "start_line": 319,
+      "end_line": 332,
+      "tokens": [
+        "co-Z coordinate change",
+        "CT SafeGCD inverse",
+        "macro-guarded"
+      ]
+    },
+    {
+      "id": "history_refutations",
+      "path": "experiments/representation_search/README.md",
+      "symbol": "Refuted or below the noise floor",
+      "start_line": 342,
+      "end_line": 361,
+      "tokens": [
+        "Limb schedule, more columns",
+        "Scalar reduction mod n (int128)",
+        "AVX2 vectorisation",
+        "Strauss vs Pippenger"
+      ]
+    },
+    {
+      "id": "history_open_table",
+      "path": "experiments/representation_search/README.md",
+      "symbol": "Still open on x86",
+      "start_line": 363,
+      "end_line": 370,
+      "tokens": [
+        "ConnectBlock on a quiet frequency-locked machine",
+        "1280 KB"
+      ]
+    },
+    {
+      "id": "history_doc_conflict",
+      "path": "experiments/representation_search/README.md",
+      "start_line": 403,
+      "end_line": 420,
+      "symbol": "Status",
+      "tokens": [
+        "nothing here is a measurement",
+        "No number in this document came from running code on hardware"
+      ]
+    },
+    {
+      "id": "history_slice",
+      "path": "experiments/representation_search/README.md",
+      "start_line": 440,
+      "end_line": 484,
+      "symbol": "Slices are",
+      "tokens": [
+        "off the slice (Z1 free): agreed  0/64",
+        "on the slice  (Z1 = 1) : agreed 64/64",
+        "Extra outputs are reported"
+      ]
+    },
+    {
+      "id": "history_model_fix",
+      "path": "experiments/representation_search/README.md",
+      "start_line": 493,
+      "end_line": 524,
+      "symbol": "Defect 1:",
+      "tokens": [
+        "sub` now costs `neg + add",
+        "reverses both"
+      ]
+    },
+    {
+      "id": "history_harness_fix",
+      "path": "experiments/representation_search/README.md",
+      "start_line": 526,
+      "end_line": 551,
+      "symbol": "Defect 2:",
+      "tokens": [
+        "doubling family had never actually been compared",
+        "raw gate         34 agreeing pairs",
+        "projective gate  74 agreeing pairs",
+        "Z == 1"
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "id": "word64",
+      "layer": 0,
+      "domain": "word",
+      "representation": "unsigned 64-bit words; carry/borrow and 128-bit product split; compiler-dependent alternatives",
+      "contract": "Exact unsigned words plus exposed carry/borrow. A low-word match alone is insufficient.",
+      "witness_ids": [
+        "word_carry",
+        "word_product"
+      ],
+      "research_obligations": [
+        "Carry/borrow input and output, max-word products, signedness and shift bounds.",
+        "Generate coherent arithmetic worlds before selecting instruction schedules.",
+        "Manager's separate forced-backend diagnostic reports mulhi64 portable fallback mismatch for a=b=UINT64_MAX: high fffffffefffffffe versus bigint/native fffffffffffffffe. See L0_REFERENCE_CHECK.md; this inventory does not reproduce it and must not use that known-failing fallback as a correctness oracle."
+      ],
+      "domain_range": "a,b in [0,2^64); carry/borrow in {0,1}; 64x64 product in [0,2^128).",
+      "input_state": "Unsigned input words and explicitly initialized carry/borrow.",
+      "output_state": "Low word plus carry/borrow, or low/high product words.",
+      "invariants": [
+        "No signed overflow or shifts outside admitted widths; carry/borrow is part of the result.",
+        "A frozen implementation is a differential reference, not self-authenticating truth; preserve disagreement with the independent bigint oracle and never mask it by normalization."
+      ],
+      "ct_class": "BACKEND_CONDITIONAL_NOT_ESTABLISHED",
+      "consumers": [
+        "fn_4x64",
+        "fp_4x64"
+      ],
+      "test_evidence": {
+        "status": "NO_ANCHOR_IN_SCOPE",
+        "anchor_ids": [],
+        "reason": "No direct test anchor imported for this primitive/boundary; M1 must supply explicit corpus and oracle tests. Consumer tests are not silently promoted to direct coverage."
+      },
+      "benchmark_evidence": {
+        "status": "SECONDARY_NOT_IMPORTED",
+        "historical_ids": [
+          "word_schedule_refutation",
+          "documentation_conflict"
+        ],
+        "reason": "Only pinned README claims, preserving wins, negatives and unresolved limits; no fresh performance receipt."
+      }
+    },
+    {
+      "id": "fp_4x64",
+      "layer": 1,
+      "domain": "Fp",
+      "representation": "four little-endian uint64 limbs; modulus p = 2^256 - 2^32 - 977",
+      "contract": "Fp and Fn are distinct. Normalized public construction and raw-limb escape hatches coexist. FieldElement::to_bytes serializes stored limbs without normalizing. inverse(0) throws on ordinary hosts but returns zero under the named embedded macros.",
+      "witness_ids": [
+        "fp_modulus",
+        "fp_add",
+        "fp_mul_dispatch",
+        "fp_inverse",
+        "fp_bytes",
+        "fp_raw_boundary",
+        "fp4_inline_kernel"
+      ],
+      "research_obligations": [
+        "Preserve value mod p, admitted ranges, alias policy and exceptions for the pinned backend.",
+        "Record reduction depth, carry dependencies, conversion cost and compiled backend separately; source comments are not new timing measurements."
+      ],
+      "domain_range": "Residues mod p; canonical boundary [0,p), raw limb constructors/mutators may bypass it.",
+      "input_state": "Four little-endian words with entry-specific canonicality, alias and zero policy.",
+      "output_state": "Canonical residue where promised; 32-byte big-endian storage serialization does not normalize.",
+      "invariants": [
+        "Record exact constructor/reduction/serialization contract and host versus embedded inverse-zero behavior."
+      ],
+      "ct_class": "BACKEND_CONDITIONAL_NOT_ESTABLISHED",
+      "consumers": [
+        "point"
+      ],
+      "test_evidence": {
+        "status": "SOURCE_ANCHORS_ONLY",
+        "anchor_ids": [
+          "field_checks"
+        ],
+        "reason": "Exact existing C++ test functions located, not executed; no dynamic coverage claimed."
+      },
+      "benchmark_evidence": {
+        "status": "SECONDARY_NOT_IMPORTED",
+        "historical_ids": [
+          "inverse_prior_win",
+          "word_schedule_refutation",
+          "documentation_conflict"
+        ],
+        "reason": "Only pinned README claims, preserving wins, negatives and unresolved limits; no fresh performance receipt."
+      }
+    },
+    {
+      "id": "fp_5x52",
+      "layer": 1,
+      "domain": "Fp",
+      "representation": "five uint64 limbs at radix 2^52; top canonical limb 48 bits; lazy magnitudes",
+      "contract": "Lazy addition/negation and weak/full normalization are different states. from_fe repacks stored limbs; to_fe normalizes a copy before returning raw 4x64 limbs. No blanket canonical-output assertion is made for every kernel.",
+      "witness_ids": [
+        "fp52_layout",
+        "fp52_mul",
+        "fp52_lazy",
+        "fp52_weak",
+        "fp52_full",
+        "fp52_from",
+        "fp52_to",
+        "fp52_inverse_boundary"
+      ],
+      "research_obligations": [
+        "Track limb bounds and magnitude at each consumer, including negate(m), not only final residues.",
+        "Compare coherent normalization worlds including import/export cost; inspect hybrid inverse dispatch separately."
+      ],
+      "domain_range": "Residues mod p represented as sum n[i]*2^(52*i); canonical top limb 48 bits; lazy bounds require per-operation magnitude budget.",
+      "input_state": "Five limb words, magnitude and weak/full normalization state; no implicit global canonicality.",
+      "output_state": "Operation-specific magnitude; to_fe normalizes a copy to canonical 4x64; from_fe only repacks.",
+      "invariants": [
+        "negate(m) requires a valid magnitude bound; preserve carries, intermediate ranges and boundary costs."
+      ],
+      "ct_class": "BACKEND_CONDITIONAL_NOT_ESTABLISHED",
+      "consumers": [
+        "ecdsa_verify",
+        "point"
+      ],
+      "test_evidence": {
+        "status": "NO_ANCHOR_IN_SCOPE",
+        "anchor_ids": [],
+        "reason": "No direct test anchor imported for this primitive/boundary; M1 must supply explicit corpus and oracle tests. Consumer tests are not silently promoted to direct coverage."
+      },
+      "benchmark_evidence": {
+        "status": "SECONDARY_NOT_IMPORTED",
+        "historical_ids": [
+          "fp_cost_calibration",
+          "inverse_prior_win",
+          "word_schedule_refutation",
+          "documentation_conflict",
+          "cost_model_correction"
+        ],
+        "reason": "Only pinned README claims, preserving wins, negatives and unresolved limits; no fresh performance receipt."
+      }
+    },
+    {
+      "id": "fn_4x64",
+      "layer": 1,
+      "domain": "Fn",
+      "representation": "four little-endian uint64 limbs; group order n = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141",
+      "contract": "Scalar arithmetic reduces modulo n, not p. Witnessed native-128 multiplication uses order-complement reduction. Witnessed native-128 inverse returns zero for zero. Scalar::to_bytes delegates to big-endian write_bytes.",
+      "witness_ids": [
+        "fn_layout",
+        "fn_modulus",
+        "fn_add",
+        "fn_mul",
+        "fn_inverse",
+        "fn_bytes"
+      ],
+      "research_obligations": [
+        "Independent integer mod-n oracle plus frozen-engine bytes; never reuse Fp reduction constants.",
+        "Pin platform/error behavior and strict parsing versus reducing parsing; inspect the alternate inverse backend before claiming cross-platform equivalence."
+      ],
+      "domain_range": "Residues mod n, canonical [0,n); strict nonzero parsing additionally excludes zero.",
+      "input_state": "Four little-endian words; reducing parse and strict parse are distinct contracts.",
+      "output_state": "Mod-n residue or 32-byte big-endian output; witnessed inverse(0) is zero.",
+      "invariants": [
+        "Do not use p reduction or transfer Fp exceptional behavior; preserve order-overflow semantics."
+      ],
+      "ct_class": "VARIABLE_TIME_PUBLIC_ONLY",
+      "consumers": [
+        "dual_scalar_mul",
+        "ecdsa_verify",
+        "msm",
+        "scalar_mul",
+        "schnorr_batch_verify"
+      ],
+      "test_evidence": {
+        "status": "SOURCE_ANCHORS_ONLY",
+        "anchor_ids": [
+          "scalar_checks"
+        ],
+        "reason": "Exact existing C++ test functions located, not executed; no dynamic coverage claimed."
+      },
+      "benchmark_evidence": {
+        "status": "SECONDARY_NOT_IMPORTED",
+        "historical_ids": [
+          "fn_reduction_prior_limit",
+          "documentation_conflict"
+        ],
+        "reason": "Only pinned README claims, preserving wins, negatives and unresolved limits; no fresh performance receipt."
+      }
+    },
+    {
+      "id": "point",
+      "layer": 2,
+      "domain": "group",
+      "representation": "affine/Jacobian secp256k1 y^2 = x^3 + 7, infinity flag; 4x64 or FE52 storage by configuration",
+      "contract": "Point::add and dbl select affine, mixed or general Jacobian families. Mathematical equality permits different internal coordinates; exposed serialized bytes and observable flags require their own contract.",
+      "witness_ids": [
+        "point_layout",
+        "point_add",
+        "point_double"
+      ],
+      "research_obligations": [
+        "Random nonzero Z, infinity, equal/opposite points, magnitude/alias boundaries.",
+        "Carry field-layer obligations upward; no blanket constant-time claim for fast::Point."
+      ],
+      "domain_range": "secp256k1 group points plus infinity; Jacobian (X:Y:Z) maps to (X/Z^2,Y/Z^3) when finite.",
+      "input_state": "Affine or Jacobian state, nonzero Z for finite points, infinity/is-generator/z-one flags, backend-dependent limb magnitudes.",
+      "output_state": "Equivalent group point with branch-specific coordinate and flag state; raw coordinates need not be equal.",
+      "invariants": [
+        "Preserve degeneracies, affine preconditions and magnitude contracts; canonical export is a separate boundary."
+      ],
+      "ct_class": "VARIABLE_TIME_PUBLIC_ONLY",
+      "consumers": [
+        "dual_scalar_mul",
+        "msm",
+        "scalar_mul"
+      ],
+      "test_evidence": {
+        "status": "SOURCE_ANCHORS_ONLY",
+        "anchor_ids": [
+          "point_checks"
+        ],
+        "reason": "Exact existing C++ test functions located, not executed; no dynamic coverage claimed."
+      },
+      "benchmark_evidence": {
+        "status": "SECONDARY_NOT_IMPORTED",
+        "historical_ids": [
+          "point_formula_refutations",
+          "coz_prior_win",
+          "documentation_conflict",
+          "cost_model_correction",
+          "slice_and_harness_controls"
+        ],
+        "reason": "Only pinned README claims, preserving wins, negatives and unresolved limits; no fresh performance receipt."
+      }
+    },
+    {
+      "id": "scalar_mul",
+      "layer": 3,
+      "domain": "group",
+      "representation": "single k*P; fixed-generator dispatch, GLV/wNAF or double-and-add by configuration",
+      "contract": "Scalar::limbs/bytes feed recoding and point arithmetic. The public scalar_mul normalizes its nonembedded returned Point on witnessed branches; generator and embedded routes remain distinct.",
+      "witness_ids": [
+        "single_mul"
+      ],
+      "research_obligations": [
+        "Zero, one, n-1 and high-bit scalars; generator/non-generator and randomized Jacobian input.",
+        "Separate secret ct:: paths from public fast:: paths; measure amortized precomputation only after correctness gates."
+      ],
+      "domain_range": "k in Fn and admitted secp256k1 point P, including zero scalar and infinity cases to validate.",
+      "input_state": "Scalar limbs/bytes, base point representation, build and fixed-generator/precompute conditions.",
+      "output_state": "Point representing k*P, with normalization on the witnessed public return branches.",
+      "invariants": [
+        "Do not substitute public variable-time path into secret-key APIs; include tables and exports in comparison."
+      ],
+      "ct_class": "VARIABLE_TIME_PUBLIC_ONLY",
+      "consumers": [
+        "schnorr_batch_verify"
+      ],
+      "test_evidence": {
+        "status": "NO_ANCHOR_IN_SCOPE",
+        "anchor_ids": [],
+        "reason": "No direct test anchor imported for this primitive/boundary; M1 must supply explicit corpus and oracle tests. Consumer tests are not silently promoted to direct coverage."
+      },
+      "benchmark_evidence": {
+        "status": "NOT_LOCATED",
+        "historical_ids": [],
+        "reason": "No benchmark evidence located within this bounded inventory; do not infer timings from operation counts."
+      }
+    },
+    {
+      "id": "dual_scalar_mul",
+      "layer": 3,
+      "domain": "group",
+      "representation": "a*G + b*P; FE52 compute family, embedded 4x64 family, separate-multiply fallback",
+      "contract": "This is the direct single-ECDSA verification consumer, not the general msm dispatcher. Definitions and storage/compute conditions differ by platform.",
+      "witness_ids": [
+        "dual_fe52",
+        "dual_embedded",
+        "dual_fallback"
+      ],
+      "research_obligations": [
+        "Pin FE52_COMPUTE versus FAST_52BIT versus USE_4X64_POINT_OPS.",
+        "Include table construction and conversion in cost comparisons; validate complete enclosing implementations in the later point-layer phase."
+      ],
+      "domain_range": "a,b in Fn and admitted point P; mathematical output a*G+b*P.",
+      "input_state": "Two scalars, base point, table configuration and compute/storage backend macros.",
+      "output_state": "Group point used by ECDSA coordinate check; internal projective representation may vary.",
+      "invariants": [
+        "Keep G table width/layout coherent with recoding; neither symbol-name equality nor separate-branch evidence proves all backends."
+      ],
+      "ct_class": "VARIABLE_TIME_PUBLIC_ONLY",
+      "consumers": [
+        "ecdsa_verify"
+      ],
+      "test_evidence": {
+        "status": "NO_ANCHOR_IN_SCOPE",
+        "anchor_ids": [],
+        "reason": "No direct test anchor imported for this primitive/boundary; M1 must supply explicit corpus and oracle tests. Consumer tests are not silently promoted to direct coverage."
+      },
+      "benchmark_evidence": {
+        "status": "SECONDARY_NOT_IMPORTED",
+        "historical_ids": [
+          "coz_prior_win",
+          "dual_table_open_question",
+          "slice_and_harness_controls"
+        ],
+        "reason": "Only pinned README claims, preserving wins, negatives and unresolved limits; no fresh performance receipt."
+      }
+    },
+    {
+      "id": "msm",
+      "layer": 3,
+      "domain": "group",
+      "representation": "sum_i scalar_i * point_i; Strauss or Pippenger/GLV dispatch",
+      "contract": "General msm selects Strauss below a platform-dependent threshold and Pippenger family otherwise. Direct pippenger_msm has its own n<48 fallback and zero/singleton cases. These are public-data variable-time paths.",
+      "witness_ids": [
+        "msm_digits",
+        "msm_entry",
+        "msm_dispatch"
+      ],
+      "research_obligations": [
+        "Empty/singleton, affine/Jacobian mixtures, signed-window carry, batch size and memory headroom.",
+        "Do not infer current speedups from old source comments; preserve fallback versus tested-kernel coverage."
+      ],
+      "domain_range": "n entries of Fn scalars and group points; pointer count and vector truncation are separate entry contracts.",
+      "input_state": "Public scalar/point arrays, size, affine/Jacobian mix, signed-digit/window state, scratch configuration.",
+      "output_state": "Point representing sum(s_i*P_i); zero count yields infinity on witnessed direct entry.",
+      "invariants": [
+        "Preserve signed-window carry and affine guards; crossover is build-dependent and not a correctness proof."
+      ],
+      "ct_class": "VARIABLE_TIME_PUBLIC_ONLY",
+      "consumers": [
+        "schnorr_batch_verify"
+      ],
+      "test_evidence": {
+        "status": "SOURCE_ANCHORS_ONLY",
+        "anchor_ids": [
+          "msm_checks"
+        ],
+        "reason": "Exact existing C++ test functions located, not executed; no dynamic coverage claimed."
+      },
+      "benchmark_evidence": {
+        "status": "SECONDARY_NOT_IMPORTED",
+        "historical_ids": [
+          "msm_prior_limit",
+          "documentation_conflict"
+        ],
+        "reason": "Only pinned README claims, preserving wins, negatives and unresolved limits; no fresh performance receipt."
+      }
+    },
+    {
+      "id": "ecdsa_verify",
+      "layer": 4,
+      "domain": "protocol",
+      "representation": "public message, public point and signature; boolean result",
+      "contract": "Consumes mod-n inverse/products and dual_scalar_mul_gen_point, then a field-coordinate check. The separate ecdsa_sign_verified entry point explicitly hands off signing to ct::ecdsa_sign; CT internals are not inventoried/proven here.",
+      "witness_ids": [
+        "ecdsa_verify_call",
+        "ecdsa_coordinate_check",
+        "ecdsa_ct_handoff"
+      ],
+      "research_obligations": [
+        "Preserve accepted/rejected encodings and high-S policy; byte equality alone is not protocol acceptance equality.",
+        "No MSM-to-single-ECDSA dependency; no inference that fast arithmetic is suitable for secrets."
+      ],
+      "domain_range": "Public message hash, admitted public key and ECDSA signature scalars; result boolean.",
+      "input_state": "Public-key Point overload with infinity/zero rejection; parsing layer is separate.",
+      "output_state": "Accept/reject after mod-n products, dual multiplication and field coordinate check.",
+      "invariants": [
+        "Single verification does not call general msm; keep high-S and strict-parser policies distinct."
+      ],
+      "ct_class": "PUBLIC_INPUT_NOT_CT_REQUIRED",
+      "consumers": [],
+      "test_evidence": {
+        "status": "SOURCE_ANCHORS_ONLY",
+        "anchor_ids": [
+          "ecdsa_checks"
+        ],
+        "reason": "Exact existing C++ test functions located, not executed; no dynamic coverage claimed."
+      },
+      "benchmark_evidence": {
+        "status": "SECONDARY_NOT_IMPORTED",
+        "historical_ids": [
+          "coz_prior_win",
+          "dual_table_open_question"
+        ],
+        "reason": "Only pinned README claims, preserving wins, negatives and unresolved limits; no fresh performance receipt."
+      }
+    },
+    {
+      "id": "schnorr_batch_verify",
+      "layer": 4,
+      "domain": "protocol",
+      "representation": "templated batch entry point; individual small batches, randomized MSM large batches",
+      "contract": "Only the large-batch branch constructs 2*n scalar/point terms and invokes msm, then adds a generator term. Fresh CSPRNG randomness is an explicit input to the computation.",
+      "witness_ids": [
+        "batch_consumer"
+      ],
+      "research_obligations": [
+        "Replay requires capturing/injecting identical allowed randomness as well as identical serialized inputs; preserve production randomness.",
+        "Validate low-level primitive outputs first; inventory makes no batch-security or probabilistic soundness proof."
+      ],
+      "domain_range": "Batch of public Schnorr entries; size cutoff selects individual versus randomized batch algorithm.",
+      "input_state": "Signatures, messages, public keys and CSPRNG-derived batch weights; point-lifting can reject.",
+      "output_state": "Boolean result; large branch checks generator term plus MSM equals infinity.",
+      "invariants": [
+        "Randomness is an input for replay; never weaken production entropy merely to obtain deterministic tests."
+      ],
+      "ct_class": "PUBLIC_INPUT_NOT_CT_REQUIRED",
+      "consumers": [],
+      "test_evidence": {
+        "status": "NO_ANCHOR_IN_SCOPE",
+        "anchor_ids": [],
+        "reason": "No direct test anchor imported for this primitive/boundary; M1 must supply explicit corpus and oracle tests. Consumer tests are not silently promoted to direct coverage."
+      },
+      "benchmark_evidence": {
+        "status": "NOT_LOCATED",
+        "historical_ids": [],
+        "reason": "No benchmark evidence located within this bounded inventory; do not infer timings from operation counts."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "word64",
+      "to": "fp_4x64",
+      "kind": "consumed_by",
+      "condition": "Generic non-ARM32 add family; multiply backends are selected separately.",
+      "claim": "Fp addition calls add64 and observes both carry chains.",
+      "witness_ids": [
+        "fp_add",
+        "word_carry"
+      ]
+    },
+    {
+      "from": "word64",
+      "to": "fn_4x64",
+      "kind": "consumed_by",
+      "condition": "Scalar add_impl family.",
+      "claim": "Fn addition calls add64 and sub64 with ORDER, independently of Fp.",
+      "witness_ids": [
+        "fn_add",
+        "word_carry"
+      ]
+    },
+    {
+      "from": "fp_4x64",
+      "to": "fp_5x52",
+      "kind": "converts_to",
+      "condition": "FieldElement52::from_fe; stored input must satisfy the caller's admitted range.",
+      "claim": "Bitwise repacking from 4x64 to 5x52, no normalization in this function.",
+      "witness_ids": [
+        "fp52_from"
+      ]
+    },
+    {
+      "from": "fp_5x52",
+      "to": "fp_4x64",
+      "kind": "converts_to",
+      "condition": "FieldElement52::to_fe.",
+      "claim": "Copy, fully normalize, then pack and use from_limbs_raw.",
+      "witness_ids": [
+        "fp52_to"
+      ]
+    },
+    {
+      "from": "fp_4x64",
+      "to": "point",
+      "kind": "consumed_by",
+      "condition": "Both the non-FE52 affine path and the FE52 affine path after to_fe conversions.",
+      "claim": "Point::add evaluates affine slope/formulas with FieldElement inverse/products.",
+      "witness_ids": [
+        "point_add"
+      ]
+    },
+    {
+      "from": "fp_5x52",
+      "to": "point",
+      "kind": "consumed_by",
+      "condition": "SECP256K1_FAST_52BIT branch.",
+      "claim": "Point::add performs FE52 difference checks, conversions and Jacobian operations.",
+      "witness_ids": [
+        "point_add",
+        "point_double"
+      ]
+    },
+    {
+      "from": "fn_4x64",
+      "to": "scalar_mul",
+      "kind": "consumed_by",
+      "condition": "Point::scalar_mul, compile-time platform branches.",
+      "claim": "Consumes a Scalar by GLV recoding or big-endian scalar bytes.",
+      "witness_ids": [
+        "single_mul"
+      ]
+    },
+    {
+      "from": "point",
+      "to": "scalar_mul",
+      "kind": "consumed_by",
+      "condition": "Embedded GLV or non-FE52 binary branch, separately from FE52 dispatcher.",
+      "claim": "Scalar multiplication calls point add/double and normalizes result.",
+      "witness_ids": [
+        "single_mul"
+      ]
+    },
+    {
+      "from": "fn_4x64",
+      "to": "dual_scalar_mul",
+      "kind": "consumed_by",
+      "condition": "FE52 compute and embedded branches differ.",
+      "claim": "Consumes two Scalar values and their limbs/decomposition.",
+      "witness_ids": [
+        "dual_fe52",
+        "dual_embedded"
+      ]
+    },
+    {
+      "from": "point",
+      "to": "dual_scalar_mul",
+      "kind": "consumed_by",
+      "condition": "USE_4X64_POINT_OPS or non-FE52/nonembedded fallback; fused families separately witnessed.",
+      "claim": "Separate-multiply route composes scalar_mul and add_inplace.",
+      "witness_ids": [
+        "dual_fe52",
+        "dual_fallback"
+      ]
+    },
+    {
+      "from": "point",
+      "to": "msm",
+      "kind": "consumed_by",
+      "condition": "Direct Pippenger public entry, with separate bucket core outside this span.",
+      "claim": "Zero returns infinity; singleton delegates to point scalar_mul.",
+      "witness_ids": [
+        "msm_entry"
+      ]
+    },
+    {
+      "from": "fn_4x64",
+      "to": "msm",
+      "kind": "consumed_by",
+      "condition": "Pippenger extract_digit and dispatcher.",
+      "claim": "Reads scalar limbs to extract window digits.",
+      "witness_ids": [
+        "msm_digits",
+        "msm_dispatch"
+      ]
+    },
+    {
+      "from": "fn_4x64",
+      "to": "ecdsa_verify",
+      "kind": "consumed_by",
+      "condition": "Point public-key overload.",
+      "claim": "Parses z then computes inverse(s), z*w and r*w modulo n.",
+      "witness_ids": [
+        "ecdsa_verify_call"
+      ]
+    },
+    {
+      "from": "dual_scalar_mul",
+      "to": "ecdsa_verify",
+      "kind": "consumed_by",
+      "condition": "Point public-key overload.",
+      "claim": "Direct call constructs R_prime for ecdsa_check_xcoord.",
+      "witness_ids": [
+        "ecdsa_verify_call"
+      ]
+    },
+    {
+      "from": "fp_5x52",
+      "to": "ecdsa_verify",
+      "kind": "consumed_by",
+      "condition": "SECP256K1_FAST_52BIT x-coordinate check.",
+      "claim": "Uses field representative of sig.r and Jacobian Z squared; this is not a field-isomorphism conversion from Fn.",
+      "witness_ids": [
+        "ecdsa_coordinate_check"
+      ]
+    },
+    {
+      "from": "scalar_mul",
+      "to": "schnorr_batch_verify",
+      "kind": "consumed_by",
+      "condition": "Large-batch branch after individual-verification cutoff.",
+      "claim": "Generator coefficient is evaluated via Point::generator().scalar_mul.",
+      "witness_ids": [
+        "batch_consumer"
+      ]
+    },
+    {
+      "from": "msm",
+      "to": "schnorr_batch_verify",
+      "kind": "consumed_by",
+      "condition": "Large-batch branch after individual-verification cutoff.",
+      "claim": "Actual code calls msm(scalars, points, 2*n), not merely an include or comment.",
+      "witness_ids": [
+        "batch_consumer"
+      ]
+    },
+    {
+      "from": "fn_4x64",
+      "to": "schnorr_batch_verify",
+      "kind": "consumed_by",
+      "condition": "Large-batch public inputs plus fresh batch randomization.",
+      "claim": "Builds randomized scalar coefficients modulo n.",
+      "witness_ids": [
+        "batch_consumer"
+      ]
+    }
+  ],
+  "test_anchors": [
+    {
+      "id": "field_checks",
+      "node_ids": [
+        "fp_4x64"
+      ],
+      "witness_ids": [
+        "test_fp"
+      ],
+      "execution_status": "NOT_RUN_BY_INVENTORY"
+    },
+    {
+      "id": "scalar_checks",
+      "node_ids": [
+        "fn_4x64"
+      ],
+      "witness_ids": [
+        "test_fn"
+      ],
+      "execution_status": "NOT_RUN_BY_INVENTORY"
+    },
+    {
+      "id": "point_checks",
+      "node_ids": [
+        "point"
+      ],
+      "witness_ids": [
+        "test_point"
+      ],
+      "execution_status": "NOT_RUN_BY_INVENTORY"
+    },
+    {
+      "id": "msm_checks",
+      "node_ids": [
+        "msm"
+      ],
+      "witness_ids": [
+        "test_msm"
+      ],
+      "execution_status": "NOT_RUN_BY_INVENTORY"
+    },
+    {
+      "id": "ecdsa_checks",
+      "node_ids": [
+        "ecdsa_verify"
+      ],
+      "witness_ids": [
+        "test_ecdsa"
+      ],
+      "execution_status": "NOT_RUN_BY_INVENTORY"
+    }
+  ],
+  "historical_evidence": [
+    {
+      "id": "fp_cost_calibration",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "fp_5x52"
+      ],
+      "witness_ids": [
+        "history_fp_costs"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MEASUREMENT",
+      "reported_result": "README reports dependent-chain mul/square costs 21.52/18.81 ns and ILP saturation at two independent multiplies, on its described shared x86 machine; not measured in this inventory.",
+      "reason": "Pinned secondary README statement only. Primary artifact outputs, exact source/build identities, scripts, controlled environment and domains have not been imported/revalidated; this record satisfies no proof/CT/performance gate."
+    },
+    {
+      "id": "point_formula_refutations",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "point"
+      ],
+      "witness_ids": [
+        "history_point_negative"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MEASUREMENT",
+      "reported_result": "README reports no resolved win within the searched fixed-coordinate formula family, best -0.34% inside noise, and rejects M-for-S alternatives; scope is its sampled search and machine.",
+      "reason": "Pinned secondary README statement only. Primary artifact outputs, exact source/build identities, scripts, controlled environment and domains have not been imported/revalidated; this record satisfies no proof/CT/performance gate."
+    },
+    {
+      "id": "coz_prior_win",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "point",
+        "dual_scalar_mul",
+        "ecdsa_verify"
+      ],
+      "witness_ids": [
+        "history_wins"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MEASUREMENT",
+      "reported_result": "README reports macro-guarded co-Z change at four call sites: dual_scalar_mul_gen_point -7.19%, ecdsa_verify -1.96%. Not a new result and not assumed active in the default build.",
+      "reason": "Pinned secondary README statement only. Primary artifact outputs, exact source/build identities, scripts, controlled environment and domains have not been imported/revalidated; this record satisfies no proof/CT/performance gate."
+    },
+    {
+      "id": "inverse_prior_win",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "fp_4x64",
+        "fp_5x52"
+      ],
+      "witness_ids": [
+        "history_wins"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MEASUREMENT",
+      "reported_result": "README reports CT SafeGCD inverse at two call sites: ElligatorSwift XDH -8.23%, session handshake -4.35%. Public fast::inverse and CT inverse must not be conflated.",
+      "reason": "Pinned secondary README statement only. Primary artifact outputs, exact source/build identities, scripts, controlled environment and domains have not been imported/revalidated; this record satisfies no proof/CT/performance gate."
+    },
+    {
+      "id": "word_schedule_refutation",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "word64",
+        "fp_4x64",
+        "fp_5x52"
+      ],
+      "witness_ids": [
+        "history_refutations"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MEASUREMENT",
+      "reported_result": "README reports wider-column wide_mul +9.45% slower, discusses limited limb-Karatsuba upside and AVX2 limb-product cancellation; no universal architecture-independent impossibility claim is imported.",
+      "reason": "Pinned secondary README statement only. Primary artifact outputs, exact source/build identities, scripts, controlled environment and domains have not been imported/revalidated; this record satisfies no proof/CT/performance gate."
+    },
+    {
+      "id": "fn_reduction_prior_limit",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "fn_4x64"
+      ],
+      "witness_ids": [
+        "history_refutations"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MODEL_OR_LIMIT",
+      "reported_result": "README identifies native-int128 scalar reduction as already an N_C Solinas fold. This is a representation observation, not a measured speedup or full-domain proof.",
+      "reason": "Pinned secondary README statement only. Primary artifact outputs, exact source/build identities, scripts, controlled environment and domains have not been imported/revalidated; this record satisfies no proof/CT/performance gate."
+    },
+    {
+      "id": "msm_prior_limit",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "msm"
+      ],
+      "witness_ids": [
+        "history_refutations"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MODEL_OR_LIMIT",
+      "reported_result": "README says Strauss/Pippenger routing was optimal at then-reached sizes. Current source dispatch is separately pinned; the old claim is not a new benchmark.",
+      "reason": "Pinned secondary README statement only. Primary artifact outputs, exact source/build identities, scripts, controlled environment and domains have not been imported/revalidated; this record satisfies no proof/CT/performance gate."
+    },
+    {
+      "id": "dual_table_open_question",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "dual_scalar_mul",
+        "ecdsa_verify"
+      ],
+      "witness_ids": [
+        "history_open_table"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MODEL_OR_LIMIT",
+      "reported_result": "README leaves generator table widths 15 versus 13/12 open pending quiet frequency-locked ConnectBlock measurements; isolated hot-table benchmarks may not transfer.",
+      "reason": "Pinned secondary README statement only. Primary artifact outputs, exact source/build identities, scripts, controlled environment and domains have not been imported/revalidated; this record satisfies no proof/CT/performance gate."
+    },
+    {
+      "id": "documentation_conflict",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "word64",
+        "fp_4x64",
+        "fp_5x52",
+        "fn_4x64",
+        "point",
+        "msm"
+      ],
+      "witness_ids": [
+        "history_doc_conflict"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MODEL_OR_LIMIT",
+      "reported_result": "Later Status table says no hardware measurement/harness yet, contradicting earlier measured-results sections. Preserve the conflict and require primary artifacts, not a global measured/closed verdict.",
+      "reason": "Later pinned README finding/correction; primary artifacts not imported or rerun. Counts are finite observations, not full-domain proofs, and contradictory status text is retained."
+    },
+    {
+      "id": "cost_model_correction",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "fp_5x52",
+        "point"
+      ],
+      "witness_ids": [
+        "history_model_fix"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MODEL_OR_LIMIT",
+      "reported_result": "Later README correction prices FE52 sub as negate+add and reverses the early modeled sign-placement wins. Early cost tables cannot independently authenticate those wins.",
+      "reason": "Later pinned README finding/correction; primary artifacts not imported or rerun. Counts are finite observations, not full-domain proofs, and contradictory status text is retained."
+    },
+    {
+      "id": "slice_and_harness_controls",
+      "path": "experiments/representation_search/README.md",
+      "node_ids": [
+        "point",
+        "dual_scalar_mul"
+      ],
+      "witness_ids": [
+        "history_slice",
+        "history_harness_fix"
+      ],
+      "status": "SECONDARY_NOT_IMPORTED",
+      "reported_evidence_kind": "REPORTED_MODEL_OR_LIMIT",
+      "reported_result": "README reports co-Z on declared Z=1 slice 64/64 versus off-slice 0/64, fixes different input-name seeding for doubling, and reports raw/projective gates 34/74 pairs. Finite corpus agreement is OBSERVED, not proof; extra outputs and Z-observing callers remain contract constraints.",
+      "reason": "Later pinned README finding/correction; primary artifacts not imported or rerun. Counts are finite observations, not full-domain proofs, and contradictory status text is retained."
+    }
+  ],
+  "omissions": [
+    "Not an exhaustive source graph, build/include closure or execution trace; backend definitions shown are conditional source families, not verified compiled active paths.",
+    "GLV internals, generator precomputation, Strauss implementation internals, CT point/scalar/signing bodies, non-CPU backends and remaining protocols await their own layers.",
+    "No C++ tests executed by this inventory. Existing test anchors identify candidates, not coverage or pass receipts; explicit FE52 boundary and complete word carry tests remain required in the M1 corpus/oracle.",
+    "No performance result, full-domain proof, timing-constancy claim or byte-differential experiment is produced here. A finite future corpus is OBSERVED only.",
+    "Both domain-aware frozen-engine comparison and independent integer mod-p/mod-n oracle remain required. Boundary exceptions, carry/range/alias and caller-visible states must match, not only low limbs.",
+    "ParseAtlas research checkout and historical experiment numbers are not promoted to engine evidence by citations alone.",
+    "The README contains contradictory measurement/status text and later corrections to earlier model/harness claims. Historical records preserve these conflicts rather than promote 'CLOSED' to exhaustive mathematical evidence."
+  ]
+}

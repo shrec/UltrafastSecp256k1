@@ -1,0 +1,612 @@
+
+/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000000000 <mul_4x4_asm>:
+   0:	53                   	push   rbx
+   1:	55                   	push   rbp
+   2:	41 54                	push   r12
+   4:	41 55                	push   r13
+   6:	41 56                	push   r14
+   8:	41 57                	push   r15
+   a:	52                   	push   rdx
+   b:	4d 31 c0             	xor    r8,r8
+   e:	4d 31 c9             	xor    r9,r9
+  11:	4d 31 d2             	xor    r10,r10
+  14:	4d 31 db             	xor    r11,r11
+  17:	4d 31 e4             	xor    r12,r12
+  1a:	4d 31 ed             	xor    r13,r13
+  1d:	4d 31 f6             	xor    r14,r14
+  20:	4d 31 ff             	xor    r15,r15
+  23:	31 ed                	xor    ebp,ebp
+  25:	48 8b 17             	mov    rdx,QWORD PTR [rdi]
+  28:	31 c9                	xor    ecx,ecx
+  2a:	c4 e2 fb f6 1e       	mulx   rbx,rax,QWORD PTR [rsi]
+  2f:	66 4c 0f 38 f6 c0    	adcx   r8,rax
+  35:	f3 4c 0f 38 f6 cb    	adox   r9,rbx
+  3b:	c4 e2 fb f6 5e 08    	mulx   rbx,rax,QWORD PTR [rsi+0x8]
+  41:	66 4c 0f 38 f6 c8    	adcx   r9,rax
+  47:	f3 4c 0f 38 f6 d3    	adox   r10,rbx
+  4d:	c4 e2 fb f6 5e 10    	mulx   rbx,rax,QWORD PTR [rsi+0x10]
+  53:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+  59:	f3 4c 0f 38 f6 db    	adox   r11,rbx
+  5f:	c4 e2 fb f6 5e 18    	mulx   rbx,rax,QWORD PTR [rsi+0x18]
+  65:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+  6b:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+  71:	66 4c 0f 38 f6 e1    	adcx   r12,rcx
+  77:	f3 4c 0f 38 f6 e9    	adox   r13,rcx
+  7d:	48 8b 57 08          	mov    rdx,QWORD PTR [rdi+0x8]
+  81:	31 c9                	xor    ecx,ecx
+  83:	c4 e2 fb f6 1e       	mulx   rbx,rax,QWORD PTR [rsi]
+  88:	66 4c 0f 38 f6 c8    	adcx   r9,rax
+  8e:	f3 4c 0f 38 f6 d3    	adox   r10,rbx
+  94:	c4 e2 fb f6 5e 08    	mulx   rbx,rax,QWORD PTR [rsi+0x8]
+  9a:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+  a0:	f3 4c 0f 38 f6 db    	adox   r11,rbx
+  a6:	c4 e2 fb f6 5e 10    	mulx   rbx,rax,QWORD PTR [rsi+0x10]
+  ac:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+  b2:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+  b8:	c4 e2 fb f6 5e 18    	mulx   rbx,rax,QWORD PTR [rsi+0x18]
+  be:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+  c4:	f3 4c 0f 38 f6 eb    	adox   r13,rbx
+  ca:	66 4c 0f 38 f6 e9    	adcx   r13,rcx
+  d0:	f3 4c 0f 38 f6 f1    	adox   r14,rcx
+  d6:	48 8b 57 10          	mov    rdx,QWORD PTR [rdi+0x10]
+  da:	31 c9                	xor    ecx,ecx
+  dc:	c4 e2 fb f6 1e       	mulx   rbx,rax,QWORD PTR [rsi]
+  e1:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+  e7:	f3 4c 0f 38 f6 db    	adox   r11,rbx
+  ed:	c4 e2 fb f6 5e 08    	mulx   rbx,rax,QWORD PTR [rsi+0x8]
+  f3:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+  f9:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+  ff:	c4 e2 fb f6 5e 10    	mulx   rbx,rax,QWORD PTR [rsi+0x10]
+ 105:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+ 10b:	f3 4c 0f 38 f6 eb    	adox   r13,rbx
+ 111:	c4 e2 fb f6 5e 18    	mulx   rbx,rax,QWORD PTR [rsi+0x18]
+ 117:	66 4c 0f 38 f6 e8    	adcx   r13,rax
+ 11d:	f3 4c 0f 38 f6 f3    	adox   r14,rbx
+ 123:	66 4c 0f 38 f6 f1    	adcx   r14,rcx
+ 129:	f3 4c 0f 38 f6 f9    	adox   r15,rcx
+ 12f:	48 8b 57 18          	mov    rdx,QWORD PTR [rdi+0x18]
+ 133:	31 c9                	xor    ecx,ecx
+ 135:	c4 e2 fb f6 1e       	mulx   rbx,rax,QWORD PTR [rsi]
+ 13a:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+ 140:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+ 146:	c4 e2 fb f6 5e 08    	mulx   rbx,rax,QWORD PTR [rsi+0x8]
+ 14c:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+ 152:	f3 4c 0f 38 f6 eb    	adox   r13,rbx
+ 158:	c4 e2 fb f6 5e 10    	mulx   rbx,rax,QWORD PTR [rsi+0x10]
+ 15e:	66 4c 0f 38 f6 e8    	adcx   r13,rax
+ 164:	f3 4c 0f 38 f6 f3    	adox   r14,rbx
+ 16a:	c4 e2 fb f6 5e 18    	mulx   rbx,rax,QWORD PTR [rsi+0x18]
+ 170:	66 4c 0f 38 f6 f0    	adcx   r14,rax
+ 176:	f3 4c 0f 38 f6 fb    	adox   r15,rbx
+ 17c:	66 4c 0f 38 f6 f9    	adcx   r15,rcx
+ 182:	f3 48 0f 38 f6 e9    	adox   rbp,rcx
+ 188:	59                   	pop    rcx
+ 189:	4c 89 01             	mov    QWORD PTR [rcx],r8
+ 18c:	4c 89 49 08          	mov    QWORD PTR [rcx+0x8],r9
+ 190:	4c 89 51 10          	mov    QWORD PTR [rcx+0x10],r10
+ 194:	4c 89 59 18          	mov    QWORD PTR [rcx+0x18],r11
+ 198:	4c 89 61 20          	mov    QWORD PTR [rcx+0x20],r12
+ 19c:	4c 89 69 28          	mov    QWORD PTR [rcx+0x28],r13
+ 1a0:	4c 89 71 30          	mov    QWORD PTR [rcx+0x30],r14
+ 1a4:	4c 89 79 38          	mov    QWORD PTR [rcx+0x38],r15
+ 1a8:	41 5f                	pop    r15
+ 1aa:	41 5e                	pop    r14
+ 1ac:	41 5d                	pop    r13
+ 1ae:	41 5c                	pop    r12
+ 1b0:	5d                   	pop    rbp
+ 1b1:	5b                   	pop    rbx
+ 1b2:	c3                   	ret
+
+00000000000001b3 <sqr_4x4_asm>:
+ 1b3:	53                   	push   rbx
+ 1b4:	55                   	push   rbp
+ 1b5:	41 54                	push   r12
+ 1b7:	41 55                	push   r13
+ 1b9:	41 56                	push   r14
+ 1bb:	41 57                	push   r15
+ 1bd:	4d 31 c0             	xor    r8,r8
+ 1c0:	4d 31 c9             	xor    r9,r9
+ 1c3:	4d 31 d2             	xor    r10,r10
+ 1c6:	4d 31 db             	xor    r11,r11
+ 1c9:	4d 31 e4             	xor    r12,r12
+ 1cc:	4d 31 ed             	xor    r13,r13
+ 1cf:	4d 31 f6             	xor    r14,r14
+ 1d2:	4d 31 ff             	xor    r15,r15
+ 1d5:	48 8b 17             	mov    rdx,QWORD PTR [rdi]
+ 1d8:	31 c9                	xor    ecx,ecx
+ 1da:	c4 e2 fb f6 5f 08    	mulx   rbx,rax,QWORD PTR [rdi+0x8]
+ 1e0:	66 4c 0f 38 f6 c8    	adcx   r9,rax
+ 1e6:	f3 4c 0f 38 f6 d3    	adox   r10,rbx
+ 1ec:	c4 e2 fb f6 5f 10    	mulx   rbx,rax,QWORD PTR [rdi+0x10]
+ 1f2:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+ 1f8:	f3 4c 0f 38 f6 db    	adox   r11,rbx
+ 1fe:	c4 e2 fb f6 5f 18    	mulx   rbx,rax,QWORD PTR [rdi+0x18]
+ 204:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+ 20a:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+ 210:	66 4c 0f 38 f6 e1    	adcx   r12,rcx
+ 216:	f3 4c 0f 38 f6 e9    	adox   r13,rcx
+ 21c:	48 8b 57 08          	mov    rdx,QWORD PTR [rdi+0x8]
+ 220:	31 c9                	xor    ecx,ecx
+ 222:	c4 e2 fb f6 5f 10    	mulx   rbx,rax,QWORD PTR [rdi+0x10]
+ 228:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+ 22e:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+ 234:	c4 e2 fb f6 5f 18    	mulx   rbx,rax,QWORD PTR [rdi+0x18]
+ 23a:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+ 240:	f3 4c 0f 38 f6 eb    	adox   r13,rbx
+ 246:	66 4c 0f 38 f6 e9    	adcx   r13,rcx
+ 24c:	f3 4c 0f 38 f6 f1    	adox   r14,rcx
+ 252:	48 8b 57 10          	mov    rdx,QWORD PTR [rdi+0x10]
+ 256:	31 c9                	xor    ecx,ecx
+ 258:	c4 e2 fb f6 5f 18    	mulx   rbx,rax,QWORD PTR [rdi+0x18]
+ 25e:	66 4c 0f 38 f6 e8    	adcx   r13,rax
+ 264:	f3 4c 0f 38 f6 f3    	adox   r14,rbx
+ 26a:	66 4c 0f 38 f6 f1    	adcx   r14,rcx
+ 270:	f3 4c 0f 38 f6 f9    	adox   r15,rcx
+ 276:	4d 01 c9             	add    r9,r9
+ 279:	4d 11 d2             	adc    r10,r10
+ 27c:	4d 11 db             	adc    r11,r11
+ 27f:	4d 11 e4             	adc    r12,r12
+ 282:	4d 11 ed             	adc    r13,r13
+ 285:	4d 11 f6             	adc    r14,r14
+ 288:	4d 11 ff             	adc    r15,r15
+ 28b:	31 c9                	xor    ecx,ecx
+ 28d:	48 8b 17             	mov    rdx,QWORD PTR [rdi]
+ 290:	c4 e2 fb f6 da       	mulx   rbx,rax,rdx
+ 295:	66 4c 0f 38 f6 c0    	adcx   r8,rax
+ 29b:	66 4c 0f 38 f6 cb    	adcx   r9,rbx
+ 2a1:	48 8b 57 08          	mov    rdx,QWORD PTR [rdi+0x8]
+ 2a5:	c4 e2 fb f6 da       	mulx   rbx,rax,rdx
+ 2aa:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+ 2b0:	66 4c 0f 38 f6 db    	adcx   r11,rbx
+ 2b6:	48 8b 57 10          	mov    rdx,QWORD PTR [rdi+0x10]
+ 2ba:	c4 e2 fb f6 da       	mulx   rbx,rax,rdx
+ 2bf:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+ 2c5:	66 4c 0f 38 f6 eb    	adcx   r13,rbx
+ 2cb:	48 8b 57 18          	mov    rdx,QWORD PTR [rdi+0x18]
+ 2cf:	c4 e2 fb f6 da       	mulx   rbx,rax,rdx
+ 2d4:	66 4c 0f 38 f6 f0    	adcx   r14,rax
+ 2da:	66 4c 0f 38 f6 fb    	adcx   r15,rbx
+ 2e0:	4c 89 06             	mov    QWORD PTR [rsi],r8
+ 2e3:	4c 89 4e 08          	mov    QWORD PTR [rsi+0x8],r9
+ 2e7:	4c 89 56 10          	mov    QWORD PTR [rsi+0x10],r10
+ 2eb:	4c 89 5e 18          	mov    QWORD PTR [rsi+0x18],r11
+ 2ef:	4c 89 66 20          	mov    QWORD PTR [rsi+0x20],r12
+ 2f3:	4c 89 6e 28          	mov    QWORD PTR [rsi+0x28],r13
+ 2f7:	4c 89 76 30          	mov    QWORD PTR [rsi+0x30],r14
+ 2fb:	4c 89 7e 38          	mov    QWORD PTR [rsi+0x38],r15
+ 2ff:	41 5f                	pop    r15
+ 301:	41 5e                	pop    r14
+ 303:	41 5d                	pop    r13
+ 305:	41 5c                	pop    r12
+ 307:	5d                   	pop    rbp
+ 308:	5b                   	pop    rbx
+ 309:	c3                   	ret
+
+000000000000030a <add_4_asm>:
+ 30a:	53                   	push   rbx
+ 30b:	55                   	push   rbp
+ 30c:	4c 8b 07             	mov    r8,QWORD PTR [rdi]
+ 30f:	4c 8b 4f 08          	mov    r9,QWORD PTR [rdi+0x8]
+ 313:	4c 8b 57 10          	mov    r10,QWORD PTR [rdi+0x10]
+ 317:	4c 8b 5f 18          	mov    r11,QWORD PTR [rdi+0x18]
+ 31b:	4c 03 06             	add    r8,QWORD PTR [rsi]
+ 31e:	4c 13 4e 08          	adc    r9,QWORD PTR [rsi+0x8]
+ 322:	4c 13 56 10          	adc    r10,QWORD PTR [rsi+0x10]
+ 326:	4c 13 5e 18          	adc    r11,QWORD PTR [rsi+0x18]
+ 32a:	0f 92 c1             	setb   cl
+ 32d:	48 b8 d1 03 00 00 01 	movabs rax,0x1000003d1
+ 334:	00 00 00 
+ 337:	4c 89 c7             	mov    rdi,r8
+ 33a:	48 01 c7             	add    rdi,rax
+ 33d:	4c 89 ce             	mov    rsi,r9
+ 340:	48 83 d6 00          	adc    rsi,0x0
+ 344:	4c 89 d3             	mov    rbx,r10
+ 347:	48 83 d3 00          	adc    rbx,0x0
+ 34b:	4c 89 dd             	mov    rbp,r11
+ 34e:	48 83 d5 00          	adc    rbp,0x0
+ 352:	0f 92 c0             	setb   al
+ 355:	08 c8                	or     al,cl
+ 357:	84 c0                	test   al,al
+ 359:	4c 0f 45 c7          	cmovne r8,rdi
+ 35d:	4c 0f 45 ce          	cmovne r9,rsi
+ 361:	4c 0f 45 d3          	cmovne r10,rbx
+ 365:	4c 0f 45 dd          	cmovne r11,rbp
+ 369:	4c 89 02             	mov    QWORD PTR [rdx],r8
+ 36c:	4c 89 4a 08          	mov    QWORD PTR [rdx+0x8],r9
+ 370:	4c 89 52 10          	mov    QWORD PTR [rdx+0x10],r10
+ 374:	4c 89 5a 18          	mov    QWORD PTR [rdx+0x18],r11
+ 378:	5d                   	pop    rbp
+ 379:	5b                   	pop    rbx
+ 37a:	c3                   	ret
+
+000000000000037b <sub_4_asm>:
+ 37b:	53                   	push   rbx
+ 37c:	55                   	push   rbp
+ 37d:	4c 8b 07             	mov    r8,QWORD PTR [rdi]
+ 380:	4c 8b 4f 08          	mov    r9,QWORD PTR [rdi+0x8]
+ 384:	4c 8b 57 10          	mov    r10,QWORD PTR [rdi+0x10]
+ 388:	4c 8b 5f 18          	mov    r11,QWORD PTR [rdi+0x18]
+ 38c:	4c 2b 06             	sub    r8,QWORD PTR [rsi]
+ 38f:	4c 1b 4e 08          	sbb    r9,QWORD PTR [rsi+0x8]
+ 393:	4c 1b 56 10          	sbb    r10,QWORD PTR [rsi+0x10]
+ 397:	4c 1b 5e 18          	sbb    r11,QWORD PTR [rsi+0x18]
+ 39b:	0f 92 c1             	setb   cl
+ 39e:	48 b8 d1 03 00 00 01 	movabs rax,0x1000003d1
+ 3a5:	00 00 00 
+ 3a8:	4c 89 c7             	mov    rdi,r8
+ 3ab:	48 29 c7             	sub    rdi,rax
+ 3ae:	4c 89 ce             	mov    rsi,r9
+ 3b1:	48 83 de 00          	sbb    rsi,0x0
+ 3b5:	4c 89 d3             	mov    rbx,r10
+ 3b8:	48 83 db 00          	sbb    rbx,0x0
+ 3bc:	4c 89 dd             	mov    rbp,r11
+ 3bf:	48 83 dd 00          	sbb    rbp,0x0
+ 3c3:	84 c9                	test   cl,cl
+ 3c5:	4c 0f 45 c7          	cmovne r8,rdi
+ 3c9:	4c 0f 45 ce          	cmovne r9,rsi
+ 3cd:	4c 0f 45 d3          	cmovne r10,rbx
+ 3d1:	4c 0f 45 dd          	cmovne r11,rbp
+ 3d5:	4c 89 02             	mov    QWORD PTR [rdx],r8
+ 3d8:	4c 89 4a 08          	mov    QWORD PTR [rdx+0x8],r9
+ 3dc:	4c 89 52 10          	mov    QWORD PTR [rdx+0x10],r10
+ 3e0:	4c 89 5a 18          	mov    QWORD PTR [rdx+0x18],r11
+ 3e4:	5d                   	pop    rbp
+ 3e5:	5b                   	pop    rbx
+ 3e6:	c3                   	ret
+
+00000000000003e7 <reduce_4_asm>:
+ 3e7:	53                   	push   rbx
+ 3e8:	41 54                	push   r12
+ 3ea:	41 55                	push   r13
+ 3ec:	41 56                	push   r14
+ 3ee:	41 57                	push   r15
+ 3f0:	4c 8b 07             	mov    r8,QWORD PTR [rdi]
+ 3f3:	4c 8b 4f 08          	mov    r9,QWORD PTR [rdi+0x8]
+ 3f7:	4c 8b 57 10          	mov    r10,QWORD PTR [rdi+0x10]
+ 3fb:	4c 8b 5f 18          	mov    r11,QWORD PTR [rdi+0x18]
+ 3ff:	4d 31 e4             	xor    r12,r12
+ 402:	48 ba d1 03 00 00 01 	movabs rdx,0x1000003d1
+ 409:	00 00 00 
+ 40c:	48 8b 47 20          	mov    rax,QWORD PTR [rdi+0x20]
+ 410:	c4 e2 e3 f6 c8       	mulx   rcx,rbx,rax
+ 415:	49 01 d8             	add    r8,rbx
+ 418:	49 11 c9             	adc    r9,rcx
+ 41b:	49 83 d2 00          	adc    r10,0x0
+ 41f:	49 83 d3 00          	adc    r11,0x0
+ 423:	49 83 d4 00          	adc    r12,0x0
+ 427:	48 8b 47 28          	mov    rax,QWORD PTR [rdi+0x28]
+ 42b:	c4 e2 e3 f6 c8       	mulx   rcx,rbx,rax
+ 430:	49 01 d9             	add    r9,rbx
+ 433:	49 11 ca             	adc    r10,rcx
+ 436:	49 83 d3 00          	adc    r11,0x0
+ 43a:	49 83 d4 00          	adc    r12,0x0
+ 43e:	48 8b 47 30          	mov    rax,QWORD PTR [rdi+0x30]
+ 442:	c4 e2 e3 f6 c8       	mulx   rcx,rbx,rax
+ 447:	49 01 da             	add    r10,rbx
+ 44a:	49 11 cb             	adc    r11,rcx
+ 44d:	49 83 d4 00          	adc    r12,0x0
+ 451:	48 8b 47 38          	mov    rax,QWORD PTR [rdi+0x38]
+ 455:	c4 e2 e3 f6 c8       	mulx   rcx,rbx,rax
+ 45a:	49 01 db             	add    r11,rbx
+ 45d:	49 11 cc             	adc    r12,rcx
+ 460:	c4 c2 e3 f6 cc       	mulx   rcx,rbx,r12
+ 465:	4d 31 e4             	xor    r12,r12
+ 468:	49 01 d8             	add    r8,rbx
+ 46b:	49 11 c9             	adc    r9,rcx
+ 46e:	49 83 d2 00          	adc    r10,0x0
+ 472:	49 83 d3 00          	adc    r11,0x0
+ 476:	49 83 d4 00          	adc    r12,0x0
+ 47a:	48 b8 d1 03 00 00 01 	movabs rax,0x1000003d1
+ 481:	00 00 00 
+ 484:	49 f7 dc             	neg    r12
+ 487:	4c 21 e0             	and    rax,r12
+ 48a:	49 01 c0             	add    r8,rax
+ 48d:	49 83 d1 00          	adc    r9,0x0
+ 491:	49 83 d2 00          	adc    r10,0x0
+ 495:	49 83 d3 00          	adc    r11,0x0
+ 499:	49 bd d1 03 00 00 01 	movabs r13,0x1000003d1
+ 4a0:	00 00 00 
+ 4a3:	4c 89 c0             	mov    rax,r8
+ 4a6:	4c 01 e8             	add    rax,r13
+ 4a9:	4c 89 cb             	mov    rbx,r9
+ 4ac:	48 83 d3 00          	adc    rbx,0x0
+ 4b0:	4c 89 d1             	mov    rcx,r10
+ 4b3:	48 83 d1 00          	adc    rcx,0x0
+ 4b7:	4c 89 da             	mov    rdx,r11
+ 4ba:	48 83 d2 00          	adc    rdx,0x0
+ 4be:	4c 0f 42 c0          	cmovb  r8,rax
+ 4c2:	4c 0f 42 cb          	cmovb  r9,rbx
+ 4c6:	4c 0f 42 d1          	cmovb  r10,rcx
+ 4ca:	4c 0f 42 da          	cmovb  r11,rdx
+ 4ce:	4c 89 07             	mov    QWORD PTR [rdi],r8
+ 4d1:	4c 89 4f 08          	mov    QWORD PTR [rdi+0x8],r9
+ 4d5:	4c 89 57 10          	mov    QWORD PTR [rdi+0x10],r10
+ 4d9:	4c 89 5f 18          	mov    QWORD PTR [rdi+0x18],r11
+ 4dd:	41 5f                	pop    r15
+ 4df:	41 5e                	pop    r14
+ 4e1:	41 5d                	pop    r13
+ 4e3:	41 5c                	pop    r12
+ 4e5:	5b                   	pop    rbx
+ 4e6:	c3                   	ret
+
+00000000000004e7 <field_mul_full_asm>:
+ 4e7:	53                   	push   rbx
+ 4e8:	55                   	push   rbp
+ 4e9:	41 54                	push   r12
+ 4eb:	41 55                	push   r13
+ 4ed:	41 56                	push   r14
+ 4ef:	41 57                	push   r15
+ 4f1:	52                   	push   rdx
+ 4f2:	4d 31 c0             	xor    r8,r8
+ 4f5:	4d 31 c9             	xor    r9,r9
+ 4f8:	4d 31 d2             	xor    r10,r10
+ 4fb:	4d 31 db             	xor    r11,r11
+ 4fe:	4d 31 e4             	xor    r12,r12
+ 501:	4d 31 ed             	xor    r13,r13
+ 504:	4d 31 f6             	xor    r14,r14
+ 507:	4d 31 ff             	xor    r15,r15
+ 50a:	31 ed                	xor    ebp,ebp
+ 50c:	48 8b 17             	mov    rdx,QWORD PTR [rdi]
+ 50f:	31 c9                	xor    ecx,ecx
+ 511:	c4 e2 fb f6 1e       	mulx   rbx,rax,QWORD PTR [rsi]
+ 516:	66 4c 0f 38 f6 c0    	adcx   r8,rax
+ 51c:	f3 4c 0f 38 f6 cb    	adox   r9,rbx
+ 522:	c4 e2 fb f6 5e 08    	mulx   rbx,rax,QWORD PTR [rsi+0x8]
+ 528:	66 4c 0f 38 f6 c8    	adcx   r9,rax
+ 52e:	f3 4c 0f 38 f6 d3    	adox   r10,rbx
+ 534:	c4 e2 fb f6 5e 10    	mulx   rbx,rax,QWORD PTR [rsi+0x10]
+ 53a:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+ 540:	f3 4c 0f 38 f6 db    	adox   r11,rbx
+ 546:	c4 e2 fb f6 5e 18    	mulx   rbx,rax,QWORD PTR [rsi+0x18]
+ 54c:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+ 552:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+ 558:	66 4c 0f 38 f6 e1    	adcx   r12,rcx
+ 55e:	f3 4c 0f 38 f6 e9    	adox   r13,rcx
+ 564:	48 8b 57 08          	mov    rdx,QWORD PTR [rdi+0x8]
+ 568:	31 c9                	xor    ecx,ecx
+ 56a:	c4 e2 fb f6 1e       	mulx   rbx,rax,QWORD PTR [rsi]
+ 56f:	66 4c 0f 38 f6 c8    	adcx   r9,rax
+ 575:	f3 4c 0f 38 f6 d3    	adox   r10,rbx
+ 57b:	c4 e2 fb f6 5e 08    	mulx   rbx,rax,QWORD PTR [rsi+0x8]
+ 581:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+ 587:	f3 4c 0f 38 f6 db    	adox   r11,rbx
+ 58d:	c4 e2 fb f6 5e 10    	mulx   rbx,rax,QWORD PTR [rsi+0x10]
+ 593:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+ 599:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+ 59f:	c4 e2 fb f6 5e 18    	mulx   rbx,rax,QWORD PTR [rsi+0x18]
+ 5a5:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+ 5ab:	f3 4c 0f 38 f6 eb    	adox   r13,rbx
+ 5b1:	66 4c 0f 38 f6 e9    	adcx   r13,rcx
+ 5b7:	f3 4c 0f 38 f6 f1    	adox   r14,rcx
+ 5bd:	48 8b 57 10          	mov    rdx,QWORD PTR [rdi+0x10]
+ 5c1:	31 c9                	xor    ecx,ecx
+ 5c3:	c4 e2 fb f6 1e       	mulx   rbx,rax,QWORD PTR [rsi]
+ 5c8:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+ 5ce:	f3 4c 0f 38 f6 db    	adox   r11,rbx
+ 5d4:	c4 e2 fb f6 5e 08    	mulx   rbx,rax,QWORD PTR [rsi+0x8]
+ 5da:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+ 5e0:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+ 5e6:	c4 e2 fb f6 5e 10    	mulx   rbx,rax,QWORD PTR [rsi+0x10]
+ 5ec:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+ 5f2:	f3 4c 0f 38 f6 eb    	adox   r13,rbx
+ 5f8:	c4 e2 fb f6 5e 18    	mulx   rbx,rax,QWORD PTR [rsi+0x18]
+ 5fe:	66 4c 0f 38 f6 e8    	adcx   r13,rax
+ 604:	f3 4c 0f 38 f6 f3    	adox   r14,rbx
+ 60a:	66 4c 0f 38 f6 f1    	adcx   r14,rcx
+ 610:	f3 4c 0f 38 f6 f9    	adox   r15,rcx
+ 616:	48 8b 57 18          	mov    rdx,QWORD PTR [rdi+0x18]
+ 61a:	31 c9                	xor    ecx,ecx
+ 61c:	c4 e2 fb f6 1e       	mulx   rbx,rax,QWORD PTR [rsi]
+ 621:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+ 627:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+ 62d:	c4 e2 fb f6 5e 08    	mulx   rbx,rax,QWORD PTR [rsi+0x8]
+ 633:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+ 639:	f3 4c 0f 38 f6 eb    	adox   r13,rbx
+ 63f:	c4 e2 fb f6 5e 10    	mulx   rbx,rax,QWORD PTR [rsi+0x10]
+ 645:	66 4c 0f 38 f6 e8    	adcx   r13,rax
+ 64b:	f3 4c 0f 38 f6 f3    	adox   r14,rbx
+ 651:	c4 e2 fb f6 5e 18    	mulx   rbx,rax,QWORD PTR [rsi+0x18]
+ 657:	66 4c 0f 38 f6 f0    	adcx   r14,rax
+ 65d:	f3 4c 0f 38 f6 fb    	adox   r15,rbx
+ 663:	66 4c 0f 38 f6 f9    	adcx   r15,rcx
+ 669:	f3 48 0f 38 f6 e9    	adox   rbp,rcx
+ 66f:	48 31 ff             	xor    rdi,rdi
+ 672:	48 ba d1 03 00 00 01 	movabs rdx,0x1000003d1
+ 679:	00 00 00 
+ 67c:	c4 c2 e3 f6 cc       	mulx   rcx,rbx,r12
+ 681:	49 01 d8             	add    r8,rbx
+ 684:	49 11 c9             	adc    r9,rcx
+ 687:	49 83 d2 00          	adc    r10,0x0
+ 68b:	49 83 d3 00          	adc    r11,0x0
+ 68f:	48 83 d7 00          	adc    rdi,0x0
+ 693:	c4 c2 e3 f6 cd       	mulx   rcx,rbx,r13
+ 698:	49 01 d9             	add    r9,rbx
+ 69b:	49 11 ca             	adc    r10,rcx
+ 69e:	49 83 d3 00          	adc    r11,0x0
+ 6a2:	48 83 d7 00          	adc    rdi,0x0
+ 6a6:	c4 c2 e3 f6 ce       	mulx   rcx,rbx,r14
+ 6ab:	49 01 da             	add    r10,rbx
+ 6ae:	49 11 cb             	adc    r11,rcx
+ 6b1:	48 83 d7 00          	adc    rdi,0x0
+ 6b5:	c4 c2 e3 f6 cf       	mulx   rcx,rbx,r15
+ 6ba:	49 01 db             	add    r11,rbx
+ 6bd:	48 11 cf             	adc    rdi,rcx
+ 6c0:	c4 e2 e3 f6 cf       	mulx   rcx,rbx,rdi
+ 6c5:	48 31 ff             	xor    rdi,rdi
+ 6c8:	49 01 d8             	add    r8,rbx
+ 6cb:	49 11 c9             	adc    r9,rcx
+ 6ce:	49 83 d2 00          	adc    r10,0x0
+ 6d2:	49 83 d3 00          	adc    r11,0x0
+ 6d6:	48 83 d7 00          	adc    rdi,0x0
+ 6da:	48 b8 d1 03 00 00 01 	movabs rax,0x1000003d1
+ 6e1:	00 00 00 
+ 6e4:	48 f7 df             	neg    rdi
+ 6e7:	48 21 f8             	and    rax,rdi
+ 6ea:	49 01 c0             	add    r8,rax
+ 6ed:	49 83 d1 00          	adc    r9,0x0
+ 6f1:	49 83 d2 00          	adc    r10,0x0
+ 6f5:	49 83 d3 00          	adc    r11,0x0
+ 6f9:	49 bd d1 03 00 00 01 	movabs r13,0x1000003d1
+ 700:	00 00 00 
+ 703:	4c 89 c0             	mov    rax,r8
+ 706:	4c 01 e8             	add    rax,r13
+ 709:	4c 89 cb             	mov    rbx,r9
+ 70c:	48 83 d3 00          	adc    rbx,0x0
+ 710:	4c 89 d1             	mov    rcx,r10
+ 713:	48 83 d1 00          	adc    rcx,0x0
+ 717:	4c 89 da             	mov    rdx,r11
+ 71a:	48 83 d2 00          	adc    rdx,0x0
+ 71e:	4c 0f 42 c0          	cmovb  r8,rax
+ 722:	4c 0f 42 cb          	cmovb  r9,rbx
+ 726:	4c 0f 42 d1          	cmovb  r10,rcx
+ 72a:	4c 0f 42 da          	cmovb  r11,rdx
+ 72e:	5a                   	pop    rdx
+ 72f:	4c 89 02             	mov    QWORD PTR [rdx],r8
+ 732:	4c 89 4a 08          	mov    QWORD PTR [rdx+0x8],r9
+ 736:	4c 89 52 10          	mov    QWORD PTR [rdx+0x10],r10
+ 73a:	4c 89 5a 18          	mov    QWORD PTR [rdx+0x18],r11
+ 73e:	41 5f                	pop    r15
+ 740:	41 5e                	pop    r14
+ 742:	41 5d                	pop    r13
+ 744:	41 5c                	pop    r12
+ 746:	5d                   	pop    rbp
+ 747:	5b                   	pop    rbx
+ 748:	c3                   	ret
+
+0000000000000749 <field_sqr_full_asm>:
+ 749:	53                   	push   rbx
+ 74a:	55                   	push   rbp
+ 74b:	41 54                	push   r12
+ 74d:	41 55                	push   r13
+ 74f:	41 56                	push   r14
+ 751:	41 57                	push   r15
+ 753:	56                   	push   rsi
+ 754:	4d 31 c0             	xor    r8,r8
+ 757:	4d 31 c9             	xor    r9,r9
+ 75a:	4d 31 d2             	xor    r10,r10
+ 75d:	4d 31 db             	xor    r11,r11
+ 760:	4d 31 e4             	xor    r12,r12
+ 763:	4d 31 ed             	xor    r13,r13
+ 766:	4d 31 f6             	xor    r14,r14
+ 769:	4d 31 ff             	xor    r15,r15
+ 76c:	48 8b 17             	mov    rdx,QWORD PTR [rdi]
+ 76f:	31 c9                	xor    ecx,ecx
+ 771:	c4 e2 fb f6 5f 08    	mulx   rbx,rax,QWORD PTR [rdi+0x8]
+ 777:	66 4c 0f 38 f6 c8    	adcx   r9,rax
+ 77d:	f3 4c 0f 38 f6 d3    	adox   r10,rbx
+ 783:	c4 e2 fb f6 5f 10    	mulx   rbx,rax,QWORD PTR [rdi+0x10]
+ 789:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+ 78f:	f3 4c 0f 38 f6 db    	adox   r11,rbx
+ 795:	c4 e2 fb f6 5f 18    	mulx   rbx,rax,QWORD PTR [rdi+0x18]
+ 79b:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+ 7a1:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+ 7a7:	66 4c 0f 38 f6 e1    	adcx   r12,rcx
+ 7ad:	f3 4c 0f 38 f6 e9    	adox   r13,rcx
+ 7b3:	48 8b 57 08          	mov    rdx,QWORD PTR [rdi+0x8]
+ 7b7:	31 c9                	xor    ecx,ecx
+ 7b9:	c4 e2 fb f6 5f 10    	mulx   rbx,rax,QWORD PTR [rdi+0x10]
+ 7bf:	66 4c 0f 38 f6 d8    	adcx   r11,rax
+ 7c5:	f3 4c 0f 38 f6 e3    	adox   r12,rbx
+ 7cb:	c4 e2 fb f6 5f 18    	mulx   rbx,rax,QWORD PTR [rdi+0x18]
+ 7d1:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+ 7d7:	f3 4c 0f 38 f6 eb    	adox   r13,rbx
+ 7dd:	66 4c 0f 38 f6 e9    	adcx   r13,rcx
+ 7e3:	f3 4c 0f 38 f6 f1    	adox   r14,rcx
+ 7e9:	48 8b 57 10          	mov    rdx,QWORD PTR [rdi+0x10]
+ 7ed:	31 c9                	xor    ecx,ecx
+ 7ef:	c4 e2 fb f6 5f 18    	mulx   rbx,rax,QWORD PTR [rdi+0x18]
+ 7f5:	66 4c 0f 38 f6 e8    	adcx   r13,rax
+ 7fb:	f3 4c 0f 38 f6 f3    	adox   r14,rbx
+ 801:	66 4c 0f 38 f6 f1    	adcx   r14,rcx
+ 807:	f3 4c 0f 38 f6 f9    	adox   r15,rcx
+ 80d:	4d 01 c9             	add    r9,r9
+ 810:	4d 11 d2             	adc    r10,r10
+ 813:	4d 11 db             	adc    r11,r11
+ 816:	4d 11 e4             	adc    r12,r12
+ 819:	4d 11 ed             	adc    r13,r13
+ 81c:	4d 11 f6             	adc    r14,r14
+ 81f:	4d 11 ff             	adc    r15,r15
+ 822:	31 c9                	xor    ecx,ecx
+ 824:	48 8b 17             	mov    rdx,QWORD PTR [rdi]
+ 827:	c4 e2 fb f6 da       	mulx   rbx,rax,rdx
+ 82c:	66 4c 0f 38 f6 c0    	adcx   r8,rax
+ 832:	66 4c 0f 38 f6 cb    	adcx   r9,rbx
+ 838:	48 8b 57 08          	mov    rdx,QWORD PTR [rdi+0x8]
+ 83c:	c4 e2 fb f6 da       	mulx   rbx,rax,rdx
+ 841:	66 4c 0f 38 f6 d0    	adcx   r10,rax
+ 847:	66 4c 0f 38 f6 db    	adcx   r11,rbx
+ 84d:	48 8b 57 10          	mov    rdx,QWORD PTR [rdi+0x10]
+ 851:	c4 e2 fb f6 da       	mulx   rbx,rax,rdx
+ 856:	66 4c 0f 38 f6 e0    	adcx   r12,rax
+ 85c:	66 4c 0f 38 f6 eb    	adcx   r13,rbx
+ 862:	48 8b 57 18          	mov    rdx,QWORD PTR [rdi+0x18]
+ 866:	c4 e2 fb f6 da       	mulx   rbx,rax,rdx
+ 86b:	66 4c 0f 38 f6 f0    	adcx   r14,rax
+ 871:	66 4c 0f 38 f6 fb    	adcx   r15,rbx
+ 877:	48 31 ff             	xor    rdi,rdi
+ 87a:	48 ba d1 03 00 00 01 	movabs rdx,0x1000003d1
+ 881:	00 00 00 
+ 884:	c4 c2 e3 f6 cc       	mulx   rcx,rbx,r12
+ 889:	49 01 d8             	add    r8,rbx
+ 88c:	49 11 c9             	adc    r9,rcx
+ 88f:	49 83 d2 00          	adc    r10,0x0
+ 893:	49 83 d3 00          	adc    r11,0x0
+ 897:	48 83 d7 00          	adc    rdi,0x0
+ 89b:	c4 c2 e3 f6 cd       	mulx   rcx,rbx,r13
+ 8a0:	49 01 d9             	add    r9,rbx
+ 8a3:	49 11 ca             	adc    r10,rcx
+ 8a6:	49 83 d3 00          	adc    r11,0x0
+ 8aa:	48 83 d7 00          	adc    rdi,0x0
+ 8ae:	c4 c2 e3 f6 ce       	mulx   rcx,rbx,r14
+ 8b3:	49 01 da             	add    r10,rbx
+ 8b6:	49 11 cb             	adc    r11,rcx
+ 8b9:	48 83 d7 00          	adc    rdi,0x0
+ 8bd:	c4 c2 e3 f6 cf       	mulx   rcx,rbx,r15
+ 8c2:	49 01 db             	add    r11,rbx
+ 8c5:	48 11 cf             	adc    rdi,rcx
+ 8c8:	c4 e2 e3 f6 cf       	mulx   rcx,rbx,rdi
+ 8cd:	48 31 ff             	xor    rdi,rdi
+ 8d0:	49 01 d8             	add    r8,rbx
+ 8d3:	49 11 c9             	adc    r9,rcx
+ 8d6:	49 83 d2 00          	adc    r10,0x0
+ 8da:	49 83 d3 00          	adc    r11,0x0
+ 8de:	48 83 d7 00          	adc    rdi,0x0
+ 8e2:	48 b8 d1 03 00 00 01 	movabs rax,0x1000003d1
+ 8e9:	00 00 00 
+ 8ec:	48 f7 df             	neg    rdi
+ 8ef:	48 21 f8             	and    rax,rdi
+ 8f2:	49 01 c0             	add    r8,rax
+ 8f5:	49 83 d1 00          	adc    r9,0x0
+ 8f9:	49 83 d2 00          	adc    r10,0x0
+ 8fd:	49 83 d3 00          	adc    r11,0x0
+ 901:	49 bd d1 03 00 00 01 	movabs r13,0x1000003d1
+ 908:	00 00 00 
+ 90b:	4c 89 c0             	mov    rax,r8
+ 90e:	4c 01 e8             	add    rax,r13
+ 911:	4c 89 cb             	mov    rbx,r9
+ 914:	48 83 d3 00          	adc    rbx,0x0
+ 918:	4c 89 d1             	mov    rcx,r10
+ 91b:	48 83 d1 00          	adc    rcx,0x0
+ 91f:	4c 89 da             	mov    rdx,r11
+ 922:	48 83 d2 00          	adc    rdx,0x0
+ 926:	4c 0f 42 c0          	cmovb  r8,rax
+ 92a:	4c 0f 42 cb          	cmovb  r9,rbx
+ 92e:	4c 0f 42 d1          	cmovb  r10,rcx
+ 932:	4c 0f 42 da          	cmovb  r11,rdx
+ 936:	5e                   	pop    rsi
+ 937:	4c 89 06             	mov    QWORD PTR [rsi],r8
+ 93a:	4c 89 4e 08          	mov    QWORD PTR [rsi+0x8],r9
+ 93e:	4c 89 56 10          	mov    QWORD PTR [rsi+0x10],r10
+ 942:	4c 89 5e 18          	mov    QWORD PTR [rsi+0x18],r11
+ 946:	41 5f                	pop    r15
+ 948:	41 5e                	pop    r14
+ 94a:	41 5d                	pop    r13
+ 94c:	41 5c                	pop    r12
+ 94e:	5d                   	pop    rbp
+ 94f:	5b                   	pop    rbx
+ 950:	c3                   	ret

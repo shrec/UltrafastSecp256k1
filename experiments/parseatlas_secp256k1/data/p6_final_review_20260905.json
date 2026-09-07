@@ -1,0 +1,211 @@
+{
+  "schema": "parseatlas.p6.final_manager_review.v1",
+  "status": "accepted_experimental_evidence_only",
+  "completed_utc": "2026-09-05 23:36:49 UTC",
+  "repo_id": "repo_666797171f0141c58bf05f579b2ee16e",
+  "manager_session": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "canonical_task_state_changed": false,
+  "production_integration": false,
+  "review_order": [
+    "Verified repo-bound manager/Task receipts and recovered session; bounded memory/KB/context queries, owner Task suspension honored",
+    "Disjoint workers authored new boundaries, driver and asserting tests; no production code changes",
+    "Manager compiled/reran native GCC and independent Clang oracles, NOASM ASan+UBSan; driver smokes and synthetic-duration diagnostics",
+    "Manager then read all five new source/test files and complete protocol/contract/25lens plan",
+    "Manager static replay and full output/call boundary checks before performance freeze; exact retained objects reproduce executable",
+    "Two complete frozen C++ performance series, reversed second order; no selective reruns",
+    "Independent numeric audit and manager full-object replay plus separate same-round recomputation",
+    "Complete codegen prose and final25lens review; precise chronology-only fix accepted; environment uncertainty preserved",
+    "Current50 plus historical185 hashes,76links,25lens identities and final12 SourceGraph code/doc hashes match"
+  ],
+  "gates": {
+    "mechanical": {
+      "schema": "parseatlas.p6.final_mechanical_gate.v1",
+      "status": "pass",
+      "counts": {
+        "p6_hashes": 50,
+        "p2_hashes": 41,
+        "p3_hashes": 42,
+        "p4_hashes": 52,
+        "p5_hashes": 50,
+        "text_files": 13,
+        "links": 76,
+        "lens_rows": 25
+      },
+      "errors": [],
+      "manifest_sha256": "e89f84136848f960bca0450d630f2ee8402c4d1805849ca97e86381ca503cf4d"
+    },
+    "source_graph": [
+      {
+        "path": "experiments/parseatlas_secp256k1/probes/p6_field_boundary.hpp",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 21,
+        "source_hash": "d82b6043d609178c75762e8cfe2f89bb10af713db4eab00241779280118eefc9",
+        "expected_sha256": "d82b6043d609178c75762e8cfe2f89bb10af713db4eab00241779280118eefc9",
+        "match": true,
+        "content_sha256": "409e0909871e55b0e1117ac4db74345d3ea465747c1bc2a276ece3a5f4f9e161"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 21,
+        "source_hash": "61db99c4f102830861f4b17305faeca9838fc9122d3eafb569cc03c31d98d8ba",
+        "expected_sha256": "61db99c4f102830861f4b17305faeca9838fc9122d3eafb569cc03c31d98d8ba",
+        "match": true,
+        "content_sha256": "6fa33f9f9483ccb10eecc66665db735b7230436edacc6b2ef2c94d2f0c962dbf"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/probes/p6_field_boundary_compare.cpp",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 21,
+        "source_hash": "563098f0e3e89b9fbc9d4e9d110ccf2be735419a7c5071923fbfb3dbccb72217",
+        "expected_sha256": "563098f0e3e89b9fbc9d4e9d110ccf2be735419a7c5071923fbfb3dbccb72217",
+        "match": true,
+        "content_sha256": "fac7c13c7ebbbf8b73bee0ff348328000dcd385e1adb140c00a827cbdeceb586"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/tests/test_p6_field_boundary.cpp",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 21,
+        "source_hash": "a60dd836bcd06d7c54b6f59aed25d07de92827f8e094e5bda805c955bc854290",
+        "expected_sha256": "a60dd836bcd06d7c54b6f59aed25d07de92827f8e094e5bda805c955bc854290",
+        "match": true,
+        "content_sha256": "9a3c70179ba4f2551b11e7ddf8696da13aca8bc5f796569b7f596d62c2e48042"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/tests/test_p6_boundary_duration.cpp",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 21,
+        "source_hash": "f8208cdce2b78a0db862ae73fc96f9e243a751a52f4fceac54ad676927638cdb",
+        "expected_sha256": "f8208cdce2b78a0db862ae73fc96f9e243a751a52f4fceac54ad676927638cdb",
+        "match": true,
+        "content_sha256": "788fcf091448ae27bdc3771c203ce67f8f5cbc14f07098803d3016a03a086dd3"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/P6_FIELD_BOUNDARY_PROTOCOL.md",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 7,
+        "source_hash": "68ee687cf8d4b8b4dccacea9d82eb4a4c35d7b315f814c723bb8d5d1dff16113",
+        "expected_sha256": "68ee687cf8d4b8b4dccacea9d82eb4a4c35d7b315f814c723bb8d5d1dff16113",
+        "match": true,
+        "content_sha256": "6894f3b0d766bd8aeb9b47390a39665126f58c929df8dddf9674df22d721a18e"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/P6_FIELD_BOUNDARY_CONTRACT.md",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 7,
+        "source_hash": "692898f748244444c1869a52bc38e325e2638380fd3b7a21be59ce2f4483b30a",
+        "expected_sha256": "692898f748244444c1869a52bc38e325e2638380fd3b7a21be59ce2f4483b30a",
+        "match": true,
+        "content_sha256": "fdd357795434034dc273e8322084b89cf28ed86ea2bb2eb26d912b739596ae0c"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/P6_FIELD_BOUNDARY_LENSES.md",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 7,
+        "source_hash": "634b021950ddd436582a0bcc4e31cbff650bd93ab7b7ce66fbf38f6fdc151feb",
+        "expected_sha256": "634b021950ddd436582a0bcc4e31cbff650bd93ab7b7ce66fbf38f6fdc151feb",
+        "match": true,
+        "content_sha256": "5eb9fc3f6dfea2ef8fe2c2d911a13e9cb172c409d77e56a393e97d4703e3632f"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/P6_FIELD_BOUNDARY_CODEGEN.md",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 7,
+        "source_hash": "5c9d6d021f057102c6f37a6213f6e6944c0ad8e09561afebd52d45ff7dfebf1a",
+        "expected_sha256": "5c9d6d021f057102c6f37a6213f6e6944c0ad8e09561afebd52d45ff7dfebf1a",
+        "match": true,
+        "content_sha256": "12ab45cce5ee88895cf07e3091cf225e57fbd3b496ed3e195b55d6175490fc7c"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/P6_FIELD_BOUNDARY_RESULTS.md",
+        "index": "2026-09-05T23:32:43.217804+00:00",
+        "hit": 7,
+        "source_hash": "f072ec3b2f20b06be72a1c2b36ddd86b93e388f8d6b5cec7a0cc884c2e538c8a",
+        "expected_sha256": "f072ec3b2f20b06be72a1c2b36ddd86b93e388f8d6b5cec7a0cc884c2e538c8a",
+        "match": true,
+        "content_sha256": "80e8163643f4ea5ed5532f7c8d4f16b1f0ad225f32629cdcff51c5d225413f5c"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/P6_FIELD_BOUNDARY_LENS_RESULTS.md",
+        "index": "2026-09-05T23:35:14.531234+00:00",
+        "hit": 7,
+        "source_hash": "5d76f267b4c6204c42b853bc98725aeac1c7b6201b3d77a959f5fb32fe1ae944",
+        "expected_sha256": "5d76f267b4c6204c42b853bc98725aeac1c7b6201b3d77a959f5fb32fe1ae944",
+        "match": true,
+        "content_sha256": "5fadcb4797c3982f41b343f85ba42b368a7d1a5167b8b1694b4ddab54fcb7bd5"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+        "index": "2026-09-05T23:30:01.621276+00:00",
+        "hit": 7,
+        "source_hash": "2105984a9f7b8c1cbd0e5e9bfce964039c7e4afcf4b73946ae59660bf0566a4f",
+        "expected_sha256": "2105984a9f7b8c1cbd0e5e9bfce964039c7e4afcf4b73946ae59660bf0566a4f",
+        "match": true,
+        "content_sha256": "f9c8f2e4ac374346bbe61b67d1696f7169109c6653a117890ad33dfbf9f4bf50"
+      }
+    ],
+    "native_assertions": {
+      "gcc": 406239,
+      "clang": 406239,
+      "noasm_asan_ubsan": 358744
+    },
+    "mismatches": 0,
+    "duration": {
+      "synthetic_cases_per_compiler": 96,
+      "assertions_per_compiler": 5282,
+      "later_regions": 320,
+      "qualified": 320,
+      "extensions": 9,
+      "short_calibrations_retained": 35
+    },
+    "numeric": {
+      "checks": 42411,
+      "errors": 0,
+      "full_object_replay": true,
+      "program_sha256": "bd8eaacaae6b3e9977dfdbfeaceeb23e5654f40bcdf18d36d9adcb588c22ed32"
+    },
+    "codegen": {
+      "checks": 10521,
+      "slices": 66,
+      "jobs": 32,
+      "matched_caller_pairs": 8,
+      "windows": 64
+    }
+  },
+  "accepted_scopes": [
+    "probes/p6_field_boundary.hpp + .cpp",
+    "probes/p6_field_boundary_compare.cpp + tests/test_p6_boundary_duration.cpp",
+    "tests/test_p6_field_boundary.cpp",
+    "P6_FIELD_BOUNDARY_PROTOCOL.md + CONTRACT.md + LENSES.md",
+    "P6_FIELD_BOUNDARY_CODEGEN.md + data/p6_codegen_20260905.json",
+    "data/p6_numeric_audit_20260905.json + manager replay",
+    "P6_FIELD_BOUNDARY_LENS_RESULTS.md",
+    "P6_FIELD_BOUNDARY_RESULTS.md + RESEARCH_FRONTIER.md + evidence manifest"
+  ],
+  "resolved_review_findings": [
+    "Clang ADX builtin unavailable: caller-only CPUID leaf7 gate fixed before any freeze, both compilers qualified",
+    "New source/doc indexing lag: refreshed, bounded exact-target reads recorded, all final12 hashes match",
+    "Codegen report final sentence distinguished pre-timing JSON replay from post-series prose review",
+    "Numeric replay adapter source binding/name collision fixed; complete reproducible program returns exact full-object equality"
+  ],
+  "open_or_deferred": [
+    "Existing Task owner suspension and worker MCP surface NeedFix; no canonical claims/launch/accept actions",
+    "Refresh-status inconsistency retained; final source graph perfile evidence is fresh and matching",
+    "Uncontrolled frequency/SMT/background and possible lightweight metadata-check overlap retained, no causal1percent conclusion",
+    "Clang result-dependent correction branch; CT and platform/security qualification remain outside this accept",
+    "No new arithmetic or production/scalar/upper-layer integration; final-fold/unrolled/fused candidates and inverse remain future bounded waves"
+  ],
+  "outcome": "Existing ASM direct boundary wins64/64 API comparisons. Inline row square remains conditional chain candidate; inline multiply versus direct ASM near-tied (~1percent,12/16). Opaque row loses64/64 toAPI and64/64 todirect; outlining row multiply stillhelpsILP relative toinline16/16. Different operation/dependency modes need different choices.",
+  "preservation": {
+    "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+    "branch": "experiment/representation-search",
+    "production_unchanged_this_wave": true,
+    "all17_prefreeze_sources_objects_binaries_unchanged": true,
+    "P5_frontier_snapshot": "data/p5_frontier_snapshot_20260905.md",
+    "snapshot_sha256": "25370020b8c7fcada0675f86418667d63ae6673cfe3accd1ab625c73a4bd84be",
+    "no_commits_pushes_tags_or_policy_changes": true
+  },
+  "manifest": "data/p6_build_20260905.json",
+  "manifest_sha256": "e89f84136848f960bca0450d630f2ee8402c4d1805849ca97e86381ca503cf4d",
+  "hash_note": "Manifest lists50 exact input/output identities but excludes itself and this downstream review to avoid a self-hash cycle. This review binds the completed manifest hash. No result-source or raw file changed during final review."
+}

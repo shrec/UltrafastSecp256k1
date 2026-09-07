@@ -1,0 +1,156 @@
+{
+  "schema": "parseatlas_p5_final_review_v1",
+  "recorded_utc": "2026-09-05 22:43 UTC",
+  "disposition": "retain_conditional_field_chain_candidate_and_negative_controls",
+  "canonical_task_acceptance": false,
+  "production_integration": false,
+  "manager_session": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "role_separation": "Workers authored experimental feature code; manager independently ran mechanical gates then completely reviewed source/contracts. Independent numeric/report review was additionally performed.",
+  "mechanical_gate": {
+    "schema": "parseatlas_p5_final_mechanical_gate_v1",
+    "status": "pass",
+    "counts": {
+      "p5_hashes": 50,
+      "p2_hashes": 41,
+      "p3_hashes": 42,
+      "p4_hashes": 52,
+      "text_whitespace_files": 12,
+      "local_links": 58,
+      "lens_rows": 25
+    },
+    "deferred_final_review_links": [
+      "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/experiments/parseatlas_secp256k1/data/p5_final_review_20260905.json"
+    ],
+    "manifest_sha256": "153900d0dd3de43b0799c7b18262340093ed220817dd3ca445ab3a5a6710c075",
+    "errors": []
+  },
+  "arithmetic": {
+    "configs": 3,
+    "assertions_each": 714283,
+    "mismatches": 0,
+    "checksum": "75711b730275b15a",
+    "finite_corpus": true
+  },
+  "duration": {
+    "configs": 2,
+    "synthetic_cases_each": 120,
+    "synthetic_assertions_each": 6550,
+    "real_later_regions": 400,
+    "real_regions_under_200ms": 0,
+    "continuous_extensions": 25,
+    "short_calibration_records_retained": 42,
+    "synthetic_is_performance": false,
+    "unexercised_path": "Within-region work-cap and capped-final-batch termination statically reviewed only."
+  },
+  "codegen_replay": {
+    "schema": "parseatlas_p5_codegen_replay_v1",
+    "status": "pass",
+    "checks": 424,
+    "slices": 65,
+    "symbols": 65,
+    "jobs": 20,
+    "pairs": 6,
+    "phase_windows": 14,
+    "errors": []
+  },
+  "numeric_review": {
+    "status": "pass",
+    "checks": 45534,
+    "errors": 0,
+    "raw_regions": 523,
+    "probes": 548,
+    "comparison_summaries": 64,
+    "paired_ratios": 512,
+    "artifact": "data/p5_numeric_audit_20260905.json",
+    "sha256": "d705bda574b359c0cc273cc1f3203ba3dbec21bd77d780733436c7a80414d9e0"
+  },
+  "independent_report_review": {
+    "reviewer": "/root/p1_scalar_inventory",
+    "status": "pass",
+    "checks": 346,
+    "displayed_table_values": 94,
+    "performance_values": 76,
+    "duration_values": 18,
+    "ordered_lenses": 25,
+    "findings": [],
+    "results_sha256": "b8a79bdc9ba1d4f00fea5465a28fec245eabf3bf686f3c61884217f3c979638f",
+    "lens_sha256": "8fc5555cad93581c9a82aafb5b4f8a077084e3779cdfd1e7b9a51211e63e33a0",
+    "frontier_sha256": "25370020b8c7fcada0675f86418667d63ae6673cfe3accd1ab625c73a4bd84be"
+  },
+  "source_review": {
+    "complete_files": [
+      "probes/p5_field_product_kernels.hpp",
+      "tests/test_p5_kernel_smoke.cpp",
+      "tests/test_p5_field_product.cpp",
+      "probes/p5_field_product_compare.cpp",
+      "tests/test_p5_product_duration.cpp",
+      "P5_FIELD_PRODUCT_CONTRACT.md",
+      "P5_FIELD_PRODUCT_LENSES.md",
+      "P5_FIELD_PRODUCT_LENS_RESULTS.md",
+      "P5_FIELD_PRODUCT_CODEGEN.md"
+    ],
+    "remaining_findings": [],
+    "source_graph": "Five frozen code-source hashes match indexed evidence before measurement; final reduce_parallel body fresh and final lens hash indexed. Declared-new-file/assembly fallback and refresh errors recorded, not silently bypassed.",
+    "final_lens_graph": {
+      "contexts": [
+        {
+          "file": {
+            "build_revision": "aiworkhub.source_graph.semantic.v6",
+            "file_path": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_LENS_RESULTS.md",
+            "indexed_at": "2026-09-05T22:38:15.478362+00:00",
+            "language": "documentation",
+            "source_hash": "8fc5555cad93581c9a82aafb5b4f8a077084e3779cdfd1e7b9a51211e63e33a0",
+            "status": "file_evidence_only"
+          }
+        }
+      ],
+      "matches": [
+        {
+          "build_revision": "aiworkhub.source_graph.semantic.v6",
+          "file_path": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_LENS_RESULTS.md",
+          "indexed_at": "2026-09-05T22:38:15.478362+00:00",
+          "kind": "file",
+          "language": "documentation",
+          "line_end": 1,
+          "line_start": 1,
+          "name": "P5_FIELD_PRODUCT_LENS_RESULTS.md",
+          "qualname": "experiments/parseatlas_secp256k1/P5_FIELD_PRODUCT_LENS_RESULTS.md",
+          "source_hash": "8fc5555cad93581c9a82aafb5b4f8a077084e3779cdfd1e7b9a51211e63e33a0",
+          "status": "file_evidence_only"
+        }
+      ]
+    }
+  },
+  "preservation": {
+    "old_frontier_snapshots_verified": true,
+    "prior_manifest_hashes": {
+      "p2": 41,
+      "p3": 42,
+      "p4": 52
+    },
+    "no_prior_report_or_manifest_rewritten": true,
+    "production_reference_hashes_unchanged": true,
+    "preexisting_dirty_changes_preserved": true,
+    "no_git_commit_push_tag": true
+  },
+  "retained_findings": {
+    "row_chain_multiply": "1.119451/1.107246 paired medians,15/16wins",
+    "row_chain_square": "1.078533/1.182849,16/16wins",
+    "API_ILP4": "wins96/96candidatepairs",
+    "API_Comba": "wins128/128pairs,overlapsILP4set",
+    "row_vs_Comba_serial": "wins64/64",
+    "compiler_equivalence": "Fiveof sixserial/precomputedpairs normalizedinstructionidentical; sixthonlytwoXORstagingoperands. Not a distinct arithmetic schedule gain."
+  },
+  "limitations": [
+    "One native GCC machine/profile, no wholeClang performance or universal dispatch threshold.",
+    "Inline row versusactualAPI changes arithmetic/visibility/call/materialization together; cause not isolated.",
+    "No PMU/security/CT/novelty/worldrecord/scalar/point/signature transfer claim.",
+    "Same finite arithmetic corpus across3configs; positivekernelresult doesnotprove upperlayergain."
+  ],
+  "next_field_only": [
+    "Equal-observation actualAPI/directASM/nativeC++ boundary controls to isolate row-chain advantage.",
+    "Explicitly unrolled/fused product-reduction schedules and compiler replication.",
+    "Inversion/batch inversion under separateVT/CT,zero,scratch,alias/setupcontracts; fieldcollectionnotcomplete."
+  ],
+  "artifact_note": "This final review is intentionally not self-hashed or in its own build manifest. Precreation gate deferred only this file's link; postcreation gate and sessionhandoff verify its presence/JSON/hash and all59localdoclinks."
+}

@@ -1,0 +1,327 @@
+{
+  "schema": "parseatlas_p4_validation_v1",
+  "recorded_utc": "2026-09-05 21:35:51 UTC",
+  "status": "pass",
+  "source_hashes": {
+    "kernel": "e3fa770e084afe647e9214ca309dbc6caf52cf2684986b43c3ed48141d7da75b",
+    "test": "a706af7b0df8c3b745523280187d8bba82e196876ab907708eb1f281ff78059c",
+    "driver": "29c9fa86318a35b58a440245779f51b66e8327e68f83e4bec0f00bdd6cd1013a"
+  },
+  "arithmetic_language": "native C++ only",
+  "same_finite_corpus_repeated": true,
+  "configs": {
+    "native": {
+      "compile_command": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_native",
+      "compile_result": {
+        "chunk_id": "6d7086",
+        "wall_time_seconds": 0.000001641,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_native",
+      "run_result": {
+        "exit_code": 0,
+        "result": {
+          "schema": "parseatlas_p4_field_sum_correctness_v1",
+          "status": "pass",
+          "mismatches": 0,
+          "finite_corpus_only": true,
+          "timing_claim": false,
+          "constant_time_claim": false,
+          "oracle": "Boost ordinary-integer prefix sums modulo p plus unchanged corrected FE64 prefix arithmetic",
+          "contract": "canonical x0 plus N canonical RHS, seed once, final-only canonical raw FE64 and all 32 BE bytes",
+          "chunks": [
+            1,
+            16,
+            4094,
+            4095
+          ],
+          "lanes": [
+            1,
+            4
+          ],
+          "inline_eager_tested": true,
+          "corpus_reuse": "one real canonical corpus per pattern; oracle prefixes computed once, never replayed quadratically",
+          "phase_replay_limit_rhs": 8193,
+          "large_fixture_phase_replay": false,
+          "seed_hex": "5041345f53554d53",
+          "corpora": 9,
+          "fixtures": 148,
+          "large_fixtures": 3,
+          "rhs_objects": 1163272,
+          "nonzero_rhs_objects": 1146853,
+          "input_object_checks": 1163272,
+          "reference_prefix_additions": 1163272,
+          "reference_prefix_checks": 148,
+          "reference_seed_additions": 284,
+          "seeded_cases": 148,
+          "alias_cases": 136,
+          "nonzero_seed_cases": 229,
+          "zero_residue_cases": 64,
+          "inline_calls": 284,
+          "wide_calls": 2272,
+          "null_identity_calls": 72,
+          "second_oracle_checks": 2556,
+          "input_preservation_checks": 2701,
+          "phase_replays": 1160,
+          "replay_chunks": 907162,
+          "bank_u128_checks": 9071620,
+          "merged_u128_checks": 3628648,
+          "propagated_highword_checks": 907162,
+          "first_fold_checks": 907162,
+          "first_fold_carry_cases": 6,
+          "second_fold_checks": 907162,
+          "canonical_correction_checks": 907162,
+          "canonical_subtraction_cases": 60098,
+          "output_checks": 2724466,
+          "negative_controls": 46,
+          "assertions": 21130305,
+          "input_checksum_fnv1a64": "9bf04085e07140c8",
+          "output_checksum_fnv1a64": "b1c845bb4263e586"
+        }
+      }
+    },
+    "clang": {
+      "compile_command": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp src/cpu/src/field_asm.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_clang",
+      "compile_result": {
+        "chunk_id": "685b0c",
+        "wall_time_seconds": 8.91e-7,
+        "exit_code": 0,
+        "original_token_count": 74,
+        "output": "src/cpu/src/field.cpp:2997:23: warning: unused function 'safegcd_divsteps_62_jacobi_var' [-Wunused-function]\n 2997 | static inline int64_t safegcd_divsteps_62_jacobi_var(int64_t delta, uint64_t f0, uint64_t g0,\n      |                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+      },
+      "run_command": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_clang",
+      "run_result": {
+        "exit_code": 0,
+        "result": {
+          "schema": "parseatlas_p4_field_sum_correctness_v1",
+          "status": "pass",
+          "mismatches": 0,
+          "finite_corpus_only": true,
+          "timing_claim": false,
+          "constant_time_claim": false,
+          "oracle": "Boost ordinary-integer prefix sums modulo p plus unchanged corrected FE64 prefix arithmetic",
+          "contract": "canonical x0 plus N canonical RHS, seed once, final-only canonical raw FE64 and all 32 BE bytes",
+          "chunks": [
+            1,
+            16,
+            4094,
+            4095
+          ],
+          "lanes": [
+            1,
+            4
+          ],
+          "inline_eager_tested": true,
+          "corpus_reuse": "one real canonical corpus per pattern; oracle prefixes computed once, never replayed quadratically",
+          "phase_replay_limit_rhs": 8193,
+          "large_fixture_phase_replay": false,
+          "seed_hex": "5041345f53554d53",
+          "corpora": 9,
+          "fixtures": 148,
+          "large_fixtures": 3,
+          "rhs_objects": 1163272,
+          "nonzero_rhs_objects": 1146853,
+          "input_object_checks": 1163272,
+          "reference_prefix_additions": 1163272,
+          "reference_prefix_checks": 148,
+          "reference_seed_additions": 284,
+          "seeded_cases": 148,
+          "alias_cases": 136,
+          "nonzero_seed_cases": 229,
+          "zero_residue_cases": 64,
+          "inline_calls": 284,
+          "wide_calls": 2272,
+          "null_identity_calls": 72,
+          "second_oracle_checks": 2556,
+          "input_preservation_checks": 2701,
+          "phase_replays": 1160,
+          "replay_chunks": 907162,
+          "bank_u128_checks": 9071620,
+          "merged_u128_checks": 3628648,
+          "propagated_highword_checks": 907162,
+          "first_fold_checks": 907162,
+          "first_fold_carry_cases": 6,
+          "second_fold_checks": 907162,
+          "canonical_correction_checks": 907162,
+          "canonical_subtraction_cases": 60098,
+          "output_checks": 2724466,
+          "negative_controls": 46,
+          "assertions": 21130305,
+          "input_checksum_fnv1a64": "9bf04085e07140c8",
+          "output_checksum_fnv1a64": "b1c845bb4263e586"
+        }
+      }
+    },
+    "sanitizer": {
+      "compile_command": "g++-14 -std=c++20 -O1 -g -fno-lto -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -DSECP256K1_NO_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_asan",
+      "compile_result": {
+        "chunk_id": "361812",
+        "wall_time_seconds": 7.82e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_asan",
+      "run_result": {
+        "exit_code": 0,
+        "result": {
+          "schema": "parseatlas_p4_field_sum_correctness_v1",
+          "status": "pass",
+          "mismatches": 0,
+          "finite_corpus_only": true,
+          "timing_claim": false,
+          "constant_time_claim": false,
+          "oracle": "Boost ordinary-integer prefix sums modulo p plus unchanged corrected FE64 prefix arithmetic",
+          "contract": "canonical x0 plus N canonical RHS, seed once, final-only canonical raw FE64 and all 32 BE bytes",
+          "chunks": [
+            1,
+            16,
+            4094,
+            4095
+          ],
+          "lanes": [
+            1,
+            4
+          ],
+          "inline_eager_tested": true,
+          "corpus_reuse": "one real canonical corpus per pattern; oracle prefixes computed once, never replayed quadratically",
+          "phase_replay_limit_rhs": 8193,
+          "large_fixture_phase_replay": false,
+          "seed_hex": "5041345f53554d53",
+          "corpora": 9,
+          "fixtures": 148,
+          "large_fixtures": 3,
+          "rhs_objects": 1163272,
+          "nonzero_rhs_objects": 1146853,
+          "input_object_checks": 1163272,
+          "reference_prefix_additions": 1163272,
+          "reference_prefix_checks": 148,
+          "reference_seed_additions": 284,
+          "seeded_cases": 148,
+          "alias_cases": 136,
+          "nonzero_seed_cases": 229,
+          "zero_residue_cases": 64,
+          "inline_calls": 284,
+          "wide_calls": 2272,
+          "null_identity_calls": 72,
+          "second_oracle_checks": 2556,
+          "input_preservation_checks": 2701,
+          "phase_replays": 1160,
+          "replay_chunks": 907162,
+          "bank_u128_checks": 9071620,
+          "merged_u128_checks": 3628648,
+          "propagated_highword_checks": 907162,
+          "first_fold_checks": 907162,
+          "first_fold_carry_cases": 6,
+          "second_fold_checks": 907162,
+          "canonical_correction_checks": 907162,
+          "canonical_subtraction_cases": 60098,
+          "output_checks": 2724466,
+          "negative_controls": 46,
+          "assertions": 21130305,
+          "input_checksum_fnv1a64": "9bf04085e07140c8",
+          "output_checksum_fnv1a64": "b1c845bb4263e586"
+        }
+      }
+    }
+  },
+  "compile_rejections": {
+    "PA_P4_INVALID_ZERO": {
+      "cmd": "g++-14 -std=c++20 -fsyntax-only -Isrc/cpu/include -DPA_P4_INVALID_ZERO experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp",
+      "chunk_id": "8e870b",
+      "wall_time_seconds": 0.000001326,
+      "exit_code": 1,
+      "original_token_count": 252,
+      "output": "In file included from experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp:4:\nexperiments/parseatlas_secp256k1/tests/../probes/p4_field_sum_kernels.hpp: In instantiation of ‘pa_p4::FE pa_p4::sum_fe64_wide(const FE&, const FE*, std::size_t) [with long unsigned int ChunkRhs = 0; long unsigned int Lanes = 1; FE = secp256k1::fast::FieldElement; std::size_t = long unsigned int]’:\nexperiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp:21:38:   required from here\n   21 |     return pa_p4::sum_fe64_wide<0, 1>(seed, nullptr, 0);\n      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p4_field_sum_kernels.hpp:168:28: error: static assertion failed: P4 chunk admits 1..4095 RHS plus one canonical prefix\n  168 |     static_assert(ChunkRhs >= 1 && ChunkRhs <= 4095,\n      |                   ~~~~~~~~~^~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p4_field_sum_kernels.hpp:168:28: note: the comparison reduces to ‘(0 >= 1)’\n"
+    },
+    "PA_P4_INVALID_CHUNK": {
+      "cmd": "g++-14 -std=c++20 -fsyntax-only -Isrc/cpu/include -DPA_P4_INVALID_CHUNK experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp",
+      "chunk_id": "e6d5ee",
+      "wall_time_seconds": 7.64e-7,
+      "exit_code": 1,
+      "original_token_count": 261,
+      "output": "In file included from experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp:4:\nexperiments/parseatlas_secp256k1/tests/../probes/p4_field_sum_kernels.hpp: In instantiation of ‘pa_p4::FE pa_p4::sum_fe64_wide(const FE&, const FE*, std::size_t) [with long unsigned int ChunkRhs = 4096; long unsigned int Lanes = 1; FE = secp256k1::fast::FieldElement; std::size_t = long unsigned int]’:\nexperiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp:26:41:   required from here\n   26 |     return pa_p4::sum_fe64_wide<4096, 1>(seed, nullptr, 0);\n      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p4_field_sum_kernels.hpp:168:45: error: static assertion failed: P4 chunk admits 1..4095 RHS plus one canonical prefix\n  168 |     static_assert(ChunkRhs >= 1 && ChunkRhs <= 4095,\n      |                                    ~~~~~~~~~^~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p4_field_sum_kernels.hpp:168:45: note: the comparison reduces to ‘(4096 <= 4095)’\n"
+    },
+    "PA_P4_INVALID_LANES": {
+      "cmd": "g++-14 -std=c++20 -fsyntax-only -Isrc/cpu/include -DPA_P4_INVALID_LANES experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp",
+      "chunk_id": "a1bce9",
+      "wall_time_seconds": 5.97e-7,
+      "exit_code": 1,
+      "original_token_count": 258,
+      "output": "In file included from experiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp:4:\nexperiments/parseatlas_secp256k1/tests/../probes/p4_field_sum_kernels.hpp: In instantiation of ‘pa_p4::FE pa_p4::sum_fe64_wide(const FE&, const FE*, std::size_t) [with long unsigned int ChunkRhs = 16; long unsigned int Lanes = 2; FE = secp256k1::fast::FieldElement; std::size_t = long unsigned int]’:\nexperiments/parseatlas_secp256k1/tests/test_p4_field_sum.cpp:31:39:   required from here\n   31 |     return pa_p4::sum_fe64_wide<16, 2>(seed, nullptr, 0);\n      |            ~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p4_field_sum_kernels.hpp:170:30: error: static assertion failed: P4 admits one or four RHS banks\n  170 |     static_assert(Lanes == 1 || Lanes == 4, \"P4 admits one or four RHS banks\");\n      |                   ~~~~~~~~~~~^~~~~~~~~~~~~\nexperiments/parseatlas_secp256k1/tests/../probes/p4_field_sum_kernels.hpp:170:30: note: ‘((2 == 1) || (2 == 4))’ evaluates to false\n"
+    }
+  },
+  "kernel_smoke": {
+    "command": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p4_kernel_smoke.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/test_p4_kernel_smoke",
+    "compile_result": {
+      "chunk_id": "42e3a8",
+      "wall_time_seconds": 0.491262772,
+      "exit_code": 0,
+      "original_token_count": 0,
+      "output": ""
+    },
+    "run_command": "/tmp/parseatlas-p4-field-sum.EFROsY/test_p4_kernel_smoke",
+    "run_result": {
+      "chunk_id": "7c1271",
+      "wall_time_seconds": 0.000003629,
+      "exit_code": 0,
+      "original_token_count": 13,
+      "output": "P4 smoke PASS checks=3478 checksum=129a91d0fd312837\n"
+    }
+  },
+  "benchmark_smokes": {
+    "gcc": {
+      "compile_command": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p4_field_sum_compare.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_gcc",
+      "compile_result": {
+        "chunk_id": "194461",
+        "wall_time_seconds": 7.14e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "/tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_gcc --smoke --output /tmp/parseatlas-p4-field-sum.EFROsY/p4_gcc_smoke.json",
+      "run_result": {
+        "chunk_id": "d2b0b5",
+        "wall_time_seconds": 0.601255361,
+        "exit_code": 0,
+        "original_token_count": 25,
+        "output": "P4 complete cells=48 raw_regions=350 output=/tmp/parseatlas-p4-field-sum.EFROsY/p4_gcc_smoke.json\n"
+      }
+    },
+    "clang": {
+      "compile_command": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p4_field_sum_compare.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_clang",
+      "compile_result": {
+        "chunk_id": "d4947b",
+        "wall_time_seconds": 5.88e-7,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "/tmp/parseatlas-p4-field-sum.EFROsY/p4_field_sum_compare_clang --smoke --output /tmp/parseatlas-p4-field-sum.EFROsY/p4_clang_smoke.json",
+      "run_result": {
+        "chunk_id": "930bcc",
+        "wall_time_seconds": 0.594525408,
+        "exit_code": 0,
+        "original_token_count": 25,
+        "output": "P4 complete cells=48 raw_regions=350 output=/tmp/parseatlas-p4-field-sum.EFROsY/p4_clang_smoke.json\n"
+      }
+    }
+  },
+  "review": {
+    "manager_complete_kernel_and_smoke_read": true,
+    "manager_complete_correctness_source_read": true,
+    "manager_complete_benchmark_source_read": true,
+    "manager_complete_contract_read": true,
+    "blocking_findings": [],
+    "duration_extension_test": "Separate durable diagnostic in progress; this file does not yet accept duration-extension branch coverage."
+  },
+  "limitations": [
+    "Same finite corpus repeated, not disjoint input populations.",
+    "Phase helpers replayed separately, not instrumented timed kernels; large cases validate complete calls/input preservation without all intermediate states.",
+    "Raw counts overlap and include phase comparisons; assertions are not distinct random fixtures.",
+    "Benchmark smoke timings overlap owned correctness/compilation and are validation-only.",
+    "No machine-checked proof, CT qualification, portability or whole-engine performance claim."
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "schema": "parseatlas.p1.final_review.v1",
+  "status": "accepted_correctness_repairs_and_baseline_only",
+  "reviewer": "root manager; independent of worker feature/test authors",
+  "independent_numeric_reviewer": "p1_scalar_inventory",
+  "fixed_build_hashes_verified": 33,
+  "original_build_changed_sources_only": [
+    "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field.cpp",
+    "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm_x64_gas.S"
+  ],
+  "original_build_objects_and_library_preserved": true,
+  "numeric_audit": {
+    "series": 2,
+    "regions": 520,
+    "calibration": 120,
+    "warmup": 80,
+    "measurement": 320,
+    "short_calibration": 40,
+    "short_warmup": 0,
+    "short_measurement": 0,
+    "errors": 0,
+    "all_cpu_endpoints": 4,
+    "same_corpora": true,
+    "scope": "ns/op regionmean summaries, schedules, operation counts, calibrationstreaks, FNV/fullfinalbyte equality"
+  },
+  "correctness": {
+    "configurations": 4,
+    "same_finite_corpus": true,
+    "checked_outputs_per_configuration": 497022,
+    "mismatches": 0,
+    "native_regression_old_pass": 25,
+    "native_regression_old_total": 45,
+    "native_regression_fixed_pass": 45,
+    "native_regression_fixed_total": 45
+  },
+  "no_optimization_gain_claim": true,
+  "upper_layers_untouched": true,
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "artifacts": [
+    {
+      "path": "experiments/parseatlas_secp256k1/P1_PRIMITIVE_ROADMAP.md",
+      "sha256": "d68cfccbad04d964d54042fc4bef6b9422fa7fdb4e69a0c07cbb73df3a450ee2"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P1_PRIMITIVE_RESULTS.md",
+      "sha256": "1aa92a7111ab1cb5190a353ab686fdce18a2599a90c73154f6a04e1c9b22333f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_build_20260905.json",
+      "sha256": "0418fb70946b57b85c331a20898b40e6db6386ad30b1ceac5299cad12d0725d4"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_corrected_build_20260905.json",
+      "sha256": "56757b312d3a9a17799c055c82f2188fcdbe8e3c7dad19aefa44a31be7aaa2e0"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_correctness_needfix_20260905.json",
+      "sha256": "b74953bbbc2b83f26fb8c12a405290a75c207259aecedfcce94ddde8c29d5a5a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_source_graph_needfix_20260905.json",
+      "sha256": "10d2f6fa3074ec95cc2218afd568c25e3a4e86e8feda2ee4b11252f0ab6ed32d"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_validation_20260905.json",
+      "sha256": "47018010f9a71575a4a1c95ccdd30546f2a12aee6c9e1afb4d993668a66d06c8"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_smoke_20260905.json",
+      "sha256": "faea008f77fd7bbba748cb7318ade2c3fcdf2dd6f577efe52cf3bcceb62bc318"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_run1_20260905.json",
+      "sha256": "a6ef2c57be7006ea85094372bddb86b2b634011c0316a72910f0813dbc52baf6"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_run2_20260905.json",
+      "sha256": "817dce340e77591d54d22d33f87245554adb56310a96ef2db1e4bc99a8b4a787"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_summary_20260905.json",
+      "sha256": "a5a8219cfb3d2b520d33510cbd92acaf7da81a52cb317fb2b90f8fb149d0f51f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_asm_disassembly_20260905.txt",
+      "sha256": "a35996de58014d418cd127145803afb2043c37bdae565cbfa68386a344f20461"
+    }
+  ]
+}

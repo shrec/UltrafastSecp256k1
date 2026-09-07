@@ -1,0 +1,146 @@
+{
+  "status": "pass_finite_oracle_and_smoke_only",
+  "date": "2026-09-06",
+  "oracle": {
+    "status": "pass",
+    "scope": "finite_P7_eval_raw_only",
+    "seed": "5041375f56494557",
+    "selected_route": -1,
+    "assertions": 78521,
+    "field_pair_entries": 3088,
+    "field_distinct_pairs": 3081,
+    "raw_pair_entries": 3086,
+    "raw_distinct_pairs": 3079,
+    "random_pairs_per_domain": 2048,
+    "cpu_reference_checks": 10545,
+    "field_outputs": 25928,
+    "raw_outputs": 24688,
+    "eval_calls": 80,
+    "raw_calls": 8,
+    "chain_lanes": 17,
+    "chain_max_steps": 256,
+    "prefixes_per_route": 9,
+    "roundtrip_steps_per_route": 8,
+    "alias_fixed_rhs_steps": 7,
+    "error_rejections": 19,
+    "negative_controls": 111,
+    "input_preservation_checks": 107,
+    "host_output_canary_checks": 88,
+    "field_by_route": [
+      6482,
+      6482,
+      6482,
+      6482
+    ],
+    "raw_by_route": [
+      6172,
+      6172,
+      6172,
+      6172
+    ],
+    "host_canaries_only": true,
+    "device_memory_sanitizer_claim": false,
+    "timing_claim": false,
+    "ct_claim": false,
+    "checksum": "faa743e95a5c964d"
+  },
+  "commands": {
+    "compile_cuda": "/usr/bin/nvcc -std=c++17 -O3 -ccbin g++-12 -allow-unsupported-compiler -gencode arch=compute_89,code=compute_89 -Isrc/cuda/include -Iinclude -c experiments/parseatlas_secp256k1/probes/p7_cuda_views.cu -o /tmp/parseatlas-p7-review.fExnQw/p7_cuda_views.o",
+    "compile_oracle": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p7_cuda_views.cpp /tmp/parseatlas-p7-review.fExnQw/p7_cuda_views.o /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -lcudart -pthread -latomic -o /tmp/parseatlas-p7-review.fExnQw/test_p7",
+    "run": "/tmp/parseatlas-p7-review.fExnQw/test_p7",
+    "compile_benchmark": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p7_cuda_views_compare.cpp /tmp/parseatlas-p7-review.fExnQw/p7_cuda_views.o /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -lcudart -pthread -latomic -o /tmp/parseatlas-p7-review.fExnQw/p7_compare",
+    "smoke": "/tmp/parseatlas-p7-review.fExnQw/p7_compare --smoke"
+  },
+  "native_oracle_exit": 0,
+  "smoke": {
+    "exit": 0,
+    "regions": 56,
+    "performance_eligible": false
+  },
+  "comba_structure": {
+    "kind": "mechanical_source_structure_not_runtime",
+    "product_terms": 64,
+    "term_order_equal": true,
+    "unique_pairs": 64,
+    "stored_columns": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "sources": [
+      {
+        "path": "src/cuda/include/secp256k1_32_hybrid_final.cuh",
+        "sha256": "bbd6a5181d8bcd54aac0275e804a86d3dd7e182d0a9e00c8242252bda07e5b09"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/probes/p7_cuda_views.cu",
+        "sha256": "19ce07bf4d249523c0f1946352f6e8cf06f3f3a20f69ad6fcc7790fdba9f2819"
+      }
+    ],
+    "errors": []
+  },
+  "corpus_admission": {
+    "kind": "readonly_JS_input_identity_audit_not_arithmetic_timing",
+    "seed": 20260905,
+    "count": 32768,
+    "draws": 262144,
+    "rejects": 0,
+    "zero": 0,
+    "one": 0,
+    "a": "c2f96be1403a6a21",
+    "b": "6f56c26cf29ee800"
+  },
+  "corpus_replay_js": "let state=20260905n,mask=(1n<<64n)-1n,p=(1n<<256n)-(1n<<32n)-977n;const hash=[14695981039346656037n,14695981039346656037n];let draws=0,rejects=0,zero=0,one=0;function rng(){draws++;state=(state+0x9e3779b97f4a7c15n)&mask;let z=state;z=((z^(z>>30n))*0xbf58476d1ce4e5b9n)&mask;z=((z^(z>>27n))*0x94d049bb133111ebn)&mask;return z^(z>>31n);}for(let i=0;i<32768;i++)for(let side=0;side<2;side++){let v,words;do{words=Array.from({length:4},rng);v=words.reduce((a,b,j)=>a+(b<<BigInt(64*j)),0n);if(v>=p||v===0n)rejects++;}while(v>=p||v===0n);if(v===0n)zero++;if(v===1n)one++;for(let w of words)for(let k=0;k<8;k++){hash[side]=((hash[side]^(w&255n))*1099511628211n)&mask;w>>=8n;}}console.log(JSON.stringify({kind:\"readonly_JS_input_identity_audit_not_arithmetic_timing\",seed:20260905,count:32768,draws,rejects,zero,one,a:hash[0].toString(16),b:hash[1].toString(16)}));",
+  "sanitizer_attempts": [
+    {
+      "command": "compute-sanitizer --tool memcheck --error-exitcode 86 /tmp/parseatlas-p7-review.fExnQw/test_p7",
+      "chunk_id": "c1cf90",
+      "wall_time_seconds": 0.000003801,
+      "exit_code": 13,
+      "original_token_count": 25,
+      "output": "========= COMPUTE-SANITIZER\n========= Unable to find injection library libsanitizer-collection.so\n"
+    },
+    {
+      "command": "compute-sanitizer --injection-path /usr/lib/nvidia-cuda-toolkit/compute-sanitizer --tool memcheck --error-exitcode 86 /tmp/parseatlas-p7-review.fExnQw/test_p7",
+      "chunk_id": "e0e1be",
+      "wall_time_seconds": 0.85870607,
+      "exit_code": 255,
+      "original_token_count": 63,
+      "output": "========= COMPUTE-SANITIZER\n========= Error: Target application terminated before first instrumented API call\n========= Tracking kernels launched by child processes requires the --target-processes all option.\n========= Error: couldn't find exit code.\n"
+    },
+    {
+      "command": "compute-sanitizer --injection-path /usr/lib/nvidia-cuda-toolkit/compute-sanitizer --target-processes all --tool memcheck --error-exitcode 86 /tmp/parseatlas-p7-review.fExnQw/test_p7",
+      "chunk_id": "7c76b0",
+      "wall_time_seconds": 0.85520263,
+      "exit_code": 255,
+      "original_token_count": 38,
+      "output": "========= COMPUTE-SANITIZER\n========= Error: Target application terminated before first instrumented API call\n========= Error: couldn't find exit code.\n"
+    }
+  ],
+  "sanitizer_status": "NeedFix: not instrumented; no device memory sanitizer pass",
+  "sanitizer_diagnostic": "Package inventory located existing injection libraries at /usr/lib/nvidia-cuda-toolkit/compute-sanitizer; explicit path avoided initial lookup failure but two attempts terminated before first instrumentedAPI. No system edits/installations.",
+  "manager_review": {
+    "sources_fully_read": true,
+    "product_pair_order": 64,
+    "output_columns": 16,
+    "API_errors": "19 eval/raw invalid-argument cases only; benchmark API invalid-argument gates statically reviewed, not separately exercised",
+    "host_output_overlap": "admitted by copy-before-output API implementation; not explicitly exercised by oracle",
+    "duration_failure_paths": "positive real intervals exercised; cap/invalid-clock/failure retention statically reviewed, no synthetic duration test",
+    "CT": "not qualified; old64 reduction contains if(c); no secret-bearing adoption",
+    "original_code_unchanged": true
+  },
+  "reference": "Corrected frozen CPU FE64 library plus independent Boost integer oracle; GCC14host/NVCC12GPU. Not an independent second CUDA compiler."
+}

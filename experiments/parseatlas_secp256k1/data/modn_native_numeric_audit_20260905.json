@@ -1,0 +1,1078 @@
+{
+  "schema": "parseatlas_modn_numeric_audit_v1",
+  "status": "pass",
+  "method": "Off-clock JavaScript metadata audit, not an arithmetic benchmark. Raw unix timestamps parsed as BigInt; raw JSON not reserialized. Relative float tolerance1e-12.",
+  "pre_registration_precedes_all_runs": true,
+  "invocations_nonoverlapping": true,
+  "total_measured_samples": 256,
+  "total_warmups": 64,
+  "total_calibration_trials": 21,
+  "measured_below_target": 0,
+  "results": [
+    {
+      "ordinal": 1,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_256_run1_20260905.json",
+      "status": "pass",
+      "started_unix_ns": "1788621207227609807",
+      "finished_unix_ns": "1788621218917982088",
+      "samples": 32,
+      "warmups": 8,
+      "calibration_trials": 3,
+      "operations_per_sample": 17506560,
+      "measured_below_target": 0,
+      "elapsed_ns_range": [
+        239868636,
+        321269990
+      ],
+      "reference_checksum": "5aa9902e71e8d5a7",
+      "preflight_only_paths": {
+        "no_reduction": 126,
+        "high_carry_reduction": 130,
+        "threshold_reduction_without_carry": 0
+      },
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 13.718063885766249,
+            "min": 13.701643041237114,
+            "max": 13.861990705198508,
+            "mad": 0.013385525197411319,
+            "inclusive_iqr": 0.025114814103970318
+          },
+          "paired_original_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "blocked2",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 14.839080121965708,
+            "min": 14.830084151312422,
+            "max": 14.865416335362287,
+            "mad": 0.006989294298821669,
+            "inclusive_iqr": 0.013087051368172453
+          },
+          "paired_original_over_candidate": {
+            "median": 0.9248271407063455,
+            "min": 0.9219599820402757,
+            "max": 0.9338270640665935,
+            "mad": 0.0006852455443062122,
+            "inclusive_iqr": 0.0014502824407263137
+          },
+          "ratio_by_round": [
+            0.9252371114582885,
+            0.9252844957872881,
+            0.9219599820402757,
+            0.9338270640665935,
+            0.9239140046986757,
+            0.9249536035956787,
+            0.9234526863032212,
+            0.9247006778170125
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 15.676150597261827,
+            "min": 15.660446541182276,
+            "max": 15.72954389668787,
+            "mad": 0.01263700578525917,
+            "inclusive_iqr": 0.02367105530726832
+          },
+          "paired_original_over_candidate": {
+            "median": 0.8749048819485656,
+            "min": 0.8713106411469267,
+            "max": 0.8851593515386442,
+            "mad": 0.0012728574353526034,
+            "inclusive_iqr": 0.002413240713615372
+          },
+          "ratio_by_round": [
+            0.8757982170974644,
+            0.8768404384523575,
+            0.8713106411469267,
+            0.8851593515386442,
+            0.8748775033951884,
+            0.8749322605019428,
+            0.8736590389319316,
+            0.8736050100944944
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "actual_scalar_api_diagnostic",
+          "matched_inline_candidate": false,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 18.109849650645245,
+            "min": 18.081166317083426,
+            "max": 18.351405987241353,
+            "mad": 0.019585344008188343,
+            "inclusive_iqr": 0.04432762632978893
+          },
+          "paired_original_over_candidate": null,
+          "ratio_by_round": null
+        }
+      ]
+    },
+    {
+      "ordinal": 2,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_4096_run1_20260905.json",
+      "status": "pass",
+      "started_unix_ns": "1788621218958363194",
+      "finished_unix_ns": "1788621229786724333",
+      "samples": 32,
+      "warmups": 8,
+      "calibration_trials": 2,
+      "operations_per_sample": 20385792,
+      "measured_below_target": 0,
+      "elapsed_ns_range": [
+        222247810,
+        317019051
+      ],
+      "reference_checksum": "804856a40b14015e",
+      "preflight_only_paths": {
+        "no_reduction": 2034,
+        "high_carry_reduction": 2062,
+        "threshold_reduction_without_carry": 0
+      },
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 10.913755423385073,
+            "min": 10.902093477653455,
+            "max": 10.964363955052617,
+            "mad": 0.006637735732810235,
+            "inclusive_iqr": 0.011606944189367141
+          },
+          "paired_original_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "blocked2",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 11.140247653856175,
+            "min": 11.110518149110911,
+            "max": 11.172113057957228,
+            "mad": 0.006571096183067837,
+            "inclusive_iqr": 0.012840769198469104
+          },
+          "paired_original_over_candidate": {
+            "median": 0.980041465342151,
+            "min": 0.9769650171767915,
+            "max": 0.9836610701520372,
+            "mad": 0.0011723248015350074,
+            "inclusive_iqr": 0.002179108936689933
+          },
+          "ratio_by_round": [
+            0.979754564489408,
+            0.9803283661948938,
+            0.9836610701520372,
+            0.9773077330037386,
+            0.981618607337664,
+            0.9808089729497079,
+            0.9793404524787632,
+            0.9769650171767915
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 12.570023107270003,
+            "min": 12.54404454828147,
+            "max": 15.332674835493268,
+            "mad": 0.014106712165021129,
+            "inclusive_iqr": 0.01818517769630823
+          },
+          "paired_original_over_candidate": {
+            "median": 0.868457477273455,
+            "min": 0.7118629816828761,
+            "max": 0.8722215253659993,
+            "mad": 0.0013168390896280413,
+            "inclusive_iqr": 0.002154742327145298
+          },
+          "ratio_by_round": [
+            0.8678154792193551,
+            0.8690994753275548,
+            0.8722215253659993,
+            0.8691051307807288,
+            0.8675135555658531,
+            0.8706119644657546,
+            0.8667677208018009,
+            0.7118629816828761
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "actual_scalar_api_diagnostic",
+          "matched_inline_candidate": false,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 15.531914433346518,
+            "min": 15.52000452079566,
+            "max": 15.55098035926198,
+            "mad": 0.003159111993293884,
+            "inclusive_iqr": 0.006189555941706004
+          },
+          "paired_original_over_candidate": null,
+          "ratio_by_round": null
+        }
+      ]
+    },
+    {
+      "ordinal": 3,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_4096_run1_20260905.json",
+      "status": "pass",
+      "started_unix_ns": "1788621241888727612",
+      "finished_unix_ns": "1788621252622180553",
+      "samples": 32,
+      "warmups": 8,
+      "calibration_trials": 2,
+      "operations_per_sample": 13914112,
+      "measured_below_target": 0,
+      "elapsed_ns_range": [
+        229530143,
+        292942351
+      ],
+      "reference_checksum": "d6766c969e4d8715",
+      "preflight_only_paths": {
+        "no_reduction": 2034,
+        "high_carry_reduction": 2062,
+        "threshold_reduction_without_carry": 0
+      },
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 16.577593525192263,
+            "min": 16.496212119034258,
+            "max": 16.723455294883355,
+            "mad": 0.03662084220681727,
+            "inclusive_iqr": 0.06150636849839586
+          },
+          "paired_original_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "blocked2",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 17.25197328438926,
+            "min": 17.175126159685934,
+            "max": 17.334538057477186,
+            "mad": 0.04788746130547139,
+            "inclusive_iqr": 0.06650485492714253
+          },
+          "paired_original_over_candidate": {
+            "median": 0.9620470310042368,
+            "min": 0.9571304025163104,
+            "max": 0.9647476753884282,
+            "mad": 0.0026887106110734527,
+            "inclusive_iqr": 0.005473468972289286
+          },
+          "ratio_by_round": [
+            0.9633079392043815,
+            0.9647476753884282,
+            0.9634569801831232,
+            0.9571304025163104,
+            0.957400046269919,
+            0.9647238078421924,
+            0.9586002754108286,
+            0.9607861228040923
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 18.47716095716349,
+            "min": 18.419420729113003,
+            "max": 18.571902468515418,
+            "mad": 0.02724356394428895,
+            "inclusive_iqr": 0.038527180175062625
+          },
+          "paired_original_over_candidate": {
+            "median": 0.8965319495685997,
+            "min": 0.8900255277759294,
+            "max": 0.907925148180742,
+            "mad": 0.003011010789312596,
+            "inclusive_iqr": 0.005638069057626538
+          },
+          "ratio_by_round": [
+            0.8955614161979376,
+            0.907925148180742,
+            0.8997324381041273,
+            0.8937104165255021,
+            0.898974044392802,
+            0.8975024829392619,
+            0.8900255277759294,
+            0.892971045475521
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "actual_scalar_api_diagnostic",
+          "matched_inline_candidate": false,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 20.997032976304922,
+            "min": 20.940518877525207,
+            "max": 21.05361456052675,
+            "mad": 0.024301047742033788,
+            "inclusive_iqr": 0.048556009179744564
+          },
+          "paired_original_over_candidate": null,
+          "ratio_by_round": null
+        }
+      ]
+    },
+    {
+      "ordinal": 4,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_256_run1_20260905.json",
+      "status": "pass",
+      "started_unix_ns": "1788621252668307015",
+      "finished_unix_ns": "1788621265137873604",
+      "samples": 32,
+      "warmups": 8,
+      "calibration_trials": 3,
+      "operations_per_sample": 24034048,
+      "measured_below_target": 0,
+      "elapsed_ns_range": [
+        238914912,
+        509478548
+      ],
+      "reference_checksum": "c017c8c3a6ce1f6c",
+      "preflight_only_paths": {
+        "no_reduction": 128,
+        "high_carry_reduction": 128,
+        "threshold_reduction_without_carry": 0
+      },
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 9.9710208825413,
+            "min": 9.940685480864481,
+            "max": 11.17179885802009,
+            "mad": 0.019926002477816063,
+            "inclusive_iqr": 0.08195165458602638
+          },
+          "paired_original_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "blocked2",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 10.360235882860849,
+            "min": 10.312493550815908,
+            "max": 10.557380471238137,
+            "mad": 0.027612826603325757,
+            "inclusive_iqr": 0.0738292088790029
+          },
+          "paired_original_over_candidate": {
+            "median": 0.9617305687892121,
+            "min": 0.9532917997955426,
+            "max": 1.0797182521922526,
+            "mad": 0.004625008257760632,
+            "inclusive_iqr": 0.008303353085198695
+          },
+          "ratio_by_round": [
+            0.9659646554129818,
+            0.958275587028494,
+            0.9632615190017304,
+            0.9532917997955426,
+            0.9566002914936323,
+            0.9667464986809637,
+            0.960199618576694,
+            1.0797182521922526
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 11.64827156873449,
+            "min": 11.594740428245796,
+            "max": 15.717278212975193,
+            "mad": 0.05296182316021092,
+            "inclusive_iqr": 1.0395371183414461
+          },
+          "paired_original_over_candidate": {
+            "median": 0.8553584330506767,
+            "min": 0.6379475035565801,
+            "max": 0.9635229807132738,
+            "mad": 0.022164287591377563,
+            "inclusive_iqr": 0.0638688337482427
+          },
+          "ratio_by_round": [
+            0.8586387801832313,
+            0.8572601893259189,
+            0.8547871155557534,
+            0.6379475035565801,
+            0.7320133981665883,
+            0.8143102050004761,
+            0.8559297505455999,
+            0.9635229807132738
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "actual_scalar_api_diagnostic",
+          "matched_inline_candidate": false,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 14.87436714780631,
+            "min": 14.691088866927453,
+            "max": 21.19819965409073,
+            "mad": 0.1783981000620436,
+            "inclusive_iqr": 2.7937559665354765
+          },
+          "paired_original_over_candidate": null,
+          "ratio_by_round": null
+        }
+      ]
+    },
+    {
+      "ordinal": 5,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_256_run2_20260905.json",
+      "status": "pass",
+      "started_unix_ns": "1788621283333426294",
+      "finished_unix_ns": "1788621295886220980",
+      "samples": 32,
+      "warmups": 8,
+      "calibration_trials": 3,
+      "operations_per_sample": 24018944,
+      "measured_below_target": 0,
+      "elapsed_ns_range": [
+        238681435,
+        413302159
+      ],
+      "reference_checksum": "20f17e6102c4dc22",
+      "preflight_only_paths": {
+        "no_reduction": 128,
+        "high_carry_reduction": 128,
+        "threshold_reduction_without_carry": 0
+      },
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 9.966225804931309,
+            "min": 9.937216015824843,
+            "max": 14.668218136484269,
+            "mad": 0.024208162523716048,
+            "inclusive_iqr": 0.04056537622969536
+          },
+          "paired_original_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "blocked2",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 10.687757900597129,
+            "min": 10.323725347792143,
+            "max": 15.069580036491196,
+            "mad": 0.3581410989592211,
+            "inclusive_iqr": 2.314130213218366
+          },
+          "paired_original_over_candidate": {
+            "median": 0.9611923459158354,
+            "min": 0.6942184605045458,
+            "max": 0.9733660859138062,
+            "mad": 0.0087215508730073,
+            "inclusive_iqr": 0.07942738196836163
+          },
+          "ratio_by_round": [
+            0.9638501409199705,
+            0.959402503633088,
+            0.9664617076638791,
+            0.9733660859138062,
+            0.8240993609302399,
+            0.9054010805400347,
+            0.6942184605045458,
+            0.9629821881985827
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 11.636833409495438,
+            "min": 11.59061884652381,
+            "max": 13.91158849448169,
+            "mad": 0.040286284026474384,
+            "inclusive_iqr": 0.42749956034703374
+          },
+          "paired_original_over_candidate": {
+            "median": 0.8573259234106125,
+            "min": 0.7171715415974839,
+            "max": 1.1190167540496148,
+            "mad": 0.001571334426028137,
+            "inclusive_iqr": 0.003771961140243252
+          },
+          "ratio_by_round": [
+            0.8561418892773766,
+            0.8578033486123151,
+            0.8592845581294328,
+            1.1190167540496148,
+            0.7171715415974839,
+            0.858186407371497,
+            0.8503302678508209,
+            0.8568484982089101
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "actual_scalar_api_diagnostic",
+          "matched_inline_candidate": false,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 15.058911957161813,
+            "min": 14.471997686492795,
+            "max": 17.207340963865857,
+            "mad": 0.5775058637049151,
+            "inclusive_iqr": 1.8405873713682013
+          },
+          "paired_original_over_candidate": null,
+          "ratio_by_round": null
+        }
+      ]
+    },
+    {
+      "ordinal": 6,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_4096_run2_20260905.json",
+      "status": "pass",
+      "started_unix_ns": "1788621295928098135",
+      "finished_unix_ns": "1788621306579665054",
+      "samples": 32,
+      "warmups": 8,
+      "calibration_trials": 2,
+      "operations_per_sample": 13774848,
+      "measured_below_target": 0,
+      "elapsed_ns_range": [
+        227718423,
+        290590066
+      ],
+      "reference_checksum": "e1801c7f54f3be44",
+      "preflight_only_paths": {
+        "no_reduction": 2034,
+        "high_carry_reduction": 2062,
+        "threshold_reduction_without_carry": 0
+      },
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 16.58826289771038,
+            "min": 16.531465392576383,
+            "max": 17.120153267752936,
+            "mad": 0.010451875766614549,
+            "inclusive_iqr": 0.05104357594363407
+          },
+          "paired_original_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "blocked2",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 17.282670741629964,
+            "min": 17.178139098159196,
+            "max": 17.328652628326644,
+            "mad": 0.041096932612250114,
+            "inclusive_iqr": 0.09747123888408638
+          },
+          "paired_original_over_candidate": {
+            "median": 0.9618601968943218,
+            "min": 0.957507191937154,
+            "max": 0.9879679415909763,
+            "mad": 0.003864730421997198,
+            "inclusive_iqr": 0.007903089916100225
+          },
+          "ratio_by_round": [
+            0.9660460078700903,
+            0.9683533214085298,
+            0.9588541461094348,
+            0.9596771280233325,
+            0.9879679415909763,
+            0.9640432657653111,
+            0.9583165470260959,
+            0.957507191937154
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 18.506704865273285,
+            "min": 18.42179158710136,
+            "max": 19.57173531061831,
+            "mad": 0.035403875236951876,
+            "inclusive_iqr": 0.058754386981256346
+          },
+          "paired_original_over_candidate": {
+            "median": 0.8969566756992512,
+            "min": 0.8472244710979132,
+            "max": 0.9253660882146061,
+            "mad": 0.0023269238034941964,
+            "inclusive_iqr": 0.004538658861756417
+          },
+          "ratio_by_round": [
+            0.8960262581900789,
+            0.9002513541975403,
+            0.8954007119886954,
+            0.8956198951829569,
+            0.9253660882146061,
+            0.8472244710979132,
+            0.8978870932084235,
+            0.9000545595956838
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "actual_scalar_api_diagnostic",
+          "matched_inline_candidate": false,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 21.025063252966568,
+            "min": 20.951137754841287,
+            "max": 21.09570036634887,
+            "mad": 0.05008516246422623,
+            "inclusive_iqr": 0.08561593565315562
+          },
+          "paired_original_over_candidate": null,
+          "ratio_by_round": null
+        }
+      ]
+    },
+    {
+      "ordinal": 7,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_throughput_4096_run2_20260905.json",
+      "status": "pass",
+      "started_unix_ns": "1788621319085043583",
+      "finished_unix_ns": "1788621331208551280",
+      "samples": 32,
+      "warmups": 8,
+      "calibration_trials": 3,
+      "operations_per_sample": 21897216,
+      "measured_below_target": 0,
+      "elapsed_ns_range": [
+        238738180,
+        341956492
+      ],
+      "reference_checksum": "d433f2ffd234348c",
+      "preflight_only_paths": {
+        "no_reduction": 2034,
+        "high_carry_reduction": 2062,
+        "threshold_reduction_without_carry": 0
+      },
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 10.933603043418852,
+            "min": 10.902672741594182,
+            "max": 11.914225077745042,
+            "mad": 0.024069749323383682,
+            "inclusive_iqr": 0.0661417643229143
+          },
+          "paired_original_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "blocked2",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 11.138316281850624,
+            "min": 11.112146950552983,
+            "max": 11.156275848034745,
+            "mad": 0.011354411446641954,
+            "inclusive_iqr": 0.01898404573439727
+          },
+          "paired_original_over_candidate": {
+            "median": 0.9830773096184574,
+            "min": 0.9772681215582136,
+            "max": 1.0704289655032742,
+            "mad": 0.0023784097868042586,
+            "inclusive_iqr": 0.004193028359605777
+          },
+          "ratio_by_round": [
+            1.0704289655032742,
+            0.9826125117672827,
+            0.9793862132957195,
+            0.9772681215582136,
+            0.9835421074696321,
+            0.9820115863675868,
+            0.9838138894981621,
+            0.9907514173424168
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 12.552259451612478,
+            "min": 12.527391061950524,
+            "max": 12.731910440121704,
+            "mad": 0.011825749903549898,
+            "inclusive_iqr": 0.016408923855889768
+          },
+          "paired_original_over_candidate": {
+            "median": 0.8708380936773541,
+            "min": 0.86961947890389,
+            "max": 0.9357766953967951,
+            "mad": 0.0010696770665016841,
+            "inclusive_iqr": 0.004850361732229191
+          },
+          "ratio_by_round": [
+            0.9357766953967951,
+            0.8711398602655992,
+            0.86961947890389,
+            0.8703067292845114,
+            0.8699173543178148,
+            0.8705363270891089,
+            0.8733229654278288,
+            0.8802700928167793
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "actual_scalar_api_diagnostic",
+          "matched_inline_candidate": false,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 15.538268152444584,
+            "min": 15.52135805757225,
+            "max": 15.616436902298448,
+            "mad": 0.01563723899878333,
+            "inclusive_iqr": 0.040348827905795304
+          },
+          "paired_original_over_candidate": null,
+          "ratio_by_round": null
+        }
+      ]
+    },
+    {
+      "ordinal": 8,
+      "path": "experiments/parseatlas_secp256k1/data/modn_native_dependent_256_run2_20260905.json",
+      "status": "pass",
+      "started_unix_ns": "1788621331251822055",
+      "finished_unix_ns": "1788621342240902729",
+      "samples": 32,
+      "warmups": 8,
+      "calibration_trials": 3,
+      "operations_per_sample": 16132864,
+      "measured_below_target": 0,
+      "elapsed_ns_range": [
+        227080882,
+        297593960
+      ],
+      "reference_checksum": "4a6abea9f20a34ef",
+      "preflight_only_paths": {
+        "no_reduction": 126,
+        "high_carry_reduction": 130,
+        "threshold_reduction_without_carry": 0
+      },
+      "summaries": [
+        {
+          "variant": 0,
+          "method": "original",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 14.094955458621605,
+            "min": 14.075670755050064,
+            "max": 14.161060243240135,
+            "mad": 0.012976276252003593,
+            "inclusive_iqr": 0.025238699092735573
+          },
+          "paired_original_over_candidate": {
+            "median": 1,
+            "min": 1,
+            "max": 1,
+            "mad": 0,
+            "inclusive_iqr": 0
+          },
+          "ratio_by_round": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ]
+        },
+        {
+          "variant": 1,
+          "method": "blocked2",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 14.874268232844459,
+            "min": 14.86330282087545,
+            "max": 14.887833741113791,
+            "mad": 0.008868388154762208,
+            "inclusive_iqr": 0.015026020798289963
+          },
+          "paired_original_over_candidate": {
+            "median": 0.9475345317901473,
+            "min": 0.9459698354769553,
+            "max": 0.9527532617683723,
+            "mad": 0.0010742724445373941,
+            "inclusive_iqr": 0.0019975941050521806
+          },
+          "ratio_by_round": [
+            0.9475434618814925,
+            0.9468701711532562,
+            0.9459698354769553,
+            0.9475256016988021,
+            0.9461820085757218,
+            0.9527532617683723,
+            0.9497912380613095,
+            0.9483305534647966
+          ]
+        },
+        {
+          "variant": 2,
+          "method": "gp_recomputed",
+          "matched_inline_candidate": true,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 16.043396045488265,
+            "min": 16.02179724567194,
+            "max": 16.081041097228614,
+            "mad": 0.00793495190934479,
+            "inclusive_iqr": 0.015793429486546273
+          },
+          "paired_original_over_candidate": {
+            "median": 0.8782674622372098,
+            "min": 0.8772964254863108,
+            "max": 0.8823088286179507,
+            "mad": 0.0008793642995180151,
+            "inclusive_iqr": 0.0020535969468447046
+          },
+          "ratio_by_round": [
+            0.8783759331217477,
+            0.8781589913526718,
+            0.877796626459913,
+            0.8802577057043067,
+            0.8774797703890727,
+            0.8823088286179507,
+            0.8796087772839613,
+            0.8772964254863108
+          ]
+        },
+        {
+          "variant": 3,
+          "method": "actual_scalar_api_diagnostic",
+          "matched_inline_candidate": false,
+          "sample_count": 8,
+          "below_target_count": 0,
+          "ns_per_modular_addition": {
+            "median": 18.434492288536,
+            "min": 18.400664135022772,
+            "max": 18.446443235373458,
+            "mad": 0.008617192830731923,
+            "inclusive_iqr": 0.018402157236312888
+          },
+          "paired_original_over_candidate": null,
+          "ratio_by_round": null
+        }
+      ]
+    }
+  ],
+  "audit_function_source": "function auditRaw(raw,e){\n const p=JSON.parse(raw),check=(b,m)=>{if(!b)throw Error(e.ordinal+\": \"+m);};\n const near=(a,b)=>Math.abs(a-b)<=1e-12*Math.max(1,Math.abs(a),Math.abs(b));\n const quant=(a,q)=>{const s=[...a].sort((x,y)=>x-y),x=(s.length-1)*q,i=Math.floor(x);return s[i]+(s[Math.min(i+1,s.length-1)]-s[i])*(x-i);};\n const stats=a=>{const median=quant(a,.5);return {median,min:Math.min(...a),max:Math.max(...a),mad:quant(a.map(x=>Math.abs(x-median)),.5),inclusive_iqr:quant(a,.75)-quant(a,.25)};};\n check(p.protocol===\"parseatlas_modn_native_compare_v1\"&&p.mode===\"measurement\"&&p.timing_claim,\"identity\");\n check(p.shape===e.shape&&p.count===e.count&&p.cpu===4&&p.seed===20260905,\"entry\");\n check(p.active_lanes===(e.shape===\"dependent\"?1:8)&&p.boundary_state_bytes===256,\"state\");\n check(p.measurement_workers===1&&p.rhs_bytes_per_representation===e.count*32,\"work size\");\n check(p.samples.length===32&&p.warmups.length===8&&p.calibration.length>0&&p.calibration.length<=8,\"length\");\n check(p.every_warmup_and_measured_final_state_compared_exactly&&p.final_calibration_replayed,\"replay\");\n check(p.preflight_complete_state_checks===e.count*3,\"prefix checks\");\n check(Object.values(p.original_preflight_only_reduction_paths).reduce((a,b)=>a+b,0)===e.count,\"prefix path counts\");\n check(p.passes>0&&p.passes<=1e6&&p.operations_per_sample===p.count*p.passes&&p.operations_per_sample<=1e9,\"bound\");\n check(p.requested_target_ns===200000000&&p.warmup_operations_per_sample===256&&p.sample_rounds===8&&p.warmup_rounds===2,\"protocol\");\n const all=[...p.calibration,...p.warmups,...p.samples];let lastStop=0;\n for(const s of all){\n   check(Number.isSafeInteger(s.start_steady_ns)&&Number.isSafeInteger(s.stop_steady_ns)&&Number.isSafeInteger(s.elapsed_ns),\"exact steady integer\");\n   check(BigInt(s.stop_steady_ns)-BigInt(s.start_steady_ns)===BigInt(s.elapsed_ns)&&s.elapsed_ns>0,\"elapsed\");\n   check(s.start_steady_ns>=lastStop,\"monotonic serial\");lastStop=s.stop_steady_ns;\n   check(s.operations===s.count*s.passes&&s.operations<=1e9&&s.count===e.count,\"sample work\");\n   check(near(s.ns_per_modular_addition,s.elapsed_ns/s.operations),\"ns/add\");\n   check(s.cpu_before===4&&s.cpu_after===4,\"cpu\");\n   check(s.below_requested_target===(s.elapsed_ns<200000000),\"target flag\");\n }\n check(p.calibration.every(s=>s.variant===0),\"calibration control\");\n check(p.calibration.at(-1).checksum===p.reference_checksum&&p.calibration.at(-1).passes===p.passes,\"final calibration state\");\n for(const [kind,rows] of [[\"warmup\",p.warmups],[\"measured\",p.samples]]){\n  rows.forEach((s,i)=>{\n    check(s.round===Math.floor(i/4)&&s.position===i%4,\"position \"+kind);\n    check(s.variant===p.initial_variant_order[(s.position+s.round)%4],\"rotation \"+kind);\n    check(s.checksum===p.reference_checksum&&s.passes===p.passes&&s.operations===p.operations_per_sample,\"replay/work \"+kind);\n  });\n }\n for(let v=0;v<4;v++){\n   const rows=p.samples.filter(s=>s.variant===v),sum=p.summaries.find(s=>s.variant===v);\n   check(rows.length===8&&sum.sample_count===8,\"variant count\");\n   for(let pos=0;pos<4;pos++)check(rows.filter(s=>s.position===pos).length===2,\"position balance\");\n   const ns=stats(rows.map(s=>s.ns_per_modular_addition));\n   for(const [k,vv]of Object.entries(ns))check(near(sum.ns_per_modular_addition[k],vv),\"ns stat \"+k);\n   check(sum.below_target_count===rows.filter(s=>s.below_requested_target).length,\"below count\");\n   if(v===3)check(sum.paired_original_over_candidate===null&&sum.ratio_by_round===null&&!sum.matched_inline_candidate,\"api exclusion\");\n   else{\n    const ratios=Array.from({length:8},(_,r)=>p.samples.find(s=>s.variant===0&&s.round===r).ns_per_modular_addition/p.samples.find(s=>s.variant===v&&s.round===r).ns_per_modular_addition);\n    ratios.forEach((x,i)=>check(near(sum.ratio_by_round[i],x),\"paired ratio\"));\n    for(const [k,vv]of Object.entries(stats(ratios)))check(near(sum.paired_original_over_candidate[k],vv),\"ratio stat \"+k);\n   }\n }\n const stamp=k=>{const m=raw.match(new RegExp('\"'+k+'\":(\\\\d+)'));check(!!m,\"unix timestamp\");return BigInt(m[1]);};\n const start=stamp(\"started_unix_ns\"),finish=stamp(\"finished_unix_ns\");check(finish>start,\"unix order\");\n return {ordinal:e.ordinal,path:e.path,status:\"pass\",started_unix_ns:start.toString(),finished_unix_ns:finish.toString(),samples:p.samples.length,warmups:p.warmups.length,calibration_trials:p.calibration.length,operations_per_sample:p.operations_per_sample,measured_below_target:p.samples.filter(x=>x.below_requested_target).length,elapsed_ns_range:[Math.min(...p.samples.map(x=>x.elapsed_ns)),Math.max(...p.samples.map(x=>x.elapsed_ns))],reference_checksum:p.reference_checksum,preflight_only_paths:p.original_preflight_only_reduction_paths,summaries:p.summaries};\n}"
+}

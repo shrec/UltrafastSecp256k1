@@ -1,0 +1,99 @@
+{
+  "schema": "parseatlas_p4_final_review_v1",
+  "recorded_utc": "2026-09-05 22:02:02 UTC",
+  "disposition": "retain_reviewed_experimental_candidates_and_negative_results",
+  "canonical_task_acceptance": false,
+  "production_integration": false,
+  "review_role": "Workers authored feature code; manager independently ran mechanical gates then reviewed full code and contracts.",
+  "mechanical_gate": {
+    "status": "pass",
+    "p4_hashes_verified": 52,
+    "prior_hashes_verified": {
+      "p2": 41,
+      "p3": 42
+    },
+    "historical_frontier_mapping": true,
+    "text_whitespace_files_checked": 29,
+    "local_doc_links_checked": 44,
+    "deferred_final_review_links": [
+      "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/experiments/parseatlas_secp256k1/data/p4_final_review_20260905.json"
+    ],
+    "unique_lens_rows": 25,
+    "arithmetic_configs": 3,
+    "assertions_each": 21130305,
+    "duration_configs": 2,
+    "duration_assertions_each": 3163,
+    "numeric_audit_checks": 97816,
+    "git_head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+    "git_branch": "experiment/representation-search",
+    "git_diff_check": "pass",
+    "manifest_sha256": "9c88f6493809044d5dc8605c8f26ab90057ecb75aefbdce2b5451afdaa86e1a7",
+    "errors": []
+  },
+  "codegen_replay": {
+    "status": "pass",
+    "slices_verified": 20,
+    "sizes_verified": 20,
+    "binary_sha256": "4e5d4be103774c8fe3ee34f6672a3232798b03751d42ce3f48b26103a4254f6e",
+    "errors": []
+  },
+  "actual_nm_replay": {
+    "status": "pass",
+    "actual_nm_symbol_lines_verified": 20,
+    "errors": []
+  },
+  "independent_code_review": {
+    "reviewer": "/root/p1_scalar_inventory",
+    "status": "pass",
+    "findings": [],
+    "scope": "Complete frozen kernel/test/driver against native integer proof; seed once, aliases, carry witness, actual job counts, continuous clock, status failure and ratio direction."
+  },
+  "independent_numeric_audit": {
+    "path": "experiments/parseatlas_secp256k1/data/p4_numeric_audit_20260905.json",
+    "sha256": "93ab3ffdf1f52378a1ead87e22b28b6e70bc719bf2134828f6049cd127bb80e8",
+    "checks": 97816,
+    "errors": 0,
+    "raw_regions": 1301,
+    "cumulative_probes": 1322,
+    "comparison_summaries": 240
+  },
+  "independent_report_review": {
+    "reviewer": "/root/p1_scalar_inventory",
+    "status": "pass",
+    "displayed_primary_ratio_and_ns_table_values_verified": 180,
+    "unique_lens_rows": 25,
+    "additional_stored_validation_codegen_receipt_checks": 91,
+    "numeric_or_scope_blockers": [],
+    "presentation_finding": "One blank line broke the frontier GFM table before P4 rows.",
+    "resolution": "Manager removed only the separating blank line; independent reviewer verified repair; no numerical values changed.",
+    "fixture_count": "147 ordinary-prefix fixtures plus one targeted witness =148"
+  },
+  "retained_findings": {
+    "all_n_ge_16_primary_wins": "560/560",
+    "n1_inline_eager_wins": "16/16",
+    "n1_other_candidates": "All six paired medians lose;10/96isolated wins.",
+    "bank4_vs_bank1": "All24same-chunk series medians lose;8/192isolated wins.",
+    "representation_limit": "Samechunk4094 native beats FE52 atN4096 16/16; FE52 winsatN1048576 14/16. Nativechunk16 beatsFE52chunk16 atN1048576 12/16only.",
+    "duration": "All960real warmup/measurement regions>=200ms. S1has21continuous extensions:4warmup17measurement.147shortcalibration samples retained; no reruns/deletions."
+  },
+  "preservation": {
+    "no_production_changes_this_wave": true,
+    "no_previous_reports_or_manifests_rewritten": true,
+    "old_frontier_byte_snapshots_verified": true,
+    "git_head_and_branch_unchanged": true,
+    "unrelated_dirty_changes_preserved": true
+  },
+  "limitations": [
+    "Finite correctness corpus plus written integer bounds, not universal machine-checked proof or CT certification.",
+    "Synthetic clock diagnostic is isolated from real performance; within-region work cap/capped final batch static-reviewed only.",
+    "One GCC native/no-LTO CPU profile with unchanged turbo/governor and uncontrolled background/thermals/SMT; Clang correctness is not Clang performance.",
+    "Complete-program comparisons do not isolate pure call overhead, bank spill cost, packing cost, bandwidth or other causes.",
+    "Selected schedule summaries do not establish unmeasured crossover or a production dispatcher; no novelty/world-record/upper-layer gain claim."
+  ],
+  "next_field_only": [
+    "Multiply/square sparse-prime reduction: distinct accumulator bounds, chain and independent schedules, compiler/codegen measurements.",
+    "Inversion and batch inversion under separate VT/CT, zero/input/output/scratch contracts.",
+    "Keep sum candidates and negative bank controls; additional compiler/platform/setup/security qualification before later integration."
+  ],
+  "final_artifact_note": "The pre-creation mechanical gate defers only this file's own forward link. Manager validates file existence/JSON/hash and all44local links after creation; final handoff records that post-write gate. This file is not self-hashed."
+}

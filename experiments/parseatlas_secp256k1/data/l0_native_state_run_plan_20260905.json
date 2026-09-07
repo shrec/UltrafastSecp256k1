@@ -1,0 +1,42 @@
+{
+  "format": "parseatlas_l0_native_state_run_plan_v1",
+  "declared_at_utc": "2026-09-05 11:44:33 UTC",
+  "reference_commit": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "cpu": 4,
+  "compiler": "/usr/bin/g++",
+  "flags": [
+    "-std=c++17",
+    "-O3",
+    "-march=native",
+    "-DNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Isrc/cpu/include"
+  ],
+  "seed": 20260905,
+  "series": 2,
+  "methods": [
+    "Original",
+    "GpMaterialized",
+    "GpRecomputed",
+    "Blocked2"
+  ],
+  "state_forms": [
+    "Aggregate",
+    "ScalarLocal"
+  ],
+  "measured_rounds": 8,
+  "warmup_rounds": 2,
+  "target_ms": 200,
+  "primary_control": "Fresh Original Aggregate in each balanced8variant round, same native executable and count/passes.",
+  "secondary_control": "Within each state form, same-round Original; never historical best or baseline from another executable.",
+  "boundary": "Complete a/b/carry state; identical rotate13/XOR conditioning; symmetric inside-timer input unpack+finalwriteback.",
+  "pre_measurement": "Independent native correctness gates+full manager review+actual binary assembly required; all measurements serialCPU4 with other delegated builds/tests stopped.",
+  "limits": [
+    "A source scalarization may collapse in compiledcode; retain null.",
+    "Scalarization also changes scheduling and allocation, not only spills.",
+    "Calibration on Original may produce belowtarget candidates orlaterOriginalsamples; retain andlabel.",
+    "No productionmodularcallsite measured by thisstate experiment.",
+    "No PMU/CT/novelty/provenproductiongain; allrawsamplesretained."
+  ]
+}

@@ -530,16 +530,13 @@ limbs4 reduce(const wide8& t) {
         result[i + 1] = static_cast<std::uint64_t>(acc);
         carry = static_cast<std::uint64_t>(acc >> 64);
 
-        // Branchless carry propagation (carry is 0 or 1 for secp256k1 limb bounds).
-        // i+2 == 5 on the final iteration (i=3): the array has only 5 limbs,
-        // and the algorithm's bound (290 bits ≤ 5×64 bits) guarantees this
-        // carry is 0 for any valid 256×256-bit reduction. Fuzzer inputs may
-        // exceed that domain — guard the access to avoid UB-array-overflow.
-        if (i + 2 < 5) {
-            u128 acc2 = static_cast<u128>(result[i + 2]) + carry;
-            result[i + 2] = static_cast<std::uint64_t>(acc2);
-            std::uint64_t carry2 = static_cast<std::uint64_t>(acc2 >> 64);
-            if (carry2 && i + 3 < 5) result[i + 3] += carry2;
+        // Propagate through every remaining limb: adding to result[i+3]
+        // can itself overflow and must reach result[4]. The full first
+        // fold is < (K+1)*2^256 < 2^290, so five limbs retain every carry.
+        for (std::size_t j = i + 2; j < result.size(); ++j) {
+            u128 const acc2 = static_cast<u128>(result[j]) + carry;
+            result[j] = static_cast<std::uint64_t>(acc2);
+            carry = static_cast<std::uint64_t>(acc2 >> 64);
         }
 #else
         // No __int128: manual 64-bit carry arithmetic (for 32-bit MCUs)
@@ -559,12 +556,11 @@ limbs4 reduce(const wide8& t) {
         result[i + 1] = t;
         carry = d1 + d2 + d3;
 
-        // Same i+2 == 5 guard as the __int128 path above.
-        if (i + 2 < 5) {
+        // Same full remaining-limb cascade as the __int128 path above.
+        for (std::size_t j = i + 2; j < result.size(); ++j) {
             std::uint64_t e = 0;
-            result[i + 2] = add64c(result[i + 2], carry, e);
-            std::uint64_t carry2 = e;
-            if (carry2 && i + 3 < 5) result[i + 3] += carry2;
+            result[j] = add64c(result[j], carry, e);
+            carry = e;
         }
 #endif
     }

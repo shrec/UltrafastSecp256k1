@@ -546,6 +546,7 @@ CSYM(reduce_4_asm):
 
     # --- Pass 2: reduce final 1-bit overflow (branchless) ---
     mov  rax, 0x1000003D1
+    neg  r12                # Expand carry 0/1 to mask 0/-1, not K & 1.
     and  rax, r12
     add  r8,  rax
     adc  r9,  0
@@ -776,15 +777,16 @@ CSYM(field_mul_full_asm):
 
     # --- Pass 2: reduce final 1-bit overflow (branchless) ---
     # K * rdi where rdi is 0 or 1: result is 0 or K.
-    # Use AND mask instead of MULX (cheaper for 1-bit input).
+    # Expand the carry bit to an all-bits mask before ANDing with K.
     mov  rax, 0x1000003D1
-    and  rax, rdi            # rax = K if rdi=1, else 0
+    neg  rdi
+    and  rax, rdi            # rax = K if the original carry was 1, else 0
     add  r8,  rax
     adc  r9,  0
     adc  r10, 0
     adc  r11, 0
-    # No further carry possible: max(r8..r11) + K < 2^257 in this path,
-    # and the branchless mod-p check below handles values in [p, 2p).
+    # If the previous fold overflowed, its low part is < K^2, so adding
+    # K is < K^2 + K < 2^256. Otherwise this pass adds zero.
 
     # ----------------------------------------------------------------
     # 4. Branchless mod-p check: if result >= p, subtract p
@@ -993,6 +995,7 @@ CSYM(field_sqr_full_asm):
 
     # --- Pass 2: reduce final 1-bit overflow (branchless) ---
     mov  rax, 0x1000003D1
+    neg  rdi                # Expand carry 0/1 to mask 0/-1, not K & 1.
     and  rax, rdi
     add  r8,  rax
     adc  r9,  0

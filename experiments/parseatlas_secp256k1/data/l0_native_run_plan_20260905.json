@@ -1,0 +1,37 @@
+{
+  "format": "parseatlas_l0_native_run_plan_v1",
+  "declared_at_utc": "2026-09-05 11:03:38 UTC",
+  "reference_commit": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "compiler": "/usr/bin/g++",
+  "flags": [
+    "-std=c++17",
+    "-O3",
+    "-march=native",
+    "-DNDEBUG",
+    "-Wall",
+    "-Wextra",
+    "-Isrc/cpu/include"
+  ],
+  "cpu": 4,
+  "series": 2,
+  "target_ms": 200,
+  "repetitions": 7,
+  "warmups": 2,
+  "methods": [
+    "Original",
+    "GpMaterialized",
+    "GpRecomputed",
+    "Blocked2"
+  ],
+  "regimes": [
+    "hot_bulk",
+    "large_bulk",
+    "conditioned_latency"
+  ],
+  "comparison": "Same native executable, same-session per-round control; all samples retained; no production acceptance or novelty claim.",
+  "limits": [
+    "Same input/output layout; not an H04 layout or DRAM bandwidth experiment.",
+    "Source-level recomputation can be removed by optimizer; record compiler collapse.",
+    "Finite C++ correctness against original and Boost cpp_int is not full-domain proof."
+  ]
+}

@@ -1,0 +1,553 @@
+{
+  "schema": "parseatlas_f1_final_reduction_manifest_v1",
+  "repository": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+  "repository_id": "repo_666797171f0141c58bf05f579b2ee16e",
+  "branch": "experiment/representation-search",
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "session_id": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "window_id": "window_de017c2a746dfe4337ab093f",
+  "task_mode": {
+    "mode": "direct owner-authorized",
+    "canonical_task": "PA_SECP_M1_MODN_NATIVE_015",
+    "canonical_lifecycle_mutation": false,
+    "needfix": "NF-2026-00012",
+    "note": "Owner suspended Tasks until externally fixed; this research review is not canonical Task acceptance."
+  },
+  "scope": {
+    "observable": "Same final canonical32LEbytes of x0+sum(independent canonical RHS) mod scalar ordern.",
+    "not_in_scope": [
+      "all-prefix or online output-dependent input",
+      "CT security or production acceptance",
+      "new carry primitive or deferred normalization",
+      "whole-engine or signature acceleration",
+      "novelty/prior-art conclusion",
+      "full25x25completion"
+    ],
+    "methods": [
+      "serial",
+      "chunk4_contiguous_interleaved",
+      "pairwise_tree_full_allocation",
+      "cold_multicore"
+    ],
+    "modular_additions_per_job": [
+      "N",
+      "N+4",
+      "N",
+      "N+workers"
+    ],
+    "resources": "serial/chunk/tree one coordinator core; cold8workercores plus coordinator, heterogeneous, derived topology/headroom.",
+    "complete_job_costs": "All tree allocation/init/copy/merge/free and cold allocation/start/pin/join/merge/destruction included. Common noipa/noinline/empty compiler memory boundaries perjob, none peradd.",
+    "repeated_job_limitation": "Same immutable input andx0 repeated within invocation; every output materialized, onlylast identical-job result perrecord fullbytechecked; no precomputed summary reuse. Warm cache/allocator/thread resources possible.",
+    "metric": "Median of8normalized region means, pervariant jobcounts differ; pairedsame-round normalized ratios, NOT matched-work orindividualjob latency."
+  },
+  "decisions": {
+    "research_evidence": "reviewed",
+    "production_replacement": false,
+    "large_input_signal": {
+      "rhs65536": {
+        "series1": 1.946084137961075,
+        "series2": 1.9808959532651973
+      },
+      "rhs1048576": {
+        "series1": 4.235101702500771,
+        "series2": 4.410016477214132
+      },
+      "favorable_large_multicore_pairs": "32/32"
+    },
+    "negative_results": "Coldmulti loses allsmallNpairs; Chunk4 no repeatable medianwin (13/64 favorablepairs); Tree loses all64pairs.",
+    "short_sample_limitation": "40/256 measured below200ms: series1N25624,series1N409616. Allretained; small-percent wins not supported. Allfour large-Ncells meet200ms for everymeasuredrecord.",
+    "no_fixed_frequency_claim": true,
+    "no_cache_bandwidth_causality_claim": true,
+    "no_per_core_or_energy_gain_claim": true,
+    "no_production_ct_claim": true
+  },
+  "hashes": [
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/f1_reduce.hpp",
+      "sha256": "55404fe2a0fa9feccb81d99f5a006a668ecfc0475a18fb3229ca35b27a96a759"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_f1_reduce.cpp",
+      "sha256": "bdb127716fce5134227bda33c19d7673a57ef19cba7e0d97ea44181805e08c4a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/f1_reduce_compare.cpp",
+      "sha256": "cc9d4d4825427d224a75f8f517d09a6e690f7157dbf1a6d9d312d553f2c5a319"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/F1_REDUCTION_PROTOCOL.md",
+      "sha256": "714bdcb963abe95a3ebee1af9382577d13defba7533be43ee80b898191e0406b"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/F1_REDUCTION_RESULTS.md",
+      "sha256": "628ae5f261cfd5f55b19f6ba33b2057d63cb09944139829d1582727e51e69259"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_run_plan_20260905.json",
+      "sha256": "eb4a8042016973e175e3a83361018197099fa6864486dca1a30cd6401dcf1f19"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_validation_20260905.json",
+      "sha256": "b7a871048c685656edc7267d51faa3c859a7afabbc54462f77f0130f6ed24a50"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_numeric_audit_20260905.json",
+      "sha256": "ee5cd89f6e7c740f0673d12607ce47adbce4a1f25bab1a611358cc44db41aab4"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_disassembly_20260905.txt",
+      "sha256": "551dddf86920f7a1dfba1c173c57ce56dda4ba961dd63435e7bebf308393e8bb"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/modn_add_control.hpp",
+      "sha256": "0858f280f415d247e569e652e49a6635c999e80c3f7d89494a715c3585daa04f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/l0_native_kernels.hpp",
+      "sha256": "13966af5531c3d6c2525de00d5e8e41b53245cb3d9244e29117f642e4db2da60"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/L0_25_LENSES.md",
+      "sha256": "eece21b35a4bc44a5d2b04cedb875a02537ae7bab10c23a67f6dcb4f3445fc96"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/MODN_NATIVE_RESULTS.md",
+      "sha256": "636db2aa3b9e81cdf52cde265c6c439ad3b61afc4338eac67f4f5c77bba89f4d"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_256_run1_20260905.json",
+      "sha256": "00582ef428f0caa4e5e2708086849b11a9d61544ae7736cf4baf205e60772cdd"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_4096_run1_20260905.json",
+      "sha256": "099fb6a058eebf3588752136977f8fb18b8815263d00685982833d09742e17fd"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_65536_run1_20260905.json",
+      "sha256": "3e9eb6c89f95d2f31c29b78ca1050310809877d2f4ac493fc8c4f471de1e40fc"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_1048576_run1_20260905.json",
+      "sha256": "9d74b23b03317bc499e59df939258769fab94c92aa6f3440a76ecf9ca2751a4a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_1048576_run2_20260905.json",
+      "sha256": "8416ae644e72430914795048434e411f37674bd0ba7a5fe5f25eabaca050ac64"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_65536_run2_20260905.json",
+      "sha256": "92b78776412c461d137f7315773ae5ca7b1e8db14ca1a497e19b584a65e30e54"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_4096_run2_20260905.json",
+      "sha256": "080a6378d77bdf5d4a8bf83698cfb6d2a100444847a5b4e104807280857a84b0"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/f1_256_run2_20260905.json",
+      "sha256": "223c27230a44a5d97f5b70c5f566a7f0546e04fc9cce6384ded2ae4d32479961"
+    },
+    {
+      "path": "src/cpu/src/scalar.cpp",
+      "sha256": "9da20c8fbe95c531b73fd494ff8e7a969d055ae31e8a7b4b588d0885a960050e"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/scalar.hpp",
+      "sha256": "610844d21051f606d418c2e38f9ec273cd3ab3bcc62b6d8841c1931f546bcc25"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/detail/arith64.hpp",
+      "sha256": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/types.hpp",
+      "sha256": "a0f2a2d1237a2b0561e84df93b29e87d52277660bda792e0207ba19d833772c4"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/debug_invariants.hpp",
+      "sha256": "6ac45941eacfbf0666e30ff6d3f4f37254a4c5e66e6f2ae167155ebc3f957fdf"
+    },
+    {
+      "path": "src/cpu/src/musig2.cpp",
+      "sha256": "aff57ae851fdeb138ce55bdb8fd05b91987d318c1ab7558cf6d5a28036d74a56"
+    },
+    {
+      "path": "src/cpu/src/frost.cpp",
+      "sha256": "281625624eaa0825257a20d631055c7f68b751d8da869f92aebb25f721718e23"
+    },
+    {
+      "path": "src/cpu/src/pedersen.cpp",
+      "sha256": "a3983b49ee77a742c47511e9b09032ab312aeb2d540ecf72f9288eaaa458aeec"
+    },
+    {
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_gcc",
+      "sha256": "338daf9373ee36a1944f9ff481c02f2d886bfe0f2966109aae9854f309e94f1d"
+    },
+    {
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_portable",
+      "sha256": "8664fd6f895a71e9028f8cbc9a182300efaf6fd89228829bafd531c09f33ab38"
+    },
+    {
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_clang",
+      "sha256": "5455369e8e4db1f40fb6ab7797adbaae38aee90986f9f43f1f9db5829bd8eb96"
+    },
+    {
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_ubsan",
+      "sha256": "614315f032abf90565197b7b6bc189fa4528010358ca4a4ccce3eb057b8c0c40"
+    },
+    {
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/test_asan",
+      "sha256": "905c7c738180f03771ff5c550308467aa090dfa8f341d7f6d043d2235087e5d4"
+    },
+    {
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare",
+      "sha256": "6db8685925eceb4d10be15458bf08c34c3efc700d2656e79e5c9de0a345e8ed0"
+    },
+    {
+      "path": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare_ubsan",
+      "sha256": "ce6ca275ba2074551909fd3dea06d7329a96186dcf1afa1aeee92b9d1ffe5d2a"
+    }
+  ],
+  "commands": {
+    "correctness_builds": [
+      [
+        "gcc",
+        "g++ -O3 -march=native -DNDEBUG -std=c++17 -pthread -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/tests/test_f1_reduce.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f1-review.pkv6Nn/test_gcc"
+      ],
+      [
+        "portable",
+        "g++ -O3 -march=native -DNDEBUG -DSECP256K1_NO_INT128 -std=c++17 -pthread -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/tests/test_f1_reduce.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f1-review.pkv6Nn/test_portable"
+      ],
+      [
+        "clang",
+        "clang++ -O3 -march=native -DNDEBUG -std=c++17 -pthread -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/tests/test_f1_reduce.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f1-review.pkv6Nn/test_clang"
+      ],
+      [
+        "ubsan",
+        "g++ -O1 -g -fsanitize=undefined -fno-sanitize-recover=undefined -std=c++17 -pthread -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/tests/test_f1_reduce.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f1-review.pkv6Nn/test_ubsan"
+      ],
+      [
+        "asan",
+        "g++ -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all -std=c++17 -pthread -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/tests/test_f1_reduce.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f1-review.pkv6Nn/test_asan"
+      ]
+    ],
+    "driver_builds": [
+      [
+        "compare",
+        "g++ -O3 -march=native -DNDEBUG -std=c++17 -pthread -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/probes/f1_reduce_compare.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f1-review.pkv6Nn/f1_compare"
+      ],
+      [
+        "compare_ubsan",
+        "g++ -O1 -g -fsanitize=undefined -fno-sanitize-recover=undefined -std=c++17 -pthread -Wall -Wextra -I src/cpu/include experiments/parseatlas_secp256k1/probes/f1_reduce_compare.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f1-review.pkv6Nn/f1_compare_ubsan"
+      ]
+    ],
+    "correctness_runs": [
+      "/tmp/parseatlas-f1-review.pkv6Nn/test_gcc",
+      "/tmp/parseatlas-f1-review.pkv6Nn/test_portable",
+      "/tmp/parseatlas-f1-review.pkv6Nn/test_clang",
+      "/tmp/parseatlas-f1-review.pkv6Nn/test_ubsan",
+      "/tmp/parseatlas-f1-review.pkv6Nn/test_asan"
+    ],
+    "measurements": [
+      {
+        "series": 1,
+        "count": 256,
+        "ordinal": 1,
+        "path": "experiments/parseatlas_secp256k1/data/f1_256_run1_20260905.json",
+        "command": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare --measure --count 256 --cpu 4 --seed 20260905 --target-ms 200",
+        "exit_code": 0
+      },
+      {
+        "series": 1,
+        "count": 4096,
+        "ordinal": 2,
+        "path": "experiments/parseatlas_secp256k1/data/f1_4096_run1_20260905.json",
+        "command": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare --measure --count 4096 --cpu 4 --seed 20260905 --target-ms 200",
+        "exit_code": 0
+      },
+      {
+        "series": 1,
+        "count": 65536,
+        "ordinal": 3,
+        "path": "experiments/parseatlas_secp256k1/data/f1_65536_run1_20260905.json",
+        "command": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare --measure --count 65536 --cpu 4 --seed 20260905 --target-ms 200",
+        "exit_code": 0
+      },
+      {
+        "series": 1,
+        "count": 1048576,
+        "ordinal": 4,
+        "path": "experiments/parseatlas_secp256k1/data/f1_1048576_run1_20260905.json",
+        "command": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare --measure --count 1048576 --cpu 4 --seed 20260905 --target-ms 200",
+        "exit_code": 0
+      },
+      {
+        "series": 2,
+        "count": 1048576,
+        "ordinal": 5,
+        "path": "experiments/parseatlas_secp256k1/data/f1_1048576_run2_20260905.json",
+        "command": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare --measure --count 1048576 --cpu 4 --seed 20260905 --target-ms 200",
+        "exit_code": 0
+      },
+      {
+        "series": 2,
+        "count": 65536,
+        "ordinal": 6,
+        "path": "experiments/parseatlas_secp256k1/data/f1_65536_run2_20260905.json",
+        "command": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare --measure --count 65536 --cpu 4 --seed 20260905 --target-ms 200",
+        "exit_code": 0
+      },
+      {
+        "series": 2,
+        "count": 4096,
+        "ordinal": 7,
+        "path": "experiments/parseatlas_secp256k1/data/f1_4096_run2_20260905.json",
+        "command": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare --measure --count 4096 --cpu 4 --seed 20260905 --target-ms 200",
+        "exit_code": 0
+      },
+      {
+        "series": 2,
+        "count": 256,
+        "ordinal": 8,
+        "path": "experiments/parseatlas_secp256k1/data/f1_256_run2_20260905.json",
+        "command": "/tmp/parseatlas-f1-review.pkv6Nn/f1_compare --measure --count 256 --cpu 4 --seed 20260905 --target-ms 200",
+        "exit_code": 0
+      }
+    ]
+  },
+  "validation": {
+    "record": "experiments/parseatlas_secp256k1/data/f1_validation_20260905.json",
+    "correctness_configs": 5,
+    "fixtures_per_config": 4971,
+    "reference_additions_per_config": 697896,
+    "mismatches": 0,
+    "fixture_families_overlap": true,
+    "parallel_subset_fixtures": 53,
+    "parallel_calls": 159,
+    "correctness_cpu_lists": [
+      1,
+      6,
+      12
+    ],
+    "correctness_reserved_logical_cpus": 4,
+    "checked_errors": 19,
+    "empty_identity_extra_checks": 6,
+    "comparator_corruptions": 256,
+    "affinity_failure_probe": {
+      "cpu": 1023,
+      "status": 22,
+      "threads_before": 1,
+      "threads_after": 1,
+      "inputs_and_caller_mask_preserved": true,
+      "thread_creation_failure_injected": false
+    },
+    "asan_and_ubsan_pass": true,
+    "tsan_run": false,
+    "smoke_invocations": 8,
+    "negative_cli": 10,
+    "negative_test_cli": 1,
+    "numeric_audit": "experiments/parseatlas_secp256k1/data/f1_numeric_audit_20260905.json",
+    "numeric_status": "pass",
+    "record_counts": {
+      "preflight": 32,
+      "calibration": 86,
+      "warmups": 64,
+      "samples": 256,
+      "below_target": 40
+    },
+    "measured_duration_ns_range": [
+      9768472,
+      357034367
+    ],
+    "preregistration_precedes_all_runs": true,
+    "all_raw_retained": true,
+    "raw_unix_ns_preserved": true,
+    "final_job_full_bytes_checked": true,
+    "every_individual_job_compared": false
+  },
+  "environment": {
+    "cpu": "Intel i5-14400F",
+    "logical": 16,
+    "physical": 10,
+    "coordinator": 4,
+    "coordinator_sibling": 5,
+    "workers": [
+      0,
+      2,
+      6,
+      8,
+      10,
+      12,
+      13,
+      14
+    ],
+    "reserved_physical_representatives": [
+      4,
+      15
+    ],
+    "worker_selection": "Runtime allowed mask and package/core grouping beforecoordinator pin; excludes wholecoordinatorcore andoneadditionalunit.",
+    "governor_endpoints": "performance",
+    "intel_pstate_no_turbo_endpoints": "1",
+    "frequency_continuous": false,
+    "frequency_note": "Per-CPU endpoints in allrawfiles; some800000kHz. Not fixed in-region frequency.",
+    "no_global_settings_or_sudo": true,
+    "other_local_builds_tests_stopped_during_measurements": true,
+    "external_load_siblings_thermals_isolated": false,
+    "pmu_counters": false,
+    "compiler": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+    "clang_correctness": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n",
+    "topology_lscpu": "# The following is the parsable format, which can be fed to other\n# programs. Each different item in every column has an unique ID\n# starting usually from zero.\n# CPU,Core,Socket,Online\n0,0,0,Y\n1,0,0,Y\n2,1,0,Y\n3,1,0,Y\n4,2,0,Y\n5,2,0,Y\n6,3,0,Y\n7,3,0,Y\n8,4,0,Y\n9,4,0,Y\n10,5,0,Y\n11,5,0,Y\n12,6,0,Y\n13,7,0,Y\n14,8,0,Y\n15,9,0,Y\n"
+  },
+  "reviews": {
+    "root": "Feature code delegated with disjoint scopes; root ran allmechanicalgates before full source review; clean.",
+    "independent_reviewer": "/root/native_method_review",
+    "source_binary": "CLEAN: all4timedloops,4fulljobs and reachablechunk/multicore/worker paths; full32byte writes everyjob, allocation/start/pin/join/merge/free retained, allstartedthreads joined onpartiallaunch error.",
+    "binary_disassembly_ranges": 17,
+    "numeric": "CLEAN:0discrepancies, allcounts/timestamps/seed/order/jobs/caps/sourcework/topology/checksums/summarymetrics/ratios validated. RawJSONaudit checks checksum consistency; nativeC++ owns exactbyte check.",
+    "report_status": "CLEAN: independent complete report review for SHA256 628ae5f261cfd5f55b19f6ba33b2057d63cb09944139829d1582727e51e69259; all numeric tables and claim boundaries verified."
+  },
+  "source_graph": {
+    "manager_bootstrap_verified": true,
+    "session_handoff22_recovered": true,
+    "task_specific_memory_kb_context_graph_queries": "zero-hit",
+    "continuous_manager_queries": true,
+    "new_cpp_files": "declared_input_unindexed atcreation, thenindexed after refresh; exactbounded source reads frommanager-verifiedtargets.",
+    "raw_json_and_report": "declared_input_unindexed afterrefresh; exactbounded reads used, largeJSONpreviews truncated.",
+    "worker_role_tools": "not exposed; workers didnot impersonate manager, only authorizedexacttargets."
+  },
+  "caller_evidence": [
+    {
+      "target": "src/cpu/src/musig2.cpp::musig2_partial_sig_agg",
+      "evidence": {
+        "budget": 160,
+        "candidate_files": [
+          "src/cpu/src/musig2.cpp"
+        ],
+        "freshness": "fresh",
+        "matches": [
+          {
+            "file_path": "src/cpu/src/musig2.cpp",
+            "freshness": {
+              "disk_source_hash": "aff57ae851fdeb138ce55bdb8fd05b91987d318c1ab7558cf6d5a28036d74a56",
+              "indexed_source_hash": "aff57ae851fdeb138ce55bdb8fd05b91987d318c1ab7558cf6d5a28036d74a56",
+              "state": "fresh"
+            },
+            "kind": "function",
+            "line_end": 645,
+            "line_start": 614,
+            "name": "musig2_partial_sig_agg",
+            "qualname": "src/cpu/src/musig2.cpp::musig2_partial_sig_agg",
+            "signature": "std::array<uint8_t, 64> musig2_partial_sig_agg( const std::vector<Scalar>& partial_sigs, const MuSig2Session& session)",
+            "source": "std::array<uint8_t, 64> musig2_partial_sig_agg(\n    const std::vector<Scalar>& partial_sigs,\n    const MuSig2Session& session) {\n\n    // s = sum(s_i) — CT: use ct::scalar_add instead of fast::operator+=\n    // fast::Scalar::operator+= has a data-dependent ge(ORDER) branch in its\n    // final modular reduction. Partial sigs contain signer-secret contributions;\n    // use branchless ct::scalar_add throughout the accumulation (CT-002 fix).\n    Scalar s = Scalar::zero();\n    for (const auto& si : partial_sigs) {\n        s = secp256k1::ct::scalar_add(s, si);\n    }\n\n    // BIP-327: add the additive-tweak correction e*g*tacc so the aggregated signature\n    // verifies against the tweaked aggregate key. tweak_s = 0 when no tweaks were applied.\n    s = secp256k1::ct::scalar_add(s, session.tweak_s);\n\n    // Fail-closed: degenerate aggregated signature is a security failure\n    if (s.is_zero_ct() || session.R.is_infinity()) {\n        return {};  // all-zero array signals failure to caller\n    }\n\n    // Final signature: (R.x, s)\n    auto R_x = session.R.x().to_bytes();\n    auto s_bytes = s.to_bytes();\n    secure_erase(&s, sizeof(s));\n\n    std::array<uint8_t, 64> sig{};\n    std::memcpy(sig.data(), R_x.data(), 32);\n    std::memcpy(sig.data() + 32, s_bytes.data(), 32);\n    return sig;\n}"
+          }
+        ],
+        "mode": "body",
+        "query": "src/cpu/src/musig2.cpp::musig2_partial_sig_agg",
+        "scope": "target_selector",
+        "truncated": false
+      }
+    },
+    {
+      "target": "src/cpu/src/frost.cpp::frost_aggregate",
+      "evidence": {
+        "budget": 160,
+        "candidate_files": [
+          "src/cpu/src/frost.cpp"
+        ],
+        "freshness": "fresh",
+        "matches": [
+          {
+            "file_path": "src/cpu/src/frost.cpp",
+            "freshness": {
+              "disk_source_hash": "281625624eaa0825257a20d631055c7f68b751d8da869f92aebb25f721718e23",
+              "indexed_source_hash": "281625624eaa0825257a20d631055c7f68b751d8da869f92aebb25f721718e23",
+              "state": "fresh"
+            },
+            "kind": "function",
+            "line_end": 692,
+            "line_start": 649,
+            "name": "frost_aggregate",
+            "qualname": "src/cpu/src/frost.cpp::frost_aggregate",
+            "signature": "SchnorrSignature frost_aggregate(const std::vector<FrostPartialSig>& partial_sigs, const std::vector<FrostNonceCommitment>& nonce_commitments, const Point& group_public_key, const std::array<std::uint8_t, 32>& msg)",
+            "source": "SchnorrSignature\nfrost_aggregate(const std::vector<FrostPartialSig>& partial_sigs,\n                const std::vector<FrostNonceCommitment>& nonce_commitments,\n                const Point& group_public_key,\n                const std::array<std::uint8_t, 32>& msg) {\n    if (!valid_unique_nonce_commitment_ids(nonce_commitments)) {\n        return SchnorrSignature{{}, Scalar::zero()};\n    }\n\n    // Group commitment R (compute binding factors inline to avoid heap scratch).\n    Point R = compute_group_commitment_inline_binding(\n        group_public_key,\n        nonce_commitments,\n        msg,\n        0,\n        nullptr);\n\n    // BIP-340: ensure even y\n    // NOTE: R is a public group commitment; VT field inverse is safe here.\n    auto R_y = R.y().to_bytes();\n    if (R_y[31] & 1) {\n        R.negate_inplace();\n    }\n\n    // Aggregate: s = Sum z_i\n    Scalar s = Scalar::zero();\n    for (const auto& ps : partial_sigs) {\n        s = ct::scalar_add(s, ps.z_i);\n    }\n\n    // Fail-closed: degenerate aggregated signature is a protocol failure.\n    // BIP-340 Rule 14: reject if R.x is all-zeros (infinity or degenerate R).\n    SchnorrSignature sig;\n    sig.r = R.x().to_bytes();\n    {\n        std::uint8_t acc = 0;\n        for (auto b : sig.r) acc |= b;\n        if (acc == 0 || s.is_zero_ct() || R.is_infinity()) {\n            return SchnorrSignature{{}, Scalar::zero()};\n        }\n    }\n    sig.s = s;\n    return sig;\n}"
+          }
+        ],
+        "mode": "body",
+        "query": "src/cpu/src/frost.cpp::frost_aggregate",
+        "scope": "target_selector",
+        "truncated": false
+      }
+    },
+    {
+      "target": "src/cpu/src/pedersen.cpp::pedersen_blind_sum",
+      "evidence": {
+        "budget": 160,
+        "candidate_files": [
+          "src/cpu/src/pedersen.cpp"
+        ],
+        "freshness": "fresh",
+        "matches": [
+          {
+            "file_path": "src/cpu/src/pedersen.cpp",
+            "freshness": {
+              "disk_source_hash": "a3983b49ee77a742c47511e9b09032ab312aeb2d540ecf72f9288eaaa458aeec",
+              "indexed_source_hash": "a3983b49ee77a742c47511e9b09032ab312aeb2d540ecf72f9288eaaa458aeec",
+              "state": "fresh"
+            },
+            "kind": "function",
+            "line_end": 143,
+            "line_start": 131,
+            "name": "pedersen_blind_sum",
+            "qualname": "src/cpu/src/pedersen.cpp::pedersen_blind_sum",
+            "signature": "Scalar pedersen_blind_sum(const Scalar* blinds_in, std::size_t n_in, const Scalar* blinds_out, std::size_t n_out)",
+            "source": "Scalar pedersen_blind_sum(const Scalar* blinds_in,\n                          std::size_t n_in,\n                          const Scalar* blinds_out,\n                          std::size_t n_out) {\n    Scalar sum = Scalar::zero();\n    for (std::size_t i = 0; i < n_in; ++i) {\n        sum = sum + blinds_in[i];\n    }\n    for (std::size_t i = 0; i < n_out; ++i) {\n        sum = sum - blinds_out[i];\n    }\n    return sum;\n}"
+          }
+        ],
+        "mode": "body",
+        "query": "src/cpu/src/pedersen.cpp::pedersen_blind_sum",
+        "scope": "target_selector",
+        "truncated": false
+      }
+    }
+  ],
+  "preservation": {
+    "git_status": {
+      "chunk_id": "d1eaf9",
+      "wall_time_seconds": 0.000005263,
+      "exit_code": 0,
+      "original_token_count": 13,
+      "output": " M .gitignore\n?? experiments/parseatlas_secp256k1/\n"
+    },
+    "reference_and_caller_diff": {
+      "chunk_id": "186801",
+      "wall_time_seconds": 0.000003259,
+      "exit_code": 0,
+      "original_token_count": 0,
+      "output": ""
+    },
+    "production_default_build_ci_unchanged": true,
+    "old_hash_bound_ledger_unchanged": true,
+    "old_modn_results_unchanged": true,
+    "existing_gitignore_dirty_preserved": true,
+    "committed": false,
+    "pushed": false,
+    "deleted": false
+  },
+  "artifact_notes": [
+    "This manifest excludes its ownhash; finalhash is in sessionhandoff.",
+    "Premeasurement validation captured independentbinaryreview stillinprogress; preregisteredrunplan records its laterCLEAN completion before anymeasurements.",
+    "Frozen protocol line227 has cosmetic newblanklineatEOF warning, nosemanticfinding. Original snapshot hash preserved.",
+    "Temporary binaries mayexpire; exactsource/flags/hash anddisassembly are durable.",
+    "Favorablepair counts are descriptive, notpooled performanceestimates; report never substitutes marginalmedianquotient for preregisteredpairedmetric."
+  ],
+  "next": {
+    "priority": "F2 bounded delayed normalization ofsamefinal-onlysum with completewide reduction and decodecost; thenP1allprefixscan.",
+    "separate_followups": [
+      "CT caller-specific implementation/gates",
+      "reusedtreeworkspace and inputrotation/heldout data",
+      "worker-count/crossover and persistentpool economics",
+      "prospectively improve calibration stabilization while retaining everyattempt"
+    ],
+    "implemented": false
+  },
+  "created_utc": "2026-09-05 16:36:25 UTC"
+}

@@ -1,0 +1,132 @@
+{
+  "schema": "parseatlas.p6.performance_freeze.v1",
+  "status": "qualified_before_first_full_series",
+  "hashed_files": {
+    "experiments/parseatlas_secp256k1/probes/p6_field_boundary.hpp": "d82b6043d609178c75762e8cfe2f89bb10af713db4eab00241779280118eefc9",
+    "experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp": "61db99c4f102830861f4b17305faeca9838fc9122d3eafb569cc03c31d98d8ba",
+    "experiments/parseatlas_secp256k1/probes/p6_field_boundary_compare.cpp": "563098f0e3e89b9fbc9d4e9d110ccf2be735419a7c5071923fbfb3dbccb72217",
+    "experiments/parseatlas_secp256k1/tests/test_p6_field_boundary.cpp": "a60dd836bcd06d7c54b6f59aed25d07de92827f8e094e5bda805c955bc854290",
+    "experiments/parseatlas_secp256k1/tests/test_p6_boundary_duration.cpp": "f8208cdce2b78a0db862ae73fc96f9e243a751a52f4fceac54ad676927638cdb",
+    "experiments/parseatlas_secp256k1/P6_FIELD_BOUNDARY_PROTOCOL.md": "68ee687cf8d4b8b4dccacea9d82eb4a4c35d7b315f814c723bb8d5d1dff16113",
+    "experiments/parseatlas_secp256k1/P6_FIELD_BOUNDARY_CONTRACT.md": "692898f748244444c1869a52bc38e325e2638380fd3b7a21be59ce2f4483b30a",
+    "experiments/parseatlas_secp256k1/P6_FIELD_BOUNDARY_LENSES.md": "634b021950ddd436582a0bcc4e31cbff650bd93ab7b7ce66fbf38f6fdc151feb",
+    "experiments/parseatlas_secp256k1/probes/p5_field_product_kernels.hpp": "4c9bb9f0865a44c4da15480b9ad2adab45db0efceeb2581e1db572ee0ff04d26",
+    "src/cpu/src/field.cpp": "6a3d2bf87e1619de395d737a198b228810f09486508bed7203d07fccadfd218c",
+    "src/cpu/src/field_asm_x64_gas.S": "4be633bc21143cd03834bbbde2ffa3280fd6780f93e6925770f365e0a7471f24",
+    "audit/test_regression_field_reduce_carry.cpp": "95f40ab0808515f9e6336467921e6c44ddc70529244d7b81be659652ac746cd1",
+    "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a": "238294f2959e1b161428bca9a1baa990b803ee933f7f876b5b6e6cdc9b4fd577",
+    "/tmp/parseatlas-p6-boundary.imLUFT/p6_driver_gcc.o": "92ef9fcefab0682e6a4eda13904e2124f4a3fc02ebbf24907ea416048fdd61dc",
+    "/tmp/parseatlas-p6-boundary.imLUFT/p6_boundary_gcc.o": "b9c2ce21db9a4ef9b538c8e8f7da336e0335ab5f8300562ac86d347c145de774",
+    "/tmp/parseatlas-p6-boundary.imLUFT/p6_compare_gcc_frozen": "c4f9fafc0430916b8b74f0e148f7d790d96cffd26ac7101fe2996b1e3f492a95",
+    "/tmp/parseatlas-p6-boundary.imLUFT/p6_compare_clang": "8cb5e31a6d1b06c21809677d2658fdd1ed4e98cbc600457f60cdb60e860be38f"
+  },
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "branch": "experiment/representation-search",
+  "governor": "powersave",
+  "no_turbo": "0",
+  "siblings": "4-5",
+  "perf_event_paranoid": "4",
+  "logical_cores": 16,
+  "utc": "2026-09-05T23:14:38.877Z",
+  "commands": [
+    "taskset -c 4 /tmp/parseatlas-p6-boundary.imLUFT/p6_compare_gcc_frozen --min-ms 200 --rounds 8 --seed 20260905 --output experiments/parseatlas_secp256k1/data/p6_run1_20260905.json",
+    "taskset -c 4 /tmp/parseatlas-p6-boundary.imLUFT/p6_compare_gcc_frozen --min-ms 200 --rounds 8 --seed 20260905 --reverse-order --output experiments/parseatlas_secp256k1/data/p6_run2_20260905.json"
+  ],
+  "object_compile_commands": {
+    "driver_object": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra -c experiments/parseatlas_secp256k1/probes/p6_field_boundary_compare.cpp -o /tmp/parseatlas-p6-boundary.imLUFT/p6_driver_gcc.o",
+    "boundary_object": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra -c experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp -o /tmp/parseatlas-p6-boundary.imLUFT/p6_boundary_gcc.o"
+  },
+  "object_link_command": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra /tmp/parseatlas-p6-boundary.imLUFT/p6_driver_gcc.o /tmp/parseatlas-p6-boundary.imLUFT/p6_boundary_gcc.o /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/p6_compare_gcc_frozen",
+  "oracle_compile_commands": {
+    "gcc": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p6_field_boundary.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/test_p6_gcc",
+    "clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p6_field_boundary.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp src/cpu/src/field_asm.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/test_p6_clang",
+    "asan": "g++-14 -std=c++20 -O1 -g -fno-lto -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -DSECP256K1_NO_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p6_field_boundary.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/test_p6_asan"
+  },
+  "benchmark_and_duration_compile_commands": {
+    "compare_gcc": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p6_field_boundary_compare.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/p6_compare_gcc",
+    "duration_gcc": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p6_boundary_duration.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/test_p6_duration_gcc",
+    "compare_clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p6_field_boundary_compare.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/p6_compare_clang",
+    "duration_clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p6_boundary_duration.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/test_p6_duration_clang"
+  },
+  "qualification": {
+    "native_gcc": 406239,
+    "independent_clang": 406239,
+    "noasm_asan_ubsan": 358744,
+    "mismatches": 0,
+    "shared_checksum": "a9076830a8ab714b",
+    "duration_per_config": {
+      "cases": 96,
+      "assertions": 5282
+    },
+    "codegen": {
+      "status": "pass",
+      "checks": 10521,
+      "slices": 66,
+      "jobs": 32,
+      "matched_pairs": 8,
+      "windows": 64,
+      "sha256": "a3dd94a2da4b6c18c64f52fd85b0856238e394f0fd4b910a2108844c17bb6a6c"
+    }
+  },
+  "source_review": "Complete five new code files and fixed protocol/contract/25lenses after root mechanical gates. Exact indexed hashes match. Newcodegenreplay independently reexecutes exact objdump; findings and phase/correction windows read. No code changes after gates.",
+  "imports": [
+    {
+      "original": "/tmp/parseatlas-p6-boundary.imLUFT/p6_gcc_smoke.json",
+      "imported": "experiments/parseatlas_secp256k1/data/p6_gcc_smoke_20260905.json",
+      "equal": true,
+      "sha256": "3891f669fe397645bf908cab6eed3deb850392fd49bc4295a72fb2f586836e13"
+    },
+    {
+      "original": "/tmp/parseatlas-p6-boundary.imLUFT/p6_clang_smoke.json",
+      "imported": "experiments/parseatlas_secp256k1/data/p6_clang_smoke_20260905.json",
+      "equal": true,
+      "sha256": "958528ce0520f917d0e695442830447343376afb25e2088ae32d119fadcd8c58"
+    },
+    {
+      "original": "/tmp/parseatlas-p6-duration.0uOyZ0/SYNTHETIC_duration_failure.json",
+      "imported": "experiments/parseatlas_secp256k1/data/p6_gcc_synthetic_20260905.json",
+      "equal": true,
+      "sha256": "0401adbcd41c419e68422f724efb195b682e66236cdac814842f7f8a6312d93c"
+    },
+    {
+      "original": "/tmp/parseatlas-p6-duration.Ku1KHy/SYNTHETIC_duration_failure.json",
+      "imported": "experiments/parseatlas_secp256k1/data/p6_clang_synthetic_20260905.json",
+      "equal": true,
+      "sha256": "9f2d2db617757739e7c993345cbe86296bb260bcc3ea1c13e8e5571bd94a49aa"
+    }
+  ],
+  "exclusive_output_gate": {
+    "command": "/tmp/parseatlas-p6-boundary.imLUFT/p6_compare_gcc_frozen --smoke --min-ms 0.1 --output /tmp/parseatlas-p6-boundary.imLUFT/p6_gcc_smoke.json",
+    "result": {
+      "chunk_id": "e856d7",
+      "wall_time_seconds": 0.000004148,
+      "exit_code": 1,
+      "original_token_count": 12,
+      "output": "P6 error: exclusive output open: File exists\n"
+    }
+  },
+  "prior_evidence_gate": {
+    "schema": "parseatlas_p5_final_mechanical_gate_v1",
+    "status": "pass",
+    "counts": {
+      "p5_hashes": 50,
+      "p2_hashes": 41,
+      "p3_hashes": 42,
+      "p4_hashes": 52,
+      "text_whitespace_files": 12,
+      "local_links": 59,
+      "lens_rows": 25
+    },
+    "deferred_final_review_links": [],
+    "manifest_sha256": "153900d0dd3de43b0799c7b18262340093ed220817dd3ca445ab3a5a6710c075",
+    "errors": []
+  },
+  "runtime_quiet": "All owned compiler/oracle/smoke/duration/static disassembly processes completed. Numeric auditor paused. Codegen worker limited to documentation; no competing owned benchmark/build/test. Background services/frequency/SMT/thermals uncontrolled.",
+  "measurement_policy": "Two complete GCC series only, second reverse;16cells,2warm8round,200msfloor; actual jobs*1024*lanes; allshortcalibration/extensionprobes/failures retained. No selective reruns or pooling.",
+  "limits": [
+    "Not a production, CT, novelty or engine-wide accept",
+    "ASM not sanitizer-instrumented",
+    "Clang bounded codegen differs; no full Clangperformance",
+    "Runtime-unsupportednative path not emulated; NOASMskipandtwofailclosedwrappersverified"
+  ]
+}

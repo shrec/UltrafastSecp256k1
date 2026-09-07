@@ -1,0 +1,425 @@
+{
+  "schema": "pa_f2_prospective_run_plan_v1",
+  "registered_utc": "2026-09-05 17:15:25 UTC",
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "branch": "experiment/representation-search",
+  "binary_sha256": "b06a6d46c0896c4c579b465e4c5f49dbfc249b3da0604b49671fb50f8da89a76",
+  "kernel_sha256": "57ede13d3f0df8b9c12f8578c60e533b416c23da670671d19ec3d731b860c651",
+  "test_sha256": "1a1359f72b50765dca53783234a1b54cddec96323c5119589f517b132f53878e",
+  "driver_sha256": "aa04c645707a15ba126d3d5606789a8d879543f7c186a13e7c00350b465a1c3e",
+  "protocol_sha256": "1c2d9a8dbae4db1f8950b7c704d7bcd50c7b50657a679939f0facc7f01083ac1",
+  "compile": "g++ -std=c++17 -O3 -march=native -DNDEBUG -Wall -Wextra -pthread -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/f2_reduce_compare.cpp src/cpu/src/scalar.cpp -o /tmp/parseatlas-f2-review.WmcyRl/f2_compare",
+  "observed_machine": {
+    "lscpu": [
+      {
+        "field": "Architecture:",
+        "data": "x86_64"
+      },
+      {
+        "field": "CPU op-mode(s):",
+        "data": "32-bit, 64-bit"
+      },
+      {
+        "field": "Address sizes:",
+        "data": "39 bits physical, 48 bits virtual"
+      },
+      {
+        "field": "Byte Order:",
+        "data": "Little Endian"
+      },
+      {
+        "field": "CPU(s):",
+        "data": "16"
+      },
+      {
+        "field": "On-line CPU(s) list:",
+        "data": "0-15"
+      },
+      {
+        "field": "Vendor ID:",
+        "data": "GenuineIntel"
+      },
+      {
+        "field": "Model name:",
+        "data": "Intel(R) Core(TM) i5-14400F"
+      },
+      {
+        "field": "CPU family:",
+        "data": "6"
+      },
+      {
+        "field": "Model:",
+        "data": "183"
+      },
+      {
+        "field": "Thread(s) per core:",
+        "data": "2"
+      },
+      {
+        "field": "Core(s) per socket:",
+        "data": "10"
+      },
+      {
+        "field": "Socket(s):",
+        "data": "1"
+      },
+      {
+        "field": "Stepping:",
+        "data": "1"
+      },
+      {
+        "field": "CPU(s) scaling MHz:",
+        "data": "53%"
+      },
+      {
+        "field": "CPU max MHz:",
+        "data": "4700.0000"
+      },
+      {
+        "field": "CPU min MHz:",
+        "data": "800.0000"
+      },
+      {
+        "field": "BogoMIPS:",
+        "data": "4992.00"
+      },
+      {
+        "field": "Flags:",
+        "data": "fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize arch_lbr ibt flush_l1d arch_capabilities ibpb_exit_to_user"
+      },
+      {
+        "field": "Virtualization:",
+        "data": "VT-x"
+      },
+      {
+        "field": "L1d cache:",
+        "data": "416 KiB (10 instances)"
+      },
+      {
+        "field": "L1i cache:",
+        "data": "448 KiB (10 instances)"
+      },
+      {
+        "field": "L2 cache:",
+        "data": "9.5 MiB (7 instances)"
+      },
+      {
+        "field": "L3 cache:",
+        "data": "20 MiB (1 instance)"
+      },
+      {
+        "field": "NUMA node(s):",
+        "data": "1"
+      },
+      {
+        "field": "NUMA node0 CPU(s):",
+        "data": "0-15"
+      },
+      {
+        "field": "Vulnerability Gather data sampling:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Indirect target selection:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Itlb multihit:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability L1tf:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Mds:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Meltdown:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Mmio stale data:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Reg file data sampling:",
+        "data": "Mitigation; Clear Register File"
+      },
+      {
+        "field": "Vulnerability Retbleed:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Spec rstack overflow:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Spec store bypass:",
+        "data": "Mitigation; Speculative Store Bypass disabled via prctl"
+      },
+      {
+        "field": "Vulnerability Spectre v1:",
+        "data": "Mitigation; usercopy/swapgs barriers and __user pointer sanitization"
+      },
+      {
+        "field": "Vulnerability Spectre v2:",
+        "data": "Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI BHI_DIS_S"
+      },
+      {
+        "field": "Vulnerability Srbds:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Tsa:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Tsx async abort:",
+        "data": "Not affected"
+      },
+      {
+        "field": "Vulnerability Vmscape:",
+        "data": "Mitigation; IBPB before exit to userspace"
+      }
+    ]
+  },
+  "topology_from_nonperformance_smoke": {
+    "inherited_allowed_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15
+    ],
+    "online_logical_sysconf": 16,
+    "selection_unit": "physical_core",
+    "observed_allowed_units": 10,
+    "worker_cpus": [
+      0,
+      2,
+      6,
+      8,
+      10,
+      12,
+      13,
+      14
+    ],
+    "active_worker_cpus": [
+      0
+    ],
+    "reserved_unit_representatives": [
+      4,
+      15
+    ],
+    "worker_count": 1,
+    "coordinator_colocated_worker": false,
+    "topology_records": [
+      {
+        "cpu": 0,
+        "package": 0,
+        "core": 0
+      },
+      {
+        "cpu": 1,
+        "package": 0,
+        "core": 0
+      },
+      {
+        "cpu": 2,
+        "package": 0,
+        "core": 4
+      },
+      {
+        "cpu": 3,
+        "package": 0,
+        "core": 4
+      },
+      {
+        "cpu": 4,
+        "package": 0,
+        "core": 8
+      },
+      {
+        "cpu": 5,
+        "package": 0,
+        "core": 8
+      },
+      {
+        "cpu": 6,
+        "package": 0,
+        "core": 12
+      },
+      {
+        "cpu": 7,
+        "package": 0,
+        "core": 12
+      },
+      {
+        "cpu": 8,
+        "package": 0,
+        "core": 16
+      },
+      {
+        "cpu": 9,
+        "package": 0,
+        "core": 16
+      },
+      {
+        "cpu": 10,
+        "package": 0,
+        "core": 20
+      },
+      {
+        "cpu": 11,
+        "package": 0,
+        "core": 20
+      },
+      {
+        "cpu": 12,
+        "package": 0,
+        "core": 24
+      },
+      {
+        "cpu": 13,
+        "package": 0,
+        "core": 25
+      },
+      {
+        "cpu": 14,
+        "package": 0,
+        "core": 26
+      },
+      {
+        "cpu": 15,
+        "package": 0,
+        "core": 27
+      }
+    ]
+  },
+  "controls": "All four variants in same binary, complete final-only jobs. Serial/Wide5/Columns one coordinator core; cold workers=min(N,discovered pool8) plus coordinator. No production dispatch.",
+  "calibration": "4untimedjobs/variant; pervariant monotonejobs starting1;2successive>=200ms atsamejobs;reset/growceil1.5ifshort;12attemptsmax; cap1e8jobs/1e9RHS/1e6threadlaunches; unqualifiedretainedJSON exit2 beforewarmup/measure",
+  "warmup_rounds": 2,
+  "measured_rounds": 8,
+  "expected_measured_records": 384,
+  "variant_order": [
+    1,
+    3,
+    2,
+    0
+  ],
+  "series_independence": "Separate process invocations, same seeded input corpus; not statistically independent corpora.",
+  "order_policy": "Firstseries prospective mixedsizes, secondreverse; no selective reruns or droppedshortsamples. On unqualified execution preserve records and report without retuning; no samecell replacement.",
+  "execution": "One measurement at a time; no owned competing build/test/benchmark processes. Only own process affinity changes. External load/thermals uncontrolled; endpointsnotfixedfrequency.",
+  "timing_gate": "Begin only after complete manager mechanical/source/binary gates and independent source/binary review clean; no sustained measurements yet at registration.",
+  "plans": [
+    {
+      "sequence": 1,
+      "series": 1,
+      "count": 256,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 256 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_256_run1_20260905.json"
+    },
+    {
+      "sequence": 2,
+      "series": 1,
+      "count": 1,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 1 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_1_run1_20260905.json"
+    },
+    {
+      "sequence": 3,
+      "series": 1,
+      "count": 65536,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 65536 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_65536_run1_20260905.json"
+    },
+    {
+      "sequence": 4,
+      "series": 1,
+      "count": 16,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 16 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_16_run1_20260905.json"
+    },
+    {
+      "sequence": 5,
+      "series": 1,
+      "count": 1048576,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 1048576 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_1048576_run1_20260905.json"
+    },
+    {
+      "sequence": 6,
+      "series": 1,
+      "count": 4096,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 4096 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_4096_run1_20260905.json"
+    },
+    {
+      "sequence": 7,
+      "series": 2,
+      "count": 4096,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 4096 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_4096_run2_20260905.json"
+    },
+    {
+      "sequence": 8,
+      "series": 2,
+      "count": 1048576,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 1048576 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_1048576_run2_20260905.json"
+    },
+    {
+      "sequence": 9,
+      "series": 2,
+      "count": 16,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 16 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_16_run2_20260905.json"
+    },
+    {
+      "sequence": 10,
+      "series": 2,
+      "count": 65536,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 65536 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_65536_run2_20260905.json"
+    },
+    {
+      "sequence": 11,
+      "series": 2,
+      "count": 1,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 1 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_1_run2_20260905.json"
+    },
+    {
+      "sequence": 12,
+      "series": 2,
+      "count": 256,
+      "seed": 20260905,
+      "command": "/tmp/parseatlas-f2-review.WmcyRl/f2_compare --measure --cpu 4 --count 256 --seed 20260905 --target-ms 200",
+      "raw_path": "experiments/parseatlas_secp256k1/data/f2_256_run2_20260905.json"
+    }
+  ]
+}

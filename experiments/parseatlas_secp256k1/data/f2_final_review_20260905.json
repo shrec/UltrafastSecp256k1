@@ -1,0 +1,18 @@
+{
+  "schema": "pa_f2_final_review_v1",
+  "recorded_utc": "2026-09-05 17:38:29 UTC",
+  "report_sha256": "2c38ae0389b5ddc5d7f27717d5f5a6be0b031c3e85b7e76d7fdf46f952664609",
+  "independent_reviewer": "native_method_review",
+  "source_binary_review": "CLEAN, completeheader/tests/driver/protocol and actual4fulljobs/4repetitionloops/worker/coldlifecycle",
+  "numeric_audit": "CLEAN,0discrepancies across12rawfiles;384measured96warmup192untimed178calibration; exactBigInttimestamps/caps/state/sourcecounts/allstatistics",
+  "report_review": "CLEAN, all213lines;6pairedtable rows and12median/IQR rows match independentrawaudit;shortsamples,N1outlier,N1Mrankingreversal explicitlycorrect",
+  "manager_review": "Mechanical gates before complete source review; report and all25lensfacts crosschecked with exactsource/nativeassembly/numericaudit. Final custody hashes/manifest performed separately.",
+  "findings_resolved": [
+    "extra blank protocol EOF removedbeforemeasurement",
+    "initial reportheader ratio direction clarifiedbeforeindependentreportreview"
+  ],
+  "unresolved_tool_issue": "Source Graph file-evidence hash/preview coherence NeedFix retained separately; no measuredcode changes",
+  "research_accepted": true,
+  "production_accepted": false,
+  "canonical_task_accepted": false
+}

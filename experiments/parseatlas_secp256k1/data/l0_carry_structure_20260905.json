@@ -1,0 +1,470 @@
+{
+  "algebra": {
+    "associativity_cases": 27,
+    "claim_class": "OBSERVED",
+    "composition_direction": "high_after_low",
+    "composition_table": [
+      {
+        "high": "K",
+        "low": "K",
+        "result": "K"
+      },
+      {
+        "high": "K",
+        "low": "P",
+        "result": "K"
+      },
+      {
+        "high": "K",
+        "low": "G",
+        "result": "K"
+      },
+      {
+        "high": "P",
+        "low": "K",
+        "result": "K"
+      },
+      {
+        "high": "P",
+        "low": "P",
+        "result": "P"
+      },
+      {
+        "high": "P",
+        "low": "G",
+        "result": "G"
+      },
+      {
+        "high": "G",
+        "low": "K",
+        "result": "G"
+      },
+      {
+        "high": "G",
+        "low": "P",
+        "result": "G"
+      },
+      {
+        "high": "G",
+        "low": "G",
+        "result": "G"
+      }
+    ],
+    "gp_composition_cases": 16,
+    "gp_encodings": [
+      {
+        "gp": [
+          0,
+          0
+        ],
+        "state": "K",
+        "truth_table": [
+          0,
+          0
+        ]
+      },
+      {
+        "gp": [
+          0,
+          1
+        ],
+        "state": "P",
+        "truth_table": [
+          0,
+          1
+        ]
+      },
+      {
+        "gp": [
+          1,
+          0
+        ],
+        "state": "G",
+        "truth_table": [
+          1,
+          1
+        ]
+      },
+      {
+        "gp": [
+          1,
+          1
+        ],
+        "state": "G",
+        "truth_table": [
+          1,
+          1
+        ]
+      }
+    ],
+    "identity": "P",
+    "minimality_scope": "Only carry response for BOTH possible incoming bits; not low digits, full arithmetic state, or known-carry serial state.",
+    "noncommutativity_witness": {
+      "G_after_K": "G",
+      "K_after_G": "K"
+    },
+    "pairwise_distinguishability": [
+      {
+        "carry_in": 1,
+        "outputs": [
+          0,
+          1
+        ],
+        "states": [
+          "K",
+          "P"
+        ]
+      },
+      {
+        "carry_in": 0,
+        "outputs": [
+          0,
+          1
+        ],
+        "states": [
+          "K",
+          "G"
+        ]
+      },
+      {
+        "carry_in": 0,
+        "outputs": [
+          0,
+          1
+        ],
+        "states": [
+          "P",
+          "G"
+        ]
+      }
+    ],
+    "two_sided_identity_cases": 3
+  },
+  "bounds": {
+    "exhaustive_seed": null,
+    "max_limbs": 4,
+    "max_total_bits": 6,
+    "max_word_bits": 4
+  },
+  "claim_class": "OBSERVED",
+  "digit_enumerations": [
+    {
+      "incoming_carry_evaluations": 8,
+      "ordered_digit_pairs": 4,
+      "state_counts": {
+        "G": 1,
+        "K": 1,
+        "P": 2
+      },
+      "word_bits": 1
+    },
+    {
+      "incoming_carry_evaluations": 32,
+      "ordered_digit_pairs": 16,
+      "state_counts": {
+        "G": 6,
+        "K": 6,
+        "P": 4
+      },
+      "word_bits": 2
+    },
+    {
+      "incoming_carry_evaluations": 128,
+      "ordered_digit_pairs": 64,
+      "state_counts": {
+        "G": 28,
+        "K": 28,
+        "P": 8
+      },
+      "word_bits": 3
+    },
+    {
+      "incoming_carry_evaluations": 512,
+      "ordered_digit_pairs": 256,
+      "state_counts": {
+        "G": 120,
+        "K": 120,
+        "P": 16
+      },
+      "word_bits": 4
+    }
+  ],
+  "format": "parseatlas_carry_structure_v1",
+  "full_output_evaluations": 55528,
+  "input_triples_across_layouts": 18248,
+  "layouts": [
+    {
+      "contiguous_partitions": [
+        [
+          1
+        ]
+      ],
+      "full_output_evaluations": 8,
+      "input_triples": 8,
+      "limbs": 1,
+      "mismatches": 0,
+      "total_bits": 1,
+      "word_bits": 1
+    },
+    {
+      "contiguous_partitions": [
+        [
+          2
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "full_output_evaluations": 64,
+      "input_triples": 32,
+      "limbs": 2,
+      "mismatches": 0,
+      "total_bits": 2,
+      "word_bits": 1
+    },
+    {
+      "contiguous_partitions": [
+        [
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "full_output_evaluations": 512,
+      "input_triples": 128,
+      "limbs": 3,
+      "mismatches": 0,
+      "total_bits": 3,
+      "word_bits": 1
+    },
+    {
+      "contiguous_partitions": [
+        [
+          4
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          2,
+          2
+        ],
+        [
+          1,
+          1,
+          2
+        ],
+        [
+          3,
+          1
+        ],
+        [
+          1,
+          2,
+          1
+        ],
+        [
+          2,
+          1,
+          1
+        ],
+        [
+          1,
+          1,
+          1,
+          1
+        ]
+      ],
+      "full_output_evaluations": 4096,
+      "input_triples": 512,
+      "limbs": 4,
+      "mismatches": 0,
+      "total_bits": 4,
+      "word_bits": 1
+    },
+    {
+      "contiguous_partitions": [
+        [
+          1
+        ]
+      ],
+      "full_output_evaluations": 32,
+      "input_triples": 32,
+      "limbs": 1,
+      "mismatches": 0,
+      "total_bits": 2,
+      "word_bits": 2
+    },
+    {
+      "contiguous_partitions": [
+        [
+          2
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "full_output_evaluations": 1024,
+      "input_triples": 512,
+      "limbs": 2,
+      "mismatches": 0,
+      "total_bits": 4,
+      "word_bits": 2
+    },
+    {
+      "contiguous_partitions": [
+        [
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          2,
+          1
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "full_output_evaluations": 32768,
+      "input_triples": 8192,
+      "limbs": 3,
+      "mismatches": 0,
+      "total_bits": 6,
+      "word_bits": 2
+    },
+    {
+      "contiguous_partitions": [
+        [
+          1
+        ]
+      ],
+      "full_output_evaluations": 128,
+      "input_triples": 128,
+      "limbs": 1,
+      "mismatches": 0,
+      "total_bits": 3,
+      "word_bits": 3
+    },
+    {
+      "contiguous_partitions": [
+        [
+          2
+        ],
+        [
+          1,
+          1
+        ]
+      ],
+      "full_output_evaluations": 16384,
+      "input_triples": 8192,
+      "limbs": 2,
+      "mismatches": 0,
+      "total_bits": 6,
+      "word_bits": 3
+    },
+    {
+      "contiguous_partitions": [
+        [
+          1
+        ]
+      ],
+      "full_output_evaluations": 512,
+      "input_triples": 512,
+      "limbs": 1,
+      "mismatches": 0,
+      "total_bits": 4,
+      "word_bits": 4
+    }
+  ],
+  "limits": [
+    "Different layouts repeat some mathematical input triples; counts are not unique inputs.",
+    "No 64/256-bit full-domain observation, formal proof engine, or production differential check.",
+    "No CPU timing, instruction/resource measurement, CT eligibility, novelty, or method ranking.",
+    "Transfer summaries preserve carry behavior only; reblocking also retains raw residual digits.",
+    "Known-carry serial addition needs one current carry bit, not a three-state transfer summary."
+  ],
+  "negative_controls": {
+    "claim_class": "OBSERVED",
+    "exact_sum_requires_high_two_cases": 4,
+    "insufficient_high_witness": {
+      "exact_low_high": [
+        1,
+        2
+      ],
+      "naive_left": [
+        1,
+        1
+      ],
+      "naive_right": [
+        1,
+        1
+      ],
+      "note": "A state-width failure, not a nonassociativity witness.",
+      "operands": [
+        3,
+        3,
+        3
+      ]
+    },
+    "lossy_tuple_nonassociativity_cases": 20,
+    "low_modulo_associativity_cases": 64,
+    "nonassociativity_witness": {
+      "left": [
+        1,
+        1
+      ],
+      "operands": [
+        1,
+        1,
+        3
+      ],
+      "right": [
+        1,
+        0
+      ]
+    },
+    "radix": 4,
+    "summary_only_loses_low": {
+      "carry_in": 0,
+      "different_low": [
+        0,
+        1
+      ],
+      "pairs": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "same_summary": "K"
+    },
+    "triple_cases": 64
+  },
+  "output_records_sha256": "9b29692c6093e9885b0903cfabe537dc5d1d1eee4abee4544ac48b923e45045a",
+  "runtime": "PENDING IMPORT",
+  "scope": "Unsigned L0 two-operand addition plus incoming carry; no Fp/Fn modulus.",
+  "source_sha256": "278bf2133e7f12cad90cd73cb654fb3b0056df65dbbcee181de75d06e111ff41"
+}

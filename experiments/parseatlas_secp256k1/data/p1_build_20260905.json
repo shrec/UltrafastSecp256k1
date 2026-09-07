@@ -1,0 +1,137 @@
+{
+  "schema": "parseatlas.p1.build.v1",
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "configure": "cmake -S src/cpu -B /tmp/parseatlas-p1-primitives.1hlZNv/build -DCMAKE_BUILD_TYPE=Release -DSECP256K1_USE_LTO=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=OFF",
+  "build": "cmake --build /tmp/parseatlas-p1-primitives.1hlZNv/build --target fastsecp256k1 --parallel 8",
+  "compiler": "c++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+  "commands": [
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build",
+      "command": "/usr/bin/c++ -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -std=gnu++20 -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -O3 -march=native -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning -o CMakeFiles/fastsecp256k1.dir/src/field.cpp.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field.cpp",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field.cpp",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/field.cpp.o"
+    },
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build",
+      "command": "/usr/bin/c++ -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -std=gnu++20 -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -o CMakeFiles/fastsecp256k1.dir/src/field_52.cpp.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_52.cpp",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_52.cpp",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/field_52.cpp.o"
+    },
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build",
+      "command": "/usr/bin/c++ -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -std=gnu++20 -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -o CMakeFiles/fastsecp256k1.dir/src/scalar.cpp.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/scalar.cpp",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/scalar.cpp",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/scalar.cpp.o"
+    },
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build",
+      "command": "/usr/bin/c++ -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -std=gnu++20 -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -O3 -march=native -mbmi2 -madx -mpopcnt -funroll-loops -ftree-vectorize -fno-exceptions -fno-rtti -o CMakeFiles/fastsecp256k1.dir/src/field_asm.cpp.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm.cpp",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm.cpp",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/field_asm.cpp.o"
+    },
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build",
+      "command": "/usr/bin/cc -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -x assembler-with-cpp -mbmi2 -madx -fno-lto -o CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm_x64_gas.S",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm_x64_gas.S",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o"
+    }
+  ],
+  "hashes": [
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/.gitignore",
+      "sha256": "c563d545c88e632fc421b3840d38fe049ddd7a3373911f0ead6381636c4d4bf9"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/CMakeLists.txt",
+      "sha256": "7b02ab062ba6fb906dac3c95a8162a718bb1de0b86a611d49adcd0ccefa546a4"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/config.hpp",
+      "sha256": "fd5596e13d41f7ec566af10862a31d30acde06b73570cae67f8a23540cc6b956"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/debug_invariants.hpp",
+      "sha256": "6ac45941eacfbf0666e30ff6d3f4f37254a4c5e66e6f2ae167155ebc3f957fdf"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/detail/arith64.hpp",
+      "sha256": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/field.hpp",
+      "sha256": "da944a2803c7ec3f07fd2a3e1ec93581bdc94dc6f3f9db402edc9459b4b1b381"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/field_52.hpp",
+      "sha256": "95ca595490b827c6cc1965a7ae2feb1ae72546c3b60dba0562f94f842f998898"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/field_52_impl.hpp",
+      "sha256": "2c3f77d7855e9881ebeaf2b7f53de61e683de5201c77d23caaa288df8bf2afb3"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/field_asm.hpp",
+      "sha256": "46eee1c6972fd6527586582b2674042801c24f4334744733a0eaf1db1a0ba2e8"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/scalar.hpp",
+      "sha256": "610844d21051f606d418c2e38f9ec273cd3ab3bcc62b6d8841c1931f546bcc25"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/types.hpp",
+      "sha256": "a0f2a2d1237a2b0561e84df93b29e87d52277660bda792e0207ba19d833772c4"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/u128_compat.hpp",
+      "sha256": "b80397848d437fcf5812015febe74e63227e4ca758248c00fa711f797a4109a0"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field.cpp",
+      "sha256": "db5792d9bc0b51cfd12927af11fae7160c1a671b8028e0c4d73ef7f3fb6e6812"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_52.cpp",
+      "sha256": "b797a1c7a1219735424859d912596d5c3f50e1848036865d15d2879adeb8207a"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm.cpp",
+      "sha256": "f69ff39527bc345bd58883e473b2894052090a36b0fca8372ffcd88f1928517d"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm_x64_gas.S",
+      "sha256": "d3f816d3b68c0df1b12af190afa5bbb62d99ec980b94aee438ba0bcb2e0fff9e"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/scalar.cpp",
+      "sha256": "9da20c8fbe95c531b73fd494ff8e7a969d055ae31e8a7b4b588d0885a960050e"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build/CMakeFiles/fastsecp256k1.dir/flags.make",
+      "sha256": "6945e04f9a18720cfddec343798a6f97d53abbb806d2b4769e90e449b36c16fe"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build/CMakeFiles/fastsecp256k1.dir/src/field.cpp.o",
+      "sha256": "042bee7e0c6e671de3f4aaea358f1a23e2d3bfcffa679dc72aa2063b20222817"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build/CMakeFiles/fastsecp256k1.dir/src/field_52.cpp.o",
+      "sha256": "0f7f750f6d0394775505ae0b962c53f71b2e37336e60fe421364fdeb0cd1ed83"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build/CMakeFiles/fastsecp256k1.dir/src/field_asm.cpp.o",
+      "sha256": "81692e8f51a32ced43dc2b038d0ac5c93797cc37874e3a274f8256c4d7ce4205"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o",
+      "sha256": "ca7d996017714b3db1a29634e556c5f78e2ad3cb12e49b3a4442d551b0da9596"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build/CMakeFiles/fastsecp256k1.dir/src/scalar.cpp.o",
+      "sha256": "02a6c4efd3ad05ea9845df63e5eb0a007e4f4ace2d9ca2af031cad799242dcae"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build/libfastsecp256k1.a",
+      "sha256": "4c5d457d103f6f8f1c1f9a94054fceafffc6f82db6c15bc4a04abbf77c5cd8d9"
+    }
+  ]
+}

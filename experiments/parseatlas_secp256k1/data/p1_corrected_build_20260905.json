@@ -1,0 +1,176 @@
+{
+  "schema": "parseatlas.p1.corrected_build.v1",
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "status": "corrected_baseline_not_unmodified_HEAD",
+  "configure": "cmake -S src/cpu -B /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed -DCMAKE_BUILD_TYPE=Release -DSECP256K1_USE_LTO=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=OFF",
+  "build": "cmake --build /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed --target fastsecp256k1 --parallel 8",
+  "driver_compile": "g++ -std=c++20 -O3 -march=native -DNDEBUG -fno-lto -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra -c experiments/parseatlas_secp256k1/probes/p1_primitive_baseline.cpp -o /tmp/parseatlas-p1-primitives.1hlZNv/p1_primitive_baseline.o",
+  "driver_link": "g++ /tmp/parseatlas-p1-primitives.1hlZNv/p1_primitive_baseline.o /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p1-primitives.1hlZNv/p1_primitive_baseline_fixed",
+  "source_diff": "diff --git a/audit/test_regression_field_reduce_carry.cpp b/audit/test_regression_field_reduce_carry.cpp\nindex 82927018..b8749a8d 100644\n--- a/audit/test_regression_field_reduce_carry.cpp\n+++ b/audit/test_regression_field_reduce_carry.cpp\n@@ -32,6 +32,23 @@\n #include <cstdint>\n #include <cstring>\n \n+#if defined(SECP256K1_HAS_ASM) && (defined(__x86_64__) || defined(_M_X64))\n+#include \"secp256k1/field_asm.hpp\"\n+#if defined(_WIN32) && (defined(__clang__) || defined(__GNUC__))\n+#define REDUCE_CARRY_ASM_CC __attribute__((sysv_abi))\n+#else\n+#define REDUCE_CARRY_ASM_CC\n+#endif\n+extern \"C\" {\n+void REDUCE_CARRY_ASM_CC field_mul_full_asm(\n+    const std::uint64_t*, const std::uint64_t*, std::uint64_t*);\n+void REDUCE_CARRY_ASM_CC field_sqr_full_asm(\n+    const std::uint64_t*, std::uint64_t*);\n+void REDUCE_CARRY_ASM_CC reduce_4_asm(std::uint64_t*);\n+}\n+#undef REDUCE_CARRY_ASM_CC\n+#endif\n+\n static int g_pass = 0, g_fail = 0;\n #include \"audit_check.hpp\"\n \n@@ -101,6 +118,126 @@ static void test_cross_check_against_FE52() {\n     CHECK(b1 == b2, \"large × large: to_bytes() is deterministic\");\n }\n \n+// Check raw limbs as well as serialized bytes: FieldElement::operator==\n+// normalizes its operands and would hide a noncanonical result.\n+static void check_exact_field(const FieldElement& actual,\n+                              const FieldElement::limbs_type& expected,\n+                              const char* context) {\n+    std::array<std::uint8_t, 32> expected_bytes{};\n+    for (std::size_t limb = 0; limb < expected.size(); ++limb) {\n+        for (std::size_t byte = 0; byte < 8; ++byte) {\n+            expected_bytes[31 - (limb * 8 + byte)] =\n+                static_cast<std::uint8_t>(expected[limb] >> (8 * byte));\n+        }\n+    }\n+    bool const limbs_match = actual.limbs() == expected;\n+    bool const bytes_match = actual.to_bytes() == expected_bytes;\n+    if (!limbs_match || !bytes_match) {\n+        printf(\"[reduce_carry] exact KAT mismatch: %s\\n\", context);\n+    }\n+    CHECK(limbs_match, \"all four raw limbs match the canonical KAT\");\n+    CHECK(bytes_match, \"all 32 big-endian bytes match the KAT\");\n+}\n+\n+static void test_second_fold_carry_bit() {\n+    printf(\"[reduce_carry] final fold expands carry bit to a full mask...\\n\");\n+    // B=2^256, K=2^32+977, p=B-K, a=B-2^33-1=p-(2^32-976).\n+    // Thus a^2 mod p=(2^32-976)^2=0xfffff860000e8900.\n+    // The second fold overflows: adding K&1 instead of K loses K-1.\n+    FieldElement::limbs_type const input = {\n+        0xFFFFFFFDFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL,\n+        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL\n+    };\n+    FieldElement::limbs_type const expected = {0xFFFFF860000E8900ULL, 0, 0, 0};\n+    FieldElement const a = FieldElement::from_limbs(input);\n+    check_exact_field(a.square(), expected, \"carry-bit square\");\n+    check_exact_field(a * a, expected, \"carry-bit multiply\");\n+    FieldElement in_place = a;\n+    in_place.square_inplace();\n+    check_exact_field(in_place, expected, \"carry-bit square_inplace\");\n+    in_place = a;\n+    in_place *= in_place;\n+    check_exact_field(in_place, expected, \"carry-bit self-alias multiply\");\n+\n+    FieldElement::limbs_type const one = {1, 0, 0, 0};\n+    check_exact_field(FieldElement::one().square(), one, \"carry-zero square\");\n+    check_exact_field(a * FieldElement::one(), input, \"carry-zero multiply\");\n+\n+#if defined(SECP256K1_HAS_ASM) && (defined(__x86_64__) || defined(_M_X64))\n+    if (!secp256k1::fast::has_bmi2_support() ||\n+        !secp256k1::fast::has_adx_support()) {\n+        printf(\"[reduce_carry] direct ASM KATs skipped: BMI2/ADX unavailable\\n\");\n+        return;\n+    }\n+    // Exercise all three GAS reduction copies directly, independently of\n+    // which wrapper the configured public FieldElement API selects.\n+    FieldElement::limbs_type raw{};\n+    field_sqr_full_asm(input.data(), raw.data());\n+    check_exact_field(FieldElement::from_limbs_raw(raw), expected, \"direct ASM square\");\n+    field_mul_full_asm(input.data(), input.data(), raw.data());\n+    check_exact_field(FieldElement::from_limbs_raw(raw), expected, \"direct ASM multiply\");\n+    raw = input;\n+    field_sqr_full_asm(raw.data(), raw.data());\n+    check_exact_field(FieldElement::from_limbs_raw(raw), expected, \"direct ASM square alias\");\n+    raw = input;\n+    field_mul_full_asm(raw.data(), raw.data(), raw.data());\n+    check_exact_field(FieldElement::from_limbs_raw(raw), expected, \"direct ASM multiply alias\");\n+\n+    field_sqr_full_asm(one.data(), raw.data());\n+    check_exact_field(FieldElement::from_limbs_raw(raw), one, \"direct ASM square carry-zero\");\n+    field_mul_full_asm(input.data(), one.data(), raw.data());\n+    check_exact_field(FieldElement::from_limbs_raw(raw), input, \"direct ASM multiply carry-zero\");\n+    field_mul_full_asm(one.data(), input.data(), raw.data());\n+    check_exact_field(FieldElement::from_limbs_raw(raw), input, \"direct ASM multiply reversed\");\n+\n+    // a^2=(B-d)^2=(B-2d)*B+d^2, d=2^33+1; retain all eight limbs.\n+    std::array<std::uint64_t, 8> wide = {\n+        0x0000000400000001ULL, 4, 0, 0,\n+        0xFFFFFFFBFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL,\n+        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL\n+    };\n+    reduce_4_asm(wide.data());\n+    check_exact_field(FieldElement::from_limbs_raw({wide[0], wide[1], wide[2], wide[3]}),\n+                      expected, \"direct ASM reduction of a^2\");\n+\n+    // B^2-1 mod p = K^2-1; this also forces the final overflow bit.\n+    wide.fill(0xFFFFFFFFFFFFFFFFULL);\n+    reduce_4_asm(wide.data());\n+    FieldElement::limbs_type const max_wide_expected = {0x000007A2000E90A0ULL, 1, 0, 0};\n+    check_exact_field(FieldElement::from_limbs_raw({wide[0], wide[1], wide[2], wide[3]}),\n+                      max_wide_expected, \"direct ASM reduction of B^2-1\");\n+    wide.fill(0);\n+    wide[0] = 1;\n+    reduce_4_asm(wide.data());\n+    check_exact_field(FieldElement::from_limbs_raw({wide[0], wide[1], wide[2], wide[3]}),\n+                      one, \"direct ASM reduction carry-zero\");\n+#endif\n+}\n+\n+static void test_first_fold_full_cascade() {\n+    printf(\"[reduce_carry] first fold carries through every remaining limb...\\n\");\n+    // a=2^255+1, b=p-1: ab mod p=-a mod p=p-a.\n+    // The old Step-2 carry tail wrapped result[3] without incrementing\n+    // result[4], losing B, equivalently K modulo p.\n+    FieldElement const a = FieldElement::from_limbs({1, 0, 0, 0x8000000000000000ULL});\n+    FieldElement const b = FieldElement::from_limbs({\n+        0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL,\n+        0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL\n+    });\n+    FieldElement::limbs_type const expected = {\n+        0xFFFFFFFEFFFFFC2EULL, 0xFFFFFFFFFFFFFFFFULL,\n+        0xFFFFFFFFFFFFFFFFULL, 0x7FFFFFFFFFFFFFFFULL\n+    };\n+    check_exact_field(a * b, expected, \"first-fold multiply\");\n+    check_exact_field(b * a, expected, \"first-fold multiply reversed\");\n+    FieldElement in_place = a;\n+    in_place *= b;\n+    check_exact_field(in_place, expected, \"first-fold multiply inplace lhs\");\n+    in_place = b;\n+    in_place *= a;\n+    check_exact_field(in_place, expected, \"first-fold multiply inplace reversed\");\n+}\n+\n int test_regression_field_reduce_carry_run() {\n     g_pass = 0; g_fail = 0;\n     printf(\"==================================================================\\n\");\n@@ -110,6 +247,8 @@ int test_regression_field_reduce_carry_run() {\n \n     test_large_squared_matches_truth();\n     test_cross_check_against_FE52();\n+    test_second_fold_carry_bit();\n+    test_first_fold_full_cascade();\n \n     printf(\"[regression_field_reduce_carry] %d/%d checks passed\\n\",\n            g_pass, g_pass + g_fail);\ndiff --git a/src/cpu/src/field.cpp b/src/cpu/src/field.cpp\nindex 56dd2847..3c7f8951 100644\n--- a/src/cpu/src/field.cpp\n+++ b/src/cpu/src/field.cpp\n@@ -530,16 +530,13 @@ limbs4 reduce(const wide8& t) {\n         result[i + 1] = static_cast<std::uint64_t>(acc);\n         carry = static_cast<std::uint64_t>(acc >> 64);\n \n-        // Branchless carry propagation (carry is 0 or 1 for secp256k1 limb bounds).\n-        // i+2 == 5 on the final iteration (i=3): the array has only 5 limbs,\n-        // and the algorithm's bound (290 bits ≤ 5×64 bits) guarantees this\n-        // carry is 0 for any valid 256×256-bit reduction. Fuzzer inputs may\n-        // exceed that domain — guard the access to avoid UB-array-overflow.\n-        if (i + 2 < 5) {\n-            u128 acc2 = static_cast<u128>(result[i + 2]) + carry;\n-            result[i + 2] = static_cast<std::uint64_t>(acc2);\n-            std::uint64_t carry2 = static_cast<std::uint64_t>(acc2 >> 64);\n-            if (carry2 && i + 3 < 5) result[i + 3] += carry2;\n+        // Propagate through every remaining limb: adding to result[i+3]\n+        // can itself overflow and must reach result[4]. The full first\n+        // fold is < (K+1)*2^256 < 2^290, so five limbs retain every carry.\n+        for (std::size_t j = i + 2; j < result.size(); ++j) {\n+            u128 const acc2 = static_cast<u128>(result[j]) + carry;\n+            result[j] = static_cast<std::uint64_t>(acc2);\n+            carry = static_cast<std::uint64_t>(acc2 >> 64);\n         }\n #else\n         // No __int128: manual 64-bit carry arithmetic (for 32-bit MCUs)\n@@ -559,12 +556,11 @@ limbs4 reduce(const wide8& t) {\n         result[i + 1] = t;\n         carry = d1 + d2 + d3;\n \n-        // Same i+2 == 5 guard as the __int128 path above.\n-        if (i + 2 < 5) {\n+        // Same full remaining-limb cascade as the __int128 path above.\n+        for (std::size_t j = i + 2; j < result.size(); ++j) {\n             std::uint64_t e = 0;\n-            result[i + 2] = add64c(result[i + 2], carry, e);\n-            std::uint64_t carry2 = e;\n-            if (carry2 && i + 3 < 5) result[i + 3] += carry2;\n+            result[j] = add64c(result[j], carry, e);\n+            carry = e;\n         }\n #endif\n     }\ndiff --git a/src/cpu/src/field_asm_x64_gas.S b/src/cpu/src/field_asm_x64_gas.S\nindex 50914fca..47f47a96 100644\n--- a/src/cpu/src/field_asm_x64_gas.S\n+++ b/src/cpu/src/field_asm_x64_gas.S\n@@ -546,6 +546,7 @@ CSYM(reduce_4_asm):\n \n     # --- Pass 2: reduce final 1-bit overflow (branchless) ---\n     mov  rax, 0x1000003D1\n+    neg  r12                # Expand carry 0/1 to mask 0/-1, not K & 1.\n     and  rax, r12\n     add  r8,  rax\n     adc  r9,  0\n@@ -776,15 +777,16 @@ CSYM(field_mul_full_asm):\n \n     # --- Pass 2: reduce final 1-bit overflow (branchless) ---\n     # K * rdi where rdi is 0 or 1: result is 0 or K.\n-    # Use AND mask instead of MULX (cheaper for 1-bit input).\n+    # Expand the carry bit to an all-bits mask before ANDing with K.\n     mov  rax, 0x1000003D1\n-    and  rax, rdi            # rax = K if rdi=1, else 0\n+    neg  rdi\n+    and  rax, rdi            # rax = K if the original carry was 1, else 0\n     add  r8,  rax\n     adc  r9,  0\n     adc  r10, 0\n     adc  r11, 0\n-    # No further carry possible: max(r8..r11) + K < 2^257 in this path,\n-    # and the branchless mod-p check below handles values in [p, 2p).\n+    # If the previous fold overflowed, its low part is < K^2, so adding\n+    # K is < K^2 + K < 2^256. Otherwise this pass adds zero.\n \n     # ----------------------------------------------------------------\n     # 4. Branchless mod-p check: if result >= p, subtract p\n@@ -993,6 +995,7 @@ CSYM(field_sqr_full_asm):\n \n     # --- Pass 2: reduce final 1-bit overflow (branchless) ---\n     mov  rax, 0x1000003D1\n+    neg  rdi                # Expand carry 0/1 to mask 0/-1, not K & 1.\n     and  rax, rdi\n     add  r8,  rax\n     adc  r9,  0\n",
+  "commands": [
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed",
+      "command": "/usr/bin/c++ -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -std=gnu++20 -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -O3 -march=native -funroll-loops -ftree-vectorize -fipa-pta -fpredictive-commoning -o CMakeFiles/fastsecp256k1.dir/src/field.cpp.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field.cpp",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field.cpp",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/field.cpp.o"
+    },
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed",
+      "command": "/usr/bin/c++ -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -std=gnu++20 -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -o CMakeFiles/fastsecp256k1.dir/src/field_52.cpp.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_52.cpp",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_52.cpp",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/field_52.cpp.o"
+    },
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed",
+      "command": "/usr/bin/c++ -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -std=gnu++20 -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -o CMakeFiles/fastsecp256k1.dir/src/scalar.cpp.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/scalar.cpp",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/scalar.cpp",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/scalar.cpp.o"
+    },
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed",
+      "command": "/usr/bin/c++ -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -std=gnu++20 -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -O3 -march=native -mbmi2 -madx -mpopcnt -funroll-loops -ftree-vectorize -fno-exceptions -fno-rtti -o CMakeFiles/fastsecp256k1.dir/src/field_asm.cpp.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm.cpp",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm.cpp",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/field_asm.cpp.o"
+    },
+    {
+      "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed",
+      "command": "/usr/bin/cc -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -x assembler-with-cpp -mbmi2 -madx -fno-lto -o CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm_x64_gas.S",
+      "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm_x64_gas.S",
+      "output": "CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o"
+    }
+  ],
+  "hashes": [
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/.gitignore",
+      "sha256": "c563d545c88e632fc421b3840d38fe049ddd7a3373911f0ead6381636c4d4bf9"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/audit/audit_check.hpp",
+      "sha256": "9579b0b3508a2fe19a2872a27b425b6a1d845f8cb846bab72050f55bf8fa4bbe"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/audit/test_regression_field_reduce_carry.cpp",
+      "sha256": "95f40ab0808515f9e6336467921e6c44ddc70529244d7b81be659652ac746cd1"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/experiments/parseatlas_secp256k1/probes/p1_primitive_baseline.cpp",
+      "sha256": "f799b5410c5c90988c5b2c9df25c44592509920b2344269b5039dd5a8e9fbe51"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/experiments/parseatlas_secp256k1/tests/test_p1_primitives.cpp",
+      "sha256": "5441f59bb546fd505fb6e2f4ef307f48072ab00d633fcb8c89631152b98df7f8"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/CMakeLists.txt",
+      "sha256": "7b02ab062ba6fb906dac3c95a8162a718bb1de0b86a611d49adcd0ccefa546a4"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/config.hpp",
+      "sha256": "fd5596e13d41f7ec566af10862a31d30acde06b73570cae67f8a23540cc6b956"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/debug_invariants.hpp",
+      "sha256": "6ac45941eacfbf0666e30ff6d3f4f37254a4c5e66e6f2ae167155ebc3f957fdf"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/detail/arith64.hpp",
+      "sha256": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/field.hpp",
+      "sha256": "da944a2803c7ec3f07fd2a3e1ec93581bdc94dc6f3f9db402edc9459b4b1b381"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/field_52.hpp",
+      "sha256": "95ca595490b827c6cc1965a7ae2feb1ae72546c3b60dba0562f94f842f998898"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/field_52_impl.hpp",
+      "sha256": "2c3f77d7855e9881ebeaf2b7f53de61e683de5201c77d23caaa288df8bf2afb3"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/field_asm.hpp",
+      "sha256": "46eee1c6972fd6527586582b2674042801c24f4334744733a0eaf1db1a0ba2e8"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/scalar.hpp",
+      "sha256": "610844d21051f606d418c2e38f9ec273cd3ab3bcc62b6d8841c1931f546bcc25"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/types.hpp",
+      "sha256": "a0f2a2d1237a2b0561e84df93b29e87d52277660bda792e0207ba19d833772c4"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include/secp256k1/u128_compat.hpp",
+      "sha256": "b80397848d437fcf5812015febe74e63227e4ca758248c00fa711f797a4109a0"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field.cpp",
+      "sha256": "6a3d2bf87e1619de395d737a198b228810f09486508bed7203d07fccadfd218c"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_52.cpp",
+      "sha256": "b797a1c7a1219735424859d912596d5c3f50e1848036865d15d2879adeb8207a"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm.cpp",
+      "sha256": "f69ff39527bc345bd58883e473b2894052090a36b0fca8372ffcd88f1928517d"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/field_asm_x64_gas.S",
+      "sha256": "4be633bc21143cd03834bbbde2ffa3280fd6780f93e6925770f365e0a7471f24"
+    },
+    {
+      "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/scalar.cpp",
+      "sha256": "9da20c8fbe95c531b73fd494ff8e7a969d055ae31e8a7b4b588d0885a960050e"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field.cpp.o",
+      "sha256": "502306644c9350a63f1d1941c853289f140fbe258b3cc2d7716ab9ebc8040893"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_52.cpp.o",
+      "sha256": "0f7f750f6d0394775505ae0b962c53f71b2e37336e60fe421364fdeb0cd1ed83"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm.cpp.o",
+      "sha256": "81692e8f51a32ced43dc2b038d0ac5c93797cc37874e3a274f8256c4d7ce4205"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o",
+      "sha256": "a93dd468425759c28f513084ffbc97fe8b7d17c6a08c17594297f45855134c37"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/scalar.cpp.o",
+      "sha256": "02a6c4efd3ad05ea9845df63e5eb0a007e4f4ace2d9ca2af031cad799242dcae"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a",
+      "sha256": "238294f2959e1b161428bca9a1baa990b803ee933f7f876b5b6e6cdc9b4fd577"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/p1_primitive_baseline_fixed",
+      "sha256": "62a9557b3a6f1f7bcbccf9d87749c9726b410c60029d4a1dab33210bdbe5ccc9"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/regression_fixed",
+      "sha256": "affb62df4740a73c391376269a968b246306b43c2e1a34b8520656ddfe04a43f"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/test_p1_asan_ubsan_portable_fixed",
+      "sha256": "d69805fa2ce68d54db7f19dfe85bd75cca4318d932f0acfb4154db2069454d98"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/test_p1_clang_fixed",
+      "sha256": "08829e972921beb28c8da4f95088ac5e74808c4a1ea5da72342532cd57b3787a"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/test_p1_native_fixed",
+      "sha256": "cabf31075ddf656f98732c923398faf2b756c1c7bc46008c5e161ff0e918accb"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/test_p1_no_int128_fixed",
+      "sha256": "5fa9d0fad740c940890e43ad7eb252d312b153c0461d799275e2f1e93c58551c"
+    }
+  ]
+}

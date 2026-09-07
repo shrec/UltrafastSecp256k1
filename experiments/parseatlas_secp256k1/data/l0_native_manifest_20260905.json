@@ -1,0 +1,311 @@
+{
+  "format": "parseatlas_l0_native_evidence_manifest_v1",
+  "date": "2026-09-05",
+  "repository": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+  "branch": "experiment/representation-search",
+  "reference_commit": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "reference_header": {
+    "path": "src/cpu/include/secp256k1/detail/arith64.hpp",
+    "sha256": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d"
+  },
+  "run_plan": {
+    "format": "parseatlas_l0_native_run_plan_v1",
+    "declared_at_utc": "2026-09-05 11:03:38 UTC",
+    "reference_commit": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+    "compiler": "/usr/bin/g++",
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-march=native",
+      "-DNDEBUG",
+      "-Wall",
+      "-Wextra",
+      "-Isrc/cpu/include"
+    ],
+    "cpu": 4,
+    "series": 2,
+    "target_ms": 200,
+    "repetitions": 7,
+    "warmups": 2,
+    "methods": [
+      "Original",
+      "GpMaterialized",
+      "GpRecomputed",
+      "Blocked2"
+    ],
+    "regimes": [
+      "hot_bulk",
+      "large_bulk",
+      "conditioned_latency"
+    ],
+    "comparison": "Same native executable, same-session per-round control; all samples retained; no production acceptance or novelty claim.",
+    "limits": [
+      "Same input/output layout; not an H04 layout or DRAM bandwidth experiment.",
+      "Source-level recomputation can be removed by optimizer; record compiler collapse.",
+      "Finite C++ correctness against original and Boost cpp_int is not full-domain proof."
+    ]
+  },
+  "source_and_initial_binary_sha256": {
+    "/tmp/parseatlas-native-review.w9cdkH/l0_native_compare": "db861f408d60f9768dec947c3164834e17280c0ab73fc27e853ec8622378b764",
+    "/tmp/parseatlas-native-review.w9cdkH/test_gcc_native": "28e1328068a345d1feebb90e213e0cba0004e3478685bf11a0f88d89087e1c11",
+    "/tmp/parseatlas-native-review.w9cdkH/test_gcc_portable": "a4d2f40876e7e1b50e53174cdd92faf97d8b1b75867e02c1e32eb1f1a66f83bf",
+    "/tmp/parseatlas-native-review.w9cdkH/test_clang_native": "3d3ceeb4020db3dadaebc79ca878db5357305d127ca4c704b9e3addc9dbec91d",
+    "/tmp/parseatlas-native-review.w9cdkH/test_gcc_ubsan": "97bf5e9a0e492059034b13004f00ba884375d388f2c789be998e3637bdb64e7c",
+    "experiments/parseatlas_secp256k1/probes/l0_native_kernels.hpp": "13966af5531c3d6c2525de00d5e8e41b53245cb3d9244e29117f642e4db2da60",
+    "experiments/parseatlas_secp256k1/tests/test_l0_native.cpp": "9c56b5dde80f71532b0d323f4fbfe731a4e267d05320f647d136e26bf4974bb5",
+    "experiments/parseatlas_secp256k1/probes/l0_native_compare.cpp": "d2efd5d31a7f0cf9f1c3ad2677e58fc2698cb2e645bec9399afeabacf2323ce8",
+    "experiments/parseatlas_secp256k1/NATIVE_COMPARE_PROTOCOL.md": "7358e0dbffb21ba9f9f3842090de7a0d6076e430f768d656c3b7a91013674da7",
+    "experiments/parseatlas_secp256k1/data/l0_native_run_plan_20260905.json": "298e2b625475808f4a2d72228f9fe636c137433bf39955a06db53f4c443046fd"
+  },
+  "raw_artifact_sha256": {
+    "experiments/parseatlas_secp256k1/data/l0_native_compare_cpu4_run1_20260905.json": "1a2c86c5c7d96f5e1b697a260e3e8560a98878a6c7c2e996f495313de418bc22",
+    "experiments/parseatlas_secp256k1/data/l0_native_compare_cpu4_run2_20260905.json": "37a3e684626d96940e8e0a3a3533acd2df6c9171387e22fd1672b8edfd04d018",
+    "experiments/parseatlas_secp256k1/data/l0_native_disassembly_20260905.txt": "f01f78cd4e086f74409a1f011442bf07701a355d53d32ce7e12381a11e4aaf53",
+    "experiments/parseatlas_secp256k1/data/l0_native_smoke_20260905.json": "8c7cb745cbcbca099a831ca62fcf17be0bc4abf6ac2a81ac9f205851a8349efc"
+  },
+  "final_correctness_binary_sha256": {
+    "/tmp/parseatlas-native-review.w9cdkH/test_gcc_native": "28e1328068a345d1feebb90e213e0cba0004e3478685bf11a0f88d89087e1c11",
+    "/tmp/parseatlas-native-review.w9cdkH/test_gcc_portable": "a4d2f40876e7e1b50e53174cdd92faf97d8b1b75867e02c1e32eb1f1a66f83bf",
+    "/tmp/parseatlas-native-review.w9cdkH/test_clang_native": "3d3ceeb4020db3dadaebc79ca878db5357305d127ca4c704b9e3addc9dbec91d",
+    "/tmp/parseatlas-native-review.w9cdkH/test_gcc_ubsan": "97bf5e9a0e492059034b13004f00ba884375d388f2c789be998e3637bdb64e7c",
+    "/tmp/parseatlas-native-review.w9cdkH/compare_ubsan": "81c3d77df1379b5a1a17326a4ab294da40c6ff896ed92789e73c0405f02c3038"
+  },
+  "compiler": {
+    "version": {
+      "chunk_id": "2cbeeb",
+      "wall_time_seconds": 0.000005218,
+      "exit_code": 0,
+      "original_token_count": 62,
+      "output": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+    },
+    "target": {
+      "chunk_id": "cfa449",
+      "wall_time_seconds": 0.000004083,
+      "exit_code": 0,
+      "original_token_count": 5,
+      "output": "x86_64-linux-gnu\n"
+    },
+    "flags": [
+      "-std=c++17",
+      "-O3",
+      "-march=native",
+      "-DNDEBUG",
+      "-Wall",
+      "-Wextra",
+      "-Isrc/cpu/include"
+    ],
+    "command": "/usr/bin/g++ -std=c++17 -O3 -march=native -DNDEBUG -Wall -Wextra -Isrc/cpu/include experiments/parseatlas_secp256k1/probes/l0_native_compare.cpp -o /tmp/parseatlas-native-review.w9cdkH/l0_native_compare"
+  },
+  "environment": {
+    "before": {
+      "revision": {
+        "chunk_id": "0b8f1a",
+        "wall_time_seconds": 0.000006167,
+        "exit_code": 0,
+        "original_token_count": 11,
+        "output": "fef231d4e4173bd016fb2a3a1eff67087396a203\n"
+      },
+      "frequency": {
+        "chunk_id": "3238e8",
+        "wall_time_seconds": 0.000002881,
+        "exit_code": 0,
+        "original_token_count": 3,
+        "output": "performance\n"
+      },
+      "reference": {
+        "chunk_id": "c4e7ef",
+        "wall_time_seconds": 0.000003867,
+        "exit_code": 0,
+        "original_token_count": 28,
+        "output": "cc95a42137df602eaee3a560993b8c59c091e017364a0345be486ba012de205d  src/cpu/include/secp256k1/detail/arith64.hpp\n"
+      },
+      "machine": {
+        "chunk_id": "bd9d2e",
+        "wall_time_seconds": 0.00000518,
+        "exit_code": 0,
+        "original_token_count": 1164,
+        "output": "{\n   \"lscpu\": [\n      {\n         \"field\": \"Architecture:\",\n         \"data\": \"x86_64\"\n      },{\n         \"field\": \"CPU op-mode(s):\",\n         \"data\": \"32-bit, 64-bit\"\n      },{\n         \"field\": \"Address sizes:\",\n         \"data\": \"39 bits physical, 48 bits virtual\"\n      },{\n         \"field\": \"Byte Order:\",\n         \"data\": \"Little Endian\"\n      },{\n         \"field\": \"CPU(s):\",\n         \"data\": \"16\"\n      },{\n         \"field\": \"On-line CPU(s) list:\",\n         \"data\": \"0-15\"\n      },{\n         \"field\": \"Vendor ID:\",\n         \"data\": \"GenuineIntel\"\n      },{\n         \"field\": \"Model name:\",\n         \"data\": \"Intel(R) Core(TM) i5-14400F\"\n      },{\n         \"field\": \"CPU family:\",\n         \"data\": \"6\"\n      },{\n         \"field\": \"Model:\",\n         \"data\": \"183\"\n      },{\n         \"field\": \"Thread(s) per core:\",\n         \"data\": \"2\"\n      },{\n         \"field\": \"Core(s) per socket:\",\n         \"data\": \"10\"\n      },{\n         \"field\": \"Socket(s):\",\n         \"data\": \"1\"\n      },{\n         \"field\": \"Stepping:\",\n         \"data\": \"1\"\n      },{\n         \"field\": \"CPU(s) scaling MHz:\",\n         \"data\": \"46%\"\n      },{\n         \"field\": \"CPU max MHz:\",\n         \"data\": \"4700.0000\"\n      },{\n         \"field\": \"CPU min MHz:\",\n         \"data\": \"800.0000\"\n      },{\n         \"field\": \"BogoMIPS:\",\n         \"data\": \"4992.00\"\n      },{\n         \"field\": \"Flags:\",\n         \"data\": \"fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology nonstop_tsc cpuid aperfmperf tsc_known_freq pni pclmulqdq dtes64 monitor ds_cpl vmx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb ssbd ibrs ibpb stibp ibrs_enhanced tpr_shadow flexpriority ept vpid ept_ad fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb intel_pt sha_ni xsaveopt xsavec xgetbv1 xsaves split_lock_detect user_shstk avx_vnni dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp hwp_pkg_req hfi vnmi umip pku ospke waitpkg gfni vaes vpclmulqdq rdpid movdiri movdir64b fsrm md_clear serialize arch_lbr ibt flush_l1d arch_capabilities ibpb_exit_to_user\"\n      },{\n         \"field\": \"Virtualization:\",\n         \"data\": \"VT-x\"\n      },{\n         \"field\": \"L1d cache:\",\n         \"data\": \"416 KiB (10 instances)\"\n      },{\n         \"field\": \"L1i cache:\",\n         \"data\": \"448 KiB (10 instances)\"\n      },{\n         \"field\": \"L2 cache:\",\n         \"data\": \"9.5 MiB (7 instances)\"\n      },{\n         \"field\": \"L3 cache:\",\n         \"data\": \"20 MiB (1 instance)\"\n      },{\n         \"field\": \"NUMA node(s):\",\n         \"data\": \"1\"\n      },{\n         \"field\": \"NUMA node0 CPU(s):\",\n         \"data\": \"0-15\"\n      },{\n         \"field\": \"Vulnerability Gather data sampling:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Indirect target selection:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Itlb multihit:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability L1tf:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Mds:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Meltdown:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Mmio stale data:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Reg file data sampling:\",\n         \"data\": \"Mitigation; Clear Register File\"\n      },{\n         \"field\": \"Vulnerability Retbleed:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Spec rstack overflow:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Spec store bypass:\",\n         \"data\": \"Mitigation; Speculative Store Bypass disabled via prctl\"\n      },{\n         \"field\": \"Vulnerability Spectre v1:\",\n         \"data\": \"Mitigation; usercopy/swapgs barriers and __user pointer sanitization\"\n      },{\n         \"field\": \"Vulnerability Spectre v2:\",\n         \"data\": \"Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI BHI_DIS_S\"\n      },{\n         \"field\": \"Vulnerability Srbds:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Tsa:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Tsx async abort:\",\n         \"data\": \"Not affected\"\n      },{\n         \"field\": \"Vulnerability Vmscape:\",\n         \"data\": \"Mitigation; IBPB before exit to userspace\"\n      }\n   ]\n}\n"
+      },
+      "compiler": {
+        "chunk_id": "2cbeeb",
+        "wall_time_seconds": 0.000005218,
+        "exit_code": 0,
+        "original_token_count": 62,
+        "output": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0\nCopyright (C) 2024 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+      },
+      "affinity": {
+        "chunk_id": "105589",
+        "wall_time_seconds": 0.000004101,
+        "exit_code": 1,
+        "original_token_count": 16,
+        "output": "taskset: bad usage\nTry 'taskset --help' for more information.\n"
+      }
+    },
+    "corrected_reads": {
+      "frequency": {
+        "chunk_id": "0b4275",
+        "wall_time_seconds": 0.000003931,
+        "exit_code": 0,
+        "original_token_count": 2,
+        "output": "2500000\n"
+      },
+      "turbo": {
+        "chunk_id": "cb6f5a",
+        "wall_time_seconds": 0.000009893,
+        "exit_code": 0,
+        "original_token_count": 1,
+        "output": "1\n"
+      },
+      "ram": {
+        "chunk_id": "b1453f",
+        "wall_time_seconds": 0.000002971,
+        "exit_code": 0,
+        "original_token_count": 21,
+        "output": "MemTotal:       32672548 kB\nMemFree:         5682512 kB\nMemAvailable:   12838556 kB\n"
+      },
+      "affinity": {
+        "chunk_id": "519a34",
+        "wall_time_seconds": 0.000004121,
+        "exit_code": 0,
+        "original_token_count": 11,
+        "output": "pid 1458976's current affinity list: 0-15\n"
+      },
+      "time": {
+        "chunk_id": "543dcf",
+        "wall_time_seconds": 0.000004001,
+        "exit_code": 0,
+        "original_token_count": 6,
+        "output": "2026-09-05T11:01:03Z\n"
+      }
+    },
+    "frequency_after": {
+      "chunk_id": "99607a",
+      "wall_time_seconds": 0.000004658,
+      "exit_code": 0,
+      "original_token_count": 2,
+      "output": "2500000\n"
+    },
+    "cpu4_l1d": {
+      "chunk_id": "4c31c8",
+      "wall_time_seconds": 0.000005525,
+      "exit_code": 0,
+      "original_token_count": 1,
+      "output": "48K\n"
+    },
+    "cpu4_llc": {
+      "chunk_id": "ab55bf",
+      "wall_time_seconds": 0.000005316,
+      "exit_code": 0,
+      "original_token_count": 2,
+      "output": "20480K\n"
+    },
+    "settings_changed": false,
+    "note": "Initial taskset -pc 0 was invalid; corrected taskset -pc $$ established affinity. Initial multi-file sed printed governor only; turbo/frequency were separately read. Frequency endpoints do not establish continuous frequency or thermal/load isolation."
+  },
+  "series": [
+    {
+      "number": 1,
+      "command": "/tmp/parseatlas-native-review.w9cdkH/l0_native_compare --measure --cpu 4 --target-ms 200",
+      "exit_code": 0,
+      "raw_artifact": "data/l0_native_compare_cpu4_run1_20260905.json",
+      "started_unix_ns_decimal": "1788607068392631879",
+      "finished_unix_ns_decimal": "1788607096459178827"
+    },
+    {
+      "number": 2,
+      "command": "/tmp/parseatlas-native-review.w9cdkH/l0_native_compare --measure --cpu 4 --target-ms 200",
+      "exit_code": 0,
+      "raw_artifact": "data/l0_native_compare_cpu4_run2_20260905.json",
+      "started_unix_ns_decimal": "1788607125715661644",
+      "finished_unix_ns_decimal": "1788607163902160194"
+    }
+  ],
+  "assembly": {
+    "command": "objdump -d -C --no-show-raw-insn --start-address=0x8560 --stop-address=0x9ad0 /tmp/parseatlas-native-review.w9cdkH/l0_native_compare",
+    "artifact": "data/l0_native_disassembly_20260905.txt",
+    "symbols": [
+      "00000000000095c0 0000000000000235 t (anonymous namespace)::RegionClock (anonymous namespace)::timed_bulk<(pa_l0_native::Method)0>(pa_l0_native::Input const*, pa_l0_native::Output*, unsigned long, unsigned long)",
+      "00000000000029ab 0000000000000086 t (anonymous namespace)::RegionClock (anonymous namespace)::timed_bulk<(pa_l0_native::Method)0>(pa_l0_native::Input const*, pa_l0_native::Output*, unsigned long, unsigned long) [clone .cold]",
+      "0000000000008870 0000000000000239 t (anonymous namespace)::RegionClock (anonymous namespace)::timed_bulk<(pa_l0_native::Method)1>(pa_l0_native::Input const*, pa_l0_native::Output*, unsigned long, unsigned long)",
+      "0000000000008db0 000000000000024d t (anonymous namespace)::RegionClock (anonymous namespace)::timed_bulk<(pa_l0_native::Method)2>(pa_l0_native::Input const*, pa_l0_native::Output*, unsigned long, unsigned long)",
+      "0000000000009270 00000000000001d8 t (anonymous namespace)::RegionClock (anonymous namespace)::timed_bulk<(pa_l0_native::Method)3>(pa_l0_native::Input const*, pa_l0_native::Output*, unsigned long, unsigned long)",
+      "0000000000009800 00000000000002d0 t (anonymous namespace)::RegionClock (anonymous namespace)::timed_latency<(pa_l0_native::Method)0>(pa_l0_native::Input&, unsigned long, unsigned long)",
+      "0000000000002a31 000000000000008c t (anonymous namespace)::RegionClock (anonymous namespace)::timed_latency<(pa_l0_native::Method)0>(pa_l0_native::Input&, unsigned long, unsigned long) [clone .cold]",
+      "0000000000008560 0000000000000304 t (anonymous namespace)::RegionClock (anonymous namespace)::timed_latency<(pa_l0_native::Method)1>(pa_l0_native::Input&, unsigned long, unsigned long)",
+      "0000000000008ab0 00000000000002fa t (anonymous namespace)::RegionClock (anonymous namespace)::timed_latency<(pa_l0_native::Method)2>(pa_l0_native::Input&, unsigned long, unsigned long)",
+      "0000000000009000 000000000000026d t (anonymous namespace)::RegionClock (anonymous namespace)::timed_latency<(pa_l0_native::Method)3>(pa_l0_native::Input&, unsigned long, unsigned long)"
+    ],
+    "bulk_loop_static_observations": [
+      {
+        "name": "original_bulk",
+        "start": "0x9730",
+        "last_branch": "0x97be",
+        "instruction_lines": 39,
+        "stack_addressed_instructions": 0,
+        "calls": 0
+      },
+      {
+        "name": "gp_materialized_bulk",
+        "start": "0x8940",
+        "last_branch": "0x8a73",
+        "instruction_lines": 89,
+        "stack_addressed_instructions": 5,
+        "calls": 0
+      },
+      {
+        "name": "gp_recomputed_bulk",
+        "start": "0x8e80",
+        "last_branch": "0x8fc8",
+        "instruction_lines": 92,
+        "stack_addressed_instructions": 7,
+        "calls": 0
+      },
+      {
+        "name": "blocked2_bulk",
+        "start": "0x9330",
+        "last_branch": "0x9419",
+        "instruction_lines": 65,
+        "stack_addressed_instructions": 0,
+        "calls": 0
+      }
+    ],
+    "limits": "Static instruction lines, not retired instructions or uops. Stack-addressed instruction count is not cache/DRAM traffic. GP schedules differ but repeated source expressions may be CSE'd. Timed wrapper sizes include clock/setup/check paths; unrelated quantile code appears in the bounded contiguous disassembly range."
+  },
+  "review": {
+    "manager_mechanical_gates": true,
+    "manager_full_source_review": true,
+    "independent_read_only_method_review": "no blocking findings; reviewed measured binary db861f408d60f9768dec947c3164834e17280c0ab73fc27e853ec8622378b764",
+    "production_acceptance": false,
+    "task_mcp_lifecycle_used": false,
+    "task_mcp_note": "Owner's temporary task-free workflow remains active; repository-bound manager Source Graph/session context retained."
+  },
+  "needfix": [
+    {
+      "scope": "local sandbox launcher",
+      "evidence": "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted",
+      "resolution": "Exact scoped escalated compile/test/read commands succeeded. No global network, privilege or security setting changed.",
+      "status": "environment obstacle recorded, not a cryptographic engine fix"
+    }
+  ],
+  "conclusions": {
+    "known_controls_only": true,
+    "scope": "One complete four-limb add plus conditioned recurrence; no field/scalar reduction or production call-site optimization.",
+    "gp_recomputed_latency_paired_medians": [
+      1.4967159768205553,
+      1.5335487930216567
+    ],
+    "bulk_original_has_lowest_median_in_both_series": true,
+    "measured_samples": 168,
+    "below_target_samples": 21,
+    "no_trimming": true,
+    "no_pmu_collection": true,
+    "no_novelty_claim": true,
+    "no_full_domain_or_ct_proof": true
+  },
+  "validation_artifact": "data/l0_native_validation_20260905.json",
+  "document_sha256": {
+    "experiments/parseatlas_secp256k1/L0_NATIVE_COMPARISON.md": "40434a38a7d1e346d91514d1b73c7311530d1980f662500feaabfa660beaa167",
+    "experiments/parseatlas_secp256k1/ROADMAP.md": "002eb29c9590cd0be6ebea6f35877a2d57f565c438b9e0260012247a015c6d66",
+    "experiments/parseatlas_secp256k1/data/l0_native_validation_20260905.json": "42df60b9579d548a881bb0f3cd05983ff597194a1f68a1f964e443e056de2023"
+  }
+}

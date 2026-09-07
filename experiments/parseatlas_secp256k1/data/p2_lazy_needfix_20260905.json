@@ -1,0 +1,82 @@
+{
+  "schema": "parseatlas.p2.field_lazy_needfix.v1",
+  "status": "NeedFix",
+  "scope": "Documentation/input-contract and normalization-order boundary, not a P2 per-step-canonical failure",
+  "production_changed": false,
+  "source": "src/cpu/include/secp256k1/field_52_impl.hpp",
+  "source_sha256": "2c3f77d7855e9881ebeaf2b7f53de61e683de5201c77d23caaa288df8bf2afb3",
+  "test_source_sha256": "d08ef0b751b94900c204148d9bfb0109e5cba09cad81fda23b997f65ee880c89",
+  "test_command": "/tmp/parseatlas-p2-field.sDWRFA/test_p2_<native|clang>_v2 --lazy-boundary-only",
+  "configurations": [
+    "GCC14 actual corrected library",
+    "Clang18 compiled field/FE52/CT sources plus preserved GAS object"
+  ],
+  "both_exit_codes": 1,
+  "results_identical": true,
+  "diagnostic": {
+    "schema": "parseatlas_p2_optional_lazy_boundary_v1",
+    "status": "fail",
+    "outside_p2_canonical_contract": true,
+    "timing_claim": false,
+    "term_be": "ffffffffffff000000000000000000000000000000000000000fffffffffffff",
+    "term_raw_le_hex": "[000fffffffffffff,0000000000000000,0000000000000000,0000000000000000,0000ffffffffffff]",
+    "semantics": "N identical independent terms added to zero; no intermediate FE52 normalization",
+    "oracle": "Boost cpp_int plus unchanged FE64 canonical addition reference",
+    "cases": [
+      {
+        "terms": 4095,
+        "add_assign_calls_from_zero": 4095,
+        "raw_sum_mathematically_exact": true,
+        "raw_limbs_le_hex": "[ffeffffffffff001,0000000000000000,0000000000000000,0000000000000000,0ffefffffffff001]",
+        "expected_be": "fffffffff001000000000000000000000000000000000000fff00ffe003cf85f",
+        "fe64_reference_matches": true,
+        "fe64_reference_be": "fffffffff001000000000000000000000000000000000000fff00ffe003cf85f",
+        "direct_full_matches": true,
+        "direct_full_raw_le_hex": "[00000ffe003cf85f,0000000000000fff,0000000000000000,0000000000000000,0000fffffffff001]",
+        "direct_full_be": "fffffffff001000000000000000000000000000000000000fff00ffe003cf85f",
+        "weak_then_full_matches": true,
+        "weak_then_full_raw_le_hex": "[00000ffe003cf85f,0000000000000fff,0000000000000000,0000000000000000,0000fffffffff001]",
+        "weak_then_full_be": "fffffffff001000000000000000000000000000000000000fff00ffe003cf85f"
+      },
+      {
+        "terms": 4096,
+        "add_assign_calls_from_zero": 4096,
+        "raw_sum_mathematically_exact": true,
+        "raw_limbs_le_hex": "[fffffffffffff000,0000000000000000,0000000000000000,0000000000000000,0ffffffffffff000]",
+        "expected_be": "fffffffff00000000000000000000000000000000000000100000fff003cfc2f",
+        "fe64_reference_matches": true,
+        "fe64_reference_be": "fffffffff00000000000000000000000000000000000000100000fff003cfc2f",
+        "direct_full_matches": false,
+        "direct_full_raw_le_hex": "[00000fff003cfc2f,0000000000000000,0000000000000000,0000000000000000,0000fffffffff000]",
+        "direct_full_be": "fffffffff00000000000000000000000000000000000000000000fff003cfc2f",
+        "weak_then_full_matches": true,
+        "weak_then_full_raw_le_hex": "[00000fff003cfc2f,0000000000001000,0000000000000000,0000000000000000,0000fffffffff000]",
+        "weak_then_full_be": "fffffffff00000000000000000000000000000000000000100000fff003cfc2f"
+      },
+      {
+        "terms": 4097,
+        "add_assign_calls_from_zero": 4097,
+        "raw_sum_mathematically_exact": false,
+        "raw_limbs_le_hex": "[000fffffffffefff,0000000000000000,0000000000000000,0000000000000000,1000ffffffffefff]",
+        "expected_be": "ffffffffefff00000000000000000000000000000000000100101000003cffff",
+        "fe64_reference_matches": true,
+        "fe64_reference_be": "ffffffffefff00000000000000000000000000000000000100101000003cffff",
+        "direct_full_matches": false,
+        "direct_full_raw_le_hex": "[00001000003cffff,0000000000000001,0000000000000000,0000000000000000,0000ffffffffefff]",
+        "direct_full_be": "ffffffffefff00000000000000000000000000000000000000101000003cffff",
+        "weak_then_full_matches": false,
+        "weak_then_full_raw_le_hex": "[00001000003cffff,0000000000000001,0000000000000000,0000000000000000,0000ffffffffefff]",
+        "weak_then_full_be": "ffffffffefff00000000000000000000000000000000000000101000003cffff"
+      }
+    ]
+  },
+  "derived_bounds": {
+    "contract": "Sum of N fully canonical FE52 terms, including arbitrary canonical x0; noncanonical magnitude inputs excluded",
+    "direct_full_safe_total_terms": 4095,
+    "weak_then_full_safe_total_terms": 4096,
+    "first_unsafe_direct_total_terms": 4096,
+    "witness_decoded_loss": "2^64",
+    "proof": "q=2^52,s=2^48,W=2^64,K=2^32+977. For N<=4095, x<=N-1 and t0<=N(q-1)+(N-1)K<Nq+q<=W. Carry<=N; higher sums<=Nq<W. Top<s+N; first-pass decoded U<2^256+N*q^4<2p, so one final correction suffices. At N4096 witness low word wraps before its52-bit carry is extracted. Weak-first instead bounds each carry propagation by Nq-1<=W-1, then folds into a52-bit word. N4097 raw accumulation can overflow first."
+  },
+  "limitation": "No production caller exploit/reachability claim, universal magnitude theorem or performance gain. Keep per-step canonical P2 baseline separate; do not modify production until later authorized integration."
+}

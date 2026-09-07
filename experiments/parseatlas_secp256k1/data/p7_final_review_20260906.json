@@ -1,0 +1,157 @@
+{
+  "schema": "parseatlas_p7_final_review_v1",
+  "status": "accepted_experimental_evidence_not_production",
+  "date": "2026-09-06",
+  "manager_session": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "repo_id": "repo_666797171f0141c58bf05f579b2ee16e",
+  "scope_closure": {
+    "driver": "accepted after independent build/smoke/oracle, full source review and frozen full-series qualification",
+    "oracle": "accepted after manager-built78521assertion run and complete source review",
+    "production_change": false,
+    "canonical_task_mutation": false
+  },
+  "mechanical_gates": {
+    "manifest": {
+      "status": "pass",
+      "checks": 18,
+      "errors": [],
+      "manifest_sha256": "838afe18ceaa5d7ebe342aa992d5bbdd4ac16e5db6c1928871015047fabea041"
+    },
+    "history": {
+      "status": "pass",
+      "checks": 235,
+      "counts": {
+        "p2": 41,
+        "p3": 42,
+        "p4": 52,
+        "p5": 50,
+        "p6": 50
+      },
+      "errors": []
+    },
+    "numeric_checks": 2044,
+    "disk_replay": {
+      "status": "pass",
+      "checks": 761,
+      "errors": [],
+      "local_document_links": 14,
+      "frozen_inputs": 13,
+      "source": "independent_disk_replay_of_raw_JSON_and_recorded_numeric_audit"
+    },
+    "frozen_inputs": 13,
+    "oracle_assertions": 78521,
+    "oracle_mismatches": 0,
+    "later_intervals_qualified": 160
+  },
+  "decision": "View-only candidate not promoted: measured practically tied. Retain existing hybrid versus old64 contrast as existing GPU algorithm evidence. Resume CPU field arithmetic-structure search per plan, not a private-pointer search.",
+  "source_graph": {
+    "code_gate": "All four code files indexed and matched before full timing and again at final review; core code gate passed.",
+    "final_rows": [
+      {
+        "path": "experiments/parseatlas_secp256k1/probes/p7_cuda_views.hpp",
+        "index_finished_at": "2026-09-06T00:16:25.292714+00:00",
+        "source_hash": "8304c51c721e3429a15b86a20e67b437f904b3554e7c1eda75b91214c0975753",
+        "status": "ok",
+        "kind": "file"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/probes/p7_cuda_views.cu",
+        "index_finished_at": "2026-09-06T00:16:25.292714+00:00",
+        "source_hash": "19ce07bf4d249523c0f1946352f6e8cf06f3f3a20f69ad6fcc7790fdba9f2819",
+        "status": "ok",
+        "kind": "file"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/probes/p7_cuda_views_compare.cpp",
+        "index_finished_at": "2026-09-06T00:16:25.292714+00:00",
+        "source_hash": "81a47b5852a471068077def2cdedde588f11009fcb10884ffbd10b76340f9acb",
+        "status": "ok",
+        "kind": "file"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/tests/test_p7_cuda_views.cpp",
+        "index_finished_at": "2026-09-06T00:16:25.292714+00:00",
+        "source_hash": "49943e39a4fbde7ce81c5f77de341c9ddba4c8dbcbe4fc4826d7986e53918e5e",
+        "status": "ok",
+        "kind": "file"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/P7_CUDA_VIEW_PROTOCOL.md",
+        "index_finished_at": "2026-09-06T00:16:25.292714+00:00",
+        "source_hash": "9d7684d6bbfbd8234a7e50d6ee92f9f859076a2d2d89e2f939f252b220fa481a",
+        "status": "file_evidence_only",
+        "kind": "file"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/P7_CUDA_VIEW_RESULTS.md",
+        "index_finished_at": "2026-09-06T00:16:25.292714+00:00",
+        "source_hash": "bc53269af541802c87dba465dab12f145e2faf94ecaaf927851c6d3ae8e6deea",
+        "kind": "declared_input_file",
+        "fallback": "declared_input_unindexed"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/FIELD_REPRESENTATION_SEARCH_PLAN.md",
+        "index_finished_at": "2026-09-06T00:16:25.292714+00:00",
+        "source_hash": "2958e45b52d1dd32377607932b467679128c0a83d10ad3f8539c794d80f248a3",
+        "status": "file_evidence_only",
+        "kind": "file"
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+        "index_finished_at": "2026-09-06T00:16:25.292714+00:00",
+        "source_hash": "2105984a9f7b8c1cbd0e5e9bfce964039c7e4afcf4b73946ae59660bf0566a4f",
+        "status": "file_evidence_only",
+        "kind": "file"
+      }
+    ],
+    "later_doc_rows": [
+      {
+        "path": "experiments/parseatlas_secp256k1/P7_CUDA_VIEW_RESULTS.md",
+        "index_finished_at": "2026-09-06T00:19:05.628922+00:00",
+        "rows": [
+          {
+            "hash": "2593b906913aaf14fd682f97b15668533cb17cc6a43ce12f5810a07d7e14d049",
+            "status": "file_evidence_only",
+            "kind": "file"
+          }
+        ]
+      },
+      {
+        "path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+        "index_finished_at": "2026-09-06T00:19:05.628922+00:00",
+        "rows": [
+          {
+            "hash": "fe2361e3f889b8de42cd129972ceae7a44959f4ffafd4b719f9ce63303049d18",
+            "status": "file_evidence_only",
+            "kind": "file"
+          }
+        ]
+      }
+    ],
+    "latest_report_row": {
+      "path": "experiments/parseatlas_secp256k1/P7_CUDA_VIEW_RESULTS.md",
+      "index_finished_at": "2026-09-06T00:19:05.628922+00:00",
+      "matches": [
+        {
+          "hash": "2593b906913aaf14fd682f97b15668533cb17cc6a43ce12f5810a07d7e14d049",
+          "status": "file_evidence_only",
+          "kind": "file"
+        }
+      ]
+    },
+    "report_index_needfix": {
+      "status": "pending_source_graph_document_refresh_only",
+      "expected_disk_sha256": "bc53269af541802c87dba465dab12f145e2faf94ecaaf927851c6d3ae8e6deea",
+      "observed_index_sha256": "2593b906913aaf14fd682f97b15668533cb17cc6a43ce12f5810a07d7e14d049",
+      "evidence": "Repeated explicit refresh reports identity_slot_owned; result-document index lags final prose edit. Exact manager-authored report and all18artifact hashes verified independently. No stale indexed code used for qualification. Do not claim all final document indexes synchronized."
+    }
+  },
+  "security_and_limits": [
+    "GPU memory sanitizer not instrumented; three actual attempts retained",
+    "No CT, secondGPU/compiler, dynamic bandwidth, SASS equality, CPU transfer or whole-engine gain claim",
+    "Current owner-reported private variant was not reproduced; legal memcpy loader is narrower",
+    "SourceGraph worker-role exposure NeedFix retained under explicit owner local-task suspension"
+  ],
+  "evidence_manifest": "data/p7_build_20260906.json",
+  "manifest_sha256": "838afe18ceaa5d7ebe342aa992d5bbdd4ac16e5db6c1928871015047fabea041"
+}

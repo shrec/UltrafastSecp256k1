@@ -1,0 +1,118 @@
+{
+  "schema": "parseatlas_p5_performance_freeze_v1",
+  "recorded_utc": "2026-09-05 22:26:02 UTC",
+  "status": "qualified_to_measure",
+  "worker_feature_authorship_manager_review": true,
+  "mechanical": {
+    "oracle_configs": 3,
+    "assertions_each": 714283,
+    "mismatches": 0,
+    "checksum": "75711b730275b15a",
+    "duration_configs": 2,
+    "duration_cases_each": 120,
+    "duration_assertions_each": 6550,
+    "clean_benchmark_builds": 2,
+    "complete_smoke_cells_each": 20,
+    "git_diff_check": "pass"
+  },
+  "source_review": "Manager completely read kernel, smoke, oracle, driver, duration diagnostic, independent bound contract and25lens prereg after mechanical gates. No remaining arithmetic/harness finding. Synthetic within-region work-cap remains static-only.",
+  "codegen_preliminary": "Worker inspected all20jobs and boundaries; complete observable outputs retained. Five of six serial/precomputed jobpairs match normalizedinstructions; rawchain only2XORstaginginstructions differ. Detailed receipts pending; no causal reducer speedup claim.",
+  "hashes": {
+    "kernel": "4c9bb9f0865a44c4da15480b9ad2adab45db0efceeb2581e1db572ee0ff04d26",
+    "driver": "9adcabba6473c6d865a62d8980345bf790840e05ec318bc5832701f5f2b9867d",
+    "oracle": "fc6a4830e5428a6d5117820fcecf1cbe4ff975bc006245fd56b67140661d2921",
+    "duration": "a9b138bd0abc4cdc07dff2715ed5fe1e0b0da404cf05eac4b3f1ab775b3202a9",
+    "smoke": "c87e3e923fff45455ce54d5000f2fc003c49c0c1a29f4d9ac3019bef3480e68f",
+    "gcc_binary": "71de9cf785e47f338c480a90757f115d2be2237b6f7eb856264768b6abd50a22",
+    "clang_binary": "12ce182c82cbc75f1d37504e72e384db27ab5d68522f30ce2670fff9f000ce6b",
+    "library": "238294f2959e1b161428bca9a1baa990b803ee933f7f876b5b6e6cdc9b4fd577"
+  },
+  "source_graph": {
+    "header": {
+      "disk_source_hash": "4c9bb9f0865a44c4da15480b9ad2adab45db0efceeb2581e1db572ee0ff04d26",
+      "indexed_source_hash": "4c9bb9f0865a44c4da15480b9ad2adab45db0efceeb2581e1db572ee0ff04d26",
+      "state": "fresh"
+    },
+    "driver": {
+      "target": "experiments/parseatlas_secp256k1/probes/p5_field_product_compare.cpp",
+      "matches": [
+        {
+          "build_revision": "aiworkhub.source_graph.semantic.v6",
+          "file_path": "experiments/parseatlas_secp256k1/probes/p5_field_product_compare.cpp",
+          "indexed_at": "2026-09-05T22:21:00.328248+00:00",
+          "kind": "file",
+          "language": "cpp",
+          "line_end": 1,
+          "line_start": 1,
+          "name": "p5_field_product_compare.cpp",
+          "qualname": "experiments/parseatlas_secp256k1/probes/p5_field_product_compare.cpp",
+          "source_hash": "9adcabba6473c6d865a62d8980345bf790840e05ec318bc5832701f5f2b9867d",
+          "status": "ok"
+        }
+      ]
+    },
+    "oracle": {
+      "target": "experiments/parseatlas_secp256k1/tests/test_p5_field_product.cpp",
+      "ok": true,
+      "hit_count": 3,
+      "index_finished_at": "2026-09-05T22:23:13.171239+00:00",
+      "freshness": "fresh",
+      "matches": [
+        {
+          "name": "accumulator_cases",
+          "freshness": {
+            "disk_source_hash": "fc6a4830e5428a6d5117820fcecf1cbe4ff975bc006245fd56b67140661d2921",
+            "indexed_source_hash": "fc6a4830e5428a6d5117820fcecf1cbe4ff975bc006245fd56b67140661d2921",
+            "state": "fresh"
+          },
+          "line_start": 279,
+          "line_end": 309
+        }
+      ]
+    },
+    "duration": {
+      "matches": [
+        {
+          "build_revision": "aiworkhub.source_graph.semantic.v6",
+          "file_path": "experiments/parseatlas_secp256k1/tests/test_p5_product_duration.cpp",
+          "indexed_at": "2026-09-05T22:23:43.533548+00:00",
+          "kind": "file",
+          "language": "cpp",
+          "line_end": 1,
+          "line_start": 1,
+          "name": "test_p5_product_duration.cpp",
+          "qualname": "experiments/parseatlas_secp256k1/tests/test_p5_product_duration.cpp",
+          "source_hash": "a9b138bd0abc4cdc07dff2715ed5fe1e0b0da404cf05eac4b3f1ab775b3202a9",
+          "status": "ok"
+        }
+      ]
+    },
+    "smoke": {
+      "target": "experiments/parseatlas_secp256k1/tests/test_p5_kernel_smoke.cpp",
+      "matches": [
+        {
+          "build_revision": "aiworkhub.source_graph.semantic.v6",
+          "file_path": "experiments/parseatlas_secp256k1/tests/test_p5_kernel_smoke.cpp",
+          "indexed_at": "2026-09-05T22:21:00.374900+00:00",
+          "kind": "file",
+          "language": "cpp",
+          "line_end": 1,
+          "line_start": 1,
+          "name": "test_p5_kernel_smoke.cpp",
+          "qualname": "experiments/parseatlas_secp256k1/tests/test_p5_kernel_smoke.cpp",
+          "source_hash": "c87e3e923fff45455ce54d5000f2fc003c49c0c1a29f4d9ac3019bef3480e68f",
+          "status": "ok"
+        }
+      ]
+    },
+    "note": "Declared-new-file fallback while indexing; transient refresh reports identity_slot_owned. Final code-source hashes match indexed receipts. No stale body accepted as final review."
+  },
+  "commands": [
+    "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_gcc --seed 20260905 --min-ms 200 --rounds 8 --output experiments/parseatlas_secp256k1/data/p5_run1_20260905.json",
+    "taskset -c 4 /tmp/parseatlas-p5-field-product.3Z4xU1/p5_compare_gcc --seed 20260905 --min-ms 200 --rounds 8 --reverse-order --output experiments/parseatlas_secp256k1/data/p5_run2_20260905.json"
+  ],
+  "no_owned_build_test_competing_benchmark": true,
+  "policy_changes": false,
+  "canonical_task_acceptance": false,
+  "production_integration": false
+}

@@ -1,0 +1,115 @@
+{
+  "schema": "parseatlas.p6.duration_validation.v1",
+  "status": "pass",
+  "compile_commands": {
+    "compare_gcc": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p6_field_boundary_compare.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/p6_compare_gcc",
+    "duration_gcc": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p6_boundary_duration.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/test_p6_duration_gcc",
+    "compare_clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p6_field_boundary_compare.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/p6_compare_clang",
+    "duration_clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p6_boundary_duration.cpp experiments/parseatlas_secp256k1/probes/p6_field_boundary.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p6-boundary.imLUFT/test_p6_duration_clang"
+  },
+  "run_commands": {
+    "duration_gcc": "/tmp/parseatlas-p6-boundary.imLUFT/test_p6_duration_gcc",
+    "smoke_gcc": "taskset -c 4 /tmp/parseatlas-p6-boundary.imLUFT/p6_compare_gcc --smoke --min-ms 0.1 --output /tmp/parseatlas-p6-boundary.imLUFT/p6_gcc_smoke.json",
+    "duration_clang": "/tmp/parseatlas-p6-boundary.imLUFT/test_p6_duration_clang",
+    "smoke_clang": "taskset -c 4 /tmp/parseatlas-p6-boundary.imLUFT/p6_compare_clang --smoke --min-ms 0.1 --output /tmp/parseatlas-p6-boundary.imLUFT/p6_clang_smoke.json"
+  },
+  "runs": {
+    "duration_gcc": {
+      "chunk_id": "57bb1e",
+      "wall_time_seconds": 0.00000337,
+      "exit_code": 0,
+      "original_token_count": 99,
+      "output": "later-phase region failed duration: 32 stop=extension_limit\nSYNTHETIC duration diagnostic: all clock values below are fabricated, NOT performance.\nP6 duration_unqualified cells=16 raw_regions=33 output=/tmp/parseatlas-p6-duration.0uOyZ0/SYNTHETIC_duration_failure.json\nPASS synthetic_duration_cases=96 assertions=5282 artifact=/tmp/parseatlas-p6-duration.0uOyZ0/SYNTHETIC_duration_failure.json\n"
+    },
+    "smoke_gcc": {
+      "chunk_id": "c80f56",
+      "wall_time_seconds": 0.000002458,
+      "exit_code": 0,
+      "original_token_count": 25,
+      "output": "P6 complete cells=16 raw_regions=112 output=/tmp/parseatlas-p6-boundary.imLUFT/p6_gcc_smoke.json\n"
+    },
+    "duration_clang": {
+      "chunk_id": "4a1037",
+      "wall_time_seconds": 0.000001738,
+      "exit_code": 0,
+      "original_token_count": 99,
+      "output": "later-phase region failed duration: 32 stop=extension_limit\nSYNTHETIC duration diagnostic: all clock values below are fabricated, NOT performance.\nP6 duration_unqualified cells=16 raw_regions=33 output=/tmp/parseatlas-p6-duration.Ku1KHy/SYNTHETIC_duration_failure.json\nPASS synthetic_duration_cases=96 assertions=5282 artifact=/tmp/parseatlas-p6-duration.Ku1KHy/SYNTHETIC_duration_failure.json\n"
+    },
+    "smoke_clang": {
+      "chunk_id": "751586",
+      "wall_time_seconds": 0.000002324,
+      "exit_code": 0,
+      "original_token_count": 25,
+      "output": "P6 complete cells=16 raw_regions=112 output=/tmp/parseatlas-p6-boundary.imLUFT/p6_clang_smoke.json\n"
+    }
+  },
+  "artifacts": {
+    "gcc_smoke": {
+      "original": "/tmp/parseatlas-p6-boundary.imLUFT/p6_gcc_smoke.json",
+      "imported": "experiments/parseatlas_secp256k1/data/p6_gcc_smoke_20260905.json",
+      "status": "complete",
+      "cells": 16,
+      "regions": 112,
+      "traces": 40960,
+      "all_cells_validated": true,
+      "full_outputs_verified": true,
+      "corpus": "7c2e57392893ac80",
+      "primary": 12,
+      "secondary": 12,
+      "mode": 8,
+      "last_probes": 1
+    },
+    "clang_smoke": {
+      "original": "/tmp/parseatlas-p6-boundary.imLUFT/p6_clang_smoke.json",
+      "imported": "experiments/parseatlas_secp256k1/data/p6_clang_smoke_20260905.json",
+      "status": "complete",
+      "cells": 16,
+      "regions": 112,
+      "traces": 40960,
+      "all_cells_validated": true,
+      "full_outputs_verified": true,
+      "corpus": "7c2e57392893ac80",
+      "primary": 12,
+      "secondary": 12,
+      "mode": 8,
+      "last_probes": 1
+    },
+    "gcc_synthetic": {
+      "original": "/tmp/parseatlas-p6-duration.0uOyZ0/SYNTHETIC_duration_failure.json",
+      "imported": "experiments/parseatlas_secp256k1/data/p6_gcc_synthetic_20260905.json",
+      "status": "duration_unqualified",
+      "cells": 16,
+      "regions": 33,
+      "traces": 40960,
+      "all_cells_validated": true,
+      "full_outputs_verified": true,
+      "corpus": "7c2e57392893ac80",
+      "primary": 12,
+      "secondary": 12,
+      "mode": 8,
+      "last_probes": 13
+    },
+    "clang_synthetic": {
+      "original": "/tmp/parseatlas-p6-duration.Ku1KHy/SYNTHETIC_duration_failure.json",
+      "imported": "experiments/parseatlas_secp256k1/data/p6_clang_synthetic_20260905.json",
+      "status": "duration_unqualified",
+      "cells": 16,
+      "regions": 33,
+      "traces": 40960,
+      "all_cells_validated": true,
+      "full_outputs_verified": true,
+      "corpus": "7c2e57392893ac80",
+      "primary": 12,
+      "secondary": 12,
+      "mode": 8,
+      "last_probes": 13
+    }
+  },
+  "performance_data": false,
+  "limits": [
+    "Smokes may run concurrently and are validation-only",
+    "Synthetic clocks never performance",
+    "Within-region cap/tail reviewed statically, not dynamically exercised",
+    "Exact raw bytes imported; source_recipe_sha256 placeholder bound to driver hash by external manifest"
+  ]
+}

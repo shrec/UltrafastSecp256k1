@@ -1,0 +1,45 @@
+{
+  "schema": "parseatlas.p6.environment_obstacles.v1",
+  "repo_id": "repo_666797171f0141c58bf05f579b2ee16e",
+  "session_id": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+  "items": [
+    {
+      "id": "P6_CLANG_ADX_ADMISSION",
+      "status": "resolved_before_freeze",
+      "evidence": "Clang18 rejects __builtin_cpu_supports(\"adx\"); new header now uses __get_cpuid_count(7,0) EBX BMI2bit8/ADXbit19, matching existing field_asm.cpp helpers and compiler cpuid.h.",
+      "validation": "Root GCC/independent Clang correctness, NOASM sanitizer, bothdriver/duration builds pass; admission outside all jobs, no peroperation check."
+    },
+    {
+      "id": "P6_NEW_FILE_INDEX_LAG",
+      "status": "resolved_for_frozen_sources",
+      "evidence": "Initial SG test zero-hit/declared_input_unindexed and docs older hashes at generation22:57:21; bounded exact worker/card path reads recorded. Refreshed once before fallback; refresh status retained identity_slot_owned error.",
+      "resolution": "Manager review SG generation23:01:10.548770 indexes exact final test a60dd836,contract692898f7,lenses634b0219; header/TU/driver/duration exact indexed earlier. No filesystem discovery or DB writes."
+    },
+    {
+      "id": "AIWORKHUB_REFRESH_STATUS",
+      "status": "existing_needfix_nonblocking_fresh_query_evidence",
+      "evidence": "refresh_now reports RuntimeError:index_subprocess:identity_slot_owned and last_success22:48 despite queries returning fresh23:01 generation. Manager trusts perfilematching sourcehashes; did not repair plugin or hide discrepancy."
+    },
+    {
+      "id": "AIWORKHUB_WORKER_TOOLS",
+      "status": "existing_needfix",
+      "evidence": "Worker-role SourceGraph/session/memory/KB tools remain unexposed; exact manager-bound handoffs used, no manager impersonation. Owner Task suspension active; no canonical task mutations."
+    },
+    {
+      "id": "PMU_POLICY",
+      "status": "existing_unavailable",
+      "evidence": "perf_event_paranoid=4; previous diagnostic exit255 denied. No retry/policychange; no dynamic PMU/cycle/bandwidth/energy claims."
+    },
+    {
+      "id": "POWER_SMT_NOISE",
+      "status": "measurement_limit",
+      "evidence": "powersave/no_turbo0/CPU4 sibling5 retained; thermal/frequency/backgroundservice/sibling activity not controlled. Two complete reversedseries no selective reruns."
+    }
+  ],
+  "bounded_fallbacks": [
+    "tests/test_p6_field_boundary.cpp newly declared unindexed until23:01:10",
+    "Exact worker-released final docs while freshhashgate awaited",
+    "Known existing field_asm_x64_gas.S unsupported extension (prior recorded sourcegraph capability)"
+  ],
+  "prohibited_changes_made": false
+}

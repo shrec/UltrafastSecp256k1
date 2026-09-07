@@ -1,0 +1,2160 @@
+### job_columns
+Command: objdump -d -C --no-show-raw-insn --start-address=0xb330 --stop-address=0xb6c7 /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000b330 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)>:
+    b330:	push   %rbp
+    b331:	mov    %rsp,%rbp
+    b334:	push   %r15
+    b336:	push   %r14
+    b338:	push   %r12
+    b33a:	push   %rbx
+    b33b:	and    $0xffffffffffffffe0,%rsp
+    b33f:	add    $0xffffffffffffff80,%rsp
+    b343:	mov    %fs:0x28,%r12
+    b34c:	mov    %r12,0x78(%rsp)
+    b351:	mov    %rdi,%r12
+    b354:	mov    0x28(%rsi),%rbx
+    b358:	mov    0x20(%rsi),%rcx
+    b35c:	vpxor  %xmm0,%xmm0,%xmm0
+    b360:	vmovdqu %ymm0,(%rdi)
+    b364:	mov    %rbx,%rax
+    b367:	sub    %rcx,%rax
+    b36a:	jne    b3a0 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x70>
+    b36c:	vmovdqu (%rsi),%ymm0
+    b370:	vmovdqu %ymm0,(%r12)
+    b376:	mov    0x78(%rsp),%rax
+    b37b:	sub    %fs:0x28,%rax
+    b384:	jne    b6bf <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x38f>
+    b38a:	vzeroupper
+    b38d:	lea    -0x20(%rbp),%rsp
+    b391:	mov    %r12,%rax
+    b394:	pop    %rbx
+    b395:	pop    %r12
+    b397:	pop    %r14
+    b399:	pop    %r15
+    b39b:	pop    %rbp
+    b39c:	ret
+    b39d:	nopl   (%rax)
+    b3a0:	movabs $0x773594000,%rdx
+    b3aa:	cmp    %rax,%rdx
+    b3ad:	jb     3c3f <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]+0x92>
+    b3b3:	test   %rcx,%rcx
+    b3b6:	je     3bad <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]>
+    b3bc:	mov    (%rsi),%rax
+    b3bf:	mov    0x8(%rsi),%r10
+    b3c3:	xor    %edx,%edx
+    b3c5:	xor    %r11d,%r11d
+    b3c8:	mov    0x10(%rsi),%r8
+    b3cc:	mov    0x18(%rsi),%rsi
+    b3d0:	xor    %r9d,%r9d
+    b3d3:	xor    %edi,%edi
+    b3d5:	data16 cs nopw 0x0(%rax,%rax,1)
+    b3e0:	data16 cs nopw 0x0(%rax,%rax,1)
+    b3eb:	data16 cs nopw 0x0(%rax,%rax,1)
+    b3f6:	cs nopw 0x0(%rax,%rax,1)
+    b400:	add    (%rcx),%rax
+    b403:	adc    $0x0,%rdx
+    b407:	add    0x8(%rcx),%r10
+    b40b:	adc    $0x0,%r11
+    b40f:	add    0x10(%rcx),%r8
+    b413:	adc    $0x0,%r9
+    b417:	add    0x18(%rcx),%rsi
+    b41b:	adc    $0x0,%rdi
+    b41f:	add    $0x20,%rcx
+    b423:	cmp    %rcx,%rbx
+    b426:	jne    b400 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0xd0>
+    b428:	mov    $0xffffffffc46535ff,%rbx
+    b42f:	mov    $0x3b9aca00,%ecx
+    b434:	mov    %rax,0x30(%rsp)
+    b439:	mov    %rdx,%r15
+    b43c:	cmp    %rax,%rbx
+    b43f:	mov    %rcx,%rax
+    b442:	mov    %rdx,0x38(%rsp)
+    b447:	sbb    %rdx,%rax
+    b44a:	jb     3bf6 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]+0x49>
+    b450:	cmp    %r10,%rbx
+    b453:	mov    %rcx,%rax
+    b456:	sbb    %r11,%rax
+    b459:	jb     3bf6 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]+0x49>
+    b45f:	cmp    %r8,%rbx
+    b462:	mov    %rcx,%rax
+    b465:	sbb    %r9,%rax
+    b468:	jb     3bf6 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]+0x49>
+    b46e:	cmp    %rsi,%rbx
+    b471:	sbb    %rdi,%rcx
+    b474:	jb     3bf6 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]+0x49>
+    b47a:	xor    %edx,%edx
+    b47c:	add    %r15,%r10
+    b47f:	mov    0x30(%rsp),%rax
+    b484:	adc    %rdx,%r11
+    b487:	xor    %ebx,%ebx
+    b489:	mov    %r11,%rcx
+    b48c:	add    %r8,%rcx
+    b48f:	adc    %r9,%rbx
+    b492:	xor    %r15d,%r15d
+    b495:	mov    %rcx,0x20(%rsp)
+    b49a:	mov    %rbx,%r14
+    b49d:	mov    %rbx,0x28(%rsp)
+    b4a2:	add    %rsi,%r14
+    b4a5:	movabs $0x402da1732fc9bebf,%rsi
+    b4af:	adc    %rdi,%r15
+    b4b2:	xor    %ecx,%ecx
+    b4b4:	xor    %r9d,%r9d
+    b4b7:	mov    %r15,%rdx
+    b4ba:	mov    %rcx,0x18(%rsp)
+    b4bf:	movabs $0x4551231950b75fc4,%rcx
+    b4c9:	mulx   %rsi,%rsi,%rdi
+    b4ce:	mulx   %rcx,%rcx,%rbx
+    b4d3:	mov    %r15,0x10(%rsp)
+    b4d8:	add    %rdi,%rcx
+    b4db:	adc    %r9,%rbx
+    b4de:	xor    %edx,%edx
+    b4e0:	xor    %edi,%edi
+    b4e2:	add    %rax,%rsi
+    b4e5:	adc    %rdx,%rdi
+    b4e8:	mov    %rsi,0x30(%rsp)
+    b4ed:	xor    %edx,%edx
+    b4ef:	mov    0x20(%rsp),%rax
+    b4f4:	mov    %rdi,%rsi
+    b4f7:	mov    %rdi,0x38(%rsp)
+    b4fc:	xor    %edi,%edi
+    b4fe:	add    %rcx,%rsi
+    b501:	mov    %rbx,%rcx
+    b504:	adc    %rdx,%rdi
+    b507:	xor    %r11d,%r11d
+    b50a:	add    %r10,%rsi
+    b50d:	adc    %r11,%rdi
+    b510:	xor    %r9d,%r9d
+    b513:	xor    %ebx,%ebx
+    b515:	add    0x10(%rsp),%rcx
+    b51a:	adc    0x18(%rsp),%rbx
+    b51f:	xor    %edx,%edx
+    b521:	add    %rcx,%rax
+    b524:	mov    %r14,%rcx
+    b527:	adc    %rbx,%rdx
+    b52a:	add    %rdi,%rax
+    b52d:	adc    %r9,%rdx
+    b530:	xor    %r9d,%r9d
+    b533:	xor    %ebx,%ebx
+    b535:	add    %rdx,%rcx
+    b538:	adc    %r9,%rbx
+    b53b:	xor    %r9d,%r9d
+    b53e:	mov    %rbx,%r8
+    b541:	or     %r9,%r8
+    b544:	jne    b660 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x330>
+    b54a:	vmovq  0x30(%rsp),%xmm3
+    b550:	vmovq  %rax,%xmm2
+    b555:	vpinsrq $0x1,%rcx,%xmm2,%xmm0
+    b55b:	vpinsrq $0x1,%rsi,%xmm3,%xmm1
+    b561:	vinserti128 $0x1,%xmm0,%ymm1,%ymm0
+    b567:	vmovdqa %ymm0,0x40(%rsp)
+    b56d:	mov    0x58(%rsp),%r8
+    b572:	mov    0x50(%rsp),%rsi
+    b577:	movabs $0xbaaedce6af48a03a,%r9
+    b581:	movabs $0xbaaedce6af48a03b,%r10
+    b58b:	mov    0x48(%rsp),%rdi
+    b590:	mov    0x40(%rsp),%rcx
+    b595:	cmp    $0xffffffffffffffff,%r8
+    b599:	setne  %al
+    b59c:	cmp    $0xfffffffffffffffd,%rsi
+    b5a0:	setbe  %dl
+    b5a3:	or     %edx,%eax
+    b5a5:	cmp    %rdi,%r9
+    b5a8:	setae  %dl
+    b5ab:	or     %eax,%edx
+    b5ad:	cmp    %rdi,%r10
+    b5b0:	movzbl %al,%eax
+    b5b3:	movabs $0xbfd25e8cd0364140,%r10
+    b5bd:	setb   %r11b
+    b5c1:	cmp    %rcx,%r10
+    b5c4:	movzbl %dl,%edx
+    b5c7:	setb   %bl
+    b5ca:	or     %ebx,%r11d
+    b5cd:	movzbl %r11b,%r11d
+    b5d1:	andn   %r11d,%edx,%edx
+    b5d6:	xor    %r11d,%r11d
+    b5d9:	cmp    $0xffffffffffffffff,%rsi
+    b5dd:	sete   %r11b
+    b5e1:	andn   %r11d,%eax,%eax
+    b5e6:	or     %eax,%edx
+    b5e8:	je     b370 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x40>
+    b5ee:	vmovq  %xmm0,%rax
+    b5f3:	xor    %edx,%edx
+    b5f5:	vmovq  %rcx,%xmm6
+    b5fa:	cmp    %rax,%r10
+    b5fd:	mov    %rdi,%r10
+    b600:	setae  %dl
+    b603:	sub    %rdx,%r10
+    b606:	cmp    %r10,%r9
+    b609:	vpinsrq $0x1,%r10,%xmm6,%xmm0
+    b60f:	setae  %al
+    b612:	cmp    %rdx,%rdi
+    b615:	mov    %rsi,%rdi
+    b618:	setb   %dl
+    b61b:	or     %edx,%eax
+    b61d:	movzbl %al,%eax
+    b620:	sub    %rax,%rdi
+    b623:	cmp    $0xfffffffffffffffd,%rdi
+    b627:	vmovq  %rdi,%xmm5
+    b62c:	setbe  %dl
+    b62f:	cmp    %rax,%rsi
+    b632:	setb   %al
+    b635:	or     %edx,%eax
+    b637:	movzbl %al,%eax
+    b63a:	sub    %rax,%r8
+    b63d:	vpinsrq $0x1,%r8,%xmm5,%xmm1
+    b643:	vinserti128 $0x1,%xmm1,%ymm0,%ymm0
+    b649:	vpaddq 0x1066f(%rip),%ymm0,%ymm0        # 1bcc0 <typeinfo name for std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >+0x180>
+    b651:	jmp    b370 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x40>
+    b656:	cs nopw 0x0(%rax,%rax,1)
+    b660:	mov    0x30(%rsp),%r10
+    b665:	xor    %ebx,%ebx
+    b667:	xor    %r11d,%r11d
+    b66a:	movabs $0x402da1732fc9bebf,%rcx
+    b674:	add    %rcx,%r10
+    b677:	movabs $0x4551231950b75fc4,%rcx
+    b681:	adc    %rbx,%r11
+    b684:	xor    %r9d,%r9d
+    b687:	vmovq  %r10,%xmm4
+    b68c:	xor    %ebx,%ebx
+    b68e:	add    %r11,%rcx
+    b691:	adc    %r9,%rbx
+    b694:	xor    %edi,%edi
+    b696:	add    %rsi,%rcx
+    b699:	adc    %rdi,%rbx
+    b69c:	add    $0x1,%rax
+    b6a0:	vpinsrq $0x1,%rcx,%xmm4,%xmm1
+    b6a6:	add    %rbx,%rax
+    b6a9:	vmovq  %rax,%xmm0
+    b6ae:	vinserti128 $0x1,%xmm0,%ymm1,%ymm0
+    b6b4:	vmovdqa %ymm0,0x40(%rsp)
+    b6ba:	jmp    b56d <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x23d>
+    b6bf:	vzeroupper
+    b6c2:	call   37b0 <__stack_chk_fail@plt>
+
+### job_wide5
+Command: objdump -d -C --no-show-raw-insn --start-address=0xc280 --stop-address=0xc5d0 /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000c280 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)>:
+    c280:	push   %rbp
+    c281:	mov    %rsp,%rbp
+    c284:	push   %r15
+    c286:	push   %r14
+    c288:	push   %r13
+    c28a:	push   %r12
+    c28c:	push   %rbx
+    c28d:	and    $0xffffffffffffffe0,%rsp
+    c291:	sub    $0x60,%rsp
+    c295:	mov    %fs:0x28,%r14
+    c29e:	mov    %r14,0x58(%rsp)
+    c2a3:	mov    %rdi,%r14
+    c2a6:	mov    0x28(%rsi),%rax
+    c2aa:	mov    0x20(%rsi),%rcx
+    c2ae:	vpxor  %xmm0,%xmm0,%xmm0
+    c2b2:	vmovdqu %ymm0,(%rdi)
+    c2b6:	mov    %rax,0x10(%rsp)
+    c2bb:	sub    %rcx,%rax
+    c2be:	jne    c2f8 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x78>
+    c2c0:	vmovdqu (%rsi),%ymm0
+    c2c4:	vmovdqu %ymm0,(%r14)
+    c2c9:	mov    0x58(%rsp),%rax
+    c2ce:	sub    %fs:0x28,%rax
+    c2d7:	jne    c5c8 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x348>
+    c2dd:	vzeroupper
+    c2e0:	lea    -0x28(%rbp),%rsp
+    c2e4:	mov    %r14,%rax
+    c2e7:	pop    %rbx
+    c2e8:	pop    %r12
+    c2ea:	pop    %r13
+    c2ec:	pop    %r14
+    c2ee:	pop    %r15
+    c2f0:	pop    %rbp
+    c2f1:	ret
+    c2f2:	nopw   0x0(%rax,%rax,1)
+    c2f8:	movabs $0x773594000,%rdx
+    c302:	cmp    %rax,%rdx
+    c305:	jb     3e0a <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]>
+    c30b:	test   %rcx,%rcx
+    c30e:	je     3e4f <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]+0x45>
+    c314:	mov    (%rsi),%r12
+    c317:	mov    0x8(%rsi),%r10
+    c31b:	xor    %r13d,%r13d
+    c31e:	mov    0x10(%rsi),%r11
+    c322:	mov    0x18(%rsi),%rbx
+    c326:	cs nopw 0x0(%rax,%rax,1)
+    c330:	mov    (%rcx),%rsi
+    c333:	xor    %edx,%edx
+    c335:	mov    %rsi,%rax
+    c338:	add    %r12,%rax
+    c33b:	adc    $0x0,%rdx
+    c33f:	add    %rsi,%r12
+    c342:	mov    %rdx,%rax
+    c345:	xor    %edx,%edx
+    c347:	add    0x8(%rcx),%rax
+    c34b:	adc    $0x0,%rdx
+    c34f:	add    %r10,%rax
+    c352:	adc    $0x0,%rdx
+    c356:	mov    %rax,(%rsp)
+    c35a:	mov    %rax,%r10
+    c35d:	mov    %rdx,0x8(%rsp)
+    c362:	mov    %rdx,%rax
+    c365:	xor    %edx,%edx
+    c367:	mov    %rax,%r8
+    c36a:	mov    %rdx,%r9
+    c36d:	add    0x10(%rcx),%r8
+    c371:	adc    $0x0,%r9
+    c375:	add    %r11,%r8
+    c378:	adc    $0x0,%r9
+    c37c:	xor    %edi,%edi
+    c37e:	mov    %r8,%r11
+    c381:	mov    %r9,%rsi
+    c384:	add    0x18(%rcx),%rsi
+    c388:	adc    $0x0,%rdi
+    c38c:	add    %rbx,%rsi
+    c38f:	adc    $0x0,%rdi
+    c393:	add    $0x20,%rcx
+    c397:	mov    %rsi,%rbx
+    c39a:	add    %rdi,%r13
+    c39d:	cmp    %rcx,0x10(%rsp)
+    c3a2:	jne    c330 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0xb0>
+    c3a4:	movabs $0x402da1732fc9bebf,%rcx
+    c3ae:	mov    %r13,%rdx
+    c3b1:	movabs $0x4551231950b75fc4,%r10
+    c3bb:	mulx   %rcx,%rcx,%rbx
+    c3c0:	mulx   %r10,%r10,%r11
+    c3c5:	mov    %rcx,%rax
+    c3c8:	mov    %rbx,%rcx
+    c3cb:	xor    %ebx,%ebx
+    c3cd:	add    %rcx,%r10
+    c3d0:	adc    %rbx,%r11
+    c3d3:	xor    %ebx,%ebx
+    c3d5:	mov    %r11,%rcx
+    c3d8:	add    %r13,%rcx
+    c3db:	adc    $0x0,%rbx
+    c3df:	xor    %edx,%edx
+    c3e1:	add    %r12,%rax
+    c3e4:	adc    $0x0,%rdx
+    c3e8:	mov    %rax,0x10(%rsp)
+    c3ed:	mov    (%rsp),%rax
+    c3f1:	xor    %r13d,%r13d
+    c3f4:	xor    %r11d,%r11d
+    c3f7:	add    %rdx,%r10
+    c3fa:	mov    %rdx,0x18(%rsp)
+    c3ff:	adc    %r13,%r11
+    c402:	xor    %edx,%edx
+    c404:	add    %r10,%rax
+    c407:	adc    %r11,%rdx
+    c40a:	xor    %r11d,%r11d
+    c40d:	xor    %r9d,%r9d
+    c410:	xor    %r13d,%r13d
+    c413:	add    %rcx,%r8
+    c416:	mov    %rbx,%rcx
+    c419:	adc    %r13,%r9
+    c41c:	add    %rdx,%r8
+    c41f:	adc    %r11,%r9
+    c422:	xor    %edi,%edi
+    c424:	xor    %r11d,%r11d
+    c427:	xor    %ebx,%ebx
+    c429:	add    %rsi,%rcx
+    c42c:	adc    %rdi,%rbx
+    c42f:	add    %r9,%rcx
+    c432:	adc    %r11,%rbx
+    c435:	xor    %edi,%edi
+    c437:	mov    %rbx,%rsi
+    c43a:	or     %rdi,%rsi
+    c43d:	jne    c550 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x2d0>
+    c443:	vmovq  0x10(%rsp),%xmm3
+    c449:	vmovq  %r8,%xmm2
+    c44e:	vpinsrq $0x1,%rcx,%xmm2,%xmm1
+    c454:	vpinsrq $0x1,%rax,%xmm3,%xmm0
+    c45a:	vinserti128 $0x1,%xmm1,%ymm0,%ymm0
+    c460:	vmovdqa %ymm0,0x20(%rsp)
+    c466:	mov    0x38(%rsp),%r8
+    c46b:	mov    0x30(%rsp),%rsi
+    c470:	movabs $0xbaaedce6af48a03a,%r9
+    c47a:	movabs $0xbaaedce6af48a03b,%r10
+    c484:	mov    0x28(%rsp),%rdi
+    c489:	mov    0x20(%rsp),%rcx
+    c48e:	cmp    $0xffffffffffffffff,%r8
+    c492:	setne  %al
+    c495:	cmp    $0xfffffffffffffffd,%rsi
+    c499:	setbe  %dl
+    c49c:	or     %edx,%eax
+    c49e:	cmp    %rdi,%r9
+    c4a1:	setae  %dl
+    c4a4:	or     %eax,%edx
+    c4a6:	cmp    %rdi,%r10
+    c4a9:	movzbl %al,%eax
+    c4ac:	movabs $0xbfd25e8cd0364140,%r10
+    c4b6:	setb   %r11b
+    c4ba:	cmp    %rcx,%r10
+    c4bd:	movzbl %dl,%edx
+    c4c0:	setb   %bl
+    c4c3:	or     %ebx,%r11d
+    c4c6:	movzbl %r11b,%r11d
+    c4ca:	andn   %r11d,%edx,%edx
+    c4cf:	xor    %r11d,%r11d
+    c4d2:	cmp    $0xffffffffffffffff,%rsi
+    c4d6:	sete   %r11b
+    c4da:	andn   %r11d,%eax,%eax
+    c4df:	or     %eax,%edx
+    c4e1:	je     c2c4 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x44>
+    c4e7:	vmovq  %xmm0,%rax
+    c4ec:	xor    %edx,%edx
+    c4ee:	vmovq  %rcx,%xmm7
+    c4f3:	cmp    %rax,%r10
+    c4f6:	mov    %rdi,%r10
+    c4f9:	setae  %dl
+    c4fc:	sub    %rdx,%r10
+    c4ff:	cmp    %r10,%r9
+    c502:	vpinsrq $0x1,%r10,%xmm7,%xmm0
+    c508:	setae  %al
+    c50b:	cmp    %rdx,%rdi
+    c50e:	mov    %rsi,%rdi
+    c511:	setb   %dl
+    c514:	or     %edx,%eax
+    c516:	movzbl %al,%eax
+    c519:	sub    %rax,%rdi
+    c51c:	cmp    $0xfffffffffffffffd,%rdi
+    c520:	vmovq  %rdi,%xmm6
+    c525:	setbe  %dl
+    c528:	cmp    %rax,%rsi
+    c52b:	setb   %al
+    c52e:	or     %edx,%eax
+    c530:	movzbl %al,%eax
+    c533:	sub    %rax,%r8
+    c536:	vpinsrq $0x1,%r8,%xmm6,%xmm1
+    c53c:	vinserti128 $0x1,%xmm1,%ymm0,%ymm0
+    c542:	vpaddq 0xf776(%rip),%ymm0,%ymm0        # 1bcc0 <typeinfo name for std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >+0x180>
+    c54a:	jmp    c2c4 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x44>
+    c54f:	nop
+    c550:	mov    0x10(%rsp),%r10
+    c555:	xor    %r11d,%r11d
+    c558:	xor    %r13d,%r13d
+    c55b:	movabs $0x402da1732fc9bebf,%r12
+    c565:	add    %r10,%r12
+    c568:	movabs $0x4551231950b75fc4,%r10
+    c572:	adc    %r11,%r13
+    c575:	xor    %edi,%edi
+    c577:	vmovq  %r12,%xmm5
+    c57c:	xor    %r11d,%r11d
+    c57f:	mov    %r13,%rsi
+    c582:	add    %r10,%rsi
+    c585:	adc    %r11,%rdi
+    c588:	xor    %edx,%edx
+    c58a:	add    %rsi,%rax
+    c58d:	adc    %rdi,%rdx
+    c590:	xor    %edi,%edi
+    c592:	vpinsrq $0x1,%rax,%xmm5,%xmm0
+    c598:	xor    %r9d,%r9d
+    c59b:	add    $0x1,%r8
+    c59f:	adc    $0x0,%r9
+    c5a3:	add    %rdx,%r8
+    c5a6:	adc    %rdi,%r9
+    c5a9:	vmovq  %r8,%xmm4
+    c5ae:	add    %r9,%rcx
+    c5b1:	vpinsrq $0x1,%rcx,%xmm4,%xmm1
+    c5b7:	vinserti128 $0x1,%xmm1,%ymm0,%ymm0
+    c5bd:	vmovdqa %ymm0,0x20(%rsp)
+    c5c3:	jmp    c466 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x1e6>
+    c5c8:	vzeroupper
+    c5cb:	call   37b0 <__stack_chk_fail@plt>
+
+### job_serial
+Command: objdump -d -C --no-show-raw-insn --start-address=0xbf40 --stop-address=0xc142 /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000bf40 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)>:
+    bf40:	push   %rbp
+    bf41:	mov    %rsp,%rbp
+    bf44:	push   %r15
+    bf46:	push   %r14
+    bf48:	push   %r13
+    bf4a:	push   %r12
+    bf4c:	push   %rbx
+    bf4d:	and    $0xffffffffffffffe0,%rsp
+    bf51:	sub    $0x20,%rsp
+    bf55:	mov    0x20(%rsi),%rcx
+    bf59:	mov    0x28(%rsi),%r9
+    bf5d:	vpxor  %xmm0,%xmm0,%xmm0
+    bf61:	vmovdqu %ymm0,(%rdi)
+    bf65:	sub    %rcx,%r9
+    bf68:	mov    %r9,%r11
+    bf6b:	sar    $0x5,%r11
+    bf6f:	test   %r9,%r9
+    bf72:	js     3d6c <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]>
+    bf78:	test   %r11,%r11
+    bf7b:	mov    %rdi,%rdx
+    bf7e:	je     bf89 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x49>
+    bf80:	test   %rcx,%rcx
+    bf83:	je     3da1 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&) [clone .cold]+0x35>
+    bf89:	test   %r9,%r9
+    bf8c:	mov    (%rsi),%rax
+    bf8f:	mov    0x8(%rsi),%r8
+    bf93:	mov    0x10(%rsi),%rdi
+    bf97:	mov    0x18(%rsi),%rsi
+    bf9b:	je     c10d <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x1cd>
+    bfa1:	xor    %r10d,%r10d
+    bfa4:	mov    %r11,%r13
+    bfa7:	mov    %rdx,0x18(%rsp)
+    bfac:	movabs $0xbfd25e8cd0364140,%rbx
+    bfb6:	movabs $0xbaaedce6af48a03a,%r12
+    bfc0:	mov    %r10,%r11
+    bfc3:	movabs $0x402da1732fc9bebf,%r14
+    bfcd:	movabs $0x4551231950b75fc5,%r15
+    bfd7:	jmp    c049 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x109>
+    bfd9:	nopl   0x0(%rax)
+    bfe0:	cmp    $0xfffffffffffffffd,%rdi
+    bfe4:	setbe  %al
+    bfe7:	cmp    $0xffffffffffffffff,%rsi
+    bfeb:	setne  %dl
+    bfee:	or     %edx,%eax
+    bff0:	cmp    %r9,%rbx
+    bff3:	movabs $0xbaaedce6af48a03b,%rdx
+    bffd:	setb   %r10b
+    c001:	cmp    %r8,%rdx
+    c004:	setb   %dl
+    c007:	or     %edx,%r10d
+    c00a:	cmp    %r8,%r12
+    c00d:	setae  %dl
+    c010:	movzbl %r10b,%r10d
+    c014:	or     %eax,%edx
+    c016:	movzbl %al,%eax
+    c019:	movzbl %dl,%edx
+    c01c:	andn   %r10d,%edx,%edx
+    c021:	xor    %r10d,%r10d
+    c024:	cmp    $0xffffffffffffffff,%rdi
+    c028:	sete   %r10b
+    c02c:	andn   %r10d,%eax,%eax
+    c031:	or     %edx,%eax
+    c033:	jne    c0a6 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x166>
+    c035:	add    $0x1,%r11
+    c039:	add    $0x20,%rcx
+    c03d:	mov    %r9,%rax
+    c040:	cmp    %r13,%r11
+    c043:	jae    c108 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x1c8>
+    c049:	mov    (%rcx),%r10
+    c04c:	xor    %edx,%edx
+    c04e:	lea    (%r10,%rax,1),%r9
+    c052:	add    %r10,%rax
+    c055:	adc    $0x0,%rdx
+    c059:	mov    %rdx,%rax
+    c05c:	xor    %edx,%edx
+    c05e:	add    0x8(%rcx),%rax
+    c062:	adc    $0x0,%rdx
+    c066:	add    %r8,%rax
+    c069:	adc    $0x0,%rdx
+    c06d:	mov    %rax,%r8
+    c070:	mov    %rdx,%rax
+    c073:	xor    %edx,%edx
+    c075:	add    0x10(%rcx),%rax
+    c079:	adc    $0x0,%rdx
+    c07d:	add    %rdi,%rax
+    c080:	adc    $0x0,%rdx
+    c084:	mov    %rax,%rdi
+    c087:	mov    %rdx,%rax
+    c08a:	xor    %edx,%edx
+    c08c:	add    0x18(%rcx),%rax
+    c090:	adc    $0x0,%rdx
+    c094:	add    %rsi,%rax
+    c097:	adc    $0x0,%rdx
+    c09b:	mov    %rax,%rsi
+    c09e:	test   %dl,%dl
+    c0a0:	je     bfe0 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0xa0>
+    c0a6:	cmp    %r9,%rbx
+    c0a9:	lea    (%r9,%r14,1),%rax
+    c0ad:	mov    %r8,%rdx
+    c0b0:	setae  %r9b
+    c0b4:	movzbl %r9b,%r9d
+    c0b8:	sub    %r9,%rdx
+    c0bb:	cmp    %r9,%r8
+    c0be:	setb   %r9b
+    c0c2:	cmp    %rdx,%r12
+    c0c5:	lea    (%rdx,%r15,1),%r8
+    c0c9:	setae  %dl
+    c0cc:	or     %r9d,%edx
+    c0cf:	mov    %rdi,%r9
+    c0d2:	movzbl %dl,%edx
+    c0d5:	sub    %rdx,%r9
+    c0d8:	cmp    %rdx,%rdi
+    c0db:	setb   %dl
+    c0de:	add    $0x1,%rsi
+    c0e2:	lea    0x2(%r9),%rdi
+    c0e6:	cmp    $0xfffffffffffffffd,%r9
+    c0ea:	setbe  %r9b
+    c0ee:	add    $0x1,%r11
+    c0f2:	add    $0x20,%rcx
+    c0f6:	or     %r9d,%edx
+    c0f9:	movzbl %dl,%edx
+    c0fc:	sub    %rdx,%rsi
+    c0ff:	cmp    %r13,%r11
+    c102:	jb     c049 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x109>
+    c108:	mov    0x18(%rsp),%rdx
+    c10d:	vmovq  %rdi,%xmm2
+    c112:	vmovq  %rax,%xmm3
+    c117:	vpinsrq $0x1,%rsi,%xmm2,%xmm0
+    c11d:	vpinsrq $0x1,%r8,%xmm3,%xmm1
+    c123:	vinserti128 $0x1,%xmm0,%ymm1,%ymm0
+    c129:	vmovdqu %ymm0,(%rdx)
+    c12d:	vzeroupper
+    c130:	lea    -0x28(%rbp),%rsp
+    c134:	mov    %rdx,%rax
+    c137:	pop    %rbx
+    c138:	pop    %r12
+    c13a:	pop    %r13
+    c13c:	pop    %r14
+    c13e:	pop    %r15
+    c140:	pop    %rbp
+    c141:	ret
+
+### job_cold
+Command: objdump -d -C --no-show-raw-insn --start-address=0xce30 --stop-address=0xcea0 /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000ce30 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)>:
+    ce30:	push   %rbp
+    ce31:	mov    %rsp,%rbp
+    ce34:	push   %rbx
+    ce35:	mov    %rdi,%rbx
+    ce38:	and    $0xffffffffffffffe0,%rsp
+    ce3c:	sub    $0x40,%rsp
+    ce40:	mov    %fs:0x28,%r8
+    ce49:	mov    %r8,0x38(%rsp)
+    ce4e:	mov    %rdx,%r8
+    ce51:	mov    0x20(%rsi),%rdx
+    ce55:	mov    0x28(%rsi),%rcx
+    ce59:	vpxor  %xmm0,%xmm0,%xmm0
+    ce5d:	vmovdqu %ymm0,(%rdi)
+    ce61:	mov    %rsp,%rdi
+    ce64:	sub    %rdx,%rcx
+    ce67:	sar    $0x5,%rcx
+    ce6b:	vzeroupper
+    ce6e:	call   14320 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)>
+    ce73:	vmovdqu (%rsp),%ymm0
+    ce78:	vmovdqu %ymm0,(%rbx)
+    ce7c:	mov    0x38(%rsp),%rax
+    ce81:	sub    %fs:0x28,%rax
+    ce8a:	jne    ce98 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)+0x68>
+    ce8c:	mov    %rbx,%rax
+    ce8f:	vzeroupper
+    ce92:	mov    -0x8(%rbp),%rbx
+    ce96:	leave
+    ce97:	ret
+    ce98:	vzeroupper
+    ce9b:	call   37b0 <__stack_chk_fail@plt>
+
+### timed_serial
+Command: objdump -d -C --no-show-raw-insn --start-address=0xc5d0 --stop-address=0xc72c /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000c5d0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)>:
+    c5d0:	push   %rbp
+    c5d1:	mov    %rsp,%rbp
+    c5d4:	push   %r15
+    c5d6:	push   %r14
+    c5d8:	mov    %rdx,%r14
+    c5db:	push   %r13
+    c5dd:	mov    %rcx,%r13
+    c5e0:	push   %r12
+    c5e2:	mov    %rsi,%r12
+    c5e5:	push   %rbx
+    c5e6:	and    $0xffffffffffffffe0,%rsp
+    c5ea:	add    $0xffffffffffffff80,%rsp
+    c5ee:	mov    %rdi,(%rsp)
+    c5f2:	mov    %fs:0x28,%rbx
+    c5fb:	mov    %rbx,0x78(%rsp)
+    c600:	mov    %r8,%rbx
+    c603:	call   3840 <std::chrono::_V2::steady_clock::now()@plt>
+    c608:	test   %r13,%r13
+    c60b:	mov    %rax,0x8(%rsp)
+    c610:	je     c651 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x81>
+    c612:	lea    0x20(%rsp),%rax
+    c617:	xor    %r15d,%r15d
+    c61a:	mov    %rax,0x10(%rsp)
+    c61f:	jmp    c62b <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x5b>
+    c621:	nopl   0x0(%rax)
+    c628:	vzeroupper
+    c62b:	mov    0x10(%rsp),%rdi
+    c630:	mov    %r14,%rdx
+    c633:	mov    %r12,%rsi
+    c636:	add    $0x1,%r15
+    c63a:	call   bf40 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)>
+    c63f:	vmovdqu 0x20(%rsp),%ymm0
+    c645:	cmp    %r15,%r13
+    c648:	vmovdqu %ymm0,(%rbx)
+    c64c:	jne    c628 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x58>
+    c64e:	vzeroupper
+    c651:	call   3840 <std::chrono::_V2::steady_clock::now()@plt>
+    c656:	vmovq  0x8(%rsp),%xmm2
+    c65c:	lea    0x50(%rsp),%r12
+    c661:	xor    %edx,%edx
+    c663:	mov    %rax,%rbx
+    c666:	lea    0x60(%rsp),%r13
+    c66b:	lea    0x48(%rsp),%rsi
+    c670:	mov    %r12,%rdi
+    c673:	vpinsrq $0x1,%rax,%xmm2,%xmm1
+    c679:	vmovq  %xmm2,%rax
+    c67e:	mov    %r13,0x50(%rsp)
+    c683:	sub    %rax,%rbx
+    c686:	vmovdqa %xmm1,0x10(%rsp)
+    c68c:	movq   $0x18,0x48(%rsp)
+    c695:	call   3980 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    c69a:	mov    0x48(%rsp),%rdx
+    c69f:	vmovdqa 0xf7e9(%rip),%xmm0        # 1be90 <typeinfo name for std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >+0x350>
+    c6a7:	test   %rbx,%rbx
+    c6aa:	movabs $0x656d697420646573,%rcx
+    c6b4:	mov    %rax,0x50(%rsp)
+    c6b9:	mov    %rdx,0x60(%rsp)
+    c6be:	vmovdqu %xmm0,(%rax)
+    c6c2:	mov    %rcx,0x10(%rax)
+    c6c6:	mov    0x50(%rsp),%rax
+    c6cb:	mov    %rdx,0x58(%rsp)
+    c6d0:	movb   $0x0,(%rax,%rdx,1)
+    c6d4:	jle    3efc <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&) [clone .cold]>
+    c6da:	mov    0x50(%rsp),%rdi
+    c6df:	cmp    %r13,%rdi
+    c6e2:	je     c6f2 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x122>
+    c6e4:	mov    0x60(%rsp),%rax
+    c6e9:	lea    0x1(%rax),%rsi
+    c6ed:	call   3760 <operator delete(void*, unsigned long)@plt>
+    c6f2:	mov    (%rsp),%rax
+    c6f6:	vmovdqa 0x10(%rsp),%xmm3
+    c6fc:	mov    %rbx,0x10(%rax)
+    c700:	vmovdqu %xmm3,(%rax)
+    c704:	mov    0x78(%rsp),%rax
+    c709:	sub    %fs:0x28,%rax
+    c712:	jne    c727 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)0>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x157>
+    c714:	mov    (%rsp),%rax
+    c718:	lea    -0x28(%rbp),%rsp
+    c71c:	pop    %rbx
+    c71d:	pop    %r12
+    c71f:	pop    %r13
+    c721:	pop    %r14
+    c723:	pop    %r15
+    c725:	pop    %rbp
+    c726:	ret
+    c727:	call   37b0 <__stack_chk_fail@plt>
+
+### timed_wide5
+Command: objdump -d -C --no-show-raw-insn --start-address=0xc730 --stop-address=0xc88c /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000c730 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)>:
+    c730:	push   %rbp
+    c731:	mov    %rsp,%rbp
+    c734:	push   %r15
+    c736:	push   %r14
+    c738:	mov    %rdx,%r14
+    c73b:	push   %r13
+    c73d:	mov    %rcx,%r13
+    c740:	push   %r12
+    c742:	mov    %rsi,%r12
+    c745:	push   %rbx
+    c746:	and    $0xffffffffffffffe0,%rsp
+    c74a:	add    $0xffffffffffffff80,%rsp
+    c74e:	mov    %rdi,(%rsp)
+    c752:	mov    %fs:0x28,%rbx
+    c75b:	mov    %rbx,0x78(%rsp)
+    c760:	mov    %r8,%rbx
+    c763:	call   3840 <std::chrono::_V2::steady_clock::now()@plt>
+    c768:	test   %r13,%r13
+    c76b:	mov    %rax,0x8(%rsp)
+    c770:	je     c7b1 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x81>
+    c772:	lea    0x20(%rsp),%rax
+    c777:	xor    %r15d,%r15d
+    c77a:	mov    %rax,0x10(%rsp)
+    c77f:	jmp    c78b <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x5b>
+    c781:	nopl   0x0(%rax)
+    c788:	vzeroupper
+    c78b:	mov    0x10(%rsp),%rdi
+    c790:	mov    %r14,%rdx
+    c793:	mov    %r12,%rsi
+    c796:	add    $0x1,%r15
+    c79a:	call   c280 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)>
+    c79f:	vmovdqu 0x20(%rsp),%ymm0
+    c7a5:	cmp    %r15,%r13
+    c7a8:	vmovdqu %ymm0,(%rbx)
+    c7ac:	jne    c788 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x58>
+    c7ae:	vzeroupper
+    c7b1:	call   3840 <std::chrono::_V2::steady_clock::now()@plt>
+    c7b6:	vmovq  0x8(%rsp),%xmm2
+    c7bc:	lea    0x50(%rsp),%r12
+    c7c1:	xor    %edx,%edx
+    c7c3:	mov    %rax,%rbx
+    c7c6:	lea    0x60(%rsp),%r13
+    c7cb:	lea    0x48(%rsp),%rsi
+    c7d0:	mov    %r12,%rdi
+    c7d3:	vpinsrq $0x1,%rax,%xmm2,%xmm1
+    c7d9:	vmovq  %xmm2,%rax
+    c7de:	mov    %r13,0x50(%rsp)
+    c7e3:	sub    %rax,%rbx
+    c7e6:	vmovdqa %xmm1,0x10(%rsp)
+    c7ec:	movq   $0x18,0x48(%rsp)
+    c7f5:	call   3980 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    c7fa:	mov    0x48(%rsp),%rdx
+    c7ff:	vmovdqa 0xf689(%rip),%xmm0        # 1be90 <typeinfo name for std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >+0x350>
+    c807:	test   %rbx,%rbx
+    c80a:	movabs $0x656d697420646573,%rcx
+    c814:	mov    %rax,0x50(%rsp)
+    c819:	mov    %rdx,0x60(%rsp)
+    c81e:	vmovdqu %xmm0,(%rax)
+    c822:	mov    %rcx,0x10(%rax)
+    c826:	mov    0x50(%rsp),%rax
+    c82b:	mov    %rdx,0x58(%rsp)
+    c830:	movb   $0x0,(%rax,%rdx,1)
+    c834:	jle    3f82 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&) [clone .cold]>
+    c83a:	mov    0x50(%rsp),%rdi
+    c83f:	cmp    %r13,%rdi
+    c842:	je     c852 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x122>
+    c844:	mov    0x60(%rsp),%rax
+    c849:	lea    0x1(%rax),%rsi
+    c84d:	call   3760 <operator delete(void*, unsigned long)@plt>
+    c852:	mov    (%rsp),%rax
+    c856:	vmovdqa 0x10(%rsp),%xmm3
+    c85c:	mov    %rbx,0x10(%rax)
+    c860:	vmovdqu %xmm3,(%rax)
+    c864:	mov    0x78(%rsp),%rax
+    c869:	sub    %fs:0x28,%rax
+    c872:	jne    c887 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)1>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x157>
+    c874:	mov    (%rsp),%rax
+    c878:	lea    -0x28(%rbp),%rsp
+    c87c:	pop    %rbx
+    c87d:	pop    %r12
+    c87f:	pop    %r13
+    c881:	pop    %r14
+    c883:	pop    %r15
+    c885:	pop    %rbp
+    c886:	ret
+    c887:	call   37b0 <__stack_chk_fail@plt>
+
+### timed_columns
+Command: objdump -d -C --no-show-raw-insn --start-address=0xc890 --stop-address=0xc9ec /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000c890 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)>:
+    c890:	push   %rbp
+    c891:	mov    %rsp,%rbp
+    c894:	push   %r15
+    c896:	push   %r14
+    c898:	mov    %rdx,%r14
+    c89b:	push   %r13
+    c89d:	mov    %rcx,%r13
+    c8a0:	push   %r12
+    c8a2:	mov    %rsi,%r12
+    c8a5:	push   %rbx
+    c8a6:	and    $0xffffffffffffffe0,%rsp
+    c8aa:	add    $0xffffffffffffff80,%rsp
+    c8ae:	mov    %rdi,(%rsp)
+    c8b2:	mov    %fs:0x28,%rbx
+    c8bb:	mov    %rbx,0x78(%rsp)
+    c8c0:	mov    %r8,%rbx
+    c8c3:	call   3840 <std::chrono::_V2::steady_clock::now()@plt>
+    c8c8:	test   %r13,%r13
+    c8cb:	mov    %rax,0x8(%rsp)
+    c8d0:	je     c911 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x81>
+    c8d2:	lea    0x20(%rsp),%rax
+    c8d7:	xor    %r15d,%r15d
+    c8da:	mov    %rax,0x10(%rsp)
+    c8df:	jmp    c8eb <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x5b>
+    c8e1:	nopl   0x0(%rax)
+    c8e8:	vzeroupper
+    c8eb:	mov    0x10(%rsp),%rdi
+    c8f0:	mov    %r14,%rdx
+    c8f3:	mov    %r12,%rsi
+    c8f6:	add    $0x1,%r15
+    c8fa:	call   b330 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)>
+    c8ff:	vmovdqu 0x20(%rsp),%ymm0
+    c905:	cmp    %r15,%r13
+    c908:	vmovdqu %ymm0,(%rbx)
+    c90c:	jne    c8e8 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x58>
+    c90e:	vzeroupper
+    c911:	call   3840 <std::chrono::_V2::steady_clock::now()@plt>
+    c916:	vmovq  0x8(%rsp),%xmm2
+    c91c:	lea    0x50(%rsp),%r12
+    c921:	xor    %edx,%edx
+    c923:	mov    %rax,%rbx
+    c926:	lea    0x60(%rsp),%r13
+    c92b:	lea    0x48(%rsp),%rsi
+    c930:	mov    %r12,%rdi
+    c933:	vpinsrq $0x1,%rax,%xmm2,%xmm1
+    c939:	vmovq  %xmm2,%rax
+    c93e:	mov    %r13,0x50(%rsp)
+    c943:	sub    %rax,%rbx
+    c946:	vmovdqa %xmm1,0x10(%rsp)
+    c94c:	movq   $0x18,0x48(%rsp)
+    c955:	call   3980 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    c95a:	mov    0x48(%rsp),%rdx
+    c95f:	vmovdqa 0xf529(%rip),%xmm0        # 1be90 <typeinfo name for std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >+0x350>
+    c967:	test   %rbx,%rbx
+    c96a:	movabs $0x656d697420646573,%rcx
+    c974:	mov    %rax,0x50(%rsp)
+    c979:	mov    %rdx,0x60(%rsp)
+    c97e:	vmovdqu %xmm0,(%rax)
+    c982:	mov    %rcx,0x10(%rax)
+    c986:	mov    0x50(%rsp),%rax
+    c98b:	mov    %rdx,0x58(%rsp)
+    c990:	movb   $0x0,(%rax,%rdx,1)
+    c994:	jle    4008 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&) [clone .cold]>
+    c99a:	mov    0x50(%rsp),%rdi
+    c99f:	cmp    %r13,%rdi
+    c9a2:	je     c9b2 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x122>
+    c9a4:	mov    0x60(%rsp),%rax
+    c9a9:	lea    0x1(%rax),%rsi
+    c9ad:	call   3760 <operator delete(void*, unsigned long)@plt>
+    c9b2:	mov    (%rsp),%rax
+    c9b6:	vmovdqa 0x10(%rsp),%xmm3
+    c9bc:	mov    %rbx,0x10(%rax)
+    c9c0:	vmovdqu %xmm3,(%rax)
+    c9c4:	mov    0x78(%rsp),%rax
+    c9c9:	sub    %fs:0x28,%rax
+    c9d2:	jne    c9e7 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)2>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x157>
+    c9d4:	mov    (%rsp),%rax
+    c9d8:	lea    -0x28(%rbp),%rsp
+    c9dc:	pop    %rbx
+    c9dd:	pop    %r12
+    c9df:	pop    %r13
+    c9e1:	pop    %r14
+    c9e3:	pop    %r15
+    c9e5:	pop    %rbp
+    c9e6:	ret
+    c9e7:	call   37b0 <__stack_chk_fail@plt>
+
+### timed_cold
+Command: objdump -d -C --no-show-raw-insn --start-address=0xcea0 --stop-address=0xcffc /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+000000000000cea0 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)>:
+    cea0:	push   %rbp
+    cea1:	mov    %rsp,%rbp
+    cea4:	push   %r15
+    cea6:	push   %r14
+    cea8:	mov    %rdx,%r14
+    ceab:	push   %r13
+    cead:	mov    %rcx,%r13
+    ceb0:	push   %r12
+    ceb2:	mov    %rsi,%r12
+    ceb5:	push   %rbx
+    ceb6:	and    $0xffffffffffffffe0,%rsp
+    ceba:	add    $0xffffffffffffff80,%rsp
+    cebe:	mov    %rdi,(%rsp)
+    cec2:	mov    %fs:0x28,%rbx
+    cecb:	mov    %rbx,0x78(%rsp)
+    ced0:	mov    %r8,%rbx
+    ced3:	call   3840 <std::chrono::_V2::steady_clock::now()@plt>
+    ced8:	test   %r13,%r13
+    cedb:	mov    %rax,0x8(%rsp)
+    cee0:	je     cf21 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x81>
+    cee2:	lea    0x20(%rsp),%rax
+    cee7:	xor    %r15d,%r15d
+    ceea:	mov    %rax,0x10(%rsp)
+    ceef:	jmp    cefb <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x5b>
+    cef1:	nopl   0x0(%rax)
+    cef8:	vzeroupper
+    cefb:	mov    0x10(%rsp),%rdi
+    cf00:	mov    %r14,%rdx
+    cf03:	mov    %r12,%rsi
+    cf06:	add    $0x1,%r15
+    cf0a:	call   ce30 <std::array<unsigned long, 4ul> (anonymous namespace)::full_job<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&)>
+    cf0f:	vmovdqu 0x20(%rsp),%ymm0
+    cf15:	cmp    %r15,%r13
+    cf18:	vmovdqu %ymm0,(%rbx)
+    cf1c:	jne    cef8 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x58>
+    cf1e:	vzeroupper
+    cf21:	call   3840 <std::chrono::_V2::steady_clock::now()@plt>
+    cf26:	vmovq  0x8(%rsp),%xmm2
+    cf2c:	lea    0x50(%rsp),%r12
+    cf31:	xor    %edx,%edx
+    cf33:	mov    %rax,%rbx
+    cf36:	lea    0x60(%rsp),%r13
+    cf3b:	lea    0x48(%rsp),%rsi
+    cf40:	mov    %r12,%rdi
+    cf43:	vpinsrq $0x1,%rax,%xmm2,%xmm1
+    cf49:	vmovq  %xmm2,%rax
+    cf4e:	mov    %r13,0x50(%rsp)
+    cf53:	sub    %rax,%rbx
+    cf56:	vmovdqa %xmm1,0x10(%rsp)
+    cf5c:	movq   $0x18,0x48(%rsp)
+    cf65:	call   3980 <std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_create(unsigned long&, unsigned long)@plt>
+    cf6a:	mov    0x48(%rsp),%rdx
+    cf6f:	vmovdqa 0xef19(%rip),%xmm0        # 1be90 <typeinfo name for std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >+0x350>
+    cf77:	test   %rbx,%rbx
+    cf7a:	movabs $0x656d697420646573,%rcx
+    cf84:	mov    %rax,0x50(%rsp)
+    cf89:	mov    %rdx,0x60(%rsp)
+    cf8e:	vmovdqu %xmm0,(%rax)
+    cf92:	mov    %rcx,0x10(%rax)
+    cf96:	mov    0x50(%rsp),%rax
+    cf9b:	mov    %rdx,0x58(%rsp)
+    cfa0:	movb   $0x0,(%rax,%rdx,1)
+    cfa4:	jle    4227 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&) [clone .cold]>
+    cfaa:	mov    0x50(%rsp),%rdi
+    cfaf:	cmp    %r13,%rdi
+    cfb2:	je     cfc2 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x122>
+    cfb4:	mov    0x60(%rsp),%rax
+    cfb9:	lea    0x1(%rax),%rsi
+    cfbd:	call   3760 <operator delete(void*, unsigned long)@plt>
+    cfc2:	mov    (%rsp),%rax
+    cfc6:	vmovdqa 0x10(%rsp),%xmm3
+    cfcc:	mov    %rbx,0x10(%rax)
+    cfd0:	vmovdqu %xmm3,(%rax)
+    cfd4:	mov    0x78(%rsp),%rax
+    cfd9:	sub    %fs:0x28,%rax
+    cfe2:	jne    cff7 <(anonymous namespace)::RegionClock (anonymous namespace)::timed_region<((anonymous namespace)::Method)3>((anonymous namespace)::Inputs const&, std::vector<int, std::allocator<int> > const&, unsigned long, std::array<unsigned long, 4ul>&)+0x157>
+    cfe4:	mov    (%rsp),%rax
+    cfe8:	lea    -0x28(%rbp),%rsp
+    cfec:	pop    %rbx
+    cfed:	pop    %r12
+    cfef:	pop    %r13
+    cff1:	pop    %r14
+    cff3:	pop    %r15
+    cff5:	pop    %rbp
+    cff6:	ret
+    cff7:	call   37b0 <__stack_chk_fail@plt>
+
+### worker
+Command: objdump -d -C --no-show-raw-insn --start-address=0x13f60 --stop-address=0x14312 /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000013f60 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()>:
+   13f60:	endbr64
+   13f64:	push   %rbp
+   13f65:	vpxor  %xmm0,%xmm0,%xmm0
+   13f69:	mov    %rsp,%rbp
+   13f6c:	push   %r15
+   13f6e:	push   %r14
+   13f70:	push   %r13
+   13f72:	push   %r12
+   13f74:	push   %rbx
+   13f75:	and    $0xffffffffffffffe0,%rsp
+   13f79:	sub    $0xc0,%rsp
+   13f80:	mov    0x10(%rdi),%rax
+   13f84:	mov    0x8(%rdi),%rdx
+   13f88:	mov    %fs:0x28,%rbx
+   13f91:	mov    %rbx,0xb8(%rsp)
+   13f99:	mov    %rdi,%rbx
+   13f9c:	vmovdqu %ymm0,0x30(%rsp)
+   13fa2:	lea    0x30(%rsp),%r12
+   13fa7:	vmovdqu %ymm0,0x50(%rsp)
+   13fad:	vmovdqu %ymm0,0x70(%rsp)
+   13fb3:	vmovdqu %ymm0,0x90(%rsp)
+   13fbc:	mov    (%rax),%rax
+   13fbf:	movslq (%rax,%rdx,4),%rax
+   13fc3:	cmp    $0x3ff,%rax
+   13fc9:	ja     13fe0 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x80>
+   13fcb:	mov    %rax,%rdx
+   13fce:	mov    $0x1,%ecx
+   13fd3:	shr    $0x6,%rax
+   13fd7:	shlx   %rdx,%rcx,%rdx
+   13fdc:	or     %rdx,(%r12,%rax,8)
+   13fe0:	vzeroupper
+   13fe3:	call   3700 <pthread_self@plt>
+   13fe8:	mov    %r12,%rdx
+   13feb:	mov    $0x80,%esi
+   13ff0:	mov    %rax,%rdi
+   13ff3:	call   3960 <pthread_setaffinity_np@plt>
+   13ff8:	mov    %eax,%r12d
+   13ffb:	test   %r12d,%r12d
+   13ffe:	jne    1421d <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x2bd>
+   14004:	mov    0x18(%rbx),%rax
+   14008:	mov    0x20(%rbx),%rdi
+   1400c:	xor    %edx,%edx
+   1400e:	mov    0x8(%rbx),%r9
+   14012:	mov    (%rax),%rax
+   14015:	mov    %r9,%rsi
+   14018:	divq   (%rdi)
+   1401b:	imul   %rax,%rsi
+   1401f:	mov    %rdx,%rcx
+   14022:	cmp    %rdx,%r9
+   14025:	cmovbe %r9,%rcx
+   14029:	add    %rcx,%rsi
+   1402c:	cmp    %rdx,%r9
+   1402f:	adc    $0x0,%rax
+   14033:	test   %rax,%rax
+   14036:	je     1420c <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x2ac>
+   1403c:	mov    0x28(%rbx),%rdx
+   14040:	mov    %rsi,%rcx
+   14043:	add    %rax,%rsi
+   14046:	mov    %r9,0x18(%rsp)
+   1404b:	shl    $0x5,%rsi
+   1404f:	shl    $0x5,%rcx
+   14053:	xor    %edi,%edi
+   14055:	xor    %r8d,%r8d
+   14058:	mov    (%rdx),%rdx
+   1405b:	xor    %eax,%eax
+   1405d:	mov    %rbx,%r13
+   14060:	movabs $0xbfd25e8cd0364140,%r10
+   1406a:	movabs $0xbaaedce6af48a03a,%r11
+   14074:	movabs $0x402da1732fc9bebf,%r14
+   1407e:	movabs $0x4551231950b75fc5,%r15
+   14088:	lea    (%rdx,%rsi,1),%r12
+   1408c:	add    %rdx,%rcx
+   1408f:	xor    %esi,%esi
+   14091:	jmp    140f8 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x198>
+   14093:	nopl   0x0(%rax,%rax,1)
+   14098:	cmp    $0xfffffffffffffffd,%rdi
+   1409c:	setbe  %al
+   1409f:	cmp    $0xffffffffffffffff,%rsi
+   140a3:	setne  %dl
+   140a6:	or     %edx,%eax
+   140a8:	cmp    %r9,%r10
+   140ab:	movabs $0xbaaedce6af48a03b,%rdx
+   140b5:	setb   %bl
+   140b8:	cmp    %r8,%rdx
+   140bb:	setb   %dl
+   140be:	or     %edx,%ebx
+   140c0:	cmp    %r8,%r11
+   140c3:	setae  %dl
+   140c6:	movzbl %bl,%ebx
+   140c9:	or     %eax,%edx
+   140cb:	movzbl %al,%eax
+   140ce:	movzbl %dl,%edx
+   140d1:	andn   %ebx,%edx,%edx
+   140d6:	xor    %ebx,%ebx
+   140d8:	cmp    $0xffffffffffffffff,%rdi
+   140dc:	sete   %bl
+   140df:	andn   %ebx,%eax,%eax
+   140e4:	or     %edx,%eax
+   140e6:	jne    14155 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x1f5>
+   140e8:	add    $0x20,%rcx
+   140ec:	mov    %r9,%rax
+   140ef:	cmp    %rcx,%r12
+   140f2:	je     141b3 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x253>
+   140f8:	mov    (%rcx),%rbx
+   140fb:	xor    %edx,%edx
+   140fd:	lea    (%rbx,%rax,1),%r9
+   14101:	add    %rbx,%rax
+   14104:	adc    $0x0,%rdx
+   14108:	mov    %rdx,%rax
+   1410b:	xor    %edx,%edx
+   1410d:	add    0x8(%rcx),%rax
+   14111:	adc    $0x0,%rdx
+   14115:	add    %r8,%rax
+   14118:	adc    $0x0,%rdx
+   1411c:	mov    %rax,%r8
+   1411f:	mov    %rdx,%rax
+   14122:	xor    %edx,%edx
+   14124:	add    0x10(%rcx),%rax
+   14128:	adc    $0x0,%rdx
+   1412c:	add    %rdi,%rax
+   1412f:	adc    $0x0,%rdx
+   14133:	mov    %rax,%rdi
+   14136:	mov    %rdx,%rax
+   14139:	xor    %edx,%edx
+   1413b:	add    0x18(%rcx),%rax
+   1413f:	adc    $0x0,%rdx
+   14143:	add    %rsi,%rax
+   14146:	adc    $0x0,%rdx
+   1414a:	mov    %rax,%rsi
+   1414d:	test   %dl,%dl
+   1414f:	je     14098 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x138>
+   14155:	cmp    %r9,%r10
+   14158:	lea    (%r9,%r14,1),%rax
+   1415c:	mov    %r8,%rdx
+   1415f:	setae  %r9b
+   14163:	movzbl %r9b,%r9d
+   14167:	sub    %r9,%rdx
+   1416a:	cmp    %r9,%r8
+   1416d:	setb   %r9b
+   14171:	cmp    %rdx,%r11
+   14174:	lea    (%rdx,%r15,1),%r8
+   14178:	setae  %dl
+   1417b:	or     %r9d,%edx
+   1417e:	mov    %rdi,%r9
+   14181:	movzbl %dl,%edx
+   14184:	sub    %rdx,%r9
+   14187:	cmp    %rdx,%rdi
+   1418a:	setb   %dl
+   1418d:	add    $0x1,%rsi
+   14191:	lea    0x2(%r9),%rdi
+   14195:	cmp    $0xfffffffffffffffd,%r9
+   14199:	setbe  %r9b
+   1419d:	add    $0x20,%rcx
+   141a1:	or     %r9d,%edx
+   141a4:	movzbl %dl,%edx
+   141a7:	sub    %rdx,%rsi
+   141aa:	cmp    %rcx,%r12
+   141ad:	jne    140f8 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x198>
+   141b3:	mov    0x18(%rsp),%r9
+   141b8:	mov    %r13,%rbx
+   141bb:	vmovq  %rax,%xmm3
+   141c0:	vmovq  %rdi,%xmm2
+   141c5:	mov    0x30(%rbx),%rax
+   141c9:	shl    $0x5,%r9
+   141cd:	vpinsrq $0x1,%rsi,%xmm2,%xmm0
+   141d3:	vpinsrq $0x1,%r8,%xmm3,%xmm1
+   141d9:	add    (%rax),%r9
+   141dc:	vinserti128 $0x1,%xmm0,%ymm1,%ymm0
+   141e2:	vmovdqu %ymm0,(%r9)
+   141e7:	mov    0xb8(%rsp),%rax
+   141ef:	sub    %fs:0x28,%rax
+   141f8:	jne    14215 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x2b5>
+   141fa:	vzeroupper
+   141fd:	lea    -0x28(%rbp),%rsp
+   14201:	pop    %rbx
+   14202:	pop    %r12
+   14204:	pop    %r13
+   14206:	pop    %r14
+   14208:	pop    %r15
+   1420a:	pop    %rbp
+   1420b:	ret
+   1420c:	xor    %esi,%esi
+   1420e:	xor    %edi,%edi
+   14210:	xor    %r8d,%r8d
+   14213:	jmp    141bb <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x25b>
+   14215:	vzeroupper
+   14218:	call   37b0 <__stack_chk_fail@plt>
+   1421d:	mov    $0x20,%edi
+   14222:	call   3620 <__cxa_allocate_exception@plt>
+   14227:	mov    %rax,%r13
+   1422a:	call   3630 <std::_V2::generic_category()@plt>
+   1422f:	mov    %r12d,%esi
+   14232:	lea    0x6814(%rip),%rcx        # 1aa4d <_IO_stdin_used+0xa4d>
+   14239:	mov    %r13,%rdi
+   1423c:	mov    %rax,%rdx
+   1423f:	call   13c50 <std::system_error::system_error(std::error_code, char const*)>
+   14244:	mov    0xb8(%rsp),%rax
+   1424c:	sub    %fs:0x28,%rax
+   14255:	jne    14218 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x2b8>
+   14257:	mov    0xbd72(%rip),%rdx        # 1ffd0 <std::system_error::~system_error()@GLIBCXX_3.4.11>
+   1425e:	lea    0xb57b(%rip),%rsi        # 1f7e0 <typeinfo for std::system_error@GLIBCXX_3.4.11>
+   14265:	mov    %r13,%rdi
+   14268:	call   3930 <__cxa_throw@plt>
+   1426d:	endbr64
+   14271:	mov    %rax,%r12
+   14274:	mov    %r13,%rdi
+   14277:	vzeroupper
+   1427a:	call   36b0 <__cxa_free_exception@plt>
+   1427f:	mov    %r12,%rdi
+   14282:	lea    0x28(%rsp),%r12
+   14287:	vzeroupper
+   1428a:	call   35e0 <__cxa_begin_catch@plt>
+   1428f:	mov    %r12,%rdi
+   14292:	call   37a0 <std::current_exception()@plt>
+   14297:	mov    0x38(%rbx),%rax
+   1429b:	mov    0x8(%rbx),%rdx
+   1429f:	mov    0x28(%rsp),%rcx
+   142a4:	mov    (%rax),%rax
+   142a7:	lea    (%rax,%rdx,8),%rdx
+   142ab:	xor    %eax,%eax
+   142ad:	mov    %rax,0x28(%rsp)
+   142b2:	mov    (%rdx),%rax
+   142b5:	test   %rax,%rax
+   142b8:	mov    %rax,0x20(%rsp)
+   142bd:	mov    %rcx,(%rdx)
+   142c0:	je     142cc <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x36c>
+   142c2:	lea    0x20(%rsp),%rdi
+   142c7:	call   36f0 <std::__exception_ptr::exception_ptr::_M_release()@plt>
+   142cc:	cmpq   $0x0,0x28(%rsp)
+   142d2:	je     142dc <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x37c>
+   142d4:	mov    %r12,%rdi
+   142d7:	call   36f0 <std::__exception_ptr::exception_ptr::_M_release()@plt>
+   142dc:	mov    0xb8(%rsp),%rax
+   142e4:	sub    %fs:0x28,%rax
+   142ed:	jne    14218 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x2b8>
+   142f3:	lea    -0x28(%rbp),%rsp
+   142f7:	pop    %rbx
+   142f8:	pop    %r12
+   142fa:	pop    %r13
+   142fc:	pop    %r14
+   142fe:	pop    %r15
+   14300:	pop    %rbp
+   14301:	jmp    3900 <__cxa_end_catch@plt>
+   14306:	endbr64
+   1430a:	mov    %rax,%rdi
+   1430d:	jmp    14282 <std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >::_M_run()+0x322>
+
+### cold_implementation
+Command: objdump -d -C --no-show-raw-insn --start-address=0x14320 --stop-address=0x1524b /tmp/parseatlas-f2-review.WmcyRl/f2_compare
+
+/tmp/parseatlas-f2-review.WmcyRl/f2_compare:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000014320 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)>:
+   14320:	endbr64
+   14324:	push   %rbp
+   14325:	mov    %rsp,%rbp
+   14328:	push   %r15
+   1432a:	push   %r14
+   1432c:	push   %r13
+   1432e:	push   %r12
+   14330:	push   %rbx
+   14331:	and    $0xffffffffffffffe0,%rsp
+   14335:	sub    $0x200,%rsp
+   1433c:	mov    %rdi,0x18(%rsp)
+   14341:	mov    %rsi,0x8(%rsp)
+   14346:	mov    %rdx,0x68(%rsp)
+   1434b:	mov    %rcx,0x60(%rsp)
+   14350:	mov    %fs:0x28,%rbx
+   14359:	mov    %rbx,0x1f8(%rsp)
+   14361:	mov    %rcx,%rbx
+   14364:	shr    $0x3b,%rbx
+   14368:	jne    14ea2 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xb82>
+   1436e:	test   %rcx,%rcx
+   14371:	mov    %rcx,%rdi
+   14374:	je     14840 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x520>
+   1437a:	test   %rdx,%rdx
+   1437d:	je     150d4 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xdb4>
+   14383:	test   %rcx,%rcx
+   14386:	je     14840 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x520>
+   1438c:	mov    0x8(%r8),%rsi
+   14390:	mov    (%r8),%rcx
+   14393:	mov    %r8,%r15
+   14396:	cmp    %rcx,%rsi
+   14399:	je     150b3 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd93>
+   1439f:	vpxor  %xmm0,%xmm0,%xmm0
+   143a3:	mov    %rcx,%rdx
+   143a6:	lea    0x170(%rsp),%r8
+   143ae:	vmovdqu %ymm0,0x170(%rsp)
+   143b7:	vmovdqu %ymm0,0x190(%rsp)
+   143c0:	vmovdqu %ymm0,0x1b0(%rsp)
+   143c9:	vmovdqu %ymm0,0x1d0(%rsp)
+   143d2:	nopw   0x0(%rax,%rax,1)
+   143d8:	mov    (%rdx),%ebx
+   143da:	cmp    $0x3ff,%ebx
+   143e0:	ja     14f0c <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbec>
+   143e6:	movslq %ebx,%rax
+   143e9:	mov    %ebx,%r10d
+   143ec:	shr    $0x6,%rax
+   143f0:	and    $0x3f,%r10d
+   143f4:	lea    (%r8,%rax,8),%r9
+   143f8:	mov    (%r9),%rax
+   143fb:	shrx   %rbx,%rax,%rbx
+   14400:	and    $0x1,%ebx
+   14403:	jne    15017 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xcf7>
+   14409:	add    $0x4,%rdx
+   1440d:	bts    %r10,%rax
+   14411:	cmp    %rdx,%rsi
+   14414:	mov    %rax,(%r9)
+   14417:	jne    143d8 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xb8>
+   14419:	sub    %rcx,%rsi
+   1441c:	sar    $0x2,%rsi
+   14420:	cmp    %rdi,%rsi
+   14423:	cmovbe %rsi,%rdi
+   14427:	mov    %rdi,%rax
+   1442a:	mov    %rdi,0x70(%rsp)
+   1442f:	mov    %rdi,%r12
+   14432:	shr    $0x3a,%rax
+   14436:	jne    14fef <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xccf>
+   1443c:	vpxor  %xmm0,%xmm0,%xmm0
+   14440:	test   %rdi,%rdi
+   14443:	movq   $0x0,0x90(%rsp)
+   1444f:	vmovdqa %xmm0,0x80(%rsp)
+   14458:	je     14880 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x560>
+   1445e:	mov    %rdi,%r14
+   14461:	shl    $0x5,%r14
+   14465:	mov    %r14,%rdi
+   14468:	vzeroupper
+   1446b:	call   3750 <operator new(unsigned long)@plt>
+   14470:	vpxor  %xmm0,%xmm0,%xmm0
+   14474:	cmp    $0x1,%r12
+   14478:	mov    0x70(%rsp),%rcx
+   1447d:	lea    (%rax,%r14,1),%rsi
+   14481:	mov    %rax,0x80(%rsp)
+   14489:	lea    0x20(%rax),%rdi
+   1448d:	mov    %rsi,0x90(%rsp)
+   14495:	vmovdqu %ymm0,(%rax)
+   14499:	je     144b7 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x197>
+   1449b:	mov    %rdi,%rdx
+   1449e:	xchg   %ax,%ax
+   144a0:	vmovdqu (%rax),%ymm0
+   144a4:	add    $0x20,%rdx
+   144a8:	vmovdqu %ymm0,-0x20(%rdx)
+   144ad:	cmp    %rdx,%rsi
+   144b0:	jne    144a0 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x180>
+   144b2:	lea    -0x20(%rdi,%r14,1),%rdi
+   144b7:	mov    %rcx,%rax
+   144ba:	mov    %rdi,0x88(%rsp)
+   144c2:	shr    $0x3c,%rax
+   144c6:	jne    14fc1 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xca1>
+   144cc:	vpxor  %xmm0,%xmm0,%xmm0
+   144d0:	test   %rcx,%rcx
+   144d3:	movq   $0x0,0xb0(%rsp)
+   144df:	vmovdqa %xmm0,0xa0(%rsp)
+   144e8:	je     148a4 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x584>
+   144ee:	lea    0x0(,%rcx,8),%r12
+   144f6:	mov    %r12,%rdi
+   144f9:	vzeroupper
+   144fc:	call   3750 <operator new(unsigned long)@plt>
+   14501:	lea    (%rax,%r12,1),%r14
+   14505:	mov    %r12,%rdx
+   14508:	xor    %esi,%esi
+   1450a:	mov    %rax,%rdi
+   1450d:	mov    %rax,0xa0(%rsp)
+   14515:	mov    %r14,0xb0(%rsp)
+   1451d:	call   3660 <memset@plt>
+   14522:	mov    0x70(%rsp),%rax
+   14527:	vpxor  %xmm0,%xmm0,%xmm0
+   1452b:	mov    %r14,0xa8(%rsp)
+   14533:	movq   $0x0,0xd0(%rsp)
+   1453f:	vmovdqa %xmm0,0xc0(%rsp)
+   14548:	mov    %rax,%rdx
+   1454b:	shr    $0x3c,%rdx
+   1454f:	jne    151ac <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xe8c>
+   14555:	test   %rax,%rax
+   14558:	je     14e12 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xaf2>
+   1455e:	lea    0x0(,%rax,8),%r12
+   14566:	mov    %r12,%rdi
+   14569:	call   3750 <operator new(unsigned long)@plt>
+   1456e:	vmovq  %rax,%xmm5
+   14573:	lea    (%rax,%r12,1),%rdx
+   14577:	cmpq   $0x0,0x70(%rsp)
+   1457d:	mov    %rax,0x50(%rsp)
+   14582:	vpunpcklqdq %xmm5,%xmm5,%xmm0
+   14586:	mov    %rdx,0x20(%rsp)
+   1458b:	mov    %rdx,0xd0(%rsp)
+   14593:	vmovdqa %xmm0,0xc0(%rsp)
+   1459c:	je     14ef1 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbd1>
+   145a2:	mov    %rax,0x48(%rsp)
+   145a7:	lea    0x60(%rsp),%r14
+   145ac:	lea    0x70(%rsp),%r13
+   145b1:	jmp    14658 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x338>
+   145b6:	cs nopw 0x0(%rax,%rax,1)
+   145c0:	movq   $0x0,(%r12)
+   145c8:	mov    $0x40,%edi
+   145cd:	call   3750 <operator new(unsigned long)@plt>
+   145d2:	lea    0xb1b7(%rip),%rdx        # 1f790 <vtable for std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >+0x10>
+   145d9:	mov    %rbx,0x8(%rax)
+   145dd:	lea    0x78(%rsp),%rsi
+   145e2:	mov    %r12,%rdi
+   145e5:	mov    %rdx,(%rax)
+   145e8:	lea    0x68(%rsp),%rdx
+   145ed:	mov    %rdx,0x28(%rax)
+   145f1:	lea    0x80(%rsp),%rdx
+   145f9:	mov    %rdx,0x30(%rax)
+   145fd:	lea    0xa0(%rsp),%rdx
+   14605:	mov    %rdx,0x38(%rax)
+   14609:	lea    -0xad0(%rip),%rdx        # 13b40 <std::thread::_M_thread_deps_never_run()>
+   14610:	mov    %r15,0x10(%rax)
+   14614:	mov    %r14,0x18(%rax)
+   14618:	mov    %r13,0x20(%rax)
+   1461c:	mov    %rax,0x78(%rsp)
+   14621:	call   3720 <std::thread::_M_start_thread(std::unique_ptr<std::thread::_State, std::default_delete<std::thread::_State> >, void (*)())@plt>
+   14626:	mov    0x78(%rsp),%rdi
+   1462b:	test   %rdi,%rdi
+   1462e:	je     14636 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x316>
+   14630:	mov    (%rdi),%rax
+   14633:	call   *0x8(%rax)
+   14636:	addq   $0x8,0x50(%rsp)
+   1463c:	mov    0x50(%rsp),%rax
+   14641:	add    $0x1,%rbx
+   14645:	cmp    0x70(%rsp),%rbx
+   1464a:	mov    %rax,0xc8(%rsp)
+   14652:	jae    14800 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x4e0>
+   14658:	mov    0x50(%rsp),%r12
+   1465d:	mov    0x20(%rsp),%rax
+   14662:	cmp    %rax,%r12
+   14665:	jne    145c0 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x2a0>
+   1466b:	mov    0x48(%rsp),%rax
+   14670:	mov    %r12,%rcx
+   14673:	movabs $0xfffffffffffffff,%rdx
+   1467d:	sub    %rax,%rcx
+   14680:	mov    %rcx,%rax
+   14683:	sar    $0x3,%rax
+   14687:	cmp    %rdx,%rax
+   1468a:	je     14f5d <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc3d>
+   14690:	test   %rax,%rax
+   14693:	mov    $0x1,%edx
+   14698:	cmovne %rax,%rdx
+   1469c:	add    %rdx,%rax
+   1469f:	jb     14eda <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbba>
+   146a5:	movabs $0xfffffffffffffff,%rdx
+   146af:	cmp    %rdx,%rax
+   146b2:	cmova  %rdx,%rax
+   146b6:	shl    $0x3,%rax
+   146ba:	mov    %rax,0x58(%rsp)
+   146bf:	mov    %rax,%rdi
+   146c2:	mov    %rcx,0x30(%rsp)
+   146c7:	call   3750 <operator new(unsigned long)@plt>
+   146cc:	mov    0x30(%rsp),%rcx
+   146d1:	mov    $0x40,%edi
+   146d6:	mov    %rax,%r12
+   146d9:	add    %rax,%rcx
+   146dc:	movq   $0x0,(%rcx)
+   146e3:	mov    %rcx,0x30(%rsp)
+   146e8:	call   3750 <operator new(unsigned long)@plt>
+   146ed:	lea    0xb09c(%rip),%rdx        # 1f790 <vtable for std::thread::_State_impl<std::thread::_Invoker<std::tuple<pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)::{lambda()#1}> > >+0x10>
+   146f4:	mov    %rbx,0x8(%rax)
+   146f8:	mov    0x30(%rsp),%rdi
+   146fd:	lea    0x78(%rsp),%rsi
+   14702:	mov    %rdx,(%rax)
+   14705:	lea    0x60(%rsp),%rdx
+   1470a:	mov    %rdx,0x18(%rax)
+   1470e:	lea    0x70(%rsp),%rdx
+   14713:	mov    %rdx,0x20(%rax)
+   14717:	lea    0x68(%rsp),%rdx
+   1471c:	mov    %rdx,0x28(%rax)
+   14720:	lea    0x80(%rsp),%rdx
+   14728:	mov    %rdx,0x30(%rax)
+   1472c:	lea    0xa0(%rsp),%rdx
+   14734:	mov    %rdx,0x38(%rax)
+   14738:	lea    -0xbff(%rip),%rdx        # 13b40 <std::thread::_M_thread_deps_never_run()>
+   1473f:	mov    %r15,0x10(%rax)
+   14743:	mov    %rax,0x78(%rsp)
+   14748:	call   3720 <std::thread::_M_start_thread(std::unique_ptr<std::thread::_State, std::default_delete<std::thread::_State> >, void (*)())@plt>
+   1474d:	mov    0x78(%rsp),%rdi
+   14752:	test   %rdi,%rdi
+   14755:	je     1475d <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x43d>
+   14757:	mov    (%rdi),%rax
+   1475a:	call   *0x8(%rax)
+   1475d:	mov    0x48(%rsp),%rdx
+   14762:	cmp    %rdx,0x50(%rsp)
+   14767:	je     14e58 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xb38>
+   1476d:	mov    0x50(%rsp),%rsi
+   14772:	mov    %r12,%rax
+   14775:	sub    %rdx,%rsi
+   14778:	add    %r12,%rsi
+   1477b:	nopl   0x0(%rax,%rax,1)
+   14780:	mov    (%rdx),%rcx
+   14783:	add    $0x8,%rax
+   14787:	add    $0x8,%rdx
+   1478b:	mov    %rcx,-0x8(%rax)
+   1478f:	cmp    %rsi,%rax
+   14792:	jne    14780 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x460>
+   14794:	add    $0x8,%rax
+   14798:	vmovq  %r12,%xmm2
+   1479d:	cmpq   $0x0,0x48(%rsp)
+   147a3:	mov    %rax,0x50(%rsp)
+   147a8:	vpinsrq $0x1,%rax,%xmm2,%xmm0
+   147ae:	je     147ce <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x4ae>
+   147b0:	mov    0x20(%rsp),%rsi
+   147b5:	mov    0x48(%rsp),%rdi
+   147ba:	vmovdqa %xmm0,0x30(%rsp)
+   147c0:	sub    %rdi,%rsi
+   147c3:	call   3760 <operator delete(void*, unsigned long)@plt>
+   147c8:	vmovdqa 0x30(%rsp),%xmm0
+   147ce:	mov    0x58(%rsp),%rax
+   147d3:	add    $0x1,%rbx
+   147d7:	mov    %r12,0x48(%rsp)
+   147dc:	vmovdqa %xmm0,0xc0(%rsp)
+   147e5:	add    %r12,%rax
+   147e8:	cmp    0x70(%rsp),%rbx
+   147ed:	mov    %rax,0x20(%rsp)
+   147f2:	mov    %rax,0xd0(%rsp)
+   147fa:	jb     14658 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x338>
+   14800:	mov    0x50(%rsp),%rbx
+   14805:	cmp    %rbx,0x48(%rsp)
+   1480a:	je     148fc <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x5dc>
+   14810:	mov    %rbx,%r12
+   14813:	mov    0x48(%rsp),%rbx
+   14818:	jmp    1482d <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x50d>
+   1481a:	nopw   0x0(%rax,%rax,1)
+   14820:	add    $0x8,%rbx
+   14824:	cmp    %rbx,%r12
+   14827:	je     148fc <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x5dc>
+   1482d:	cmpq   $0x0,(%rbx)
+   14831:	je     14820 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x500>
+   14833:	mov    %rbx,%rdi
+   14836:	call   3920 <std::thread::join()@plt>
+   1483b:	jmp    14820 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x500>
+   1483d:	nopl   (%rax)
+   14840:	mov    0x8(%rsp),%rax
+   14845:	vmovdqu (%rax),%ymm0
+   14849:	mov    0x18(%rsp),%rax
+   1484e:	vmovdqu %ymm0,(%rax)
+   14852:	vzeroupper
+   14855:	mov    0x1f8(%rsp),%rax
+   1485d:	sub    %fs:0x28,%rax
+   14866:	jne    14ed5 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbb5>
+   1486c:	mov    0x18(%rsp),%rax
+   14871:	lea    -0x28(%rbp),%rsp
+   14875:	pop    %rbx
+   14876:	pop    %r12
+   14878:	pop    %r13
+   1487a:	pop    %r14
+   1487c:	pop    %r15
+   1487e:	pop    %rbp
+   1487f:	ret
+   14880:	movq   $0x0,0x80(%rsp)
+   1488c:	movq   $0x0,0x90(%rsp)
+   14898:	movq   $0x0,0x88(%rsp)
+   148a4:	movq   $0x0,0xa0(%rsp)
+   148b0:	vpxor  %xmm0,%xmm0,%xmm0
+   148b4:	movq   $0x0,0xb0(%rsp)
+   148c0:	movq   $0x0,0xa8(%rsp)
+   148cc:	movq   $0x0,0xd0(%rsp)
+   148d8:	movq   $0x0,0x20(%rsp)
+   148e1:	movq   $0x0,0x50(%rsp)
+   148ea:	movq   $0x0,0x48(%rsp)
+   148f3:	vmovdqa %xmm0,0xc0(%rsp)
+   148fc:	mov    0xa0(%rsp),%rax
+   14904:	mov    0xa8(%rsp),%r12
+   1490c:	cmp    %rax,%r12
+   1490f:	mov    %rax,0x10(%rsp)
+   14914:	je     14935 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x615>
+   14916:	mov    0x10(%rsp),%rax
+   1491b:	nopl   0x0(%rax,%rax,1)
+   14920:	mov    (%rax),%rdx
+   14923:	test   %rdx,%rdx
+   14926:	jne    14e72 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xb52>
+   1492c:	add    $0x8,%rax
+   14930:	cmp    %rax,%r12
+   14933:	jne    14920 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x600>
+   14935:	mov    0x70(%rsp),%rax
+   1493a:	mov    0x80(%rsp),%r13
+   14942:	movabs $0xbfd25e8cd0364140,%r14
+   1494c:	movabs $0x4551231950b75fc5,%r11
+   14956:	movabs $0xbaaedce6af48a03a,%r15
+   14960:	cmp    $0x1,%rax
+   14964:	jbe    14b32 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x812>
+   1496a:	mov    %r12,(%rsp)
+   1496e:	xchg   %ax,%ax
+   14970:	mov    %rax,%rcx
+   14973:	mov    %r13,0x30(%rsp)
+   14978:	mov    %r13,%rdx
+   1497b:	mov    %r13,%r9
+   1497e:	shr    $1,%rcx
+   14981:	mov    %rax,0x28(%rsp)
+   14986:	mov    %rcx,%rsi
+   14989:	mov    %rcx,0x40(%rsp)
+   1498e:	shl    $0x6,%rsi
+   14992:	lea    (%rsi,%r13,1),%rbx
+   14996:	mov    %rbx,0x58(%rsp)
+   1499b:	nopl   0x0(%rax,%rax,1)
+   149a0:	mov    (%rdx),%rcx
+   149a3:	mov    0x20(%rdx),%r10
+   149a7:	xor    %edi,%edi
+   149a9:	mov    0x8(%rdx),%rsi
+   149ad:	add    0x28(%rdx),%rsi
+   149b1:	adc    $0x0,%rdi
+   149b5:	lea    (%r10,%rcx,1),%r8
+   149b9:	xor    %ebx,%ebx
+   149bb:	add    %r10,%rcx
+   149be:	adc    $0x0,%rbx
+   149c2:	mov    0x18(%rdx),%r12
+   149c6:	mov    %rbx,%rcx
+   149c9:	xor    %ebx,%ebx
+   149cb:	add    %rsi,%rcx
+   149ce:	adc    %rdi,%rbx
+   149d1:	mov    %rcx,%rax
+   149d4:	xor    %edi,%edi
+   149d6:	mov    0x10(%rdx),%rcx
+   149da:	mov    %rbx,%rsi
+   149dd:	xor    %ebx,%ebx
+   149df:	add    0x30(%rdx),%rcx
+   149e3:	adc    $0x0,%rbx
+   149e7:	add    %rsi,%rcx
+   149ea:	adc    %rdi,%rbx
+   149ed:	xor    %edi,%edi
+   149ef:	xor    %r13d,%r13d
+   149f2:	add    0x38(%rdx),%r12
+   149f6:	adc    $0x0,%r13
+   149fa:	add    %rbx,%r12
+   149fd:	adc    %rdi,%r13
+   14a00:	mov    %r12,%rsi
+   14a03:	test   %r13b,%r13b
+   14a06:	jne    14a66 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x746>
+   14a08:	cmp    $0xfffffffffffffffd,%rcx
+   14a0c:	setbe  %r10b
+   14a10:	cmp    $0xffffffffffffffff,%r12
+   14a14:	setne  %dil
+   14a18:	or     %edi,%r10d
+   14a1b:	cmp    %r8,%r14
+   14a1e:	movabs $0xbaaedce6af48a03b,%rdi
+   14a28:	setb   %bl
+   14a2b:	cmp    %rax,%rdi
+   14a2e:	setb   %dil
+   14a32:	or     %edi,%ebx
+   14a34:	cmp    %rax,%r15
+   14a37:	setae  %dil
+   14a3b:	movzbl %bl,%ebx
+   14a3e:	or     %r10d,%edi
+   14a41:	movzbl %dil,%edi
+   14a45:	andn   %ebx,%edi,%edi
+   14a4a:	movzbl %r10b,%ebx
+   14a4e:	xor    %r10d,%r10d
+   14a51:	cmp    $0xffffffffffffffff,%rcx
+   14a55:	sete   %r10b
+   14a59:	andn   %r10d,%ebx,%r10d
+   14a5e:	or     %edi,%r10d
+   14a61:	mov    %r8,%rbx
+   14a64:	je     14ac4 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x7a4>
+   14a66:	movabs $0x402da1732fc9bebf,%rbx
+   14a70:	mov    %rax,%rdi
+   14a73:	add    %r8,%rbx
+   14a76:	cmp    %r8,%r14
+   14a79:	setae  %r8b
+   14a7d:	movzbl %r8b,%r8d
+   14a81:	sub    %r8,%rdi
+   14a84:	cmp    %r8,%rax
+   14a87:	setb   %r8b
+   14a8b:	cmp    %rdi,%r15
+   14a8e:	lea    (%rdi,%r11,1),%rax
+   14a92:	setae  %dil
+   14a96:	or     %r8d,%edi
+   14a99:	mov    %rcx,%r8
+   14a9c:	movzbl %dil,%edi
+   14aa0:	sub    %rdi,%r8
+   14aa3:	cmp    %rdi,%rcx
+   14aa6:	setb   %dil
+   14aaa:	add    $0x1,%rsi
+   14aae:	lea    0x2(%r8),%rcx
+   14ab2:	cmp    $0xfffffffffffffffd,%r8
+   14ab6:	setbe  %r8b
+   14aba:	or     %edi,%r8d
+   14abd:	movzbl %r8b,%edi
+   14ac1:	sub    %rdi,%rsi
+   14ac4:	mov    %rbx,(%r9)
+   14ac7:	add    $0x40,%rdx
+   14acb:	add    $0x20,%r9
+   14acf:	mov    %rax,-0x18(%r9)
+   14ad3:	mov    %rcx,-0x10(%r9)
+   14ad7:	mov    %rsi,-0x8(%r9)
+   14adb:	cmp    %rdx,0x58(%rsp)
+   14ae0:	jne    149a0 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x680>
+   14ae6:	mov    0x28(%rsp),%rax
+   14aeb:	mov    0x30(%rsp),%r13
+   14af0:	mov    0x40(%rsp),%rcx
+   14af5:	test   $0x1,%al
+   14af7:	je     14b20 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x800>
+   14af9:	shl    $0x5,%rax
+   14afd:	mov    %rcx,%rdx
+   14b00:	vmovdqu -0x20(%r13,%rax,1),%ymm0
+   14b07:	shl    $0x5,%rdx
+   14b0b:	lea    0x1(%rcx),%rax
+   14b0f:	vmovdqu %ymm0,0x0(%r13,%rdx,1)
+   14b16:	jmp    14970 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x650>
+   14b1b:	nopl   0x0(%rax,%rax,1)
+   14b20:	cmp    $0x1,%rcx
+   14b24:	je     14b2e <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x80e>
+   14b26:	mov    %rcx,%rax
+   14b29:	jmp    14970 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x650>
+   14b2e:	mov    (%rsp),%r12
+   14b32:	mov    0x8(%rsp),%rbx
+   14b37:	mov    0x0(%r13),%rcx
+   14b3b:	mov    (%rbx),%rax
+   14b3e:	mov    0x8(%rbx),%r8
+   14b42:	mov    0x18(%rbx),%rdx
+   14b46:	mov    0x10(%rbx),%rdi
+   14b4a:	mov    %rax,%rsi
+   14b4d:	lea    (%rax,%rcx,1),%r10
+   14b51:	mov    %rax,0x120(%rsp)
+   14b59:	mov    0x8(%r13),%rax
+   14b5d:	mov    %rdx,0x138(%rsp)
+   14b65:	xor    %edx,%edx
+   14b67:	vmovq  %r10,%xmm4
+   14b6c:	add    %r8,%rax
+   14b6f:	mov    %rdi,0x130(%rsp)
+   14b77:	adc    $0x0,%rdx
+   14b7b:	xor    %ebx,%ebx
+   14b7d:	add    %rsi,%rcx
+   14b80:	mov    0x18(%r13),%rsi
+   14b84:	adc    $0x0,%rbx
+   14b88:	mov    %r8,0x128(%rsp)
+   14b90:	mov    %rbx,%rcx
+   14b93:	xor    %ebx,%ebx
+   14b95:	add    %rcx,%rax
+   14b98:	mov    0x10(%r13),%rcx
+   14b9c:	adc    %rbx,%rdx
+   14b9f:	mov    %rax,%r14
+   14ba2:	xor    %ebx,%ebx
+   14ba4:	mov    %rdx,%rax
+   14ba7:	xor    %edx,%edx
+   14ba9:	add    0x130(%rsp),%rcx
+   14bb1:	mov    %rdx,%rdi
+   14bb4:	adc    $0x0,%rbx
+   14bb8:	add    %rax,%rcx
+   14bbb:	mov    %r14,%rdx
+   14bbe:	adc    %rdi,%rbx
+   14bc1:	xor    %r9d,%r9d
+   14bc4:	xor    %edi,%edi
+   14bc6:	add    0x138(%rsp),%rsi
+   14bce:	adc    $0x0,%rdi
+   14bd2:	vmovq  %rcx,%xmm3
+   14bd7:	add    %rbx,%rsi
+   14bda:	mov    %rcx,%r11
+   14bdd:	adc    %r9,%rdi
+   14be0:	vpinsrq $0x1,%rsi,%xmm3,%xmm1
+   14be6:	vpinsrq $0x1,%r14,%xmm4,%xmm0
+   14bec:	mov    %rsi,%r8
+   14bef:	vinserti128 $0x1,%xmm1,%ymm0,%ymm0
+   14bf5:	test   %dil,%dil
+   14bf8:	vmovdqa %ymm0,0xe0(%rsp)
+   14c01:	jne    14c69 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x949>
+   14c03:	movabs $0xbfd25e8cd0364140,%rdi
+   14c0d:	cmp    $0xffffffffffffffff,%rsi
+   14c11:	setne  %al
+   14c14:	cmp    $0xfffffffffffffffd,%rcx
+   14c18:	setbe  %cl
+   14c1b:	or     %ecx,%eax
+   14c1d:	movabs $0xbaaedce6af48a03a,%rcx
+   14c27:	cmp    %r14,%rcx
+   14c2a:	setae  %sil
+   14c2e:	add    $0x1,%rcx
+   14c32:	or     %eax,%esi
+   14c34:	cmp    %r14,%rcx
+   14c37:	movzbl %al,%eax
+   14c3a:	setb   %cl
+   14c3d:	cmp    %r10,%rdi
+   14c40:	movzbl %sil,%esi
+   14c44:	setb   %dil
+   14c48:	or     %edi,%ecx
+   14c4a:	movzbl %cl,%ecx
+   14c4d:	andn   %ecx,%esi,%ecx
+   14c52:	xor    %esi,%esi
+   14c54:	cmp    $0xffffffffffffffff,%r11
+   14c58:	sete   %sil
+   14c5c:	andn   %esi,%eax,%eax
+   14c61:	or     %ecx,%eax
+   14c63:	je     14dfb <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xadb>
+   14c69:	movabs $0x402da1732fc9bebf,%rax
+   14c73:	xor    %esi,%esi
+   14c75:	mov    %rdx,%rcx
+   14c78:	add    %r10,%rax
+   14c7b:	mov    %rax,0x120(%rsp)
+   14c83:	movabs $0xbfd25e8cd0364140,%rax
+   14c8d:	cmp    %r10,%rax
+   14c90:	movabs $0x4551231950b75fc5,%rax
+   14c9a:	setae  %sil
+   14c9e:	sub    %rsi,%rcx
+   14ca1:	add    %rcx,%rax
+   14ca4:	cmp    %rsi,%rdx
+   14ca7:	movabs $0xbaaedce6af48a03a,%rdx
+   14cb1:	mov    %rax,0x128(%rsp)
+   14cb9:	setb   %al
+   14cbc:	cmp    %rcx,%rdx
+   14cbf:	setae  %dl
+   14cc2:	add    $0x1,%r8
+   14cc6:	or     %edx,%eax
+   14cc8:	mov    %r11,%rdx
+   14ccb:	movzbl %al,%eax
+   14cce:	sub    %rax,%rdx
+   14cd1:	cmp    $0xfffffffffffffffd,%rdx
+   14cd5:	lea    0x2(%rdx),%rcx
+   14cd9:	setbe  %dl
+   14cdc:	cmp    %rax,%r11
+   14cdf:	mov    %rcx,0x130(%rsp)
+   14ce7:	setb   %al
+   14cea:	or     %edx,%eax
+   14cec:	movzbl %al,%eax
+   14cef:	sub    %rax,%r8
+   14cf2:	mov    0x18(%rsp),%rax
+   14cf7:	mov    %r8,0x138(%rsp)
+   14cff:	vmovdqa 0x120(%rsp),%ymm0
+   14d08:	vmovdqu %ymm0,(%rax)
+   14d0c:	mov    0x48(%rsp),%rbx
+   14d11:	mov    0x50(%rsp),%rdx
+   14d16:	cmp    %rdx,%rbx
+   14d19:	mov    %rbx,%rax
+   14d1c:	je     14d33 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xa13>
+   14d1e:	xchg   %ax,%ax
+   14d20:	cmpq   $0x0,(%rax)
+   14d24:	jne    14fb9 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc99>
+   14d2a:	add    $0x8,%rax
+   14d2e:	cmp    %rdx,%rax
+   14d31:	jne    14d20 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xa00>
+   14d33:	cmpq   $0x0,0x48(%rsp)
+   14d39:	je     14df3 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xad3>
+   14d3f:	mov    0x48(%rsp),%rdi
+   14d44:	mov    0x20(%rsp),%rsi
+   14d49:	sub    %rdi,%rsi
+   14d4c:	vzeroupper
+   14d4f:	call   3760 <operator delete(void*, unsigned long)@plt>
+   14d54:	mov    0xa0(%rsp),%rax
+   14d5c:	mov    0xa8(%rsp),%r12
+   14d64:	mov    %rax,0x10(%rsp)
+   14d69:	mov    0x10(%rsp),%rax
+   14d6e:	cmp    %rax,%r12
+   14d71:	je     14da4 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xa84>
+   14d73:	mov    %rax,%rbx
+   14d76:	cs nopw 0x0(%rax,%rax,1)
+   14d80:	cmpq   $0x0,(%rbx)
+   14d84:	je     14de8 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xac8>
+   14d86:	mov    %rbx,%rdi
+   14d89:	add    $0x8,%rbx
+   14d8d:	call   36f0 <std::__exception_ptr::exception_ptr::_M_release()@plt>
+   14d92:	cmp    %r12,%rbx
+   14d95:	jne    14d80 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xa60>
+   14d97:	mov    0xa0(%rsp),%rax
+   14d9f:	mov    %rax,0x10(%rsp)
+   14da4:	mov    0x10(%rsp),%rdi
+   14da9:	test   %rdi,%rdi
+   14dac:	je     14dbe <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xa9e>
+   14dae:	mov    0xb0(%rsp),%rsi
+   14db6:	sub    %rdi,%rsi
+   14db9:	call   3760 <operator delete(void*, unsigned long)@plt>
+   14dbe:	mov    0x80(%rsp),%rdi
+   14dc6:	test   %rdi,%rdi
+   14dc9:	je     14855 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x535>
+   14dcf:	mov    0x90(%rsp),%rsi
+   14dd7:	sub    %rdi,%rsi
+   14dda:	call   3760 <operator delete(void*, unsigned long)@plt>
+   14ddf:	jmp    14855 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x535>
+   14de4:	nopl   0x0(%rax)
+   14de8:	add    $0x8,%rbx
+   14dec:	cmp    %r12,%rbx
+   14def:	jne    14d80 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xa60>
+   14df1:	jmp    14d97 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xa77>
+   14df3:	vzeroupper
+   14df6:	jmp    14d69 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xa49>
+   14dfb:	vmovdqa 0xe0(%rsp),%ymm0
+   14e04:	mov    0x18(%rsp),%rax
+   14e09:	vmovdqu %ymm0,(%rax)
+   14e0d:	jmp    14d0c <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x9ec>
+   14e12:	mov    0xa0(%rsp),%rax
+   14e1a:	mov    %r14,%r12
+   14e1d:	movq   $0x0,0x20(%rsp)
+   14e26:	movq   $0x0,0x48(%rsp)
+   14e2f:	cmp    %rax,%r14
+   14e32:	mov    %rax,0x10(%rsp)
+   14e37:	movq   $0x0,0x50(%rsp)
+   14e40:	jne    14916 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x5f6>
+   14e46:	mov    0x80(%rsp),%r13
+   14e4e:	jmp    14b32 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x812>
+   14e53:	nopl   0x0(%rax,%rax,1)
+   14e58:	lea    0x8(%r12),%rax
+   14e5d:	vmovq  %r12,%xmm6
+   14e62:	mov    %rax,0x50(%rsp)
+   14e67:	vpinsrq $0x1,%rax,%xmm6,%xmm0
+   14e6d:	jmp    147b0 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x490>
+   14e72:	mov    %rdx,0x78(%rsp)
+   14e77:	lea    0x78(%rsp),%r12
+   14e7c:	mov    %r12,%rdi
+   14e7f:	vzeroupper
+   14e82:	call   3530 <std::__exception_ptr::exception_ptr::_M_addref()@plt>
+   14e87:	mov    0x1f8(%rsp),%rax
+   14e8f:	sub    %fs:0x28,%rax
+   14e98:	jne    14ed5 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbb5>
+   14e9a:	mov    %r12,%rdi
+   14e9d:	call   3770 <std::rethrow_exception(std::__exception_ptr::exception_ptr)@plt>
+   14ea2:	mov    $0x10,%edi
+   14ea7:	call   3620 <__cxa_allocate_exception@plt>
+   14eac:	lea    0x5d05(%rip),%rsi        # 1abb8 <_IO_stdin_used+0xbb8>
+   14eb3:	mov    %rax,%rdi
+   14eb6:	mov    %rax,%rbx
+   14eb9:	call   37e0 <std::length_error::length_error(char const*)@plt>
+   14ebe:	mov    0x1f8(%rsp),%rax
+   14ec6:	sub    %fs:0x28,%rax
+   14ecf:	je     15101 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xde1>
+   14ed5:	call   37b0 <__stack_chk_fail@plt>
+   14eda:	movabs $0x7ffffffffffffff8,%rax
+   14ee4:	mov    %rax,0x58(%rsp)
+   14ee9:	mov    %rax,%rdi
+   14eec:	jmp    146c2 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x3a2>
+   14ef1:	mov    0x50(%rsp),%rax
+   14ef6:	mov    %rax,0x48(%rsp)
+   14efb:	jmp    148fc <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0x5dc>
+   14f00:	endbr64
+   14f04:	mov    %rax,%rbx
+   14f07:	jmp    14f93 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc73>
+   14f0c:	mov    $0x10,%edi
+   14f11:	vzeroupper
+   14f14:	call   3620 <__cxa_allocate_exception@plt>
+   14f19:	lea    0x6ac8(%rip),%rsi        # 1b9e8 <_IO_stdin_used+0x19e8>
+   14f20:	mov    %rax,%rdi
+   14f23:	mov    %rax,%rbx
+   14f26:	call   39c0 <std::invalid_argument::invalid_argument(char const*)@plt>
+   14f2b:	mov    0x1f8(%rsp),%rax
+   14f33:	sub    %fs:0x28,%rax
+   14f3c:	jne    14ed5 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbb5>
+   14f3e:	mov    0xb09b(%rip),%rdx        # 1ffe0 <std::invalid_argument::~invalid_argument()@GLIBCXX_3.4>
+   14f45:	lea    0xaab4(%rip),%rsi        # 1fa00 <typeinfo for std::invalid_argument@GLIBCXX_3.4>
+   14f4c:	mov    %rbx,%rdi
+   14f4f:	call   3930 <__cxa_throw@plt>
+   14f54:	endbr64
+   14f58:	mov    %rax,%rbx
+   14f5b:	jmp    14f80 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc60>
+   14f5d:	mov    0x1f8(%rsp),%rax
+   14f65:	sub    %fs:0x28,%rax
+   14f6e:	jne    14ed5 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbb5>
+   14f74:	lea    0x50df(%rip),%rdi        # 1a05a <_IO_stdin_used+0x5a>
+   14f7b:	call   3640 <std::__throw_length_error(char const*)@plt>
+   14f80:	cmpq   $0x0,0x78(%rsp)
+   14f86:	je     14f93 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc73>
+   14f88:	mov    %r12,%rdi
+   14f8b:	vzeroupper
+   14f8e:	call   36f0 <std::__exception_ptr::exception_ptr::_M_release()@plt>
+   14f93:	mov    0xc0(%rsp),%rdi
+   14f9b:	mov    0xc8(%rsp),%rdx
+   14fa3:	mov    %rdi,%rax
+   14fa6:	cmp    %rax,%rdx
+   14fa9:	je     15120 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xe00>
+   14faf:	cmpq   $0x0,(%rax)
+   14fb3:	je     15169 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xe49>
+   14fb9:	vzeroupper
+   14fbc:	call   3580 <std::terminate()@plt>
+   14fc1:	mov    0x1f8(%rsp),%rax
+   14fc9:	sub    %fs:0x28,%rax
+   14fd2:	jne    15006 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xce6>
+   14fd4:	lea    0x6a35(%rip),%rdi        # 1ba10 <_IO_stdin_used+0x1a10>
+   14fdb:	vzeroupper
+   14fde:	call   3640 <std::__throw_length_error(char const*)@plt>
+   14fe3:	endbr64
+   14fe7:	mov    %rax,%rbx
+   14fea:	jmp    151fe <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xede>
+   14fef:	mov    0x1f8(%rsp),%rax
+   14ff7:	sub    %fs:0x28,%rax
+   15000:	je     151cf <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xeaf>
+   15006:	vzeroupper
+   15009:	call   37b0 <__stack_chk_fail@plt>
+   1500e:	endbr64
+   15012:	mov    %rax,%rbx
+   15015:	jmp    15044 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd24>
+   15017:	mov    $0x10,%edi
+   1501c:	vzeroupper
+   1501f:	call   3620 <__cxa_allocate_exception@plt>
+   15024:	lea    0x5a35(%rip),%rsi        # 1aa60 <_IO_stdin_used+0xa60>
+   1502b:	mov    %rax,%rdi
+   1502e:	mov    %rax,%rbx
+   15031:	call   39c0 <std::invalid_argument::invalid_argument(char const*)@plt>
+   15036:	jmp    14f2b <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc0b>
+   1503b:	endbr64
+   1503f:	mov    %rax,%rbx
+   15042:	jmp    15057 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd37>
+   15044:	mov    0x78(%rsp),%rdi
+   15049:	test   %rdi,%rdi
+   1504c:	je     15057 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd37>
+   1504e:	mov    (%rdi),%rax
+   15051:	vzeroupper
+   15054:	call   *0x8(%rax)
+   15057:	mov    0x48(%rsp),%r12
+   1505c:	mov    0x50(%rsp),%rax
+   15061:	cmp    %rax,%r12
+   15064:	je     14f93 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc73>
+   1506a:	cmpq   $0x0,(%r12)
+   1506f:	je     1507c <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd5c>
+   15071:	mov    %r12,%rdi
+   15074:	vzeroupper
+   15077:	call   3920 <std::thread::join()@plt>
+   1507c:	add    $0x8,%r12
+   15080:	jmp    1505c <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd3c>
+   15082:	endbr64
+   15086:	mov    %rax,%r12
+   15089:	mov    %rbx,%rdi
+   1508c:	vzeroupper
+   1508f:	call   36b0 <__cxa_free_exception@plt>
+   15094:	mov    0x1f8(%rsp),%rax
+   1509c:	sub    %fs:0x28,%rax
+   150a5:	jne    14ed5 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbb5>
+   150ab:	mov    %r12,%rdi
+   150ae:	call   3970 <_Unwind_Resume@plt>
+   150b3:	mov    $0x10,%edi
+   150b8:	call   3620 <__cxa_allocate_exception@plt>
+   150bd:	lea    0x68fc(%rip),%rsi        # 1b9c0 <_IO_stdin_used+0x19c0>
+   150c4:	mov    %rax,%rdi
+   150c7:	mov    %rax,%rbx
+   150ca:	call   39c0 <std::invalid_argument::invalid_argument(char const*)@plt>
+   150cf:	jmp    14f2b <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc0b>
+   150d4:	mov    $0x10,%edi
+   150d9:	call   3620 <__cxa_allocate_exception@plt>
+   150de:	lea    0x5b03(%rip),%rsi        # 1abe8 <_IO_stdin_used+0xbe8>
+   150e5:	mov    %rax,%rdi
+   150e8:	mov    %rax,%rbx
+   150eb:	call   39c0 <std::invalid_argument::invalid_argument(char const*)@plt>
+   150f0:	jmp    14f2b <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc0b>
+   150f5:	endbr64
+   150f9:	jmp    15086 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd66>
+   150fb:	endbr64
+   150ff:	jmp    15086 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd66>
+   15101:	mov    0xaeb8(%rip),%rdx        # 1ffc0 <std::length_error::~length_error()@GLIBCXX_3.4>
+   15108:	lea    0xa8a9(%rip),%rsi        # 1f9b8 <typeinfo for std::length_error@GLIBCXX_3.4>
+   1510f:	mov    %rbx,%rdi
+   15112:	call   3930 <__cxa_throw@plt>
+   15117:	endbr64
+   1511b:	jmp    15086 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd66>
+   15120:	mov    0xd0(%rsp),%rsi
+   15128:	sub    %rdi,%rsi
+   1512b:	test   %rdi,%rdi
+   1512e:	je     15138 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xe18>
+   15130:	vzeroupper
+   15133:	call   3760 <operator delete(void*, unsigned long)@plt>
+   15138:	mov    0xa8(%rsp),%r13
+   15140:	mov    0xa0(%rsp),%r12
+   15148:	cmp    %r12,%r13
+   1514b:	je     151de <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xebe>
+   15151:	cmpq   $0x0,(%r12)
+   15156:	je     15163 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xe43>
+   15158:	mov    %r12,%rdi
+   1515b:	vzeroupper
+   1515e:	call   36f0 <std::__exception_ptr::exception_ptr::_M_release()@plt>
+   15163:	add    $0x8,%r12
+   15167:	jmp    15148 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xe28>
+   15169:	add    $0x8,%rax
+   1516d:	jmp    14fa6 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xc86>
+   15172:	endbr64
+   15176:	mov    %rax,%rbx
+   15179:	jmp    15184 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xe64>
+   1517b:	endbr64
+   1517f:	mov    %rax,%rbx
+   15182:	jmp    15197 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xe77>
+   15184:	mov    0x78(%rsp),%rdi
+   15189:	test   %rdi,%rdi
+   1518c:	je     15197 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xe77>
+   1518e:	mov    (%rdi),%rax
+   15191:	vzeroupper
+   15194:	call   *0x8(%rax)
+   15197:	mov    0x58(%rsp),%rsi
+   1519c:	mov    %r12,%rdi
+   1519f:	vzeroupper
+   151a2:	call   3760 <operator delete(void*, unsigned long)@plt>
+   151a7:	jmp    15057 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd37>
+   151ac:	mov    0x1f8(%rsp),%rax
+   151b4:	sub    %fs:0x28,%rax
+   151bd:	jne    14ed5 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbb5>
+   151c3:	lea    0x58b0(%rip),%rdi        # 1aa7a <_IO_stdin_used+0xa7a>
+   151ca:	call   3640 <std::__throw_length_error(char const*)@plt>
+   151cf:	lea    0x683a(%rip),%rdi        # 1ba10 <_IO_stdin_used+0x1a10>
+   151d6:	vzeroupper
+   151d9:	call   3640 <std::__throw_length_error(char const*)@plt>
+   151de:	mov    0xa0(%rsp),%rdi
+   151e6:	mov    0xb0(%rsp),%rsi
+   151ee:	sub    %rdi,%rsi
+   151f1:	test   %rdi,%rdi
+   151f4:	je     151fe <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xede>
+   151f6:	vzeroupper
+   151f9:	call   3760 <operator delete(void*, unsigned long)@plt>
+   151fe:	mov    0x80(%rsp),%rdi
+   15206:	mov    0x90(%rsp),%rsi
+   1520e:	sub    %rdi,%rsi
+   15211:	test   %rdi,%rdi
+   15214:	jne    15241 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xf21>
+   15216:	vzeroupper
+   15219:	mov    0x1f8(%rsp),%rax
+   15221:	sub    %fs:0x28,%rax
+   1522a:	jne    14ed5 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xbb5>
+   15230:	mov    %rbx,%rdi
+   15233:	call   3970 <_Unwind_Resume@plt>
+   15238:	endbr64
+   1523c:	jmp    15086 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xd66>
+   15241:	vzeroupper
+   15244:	call   3760 <operator delete(void*, unsigned long)@plt>
+   15249:	jmp    15219 <pa_f1::multicore_cold(std::array<unsigned long, 4ul> const&, std::array<unsigned long, 4ul> const*, unsigned long, std::vector<int, std::allocator<int> > const&)+0xef9>

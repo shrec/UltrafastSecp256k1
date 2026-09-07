@@ -1,0 +1,56 @@
+P2 linked-symbol sizes, GNU nm -S --defined-only -C
+Binary: /tmp/parseatlas-p2-field.sDWRFA/p2_field_compare_gcc_v2
+SHA256: 80738c4a620aa8e135f4f9297d1bead38b06f4c657c76d7a36fddfd1ce669df1
+Operation enum: 0 add, 1 sub, 2 mul, 3 square, 4 inverse.
+Route enum: 0 FE64, 1 FE52 bridge, 2 canonical resident FE52, 3 CT API.
+Addresses and sizes are hexadecimal. Wrapper sizes exclude called functions;
+inline resident jobs include their inlined arithmetic. Not total hot-path size,
+not a cache/stack/spill measurement. Existing ASM sizes match corrected P1.
+
+000000000000b980 000000000000024f t secp256k1::fast::FieldElement (anonymous namespace)::bridge<((anonymous namespace)::Op)0>(secp256k1::fast::FieldElement const&, secp256k1::fast::FieldElement const&)
+000000000000bbd0 0000000000000283 t secp256k1::fast::FieldElement (anonymous namespace)::bridge<((anonymous namespace)::Op)1>(secp256k1::fast::FieldElement const&, secp256k1::fast::FieldElement const&)
+000000000000be60 0000000000000541 t secp256k1::fast::FieldElement (anonymous namespace)::bridge<((anonymous namespace)::Op)2>(secp256k1::fast::FieldElement const&, secp256k1::fast::FieldElement const&)
+000000000000e9f0 0000000000000457 t secp256k1::fast::FieldElement (anonymous namespace)::bridge<((anonymous namespace)::Op)3>(secp256k1::fast::FieldElement const&, secp256k1::fast::FieldElement const&)
+000000000000e420 0000000000000374 t secp256k1::fast::FieldElement (anonymous namespace)::bridge<((anonymous namespace)::Op)4>(secp256k1::fast::FieldElement const&, secp256k1::fast::FieldElement const&)
+000000000000ce70 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)0, ((anonymous namespace)::Route)0, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000cf40 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)0, ((anonymous namespace)::Route)0, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000c3b0 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)0, ((anonymous namespace)::Route)1, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000c620 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)0, ((anonymous namespace)::Route)1, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000012e60 00000000000002e1 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)0, ((anonymous namespace)::Route)2, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000010650 0000000000000abe t void (anonymous namespace)::full_job<((anonymous namespace)::Op)0, ((anonymous namespace)::Route)2, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000cc30 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)0, ((anonymous namespace)::Route)3, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000cd00 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)0, ((anonymous namespace)::Route)3, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000d2f0 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)1, ((anonymous namespace)::Route)0, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000d3c0 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)1, ((anonymous namespace)::Route)0, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000c480 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)1, ((anonymous namespace)::Route)1, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000c790 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)1, ((anonymous namespace)::Route)1, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000013950 000000000000033d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)1, ((anonymous namespace)::Route)2, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000011110 0000000000000b6d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)1, ((anonymous namespace)::Route)2, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000d0b0 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)1, ((anonymous namespace)::Route)3, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000d180 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)1, ((anonymous namespace)::Route)3, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000d770 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)2, ((anonymous namespace)::Route)0, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000d840 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)2, ((anonymous namespace)::Route)0, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000c550 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)2, ((anonymous namespace)::Route)1, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000c900 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)2, ((anonymous namespace)::Route)1, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000014230 0000000000000675 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)2, ((anonymous namespace)::Route)2, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000012480 00000000000009d7 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)2, ((anonymous namespace)::Route)2, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000d530 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)2, ((anonymous namespace)::Route)3, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000d600 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)2, ((anonymous namespace)::Route)3, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000dbb0 00000000000000b2 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)3, ((anonymous namespace)::Route)0, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000dc70 0000000000000133 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)3, ((anonymous namespace)::Route)0, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000ee50 00000000000000c6 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)3, ((anonymous namespace)::Route)1, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000ef20 000000000000016d t void (anonymous namespace)::full_job<((anonymous namespace)::Op)3, ((anonymous namespace)::Route)1, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000013c90 000000000000059a t void (anonymous namespace)::full_job<((anonymous namespace)::Op)3, ((anonymous namespace)::Route)2, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000011c80 00000000000007f7 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)3, ((anonymous namespace)::Route)2, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000d9b0 00000000000000b2 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)3, ((anonymous namespace)::Route)3, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000da70 0000000000000133 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)3, ((anonymous namespace)::Route)3, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000dff0 00000000000000cb t void (anonymous namespace)::full_job<((anonymous namespace)::Op)4, ((anonymous namespace)::Route)0, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000e0c0 0000000000000170 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)4, ((anonymous namespace)::Route)0, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000e7a0 00000000000000cc t void (anonymous namespace)::full_job<((anonymous namespace)::Op)4, ((anonymous namespace)::Route)1, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000e870 0000000000000172 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)4, ((anonymous namespace)::Route)1, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000014940 00000000000004ad t void (anonymous namespace)::full_job<((anonymous namespace)::Op)4, ((anonymous namespace)::Route)2, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000013150 00000000000007fa t void (anonymous namespace)::full_job<((anonymous namespace)::Op)4, ((anonymous namespace)::Route)2, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000ddb0 00000000000000cb t void (anonymous namespace)::full_job<((anonymous namespace)::Op)4, ((anonymous namespace)::Route)3, 1u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+000000000000de80 0000000000000170 t void (anonymous namespace)::full_job<((anonymous namespace)::Op)4, ((anonymous namespace)::Route)3, 4u>((anonymous namespace)::Corpus const&, std::array<std::array<unsigned char, 32ul>, 4ul>&)
+0000000000039fd6 0000000000000262 T field_mul_full_asm
+000000000003a238 0000000000000208 T field_sqr_full_asm

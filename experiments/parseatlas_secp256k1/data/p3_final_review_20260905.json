@@ -1,0 +1,82 @@
+{
+  "schema": "parseatlas_p3_final_review_v1",
+  "recorded_utc": "2026-09-05 21:17:16 UTC",
+  "disposition": "retain_reviewed_experimental_candidates_with_disclosed_measurement_limitation",
+  "review_role": "independent manager; feature code authored by workers",
+  "canonical_task_acceptance": false,
+  "production_integration": false,
+  "mechanical_gate": {
+    "status": "pass",
+    "p3_hashes_verified": 42,
+    "p2_hashes_verified": 41,
+    "historical_frontier_redirect": true,
+    "local_doc_links_checked": 38,
+    "unique_lens_rows": 25,
+    "correctness_configs": 3,
+    "assertions_per_config": 3703557,
+    "numeric_audit_checks": 16215,
+    "git_head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+    "git_branch": "experiment/representation-search",
+    "git_diff_check": "pass",
+    "manifest_sha256": "8df77e1bb8fc10b476c8a1d3ff4e559cfc804c82e0e339b20083b54f89130de9",
+    "errors": []
+  },
+  "static_codegen_replay": {
+    "status": "pass",
+    "binary_sha256": "32702b980349a2f5e6cbf8f29fc882f5bebb109e1a2c7f009b7fccd2fdfcbb91",
+    "slices_verified": 12,
+    "symbol_sizes_verified": 12,
+    "errors": []
+  },
+  "independent_report_review": {
+    "reviewer": "/root/p1_scalar_inventory",
+    "status": "pass",
+    "blocking_findings": [],
+    "displayed_values_verified": 174,
+    "unique_lens_rows": 25,
+    "baseline_wins_n_ge_16": "480/480",
+    "baseline_wins_n_eq_1": "4/96",
+    "internal_posthoc_comparisons": "Each stated 15/16 count verified and explicitly posthoc.",
+    "checkpoint_counts": "461744 raw, 922808 canonical, 208 weak independently recomputed.",
+    "scope": "Setup, finite test, one core, security, memory-causality and duration-floor limitations verified."
+  },
+  "numeric_audit": {
+    "path": "experiments/parseatlas_secp256k1/data/p3_numeric_audit_20260905.json",
+    "status": "pass",
+    "checks": 16215,
+    "errors": 0
+  },
+  "retained_limitation": {
+    "path": "experiments/parseatlas_secp256k1/data/p3_duration_floor_deviation_20260905.json",
+    "series": "S2",
+    "n": 1,
+    "route": "E2E Full16",
+    "short_warmup_regions": 1,
+    "short_measured_regions": 8,
+    "all_n_ge_16_warmup_and_measurement_meet_200ms": true,
+    "action": "Retain every raw record and report incomplete later-phase duration qualification; no selective rerun or deletion."
+  },
+  "source_review": {
+    "kernel": "Complete manager read after smoke pass.",
+    "correctness": "Complete manager read after native and Clang gates; sanitizer also passed.",
+    "driver": "Complete manager read after native and Clang smoke gates; full series and numerical audit passed with disclosed duration qualification limitation.",
+    "workers": "Independent scopes; no production writes this wave."
+  },
+  "preservation": {
+    "production_sources_unchanged_during_p3": true,
+    "earlier_reports_and_manifests_unchanged": true,
+    "p2_mutable_frontier_archived_before_update": true,
+    "git_identity_unchanged": true,
+    "unrelated_dirty_changes_preserved": true
+  },
+  "next_field_only_gates": [
+    "Preregister and measure native 4x64 accumulation control to separate API/carry scheduling from representation benefit.",
+    "Add setup-inclusive representation and compiler/profile comparisons; fix later-phase duration qualification before the next protocol.",
+    "Extend field research to product/square sparse-prime reduction, subtraction/negation bounds, and inversion/batch inversion with separate contracts.",
+    "Perform security qualification and actual caller compatibility before any later integration; do not transfer sum bounds to products."
+  ],
+  "exclusions": [
+    "No production dispatch, upper-layer/scalar experiment, commit, push, tag, release, registry or CI default change.",
+    "No CT approval, universal proof, novelty or whole-engine performance claim."
+  ]
+}

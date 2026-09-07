@@ -1,0 +1,4653 @@
+{
+  "schema": "parseatlas.p2.numeric_audit.v1",
+  "status": "pass",
+  "reviewer": "root/p1_scalar_inventory independent delegated review",
+  "arithmetic": "Node metadata arithmetic only; all performance measurements are native C++",
+  "inputs": [
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_run1_20260905.json",
+      "sha256": "8320d99b9b022dbbb9bbf095b7600288b4c6ffe21edb5c66420071b743b39026"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_run2_20260905.json",
+      "sha256": "3e4122b5eac7d08f4113396531376efcc91674c2c9a2681b705e0e27d465715d"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_validation_20260905.json",
+      "sha256": "de190b7d7e46e50324af197ff5c03199c197d2754d5ae568ed0557bce589b3bd"
+    }
+  ],
+  "checks_evaluated": 13831,
+  "numeric_relative_tolerance": 1e-12,
+  "errors": [],
+  "scope": [
+    "raw elapsed/operation counts and normalized means",
+    "all cell summaries and same-round ratio arrays",
+    "canonical output byte identity as persisted, across routes, modes lane0 and series",
+    "FNV checksums independently recomputed",
+    "exact calibration growth, streaks and frozen job counts",
+    "exact per-round group and route schedules, including warmup offset and reverse series",
+    "all phase counts, floor flags, retained short rows and CPU endpoints",
+    "persisted independent correctness configuration evidence"
+  ],
+  "limitations": [
+    "Recorded endpoints are not continuous CPU/frequency monitoring.",
+    "Only final identical timed job per region is byte-compared; separate untimed driver replay checks intermediates.",
+    "Identical persisted bytes and checksums are not a fresh arithmetic-oracle rerun.",
+    "CT route is descriptive with a different security contract; lookup benchmark is not CT proof.",
+    "Inverse timings include dependent corpus lookup and cover nonzero inputs only.",
+    "Resident excludes preconverted RHS setup; setup observation is not a standalone conversion benchmark.",
+    "Bridge unary wrappers retain a second reference argument; measurements describe wrappers as compiled.",
+    "Complete recorded schedules and short counts were checked; this audit cannot infer unrecorded external runs."
+  ],
+  "validation": [
+    {
+      "configuration": "native",
+      "assertions": 2769460,
+      "checksum_fnv1a64": "ef652f4c3eada148",
+      "fe64_output_checks": 824624,
+      "fe52_output_checks": 384174,
+      "bridge_raw_residue_checks": 76022,
+      "mismatches": 0
+    },
+    {
+      "configuration": "clang",
+      "assertions": 2769460,
+      "checksum_fnv1a64": "ef652f4c3eada148",
+      "fe64_output_checks": 824624,
+      "fe52_output_checks": 384174,
+      "bridge_raw_residue_checks": 76022,
+      "mismatches": 0
+    },
+    {
+      "configuration": "sanitizer",
+      "assertions": 2769460,
+      "checksum_fnv1a64": "ef652f4c3eada148",
+      "fe64_output_checks": 824624,
+      "fe52_output_checks": 384174,
+      "bridge_raw_residue_checks": 76022,
+      "mismatches": 0
+    }
+  ],
+  "validation_same_corpus_not_independent": true,
+  "series": [
+    {
+      "series": 1,
+      "total_regions": 520,
+      "phase_counts": {
+        "calibration": 120,
+        "warmup": 80,
+        "measurement": 320
+      },
+      "phase_duration_ranges": {
+        "calibration": {
+          "count": 120,
+          "min_ms": 0.008515,
+          "max_ms": 322.977107,
+          "short_count": 40
+        },
+        "warmup": {
+          "count": 80,
+          "min_ms": 253.770263,
+          "max_ms": 402.992598,
+          "short_count": 0
+        },
+        "measurement": {
+          "count": 320,
+          "min_ms": 247.760097,
+          "max_ms": 406.131241,
+          "short_count": 0
+        }
+      },
+      "short_regions": [
+        {
+          "region": 0,
+          "phase": "calibration",
+          "cell": 37,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 3.766601
+        },
+        {
+          "region": 3,
+          "phase": "calibration",
+          "cell": 38,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 3.613654
+        },
+        {
+          "region": 6,
+          "phase": "calibration",
+          "cell": 39,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 6.185738
+        },
+        {
+          "region": 9,
+          "phase": "calibration",
+          "cell": 36,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 3.90307
+        },
+        {
+          "region": 12,
+          "phase": "calibration",
+          "cell": 15,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.025805
+        },
+        {
+          "region": 15,
+          "phase": "calibration",
+          "cell": 12,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.027592
+        },
+        {
+          "region": 18,
+          "phase": "calibration",
+          "cell": 13,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.033817
+        },
+        {
+          "region": 21,
+          "phase": "calibration",
+          "cell": 14,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.020538
+        },
+        {
+          "region": 24,
+          "phase": "calibration",
+          "cell": 21,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.086372
+        },
+        {
+          "region": 27,
+          "phase": "calibration",
+          "cell": 22,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.073935
+        },
+        {
+          "region": 30,
+          "phase": "calibration",
+          "cell": 23,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.108318
+        },
+        {
+          "region": 33,
+          "phase": "calibration",
+          "cell": 20,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.048442
+        },
+        {
+          "region": 36,
+          "phase": "calibration",
+          "cell": 32,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.926283
+        },
+        {
+          "region": 39,
+          "phase": "calibration",
+          "cell": 33,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.963432
+        },
+        {
+          "region": 42,
+          "phase": "calibration",
+          "cell": 34,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 1.020406
+        },
+        {
+          "region": 45,
+          "phase": "calibration",
+          "cell": 35,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 1.382689
+        },
+        {
+          "region": 48,
+          "phase": "calibration",
+          "cell": 10,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.010005
+        },
+        {
+          "region": 51,
+          "phase": "calibration",
+          "cell": 11,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.012311
+        },
+        {
+          "region": 54,
+          "phase": "calibration",
+          "cell": 8,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.013403
+        },
+        {
+          "region": 57,
+          "phase": "calibration",
+          "cell": 9,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.014573
+        },
+        {
+          "region": 60,
+          "phase": "calibration",
+          "cell": 5,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.030212
+        },
+        {
+          "region": 63,
+          "phase": "calibration",
+          "cell": 6,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.01707
+        },
+        {
+          "region": 66,
+          "phase": "calibration",
+          "cell": 7,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.025297
+        },
+        {
+          "region": 69,
+          "phase": "calibration",
+          "cell": 4,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.023149
+        },
+        {
+          "region": 72,
+          "phase": "calibration",
+          "cell": 26,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.019492
+        },
+        {
+          "region": 75,
+          "phase": "calibration",
+          "cell": 27,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.026643
+        },
+        {
+          "region": 78,
+          "phase": "calibration",
+          "cell": 24,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.021546
+        },
+        {
+          "region": 81,
+          "phase": "calibration",
+          "cell": 25,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.027005
+        },
+        {
+          "region": 84,
+          "phase": "calibration",
+          "cell": 16,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.023048
+        },
+        {
+          "region": 87,
+          "phase": "calibration",
+          "cell": 17,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.028375
+        },
+        {
+          "region": 90,
+          "phase": "calibration",
+          "cell": 18,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.021223
+        },
+        {
+          "region": 93,
+          "phase": "calibration",
+          "cell": 19,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.028905
+        },
+        {
+          "region": 96,
+          "phase": "calibration",
+          "cell": 31,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.063342
+        },
+        {
+          "region": 99,
+          "phase": "calibration",
+          "cell": 28,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.049523
+        },
+        {
+          "region": 102,
+          "phase": "calibration",
+          "cell": 29,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.06365
+        },
+        {
+          "region": 105,
+          "phase": "calibration",
+          "cell": 30,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.055815
+        },
+        {
+          "region": 108,
+          "phase": "calibration",
+          "cell": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.010058
+        },
+        {
+          "region": 111,
+          "phase": "calibration",
+          "cell": 1,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.014317
+        },
+        {
+          "region": 114,
+          "phase": "calibration",
+          "cell": 2,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.008515
+        },
+        {
+          "region": 117,
+          "phase": "calibration",
+          "cell": 3,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.010349
+        }
+      ],
+      "all_region_cpu_endpoints": 4,
+      "power_start": {
+        "cpu": 4,
+        "governor": "powersave",
+        "current_khz": "3031067",
+        "no_turbo": "0"
+      },
+      "power_end": {
+        "cpu": 4,
+        "governor": "powersave",
+        "current_khz": "4100000",
+        "no_turbo": "0"
+      },
+      "resident_setup_one_observation_ns": 490,
+      "corpus_checksum_fnv1a64": "e706509ec61dda1d",
+      "base_group_order": [
+        9,
+        3,
+        5,
+        8,
+        2,
+        1,
+        6,
+        4,
+        7,
+        0
+      ],
+      "reverse_order": false,
+      "cells": [
+        {
+          "id": 0,
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 9.433393120557865,
+            "median": 9.748710674272075,
+            "max": 11.342109540008549,
+            "arithmetic_mean": 9.913987448120528
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 29828,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c"
+          ],
+          "expected_checksum_fnv1a64": "dd9cff0778e8d682"
+        },
+        {
+          "id": 1,
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 13.513500842579337,
+            "median": 14.201148876498747,
+            "max": 14.70724338612503,
+            "arithmetic_mean": 14.164606960972918
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 20955,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c"
+          ],
+          "expected_checksum_fnv1a64": "dd9cff0778e8d682"
+        },
+        {
+          "id": 2,
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 8.099112362562797,
+            "median": 8.26253590596794,
+            "max": 8.791297517615378,
+            "arithmetic_mean": 8.345322528392158
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 35232,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c"
+          ],
+          "expected_checksum_fnv1a64": "dd9cff0778e8d682"
+        },
+        {
+          "id": 3,
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 9.632295837160216,
+            "median": 9.909310461780763,
+            "max": 11.543652434705837,
+            "arithmetic_mean": 10.114219606837668
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 28989,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c"
+          ],
+          "expected_checksum_fnv1a64": "dd9cff0778e8d682"
+        },
+        {
+          "id": 4,
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 5.51185334758994,
+            "median": 5.763703918457031,
+            "max": 5.931282740463446,
+            "arithmetic_mean": 5.740277565850152
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 12960,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c",
+            "21015add3de9d4d29b7cb5b663c8846f77adc80641f0ea7a6d0a6e53e7e8d436",
+            "89ef72f748f27e281c0567da615755512bb1945a4c3889774a6e803e8e247393",
+            "af82a545f853f7bebf129f3f610adddcfa596c0cc401064f5d1f081fe1d9a4c9"
+          ],
+          "expected_checksum_fnv1a64": "3604675b31d0df99"
+        },
+        {
+          "id": 5,
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 7.468742992942787,
+            "median": 7.614074633272753,
+            "max": 7.993447565576221,
+            "arithmetic_mean": 7.694046896389964
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 9930,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c",
+            "21015add3de9d4d29b7cb5b663c8846f77adc80641f0ea7a6d0a6e53e7e8d436",
+            "89ef72f748f27e281c0567da615755512bb1945a4c3889774a6e803e8e247393",
+            "af82a545f853f7bebf129f3f610adddcfa596c0cc401064f5d1f081fe1d9a4c9"
+          ],
+          "expected_checksum_fnv1a64": "3604675b31d0df99"
+        },
+        {
+          "id": 6,
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 4.013326049631045,
+            "median": 4.159783593472173,
+            "max": 4.216066606285562,
+            "arithmetic_mean": 4.137681072121154
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 17575,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c",
+            "21015add3de9d4d29b7cb5b663c8846f77adc80641f0ea7a6d0a6e53e7e8d436",
+            "89ef72f748f27e281c0567da615755512bb1945a4c3889774a6e803e8e247393",
+            "af82a545f853f7bebf129f3f610adddcfa596c0cc401064f5d1f081fe1d9a4c9"
+          ],
+          "expected_checksum_fnv1a64": "3604675b31d0df99"
+        },
+        {
+          "id": 7,
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 5.973174935609454,
+            "median": 6.248681506821116,
+            "max": 6.513332980640019,
+            "arithmetic_mean": 6.254959724001699
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 11860,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c",
+            "21015add3de9d4d29b7cb5b663c8846f77adc80641f0ea7a6d0a6e53e7e8d436",
+            "89ef72f748f27e281c0567da615755512bb1945a4c3889774a6e803e8e247393",
+            "af82a545f853f7bebf129f3f610adddcfa596c0cc401064f5d1f081fe1d9a4c9"
+          ],
+          "expected_checksum_fnv1a64": "3604675b31d0df99"
+        },
+        {
+          "id": 8,
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 11.711514258231325,
+            "median": 12.058967334019277,
+            "max": 12.51413943309116,
+            "arithmetic_mean": 12.098067130251728
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 22384,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5"
+          ],
+          "expected_checksum_fnv1a64": "c37e5d64ece1ed43"
+        },
+        {
+          "id": 9,
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 14.103851328735974,
+            "median": 14.396586172402486,
+            "max": 15.838038103156725,
+            "arithmetic_mean": 14.695089521707798
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 20587,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5"
+          ],
+          "expected_checksum_fnv1a64": "c37e5d64ece1ed43"
+        },
+        {
+          "id": 10,
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 8.079551968001734,
+            "median": 8.487770953267775,
+            "max": 9.127391415473054,
+            "arithmetic_mean": 8.53229411518344
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 29986,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5"
+          ],
+          "expected_checksum_fnv1a64": "c37e5d64ece1ed43"
+        },
+        {
+          "id": 11,
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 11.527192150183122,
+            "median": 11.796688535831898,
+            "max": 12.442204122681481,
+            "arithmetic_mean": 11.89576318385423
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 24369,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5"
+          ],
+          "expected_checksum_fnv1a64": "c37e5d64ece1ed43"
+        },
+        {
+          "id": 12,
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 5.7805532348262325,
+            "median": 6.041467216672032,
+            "max": 6.331178991969788,
+            "arithmetic_mean": 6.034233759158473
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 10873,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5",
+            "14a4d029b22bdb964047ab77dd8861d579f143b65ce6b7e13c91f88f3c07edef",
+            "7d92e843bd3484ebc0d05d9bdb1732b72df5100a672e56de19f60a79e2438d4c",
+            "a3261a926c95fe8263dd9500dacabb42fc9ce7bcdef6d3b62ca6925b35f8be82"
+          ],
+          "expected_checksum_fnv1a64": "78555990eaba27a2"
+        },
+        {
+          "id": 13,
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 7.85380222606057,
+            "median": 8.253170181976126,
+            "max": 8.575487499735827,
+            "arithmetic_mean": 8.254489706054908
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 8872,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5",
+            "14a4d029b22bdb964047ab77dd8861d579f143b65ce6b7e13c91f88f3c07edef",
+            "7d92e843bd3484ebc0d05d9bdb1732b72df5100a672e56de19f60a79e2438d4c",
+            "a3261a926c95fe8263dd9500dacabb42fc9ce7bcdef6d3b62ca6925b35f8be82"
+          ],
+          "expected_checksum_fnv1a64": "78555990eaba27a2"
+        },
+        {
+          "id": 14,
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 4.324532282182708,
+            "median": 4.515288587990099,
+            "max": 4.766724902985522,
+            "arithmetic_mean": 4.541152486143081
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 14608,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5",
+            "14a4d029b22bdb964047ab77dd8861d579f143b65ce6b7e13c91f88f3c07edef",
+            "7d92e843bd3484ebc0d05d9bdb1732b72df5100a672e56de19f60a79e2438d4c",
+            "a3261a926c95fe8263dd9500dacabb42fc9ce7bcdef6d3b62ca6925b35f8be82"
+          ],
+          "expected_checksum_fnv1a64": "78555990eaba27a2"
+        },
+        {
+          "id": 15,
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 6.153900172733797,
+            "median": 6.439540682572332,
+            "max": 6.661612084948338,
+            "arithmetic_mean": 6.395560534464273
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 11626,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5",
+            "14a4d029b22bdb964047ab77dd8861d579f143b65ce6b7e13c91f88f3c07edef",
+            "7d92e843bd3484ebc0d05d9bdb1732b72df5100a672e56de19f60a79e2438d4c",
+            "a3261a926c95fe8263dd9500dacabb42fc9ce7bcdef6d3b62ca6925b35f8be82"
+          ],
+          "expected_checksum_fnv1a64": "78555990eaba27a2"
+        },
+        {
+          "id": 16,
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 21.94559840917166,
+            "median": 23.475955121187678,
+            "max": 24.220920313940425,
+            "arithmetic_mean": 23.114225721802498
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 13017,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec"
+          ],
+          "expected_checksum_fnv1a64": "b303a323c2034e61"
+        },
+        {
+          "id": 17,
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 27.555887398178143,
+            "median": 28.919562810711838,
+            "max": 30.936908040379976,
+            "arithmetic_mean": 29.04461333371264
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 10573,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec"
+          ],
+          "expected_checksum_fnv1a64": "b303a323c2034e61"
+        },
+        {
+          "id": 18,
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 20.61523009183114,
+            "median": 21.451904020541527,
+            "max": 22.59189386804966,
+            "arithmetic_mean": 21.529331114444616
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 14136,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec"
+          ],
+          "expected_checksum_fnv1a64": "b303a323c2034e61"
+        },
+        {
+          "id": 19,
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 29.16019068702428,
+            "median": 29.62620891832366,
+            "max": 30.439811796957798,
+            "arithmetic_mean": 29.7504014124449
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 10379,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec"
+          ],
+          "expected_checksum_fnv1a64": "b303a323c2034e61"
+        },
+        {
+          "id": 20,
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 11.792623176494631,
+            "median": 12.240982861351778,
+            "max": 12.825997195989927,
+            "arithmetic_mean": 12.265702518492086
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 6193,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec",
+            "424c55f7558e3e4e470fbe1daabada9e4b11776fcc1eb1c4230a59a674c45a28",
+            "d7b6e1ef0f24408e7dfd1aaa134928541e2ce47478f0380194c40bf9a47f4c9a",
+            "644a4e9e8bbb0571cb7e015d832fc2fb2e9e991e493bc07fe6907e93bbb52b81"
+          ],
+          "expected_checksum_fnv1a64": "9cda33f44c7e0451"
+        },
+        {
+          "id": 21,
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 21.602513903506406,
+            "median": 22.50960293485985,
+            "max": 23.832081286881117,
+            "arithmetic_mean": 22.546967650804977
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 3474,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec",
+            "424c55f7558e3e4e470fbe1daabada9e4b11776fcc1eb1c4230a59a674c45a28",
+            "d7b6e1ef0f24408e7dfd1aaa134928541e2ce47478f0380194c40bf9a47f4c9a",
+            "644a4e9e8bbb0571cb7e015d832fc2fb2e9e991e493bc07fe6907e93bbb52b81"
+          ],
+          "expected_checksum_fnv1a64": "9cda33f44c7e0451"
+        },
+        {
+          "id": 22,
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 16.518426781396315,
+            "median": 17.159560939136426,
+            "max": 17.446646128692553,
+            "arithmetic_mean": 17.07168288816073
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 4058,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec",
+            "424c55f7558e3e4e470fbe1daabada9e4b11776fcc1eb1c4230a59a674c45a28",
+            "d7b6e1ef0f24408e7dfd1aaa134928541e2ce47478f0380194c40bf9a47f4c9a",
+            "644a4e9e8bbb0571cb7e015d832fc2fb2e9e991e493bc07fe6907e93bbb52b81"
+          ],
+          "expected_checksum_fnv1a64": "9cda33f44c7e0451"
+        },
+        {
+          "id": 23,
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 21.836933188317914,
+            "median": 22.79166991306126,
+            "max": 24.444718277583483,
+            "arithmetic_mean": 22.908195776543465
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 2770,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec",
+            "424c55f7558e3e4e470fbe1daabada9e4b11776fcc1eb1c4230a59a674c45a28",
+            "d7b6e1ef0f24408e7dfd1aaa134928541e2ce47478f0380194c40bf9a47f4c9a",
+            "644a4e9e8bbb0571cb7e015d832fc2fb2e9e991e493bc07fe6907e93bbb52b81"
+          ],
+          "expected_checksum_fnv1a64": "9cda33f44c7e0451"
+        },
+        {
+          "id": 24,
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 20.112757059528512,
+            "median": 20.69018835228293,
+            "max": 21.653817851596166,
+            "arithmetic_mean": 20.757953042170328
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 13924,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63"
+          ],
+          "expected_checksum_fnv1a64": "182144b8ae74c4b0"
+        },
+        {
+          "id": 25,
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 25.972800844537577,
+            "median": 27.363525170876464,
+            "max": 28.316681375168766,
+            "arithmetic_mean": 27.275376055671973
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 11110,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63"
+          ],
+          "expected_checksum_fnv1a64": "182144b8ae74c4b0"
+        },
+        {
+          "id": 26,
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 19.12125485013563,
+            "median": 19.547120108241018,
+            "max": 20.478138476828992,
+            "arithmetic_mean": 19.636476330462507
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 15391,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63"
+          ],
+          "expected_checksum_fnv1a64": "182144b8ae74c4b0"
+        },
+        {
+          "id": 27,
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 26.388139795875887,
+            "median": 27.56999420653863,
+            "max": 29.107994369588145,
+            "arithmetic_mean": 27.552518106734986
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 11260,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63"
+          ],
+          "expected_checksum_fnv1a64": "182144b8ae74c4b0"
+        },
+        {
+          "id": 28,
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 10.865424271108452,
+            "median": 11.446952107008553,
+            "max": 11.843666094291638,
+            "arithmetic_mean": 11.435596515180725
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 6058,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63",
+            "10dc92972048c62479738041c4d9e3845cf707235e4505db7ee5495b1008354f",
+            "56392cee017f0f4d0274a46955329f75e30247e0c79631261f467211bfb8a2c3",
+            "50d8b8d66ae46cacf5bb8648b00b2dbe446ca8b8f2d6ce20670316a2b87dd5eb"
+          ],
+          "expected_checksum_fnv1a64": "11ddbc90a4579043"
+        },
+        {
+          "id": 29,
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 15.777351881115427,
+            "median": 16.67990048861271,
+            "max": 18.584524498584667,
+            "arithmetic_mean": 16.88047270032375
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 4714,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63",
+            "10dc92972048c62479738041c4d9e3845cf707235e4505db7ee5495b1008354f",
+            "56392cee017f0f4d0274a46955329f75e30247e0c79631261f467211bfb8a2c3",
+            "50d8b8d66ae46cacf5bb8648b00b2dbe446ca8b8f2d6ce20670316a2b87dd5eb"
+          ],
+          "expected_checksum_fnv1a64": "11ddbc90a4579043"
+        },
+        {
+          "id": 30,
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 12.150668422965117,
+            "median": 12.74743890806686,
+            "max": 18.44709488553779,
+            "arithmetic_mean": 13.353844153115915
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 5375,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63",
+            "10dc92972048c62479738041c4d9e3845cf707235e4505db7ee5495b1008354f",
+            "56392cee017f0f4d0274a46955329f75e30247e0c79631261f467211bfb8a2c3",
+            "50d8b8d66ae46cacf5bb8648b00b2dbe446ca8b8f2d6ce20670316a2b87dd5eb"
+          ],
+          "expected_checksum_fnv1a64": "11ddbc90a4579043"
+        },
+        {
+          "id": 31,
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 15.516658203949625,
+            "median": 16.2898030392802,
+            "max": 18.669160127388114,
+            "arithmetic_mean": 16.408533316562515
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 4737,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63",
+            "10dc92972048c62479738041c4d9e3845cf707235e4505db7ee5495b1008354f",
+            "56392cee017f0f4d0274a46955329f75e30247e0c79631261f467211bfb8a2c3",
+            "50d8b8d66ae46cacf5bb8648b00b2dbe446ca8b8f2d6ce20670316a2b87dd5eb"
+          ],
+          "expected_checksum_fnv1a64": "11ddbc90a4579043"
+        },
+        {
+          "id": 32,
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 879.9466989776234,
+            "median": 892.5489049840857,
+            "max": 952.2208809558256,
+            "arithmetic_mean": 901.8121869122541
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 324,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946"
+          ],
+          "expected_checksum_fnv1a64": "c1251e7817d0a307"
+        },
+        {
+          "id": 33,
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 883.9781775841346,
+            "median": 934.3598570212339,
+            "max": 997.5037935697115,
+            "arithmetic_mean": 932.7337235670825
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 312,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946"
+          ],
+          "expected_checksum_fnv1a64": "c1251e7817d0a307"
+        },
+        {
+          "id": 34,
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 900.8379502118644,
+            "median": 934.3771318855931,
+            "max": 994.9955806408898,
+            "arithmetic_mean": 940.4553797835011
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 295,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946"
+          ],
+          "expected_checksum_fnv1a64": "c1251e7817d0a307"
+        },
+        {
+          "id": 35,
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 1363.518581689228,
+            "median": 1412.8897901965727,
+            "max": 1452.6512501800116,
+            "arithmetic_mean": 1411.1457277640768
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 217,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946"
+          ],
+          "expected_checksum_fnv1a64": "c1251e7817d0a307"
+        },
+        {
+          "id": 36,
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 888.6086552607549,
+            "median": 932.2042410714287,
+            "max": 989.469035359172,
+            "arithmetic_mean": 934.0381663929332
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 77,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946",
+            "b02258be9b8bcfa00cec3c2b5b260ac188df9ecf6161c365598b7944ea1d090a",
+            "7c4e695e858f4c5abcc16d7e91e85ffbe2463a22718ac7b934ee79e78ed536f4",
+            "8de7abec43b12fed17c6c679619e5ac74e97f12d3cfdb3d1c4d7f7bcca3cc6bb"
+          ],
+          "expected_checksum_fnv1a64": "615a331a401678f4"
+        },
+        {
+          "id": 37,
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 899.1264953613281,
+            "median": 924.5375686645508,
+            "max": 982.7314849853516,
+            "arithmetic_mean": 930.8792175292969
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 80,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946",
+            "b02258be9b8bcfa00cec3c2b5b260ac188df9ecf6161c365598b7944ea1d090a",
+            "7c4e695e858f4c5abcc16d7e91e85ffbe2463a22718ac7b934ee79e78ed536f4",
+            "8de7abec43b12fed17c6c679619e5ac74e97f12d3cfdb3d1c4d7f7bcca3cc6bb"
+          ],
+          "expected_checksum_fnv1a64": "615a331a401678f4"
+        },
+        {
+          "id": 38,
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 875.2773873465402,
+            "median": 925.0932646251861,
+            "max": 1082.3816935221355,
+            "arithmetic_mean": 941.605449858166
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 84,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946",
+            "b02258be9b8bcfa00cec3c2b5b260ac188df9ecf6161c365598b7944ea1d090a",
+            "7c4e695e858f4c5abcc16d7e91e85ffbe2463a22718ac7b934ee79e78ed536f4",
+            "8de7abec43b12fed17c6c679619e5ac74e97f12d3cfdb3d1c4d7f7bcca3cc6bb"
+          ],
+          "expected_checksum_fnv1a64": "615a331a401678f4"
+        },
+        {
+          "id": 39,
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 1344.5394162547832,
+            "median": 1368.9813232421875,
+            "max": 1682.3917859135843,
+            "arithmetic_mean": 1411.170141726124
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 49,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946",
+            "b02258be9b8bcfa00cec3c2b5b260ac188df9ecf6161c365598b7944ea1d090a",
+            "7c4e695e858f4c5abcc16d7e91e85ffbe2463a22718ac7b934ee79e78ed536f4",
+            "8de7abec43b12fed17c6c679619e5ac74e97f12d3cfdb3d1c4d7f7bcca3cc6bb"
+          ],
+          "expected_checksum_fnv1a64": "615a331a401678f4"
+        }
+      ],
+      "paired": [
+        {
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.8048467086633653,
+            0.6546048153772901,
+            0.6890355119359385,
+            0.6922308759517638,
+            0.6988780089659653,
+            0.6784986394292318,
+            0.6637983645987882,
+            0.7210617098663139
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6546048153772901,
+            "median": 0.6906331939438511,
+            "max": 0.8048467086633653,
+            "arithmetic_mean": 0.7003693293485822
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.400413901211709,
+            1.0730376376929458,
+            1.173390028710873,
+            1.163019198796443,
+            1.1533651804740441,
+            1.1704083113641135,
+            1.183325865340468,
+            1.1992306830973336
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.0730376376929458,
+            "median": 1.1718991700374932,
+            "max": 1.400413901211709,
+            "arithmetic_mean": 1.189523850835991
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9825408036288972,
+            0.9793504352477413,
+            0.9475564415322001,
+            0.9953716458270512,
+            0.9690533928554557,
+            0.9855513645961019,
+            0.979282187106767,
+            1.003464074471607
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9475564415322001,
+            "median": 0.9809456194383193,
+            "max": 1.003464074471607,
+            "arithmetic_mean": 0.9802712931582276
+          },
+          "wins": 1,
+          "ties": 0,
+          "losses": 7
+        },
+        {
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7621346619180617,
+            0.7420180956720742,
+            0.7011430631150325,
+            0.7517994740267082,
+            0.7230425585005192,
+            0.7731339794493277,
+            0.753304871070605,
+            0.7642806492207657
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7011430631150325,
+            "median": 0.7525521725486566,
+            "max": 0.7731339794493277,
+            "arithmetic_mean": 0.7463571691216367
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.3778125726317725,
+            1.4303715939776591,
+            1.3073449407494044,
+            1.3758576341413422,
+            1.3493455325905743,
+            1.4670754593493438,
+            1.3689025758775786,
+            1.426764084714996
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.3073449407494044,
+            "median": 1.3768351033865573,
+            "max": 1.4670754593493438,
+            "arithmetic_mean": 1.387934299254084
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9701876026463083,
+            0.9616616799560438,
+            0.8980736094661872,
+            0.8841135883127215,
+            0.8798407351458392,
+            0.9039691622218576,
+            0.9173387612317144,
+            0.9311248814828869
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.8798407351458392,
+            "median": 0.910653961726786,
+            "max": 0.9701876026463083,
+            "arithmetic_mean": 0.9182887525579448
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.8733875446059871,
+            0.7962548313505363,
+            0.8872852628270516,
+            0.8259582348124539,
+            0.8395615249147862,
+            0.7640407777353123,
+            0.8339529172170095,
+            0.7777036057898683
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7640407777353123,
+            "median": 0.8299555760147317,
+            "max": 0.8872852628270516,
+            "arithmetic_mean": 0.8247680874066257
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.4524638877959168,
+            1.4405654154495484,
+            1.51938490731853,
+            1.4143760823755611,
+            1.360968776477541,
+            1.325779338182377,
+            1.4937703974132022,
+            1.353533957233017
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.325779338182377,
+            "median": 1.4274707489125547,
+            "max": 1.51938490731853,
+            "arithmetic_mean": 1.4201053452807118
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.062703025915084,
+            0.9683926573677893,
+            1.0856190536298433,
+            0.9924854940118039,
+            1.0276133288188187,
+            1.0110269732015005,
+            1.023386828310427,
+            0.9712154110564503
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9683926573677893,
+            "median": 1.0172069007559639,
+            "max": 1.0856190536298433,
+            "arithmetic_mean": 1.0178053465389647
+          },
+          "wins": 5,
+          "ties": 0,
+          "losses": 3
+        },
+        {
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7074169930177027,
+            0.8061291600852389,
+            0.6968679966808166,
+            0.7488662006252794,
+            0.7329479542083616,
+            0.7236621125539521,
+            0.7350566468873747,
+            0.7023684196691784
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6968679966808166,
+            "median": 0.7283050333811568,
+            "max": 0.8061291600852389,
+            "arithmetic_mean": 0.7316644354659881
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.238585510716941,
+            1.437698866567657,
+            1.3527408010514979,
+            1.2752572945131746,
+            1.351173640645308,
+            1.4041854305757115,
+            1.2956269782780243,
+            1.2888324479806328
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.238585510716941,
+            "median": 1.3234003094616662,
+            "max": 1.437698866567657,
+            "arithmetic_mean": 1.3305126212911185
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.8948525373843846,
+            1.0288075552511338,
+            0.9031897473347197,
+            0.9469571883950549,
+            0.965392379161482,
+            0.9933807537584466,
+            0.9174487328545052,
+            0.9058269407470999
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.8948525373843846,
+            "median": 0.9322029606247801,
+            "max": 1.0288075552511338,
+            "arithmetic_mean": 0.9444819793608534
+          },
+          "wins": 1,
+          "ties": 0,
+          "losses": 7
+        },
+        {
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.8541622235204229,
+            0.737986618587628,
+            0.8100641138260304,
+            0.7829134146931038,
+            0.7906502991081259,
+            0.8321998793609493,
+            0.8134758705169347,
+            0.7529734639693295
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.737986618587628,
+            "median": 0.8003572064670781,
+            "max": 0.8541622235204229,
+            "arithmetic_mean": 0.7968032354478156
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.13217999837068,
+            0.9977661269834776,
+            1.1138403554390444,
+            1.1386387939141551,
+            1.075762990027849,
+            1.0881871564843901,
+            1.0551771983093785,
+            0.9971239682708438
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9971239682708438,
+            "median": 1.0819750732561195,
+            "max": 1.1386387939141551,
+            "arithmetic_mean": 1.0748345734749774
+          },
+          "wins": 6,
+          "ties": 0,
+          "losses": 2
+        },
+        {
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.8010583572732131,
+            0.7730205432427499,
+            0.7762972813357958,
+            0.7956987538392436,
+            0.7477917862326855,
+            0.795375868381157,
+            0.7832143294452438,
+            0.7425716204094036
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7425716204094036,
+            "median": 0.7797558053905198,
+            "max": 0.8010583572732131,
+            "arithmetic_mean": 0.7768785675199366
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.5893021008536281,
+            0.5394601044771166,
+            0.5639350726841873,
+            0.5510912488841948,
+            0.5451653598214035,
+            0.5227587670183077,
+            0.49482137269253673,
+            0.5505936816503809
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.49482137269253673,
+            "median": 0.5478795207358922,
+            "max": 0.5893021008536281,
+            "arithmetic_mean": 0.5446409635102194
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.765130828063173,
+            0.6995828839936347,
+            0.7279297187665734,
+            0.6989982540555575,
+            0.7360108561470557,
+            0.7270246590520707,
+            0.6790572197233271,
+            0.7161557071169434
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6790572197233271,
+            "median": 0.7215901830845071,
+            "max": 0.765130828063173,
+            "arithmetic_mean": 0.7187362658647919
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.5708098859537896,
+            0.5480911927742449,
+            0.5306278668922122,
+            0.5451752891972171,
+            0.5624631144001322,
+            0.5146329263997205,
+            0.5102046282009892,
+            0.5067683245974359
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.5067683245974359,
+            "median": 0.5379015780447147,
+            "max": 0.5708098859537896,
+            "arithmetic_mean": 0.5360966535519677
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7295092436408926,
+            0.7736288805867445,
+            0.7551023821405415,
+            0.749811280618647,
+            0.7847705317048176,
+            0.8061371981765565,
+            0.7102794565879329,
+            0.7848823241619401
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7102794565879329,
+            "median": 0.764365631363643,
+            "max": 0.8061371981765565,
+            "arithmetic_mean": 0.7617651622022591
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.0085758051831333,
+            1.0215769948988824,
+            1.1158059652202448,
+            1.04984369326195,
+            1.0700334103929685,
+            1.0736250808704542,
+            1.0265579626994916,
+            1.0949793743772605
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.0085758051831333,
+            "median": 1.059938551827459,
+            "max": 1.1158059652202448,
+            "arithmetic_mean": 1.057624785863048
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7138486028924073,
+            0.7187027350856994,
+            0.7663120951632567,
+            0.7547075872938054,
+            0.770545177151477,
+            0.7598187429164293,
+            0.7291487122048064,
+            0.8205890229132548
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7138486028924073,
+            "median": 0.7572631651051174,
+            "max": 0.8205890229132548,
+            "arithmetic_mean": 0.7542090844526419
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.6714938079033432,
+            0.7103172103237995,
+            0.6682897962556225,
+            0.6372864743025096,
+            0.6961973451460645,
+            0.6930410119285377,
+            0.660566302029221,
+            0.6889770033938645
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6372864743025096,
+            "median": 0.6802354056486039,
+            "max": 0.7103172103237995,
+            "arithmetic_mean": 0.6782711189103703
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.8555424939602666,
+            0.8764106729843736,
+            0.8977649077719916,
+            0.6420342155651225,
+            0.9657128362102751,
+            0.9007283004503245,
+            0.8940296994680087,
+            0.9222089138035708
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6420342155651225,
+            "median": 0.8958973036200002,
+            "max": 0.9657128362102751,
+            "arithmetic_mean": 0.8693040050267417
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7246126971185058,
+            0.6896369817319903,
+            0.7036965071727944,
+            0.6343973705017769,
+            0.7547777064992449,
+            0.7009602998559927,
+            0.6887195152590927,
+            0.6913919953863275
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6343973705017769,
+            "median": 0.6961761476211601,
+            "max": 0.7547777064992449,
+            "arithmetic_mean": 0.6985241341907157
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9639983762189324,
+            0.9860690972385352,
+            0.9976320023570219,
+            0.9903556083323961,
+            0.9294616172300975,
+            0.9546037690224369,
+            0.9850753958657453,
+            0.9328557628053836
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9294616172300975,
+            "median": 0.9745368860423389,
+            "max": 0.9976320023570219,
+            "arithmetic_mean": 0.9675064536338187
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9545482695890739,
+            0.962396346030005,
+            0.978960665606688,
+            0.9641767472933309,
+            0.9699164208687548,
+            0.957010161133065,
+            0.9559202696614886,
+            0.9296688598577356
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9296688598577356,
+            "median": 0.9597032535815351,
+            "max": 0.978960665606688,
+            "arithmetic_mean": 0.9590747175050177
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.6542776861311249,
+            0.6465455688092402,
+            0.6338407798129572,
+            0.6243264052784983,
+            0.6269524914506268,
+            0.6727467413704465,
+            0.6201416890064032,
+            0.6342434150693131
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6201416890064032,
+            "median": 0.6340420974411352,
+            "max": 0.6727467413704465,
+            "arithmetic_mean": 0.6391343471160762
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.0609830730707044,
+            1.013204405346571,
+            0.9197015036928441,
+            0.9695900804805172,
+            1.0164349192601707,
+            1.0426570188106323,
+            1.0559145152604368,
+            0.9575692528319337
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9197015036928441,
+            "median": 1.014819662303371,
+            "max": 1.0609830730707044,
+            "arithmetic_mean": 1.0045068460942264
+          },
+          "wins": 5,
+          "ties": 0,
+          "losses": 3
+        },
+        {
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9141590635549092,
+            1.0905377162931456,
+            0.9487725555062981,
+            0.9710132260090357,
+            0.9805082085323364,
+            1.0241895186559196,
+            1.0159474519621365,
+            1.0103263378104523
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9141590635549092,
+            "median": 0.9954172731713944,
+            "max": 1.0905377162931456,
+            "arithmetic_mean": 0.9944317597905292
+          },
+          "wins": 4,
+          "ties": 0,
+          "losses": 4
+        },
+        {
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.5881323504096067,
+            0.6974503879171196,
+            0.6600241628560871,
+            0.6222836253302546,
+            0.6577402266342343,
+            0.6886886276081092,
+            0.7115807506766665,
+            0.6894018276814244
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.5881323504096067,
+            "median": 0.6743563952320981,
+            "max": 0.7115807506766665,
+            "arithmetic_mean": 0.6644127448891879
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        }
+      ]
+    },
+    {
+      "series": 2,
+      "total_regions": 522,
+      "phase_counts": {
+        "calibration": 122,
+        "warmup": 80,
+        "measurement": 320
+      },
+      "phase_duration_ranges": {
+        "calibration": {
+          "count": 122,
+          "min_ms": 0.008255,
+          "max_ms": 332.520497,
+          "short_count": 41
+        },
+        "warmup": {
+          "count": 80,
+          "min_ms": 262.204457,
+          "max_ms": 324.628591,
+          "short_count": 0
+        },
+        "measurement": {
+          "count": 320,
+          "min_ms": 255.395411,
+          "max_ms": 403.868409,
+          "short_count": 0
+        }
+      },
+      "short_regions": [
+        {
+          "region": 0,
+          "phase": "calibration",
+          "cell": 3,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.009723
+        },
+        {
+          "region": 3,
+          "phase": "calibration",
+          "cell": 2,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.008714
+        },
+        {
+          "region": 6,
+          "phase": "calibration",
+          "cell": 1,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.014173
+        },
+        {
+          "region": 9,
+          "phase": "calibration",
+          "cell": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.010832
+        },
+        {
+          "region": 12,
+          "phase": "calibration",
+          "cell": 30,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.049762
+        },
+        {
+          "region": 15,
+          "phase": "calibration",
+          "cell": 29,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.064995
+        },
+        {
+          "region": 18,
+          "phase": "calibration",
+          "cell": 28,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.069351
+        },
+        {
+          "region": 20,
+          "phase": "calibration",
+          "cell": 28,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 2,
+          "jobs": 4326,
+          "elapsed_ms": 197.936396
+        },
+        {
+          "region": 23,
+          "phase": "calibration",
+          "cell": 31,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.06475
+        },
+        {
+          "region": 26,
+          "phase": "calibration",
+          "cell": 19,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.02935
+        },
+        {
+          "region": 29,
+          "phase": "calibration",
+          "cell": 18,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.021277
+        },
+        {
+          "region": 32,
+          "phase": "calibration",
+          "cell": 17,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.028653
+        },
+        {
+          "region": 35,
+          "phase": "calibration",
+          "cell": 16,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.025828
+        },
+        {
+          "region": 38,
+          "phase": "calibration",
+          "cell": 25,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.030165
+        },
+        {
+          "region": 41,
+          "phase": "calibration",
+          "cell": 24,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.023386
+        },
+        {
+          "region": 44,
+          "phase": "calibration",
+          "cell": 27,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.030335
+        },
+        {
+          "region": 47,
+          "phase": "calibration",
+          "cell": 26,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.021939
+        },
+        {
+          "region": 50,
+          "phase": "calibration",
+          "cell": 4,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.023202
+        },
+        {
+          "region": 53,
+          "phase": "calibration",
+          "cell": 7,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.028004
+        },
+        {
+          "region": 56,
+          "phase": "calibration",
+          "cell": 6,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.016788
+        },
+        {
+          "region": 59,
+          "phase": "calibration",
+          "cell": 5,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.030558
+        },
+        {
+          "region": 62,
+          "phase": "calibration",
+          "cell": 9,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.016185
+        },
+        {
+          "region": 65,
+          "phase": "calibration",
+          "cell": 8,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.013843
+        },
+        {
+          "region": 68,
+          "phase": "calibration",
+          "cell": 11,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.01351
+        },
+        {
+          "region": 71,
+          "phase": "calibration",
+          "cell": 10,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.008255
+        },
+        {
+          "region": 74,
+          "phase": "calibration",
+          "cell": 35,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 1.392411
+        },
+        {
+          "region": 77,
+          "phase": "calibration",
+          "cell": 34,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.971288
+        },
+        {
+          "region": 80,
+          "phase": "calibration",
+          "cell": 33,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.927797
+        },
+        {
+          "region": 83,
+          "phase": "calibration",
+          "cell": 32,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.957786
+        },
+        {
+          "region": 86,
+          "phase": "calibration",
+          "cell": 20,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.053818
+        },
+        {
+          "region": 89,
+          "phase": "calibration",
+          "cell": 23,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.089928
+        },
+        {
+          "region": 92,
+          "phase": "calibration",
+          "cell": 22,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.0672
+        },
+        {
+          "region": 95,
+          "phase": "calibration",
+          "cell": 21,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.09079
+        },
+        {
+          "region": 98,
+          "phase": "calibration",
+          "cell": 14,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.020198
+        },
+        {
+          "region": 101,
+          "phase": "calibration",
+          "cell": 13,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.032468
+        },
+        {
+          "region": 104,
+          "phase": "calibration",
+          "cell": 12,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.024067
+        },
+        {
+          "region": 107,
+          "phase": "calibration",
+          "cell": 15,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 0.025532
+        },
+        {
+          "region": 110,
+          "phase": "calibration",
+          "cell": 36,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 3.631326
+        },
+        {
+          "region": 113,
+          "phase": "calibration",
+          "cell": 39,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 6.283189
+        },
+        {
+          "region": 116,
+          "phase": "calibration",
+          "cell": 38,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 3.696166
+        },
+        {
+          "region": 119,
+          "phase": "calibration",
+          "cell": 37,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "round": -1,
+          "attempt": 0,
+          "jobs": 1,
+          "elapsed_ms": 4.066322
+        }
+      ],
+      "all_region_cpu_endpoints": 4,
+      "power_start": {
+        "cpu": 4,
+        "governor": "powersave",
+        "current_khz": "4099930",
+        "no_turbo": "0"
+      },
+      "power_end": {
+        "cpu": 4,
+        "governor": "powersave",
+        "current_khz": "4099958",
+        "no_turbo": "0"
+      },
+      "resident_setup_one_observation_ns": 762,
+      "corpus_checksum_fnv1a64": "e706509ec61dda1d",
+      "base_group_order": [
+        9,
+        3,
+        5,
+        8,
+        2,
+        1,
+        6,
+        4,
+        7,
+        0
+      ],
+      "reverse_order": true,
+      "cells": [
+        {
+          "id": 0,
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 9.453903365727452,
+            "median": 9.808696303871724,
+            "max": 10.379572030369909,
+            "arithmetic_mean": 9.915752496835058
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 27696,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c"
+          ],
+          "expected_checksum_fnv1a64": "dd9cff0778e8d682"
+        },
+        {
+          "id": 1,
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 13.584223902234505,
+            "median": 13.816761550268978,
+            "max": 14.065868282534367,
+            "arithmetic_mean": 13.832439079486504
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 21168,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c"
+          ],
+          "expected_checksum_fnv1a64": "dd9cff0778e8d682"
+        },
+        {
+          "id": 2,
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 8.11639874452662,
+            "median": 8.300347713888405,
+            "max": 8.488615649189976,
+            "arithmetic_mean": 8.287687680800783
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 34428,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c"
+          ],
+          "expected_checksum_fnv1a64": "dd9cff0778e8d682"
+        },
+        {
+          "id": 3,
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 9.509891212425053,
+            "median": 9.874507398517258,
+            "max": 10.29841031260128,
+            "arithmetic_mean": 9.87531641748577
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 30855,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c"
+          ],
+          "expected_checksum_fnv1a64": "dd9cff0778e8d682"
+        },
+        {
+          "id": 4,
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 5.592202246622438,
+            "median": 5.823441889999637,
+            "max": 6.19115508537558,
+            "arithmetic_mean": 5.87357940319796
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 12930,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c",
+            "21015add3de9d4d29b7cb5b663c8846f77adc80641f0ea7a6d0a6e53e7e8d436",
+            "89ef72f748f27e281c0567da615755512bb1945a4c3889774a6e803e8e247393",
+            "af82a545f853f7bebf129f3f610adddcfa596c0cc401064f5d1f081fe1d9a4c9"
+          ],
+          "expected_checksum_fnv1a64": "3604675b31d0df99"
+        },
+        {
+          "id": 5,
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 7.380607177585175,
+            "median": 7.572992949214772,
+            "max": 8.139707520625382,
+            "arithmetic_mean": 7.596951930531176
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 9818,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c",
+            "21015add3de9d4d29b7cb5b663c8846f77adc80641f0ea7a6d0a6e53e7e8d436",
+            "89ef72f748f27e281c0567da615755512bb1945a4c3889774a6e803e8e247393",
+            "af82a545f853f7bebf129f3f610adddcfa596c0cc401064f5d1f081fe1d9a4c9"
+          ],
+          "expected_checksum_fnv1a64": "3604675b31d0df99"
+        },
+        {
+          "id": 6,
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 4.062838067138535,
+            "median": 4.1263677134884755,
+            "max": 4.445816738510772,
+            "arithmetic_mean": 4.18030027145104
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 17870,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c",
+            "21015add3de9d4d29b7cb5b663c8846f77adc80641f0ea7a6d0a6e53e7e8d436",
+            "89ef72f748f27e281c0567da615755512bb1945a4c3889774a6e803e8e247393",
+            "af82a545f853f7bebf129f3f610adddcfa596c0cc401064f5d1f081fe1d9a4c9"
+          ],
+          "expected_checksum_fnv1a64": "3604675b31d0df99"
+        },
+        {
+          "id": 7,
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 6.021030482642292,
+            "median": 6.396925323096063,
+            "max": 6.654804481485695,
+            "arithmetic_mean": 6.383656879483091
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 10713,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "c366635f49e83c534828321f570114fa371597d0f72605191642e6b63a82851c",
+            "21015add3de9d4d29b7cb5b663c8846f77adc80641f0ea7a6d0a6e53e7e8d436",
+            "89ef72f748f27e281c0567da615755512bb1945a4c3889774a6e803e8e247393",
+            "af82a545f853f7bebf129f3f610adddcfa596c0cc401064f5d1f081fe1d9a4c9"
+          ],
+          "expected_checksum_fnv1a64": "3604675b31d0df99"
+        },
+        {
+          "id": 8,
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 11.508378601637482,
+            "median": 12.054264557233989,
+            "max": 12.237983486757106,
+            "arithmetic_mean": 11.99351204625352
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 21672,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5"
+          ],
+          "expected_checksum_fnv1a64": "c37e5d64ece1ed43"
+        },
+        {
+          "id": 9,
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 14.067645603487808,
+            "median": 14.457405969506972,
+            "max": 15.586429679913412,
+            "arithmetic_mean": 14.568733725714488
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 18536,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5"
+          ],
+          "expected_checksum_fnv1a64": "c37e5d64ece1ed43"
+        },
+        {
+          "id": 10,
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 8.07578653830279,
+            "median": 8.22788280218136,
+            "max": 8.717091278685817,
+            "arithmetic_mean": 8.302145443347873
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 36342,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5"
+          ],
+          "expected_checksum_fnv1a64": "c37e5d64ece1ed43"
+        },
+        {
+          "id": 11,
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 11.782214732575092,
+            "median": 11.982970471276063,
+            "max": 12.293818745496713,
+            "arithmetic_mean": 11.996860463265136
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 22206,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5"
+          ],
+          "expected_checksum_fnv1a64": "c37e5d64ece1ed43"
+        },
+        {
+          "id": 12,
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 5.808105703764238,
+            "median": 6.000434923225549,
+            "max": 6.240758456752366,
+            "arithmetic_mean": 6.021007034152426
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 12466,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5",
+            "14a4d029b22bdb964047ab77dd8861d579f143b65ce6b7e13c91f88f3c07edef",
+            "7d92e843bd3484ebc0d05d9bdb1732b72df5100a672e56de19f60a79e2438d4c",
+            "a3261a926c95fe8263dd9500dacabb42fc9ce7bcdef6d3b62ca6925b35f8be82"
+          ],
+          "expected_checksum_fnv1a64": "78555990eaba27a2"
+        },
+        {
+          "id": 13,
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 8.024357941862824,
+            "median": 8.194735664929148,
+            "max": 8.347116287033279,
+            "arithmetic_mean": 8.19622473118109
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 9240,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5",
+            "14a4d029b22bdb964047ab77dd8861d579f143b65ce6b7e13c91f88f3c07edef",
+            "7d92e843bd3484ebc0d05d9bdb1732b72df5100a672e56de19f60a79e2438d4c",
+            "a3261a926c95fe8263dd9500dacabb42fc9ce7bcdef6d3b62ca6925b35f8be82"
+          ],
+          "expected_checksum_fnv1a64": "78555990eaba27a2"
+        },
+        {
+          "id": 14,
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 4.306419085422558,
+            "median": 4.443383414296038,
+            "max": 4.584364878018119,
+            "arithmetic_mean": 4.44185670120567
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 14853,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5",
+            "14a4d029b22bdb964047ab77dd8861d579f143b65ce6b7e13c91f88f3c07edef",
+            "7d92e843bd3484ebc0d05d9bdb1732b72df5100a672e56de19f60a79e2438d4c",
+            "a3261a926c95fe8263dd9500dacabb42fc9ce7bcdef6d3b62ca6925b35f8be82"
+          ],
+          "expected_checksum_fnv1a64": "78555990eaba27a2"
+        },
+        {
+          "id": 15,
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 6.310105551861702,
+            "median": 6.549675573470745,
+            "max": 6.706880776263298,
+            "arithmetic_mean": 6.509616878428358
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 11750,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "b709d8abbe2a4316ecf327e0d0c0f26039591381121bd27fe5ca70f18ea19ed5",
+            "14a4d029b22bdb964047ab77dd8861d579f143b65ce6b7e13c91f88f3c07edef",
+            "7d92e843bd3484ebc0d05d9bdb1732b72df5100a672e56de19f60a79e2438d4c",
+            "a3261a926c95fe8263dd9500dacabb42fc9ce7bcdef6d3b62ca6925b35f8be82"
+          ],
+          "expected_checksum_fnv1a64": "78555990eaba27a2"
+        },
+        {
+          "id": 16,
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 22.058718594637785,
+            "median": 23.4581354734983,
+            "max": 23.790051000505766,
+            "arithmetic_mean": 23.042892613686806
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 11616,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec"
+          ],
+          "expected_checksum_fnv1a64": "b303a323c2034e61"
+        },
+        {
+          "id": 17,
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 27.497712058900774,
+            "median": 29.002744885800663,
+            "max": 30.896976899740952,
+            "arithmetic_mean": 29.214166843245632
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 10471,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec"
+          ],
+          "expected_checksum_fnv1a64": "b303a323c2034e61"
+        },
+        {
+          "id": 18,
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 20.576297096631205,
+            "median": 21.2245125844969,
+            "max": 22.97408819536791,
+            "arithmetic_mean": 21.52088257701684
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 14100,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec"
+          ],
+          "expected_checksum_fnv1a64": "b303a323c2034e61"
+        },
+        {
+          "id": 19,
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 28.580494945797057,
+            "median": 29.69775624686644,
+            "max": 30.29230305957738,
+            "arithmetic_mean": 29.614566582799355
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 10222,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec"
+          ],
+          "expected_checksum_fnv1a64": "b303a323c2034e61"
+        },
+        {
+          "id": 20,
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 11.690881796524664,
+            "median": 12.031684001015975,
+            "max": 13.261030163957399,
+            "arithmetic_mean": 12.167109862186448
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 5575,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec",
+            "424c55f7558e3e4e470fbe1daabada9e4b11776fcc1eb1c4230a59a674c45a28",
+            "d7b6e1ef0f24408e7dfd1aaa134928541e2ce47478f0380194c40bf9a47f4c9a",
+            "644a4e9e8bbb0571cb7e015d832fc2fb2e9e991e493bc07fe6907e93bbb52b81"
+          ],
+          "expected_checksum_fnv1a64": "9cda33f44c7e0451"
+        },
+        {
+          "id": 21,
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 21.64722344518249,
+            "median": 22.322053691731277,
+            "max": 29.83379297761441,
+            "arithmetic_mean": 23.177305014375122
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 3305,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec",
+            "424c55f7558e3e4e470fbe1daabada9e4b11776fcc1eb1c4230a59a674c45a28",
+            "d7b6e1ef0f24408e7dfd1aaa134928541e2ce47478f0380194c40bf9a47f4c9a",
+            "644a4e9e8bbb0571cb7e015d832fc2fb2e9e991e493bc07fe6907e93bbb52b81"
+          ],
+          "expected_checksum_fnv1a64": "9cda33f44c7e0451"
+        },
+        {
+          "id": 22,
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 16.266142042273238,
+            "median": 16.676353873224034,
+            "max": 19.761693816489363,
+            "arithmetic_mean": 17.051027379564584
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 4465,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec",
+            "424c55f7558e3e4e470fbe1daabada9e4b11776fcc1eb1c4230a59a674c45a28",
+            "d7b6e1ef0f24408e7dfd1aaa134928541e2ce47478f0380194c40bf9a47f4c9a",
+            "644a4e9e8bbb0571cb7e015d832fc2fb2e9e991e493bc07fe6907e93bbb52b81"
+          ],
+          "expected_checksum_fnv1a64": "9cda33f44c7e0451"
+        },
+        {
+          "id": 23,
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 22.08682912175513,
+            "median": 23.083810396454524,
+            "max": 23.68502779267025,
+            "arithmetic_mean": 22.92802013549256
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 3337,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "601b5d317939e7236892954473aa0fb1f8748ea8c3be910499110ef0f7920eec",
+            "424c55f7558e3e4e470fbe1daabada9e4b11776fcc1eb1c4230a59a674c45a28",
+            "d7b6e1ef0f24408e7dfd1aaa134928541e2ce47478f0380194c40bf9a47f4c9a",
+            "644a4e9e8bbb0571cb7e015d832fc2fb2e9e991e493bc07fe6907e93bbb52b81"
+          ],
+          "expected_checksum_fnv1a64": "9cda33f44c7e0451"
+        },
+        {
+          "id": 24,
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 20.404012332898123,
+            "median": 21.055639361078903,
+            "max": 21.725924601975994,
+            "arithmetic_mean": 21.06475349085507
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 12829,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63"
+          ],
+          "expected_checksum_fnv1a64": "182144b8ae74c4b0"
+        },
+        {
+          "id": 25,
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 26.1981764025739,
+            "median": 27.280978465353535,
+            "max": 28.035419095145034,
+            "arithmetic_mean": 27.119129407197303
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 9946,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63"
+          ],
+          "expected_checksum_fnv1a64": "182144b8ae74c4b0"
+        },
+        {
+          "id": 26,
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 19.090591293418647,
+            "median": 19.589548567470295,
+            "max": 20.893726148308957,
+            "arithmetic_mean": 19.82698589429559
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 13675,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63"
+          ],
+          "expected_checksum_fnv1a64": "182144b8ae74c4b0"
+        },
+        {
+          "id": 27,
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 26.58773372330005,
+            "median": 27.147661236492038,
+            "max": 27.90791943803716,
+            "arithmetic_mean": 27.2334419211917
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 9890,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63"
+          ],
+          "expected_checksum_fnv1a64": "182144b8ae74c4b0"
+        },
+        {
+          "id": 28,
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 10.672080566629651,
+            "median": 11.157736867416263,
+            "max": 11.717776565121245,
+            "arithmetic_mean": 11.167577690297879
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 6557,
+          "calibration_attempts": 5,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63",
+            "10dc92972048c62479738041c4d9e3845cf707235e4505db7ee5495b1008354f",
+            "56392cee017f0f4d0274a46955329f75e30247e0c79631261f467211bfb8a2c3",
+            "50d8b8d66ae46cacf5bb8648b00b2dbe446ca8b8f2d6ce20670316a2b87dd5eb"
+          ],
+          "expected_checksum_fnv1a64": "11ddbc90a4579043"
+        },
+        {
+          "id": 29,
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 15.81912643987963,
+            "median": 16.57048870331287,
+            "max": 17.262498138269063,
+            "arithmetic_mean": 16.56355540839184
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 4616,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63",
+            "10dc92972048c62479738041c4d9e3845cf707235e4505db7ee5495b1008354f",
+            "56392cee017f0f4d0274a46955329f75e30247e0c79631261f467211bfb8a2c3",
+            "50d8b8d66ae46cacf5bb8648b00b2dbe446ca8b8f2d6ce20670316a2b87dd5eb"
+          ],
+          "expected_checksum_fnv1a64": "11ddbc90a4579043"
+        },
+        {
+          "id": 30,
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 12.478131859748196,
+            "median": 12.753194541001047,
+            "max": 13.468173643470621,
+            "arithmetic_mean": 12.793508565412033
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 6029,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63",
+            "10dc92972048c62479738041c4d9e3845cf707235e4505db7ee5495b1008354f",
+            "56392cee017f0f4d0274a46955329f75e30247e0c79631261f467211bfb8a2c3",
+            "50d8b8d66ae46cacf5bb8648b00b2dbe446ca8b8f2d6ce20670316a2b87dd5eb"
+          ],
+          "expected_checksum_fnv1a64": "11ddbc90a4579043"
+        },
+        {
+          "id": 31,
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 15.600623501648819,
+            "median": 16.251405863294735,
+            "max": 16.70752537924512,
+            "arithmetic_mean": 16.174854006909275
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 4634,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "529ad05fbf8ab82767c6f67374f85c6b8a0d445f214e3d74b1a508ac01a0cb63",
+            "10dc92972048c62479738041c4d9e3845cf707235e4505db7ee5495b1008354f",
+            "56392cee017f0f4d0274a46955329f75e30247e0c79631261f467211bfb8a2c3",
+            "50d8b8d66ae46cacf5bb8648b00b2dbe446ca8b8f2d6ce20670316a2b87dd5eb"
+          ],
+          "expected_checksum_fnv1a64": "11ddbc90a4579043"
+        },
+        {
+          "id": 32,
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 864.480966361465,
+            "median": 883.2680166451034,
+            "max": 915.6084295382166,
+            "arithmetic_mean": 886.249275742063
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 314,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946"
+          ],
+          "expected_checksum_fnv1a64": "c1251e7817d0a307"
+        },
+        {
+          "id": 33,
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 886.50712227527,
+            "median": 926.5866322458526,
+            "max": 987.6688759886189,
+            "arithmetic_mean": 934.5111046308353
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 324,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946"
+          ],
+          "expected_checksum_fnv1a64": "c1251e7817d0a307"
+        },
+        {
+          "id": 34,
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 905.1964312803398,
+            "median": 923.2082432620348,
+            "max": 993.8042734880663,
+            "arithmetic_mean": 941.1896451190836
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 309,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946"
+          ],
+          "expected_checksum_fnv1a64": "c1251e7817d0a307"
+        },
+        {
+          "id": 35,
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 1364.7237594039352,
+            "median": 1432.7420337818287,
+            "max": 1780.1778790509259,
+            "arithmetic_mean": 1465.912150065104
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 216,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946"
+          ],
+          "expected_checksum_fnv1a64": "c1251e7817d0a307"
+        },
+        {
+          "id": 36,
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe64_api",
+          "ns_per_op": {
+            "count": 8,
+            "min": 888.0979415709713,
+            "median": 916.7868990610881,
+            "max": 955.8714173098645,
+            "arithmetic_mean": 919.9103603133236
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 83,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946",
+            "b02258be9b8bcfa00cec3c2b5b260ac188df9ecf6161c365598b7944ea1d090a",
+            "7c4e695e858f4c5abcc16d7e91e85ffbe2463a22718ac7b934ee79e78ed536f4",
+            "8de7abec43b12fed17c6c679619e5ac74e97f12d3cfdb3d1c4d7f7bcca3cc6bb"
+          ],
+          "expected_checksum_fnv1a64": "615a331a401678f4"
+        },
+        {
+          "id": 37,
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ns_per_op": {
+            "count": 8,
+            "min": 888.5072780299831,
+            "median": 914.0561078045819,
+            "max": 975.7022903029983,
+            "arithmetic_mean": 925.9437589903134
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 74,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946",
+            "b02258be9b8bcfa00cec3c2b5b260ac188df9ecf6161c365598b7944ea1d090a",
+            "7c4e695e858f4c5abcc16d7e91e85ffbe2463a22718ac7b934ee79e78ed536f4",
+            "8de7abec43b12fed17c6c679619e5ac74e97f12d3cfdb3d1c4d7f7bcca3cc6bb"
+          ],
+          "expected_checksum_fnv1a64": "615a331a401678f4"
+        },
+        {
+          "id": 38,
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ns_per_op": {
+            "count": 8,
+            "min": 887.7767066025152,
+            "median": 919.3963459294016,
+            "max": 964.2404279011051,
+            "arithmetic_mean": 918.1149254775629
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 82,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946",
+            "b02258be9b8bcfa00cec3c2b5b260ac188df9ecf6161c365598b7944ea1d090a",
+            "7c4e695e858f4c5abcc16d7e91e85ffbe2463a22718ac7b934ee79e78ed536f4",
+            "8de7abec43b12fed17c6c679619e5ac74e97f12d3cfdb3d1c4d7f7bcca3cc6bb"
+          ],
+          "expected_checksum_fnv1a64": "615a331a401678f4"
+        },
+        {
+          "id": 39,
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ns_per_op": {
+            "count": 8,
+            "min": 1348.2861582438152,
+            "median": 1428.3511632283528,
+            "max": 1494.0982055664062,
+            "arithmetic_mean": 1419.936731974284
+          },
+          "short_measurement_regions": 0,
+          "jobs_per_region": 48,
+          "calibration_attempts": 3,
+          "expected_final_be32": [
+            "8336fd7577bbef2768f00544704f1dcaf2bc4a571031d5ba307fcd2271f92946",
+            "b02258be9b8bcfa00cec3c2b5b260ac188df9ecf6161c365598b7944ea1d090a",
+            "7c4e695e858f4c5abcc16d7e91e85ffbe2463a22718ac7b934ee79e78ed536f4",
+            "8de7abec43b12fed17c6c679619e5ac74e97f12d3cfdb3d1c4d7f7bcca3cc6bb"
+          ],
+          "expected_checksum_fnv1a64": "615a331a401678f4"
+        }
+      ],
+      "paired": [
+        {
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.73418958631838,
+            0.7567726534377635,
+            0.7202070630392299,
+            0.6937292444477806,
+            0.7017839351608848,
+            0.6883059299692335,
+            0.7065869107887401,
+            0.7337625509101846
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6883059299692335,
+            "median": 0.713396986913985,
+            "max": 0.7567726534377635,
+            "arithmetic_mean": 0.7169172342590246
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.2671085977900673,
+            1.2227638120663853,
+            1.1717378111004748,
+            1.167997822275851,
+            1.1768582627510464,
+            1.1349879857496845,
+            1.2024727155796646,
+            1.2295047077670498
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.1349879857496845,
+            "median": 1.1896654891653555,
+            "max": 1.2671085977900673,
+            "arithmetic_mean": 1.1966789643850277
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 0,
+          "operation": "add",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.021363713958228,
+            1.033648358887198,
+            0.9499965240581304,
+            1.0112487505614707,
+            0.9824362233345418,
+            0.9941126722223226,
+            1.0153860251759708,
+            1.0262063799251833
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9499965240581304,
+            "median": 1.0133173878687207,
+            "max": 1.033648358887198,
+            "arithmetic_mean": 1.0042998310153808
+          },
+          "wins": 5,
+          "ties": 0,
+          "losses": 3
+        },
+        {
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.8061687742500323,
+            0.8169903690818068,
+            0.7482041576477669,
+            0.7613829384121805,
+            0.8010926508436041,
+            0.738928982230141,
+            0.7556331157189543,
+            0.758849245165371
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.738928982230141,
+            "median": 0.7601160917887757,
+            "max": 0.8169903690818068,
+            "arithmetic_mean": 0.7734062791687322
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.428372787423347,
+            1.3925799126505265,
+            1.342544284734848,
+            1.364890750849035,
+            1.4552758616075636,
+            1.3567065778259504,
+            1.404963480795123,
+            1.498296875457059
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.342544284734848,
+            "median": 1.3987716967228248,
+            "max": 1.498296875457059,
+            "arithmetic_mean": 1.4054538164179318
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 1,
+          "operation": "add",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.959498390428027,
+            0.9303286223659865,
+            0.8722783962125652,
+            0.9097613773541681,
+            0.9819830983702899,
+            0.8626753353195347,
+            0.9085595934219226,
+            0.9403984940995518
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.8626753353195347,
+            "median": 0.9200449998600773,
+            "max": 0.9819830983702899,
+            "arithmetic_mean": 0.9206854134465057
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7703968686181721,
+            0.8353274217761129,
+            0.8562167893059625,
+            0.8376132600652516,
+            0.843169879455408,
+            0.8389743859775053,
+            0.8430160926191458,
+            0.7684226424328348
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7684226424328348,
+            "median": 0.8382938230213784,
+            "max": 0.8562167893059625,
+            "arithmetic_mean": 0.8241421675312992
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.4250473990433241,
+            1.3917964589584084,
+            1.4885634984013123,
+            1.4737187254566715,
+            1.4144544549412594,
+            1.484261148762374,
+            1.4775495248104178,
+            1.4070312480671188
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.3917964589584084,
+            "median": 1.4493830622499977,
+            "max": 1.4885634984013123,
+            "arithmetic_mean": 1.4453028073051108
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 2,
+          "operation": "sub",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9767585180585348,
+            0.9942707941389222,
+            1.02434614088734,
+            0.9905481077260267,
+            0.9648275522249026,
+            1.0365468886802016,
+            1.0100350440585428,
+            1.0018450105711858
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9648275522249026,
+            "median": 0.998057902355054,
+            "max": 1.0365468886802016,
+            "arithmetic_mean": 0.9998972570432071
+          },
+          "wins": 4,
+          "ties": 0,
+          "losses": 4
+        },
+        {
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7609379621436861,
+            0.710283782963532,
+            0.7279557997718117,
+            0.7557087699855718,
+            0.7215876868614061,
+            0.7192638022098511,
+            0.7500014398443585,
+            0.7319979417217147
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.710283782963532,
+            "median": 0.7299768707467632,
+            "max": 0.7609379621436861,
+            "arithmetic_mean": 0.7347171481877414
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.4263869255060397,
+            1.3225064187738473,
+            1.3298239200191482,
+            1.3544078157961517,
+            1.3338331536448549,
+            1.3711693753605103,
+            1.4033626912437203,
+            1.3065541308914772
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.3065541308914772,
+            "median": 1.3441204847205033,
+            "max": 1.4263869255060397,
+            "arithmetic_mean": 1.3560055539044686
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 3,
+          "operation": "sub",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.91586835730495,
+            0.8747604657446787,
+            0.9071113872011676,
+            0.9228208148268265,
+            0.9071390365650903,
+            0.9504291385217347,
+            0.9890101529143397,
+            0.9369427764890446
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.8747604657446787,
+            "median": 0.9193445860658882,
+            "max": 0.9890101529143397,
+            "arithmetic_mean": 0.925510266195979
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7196404365992375,
+            0.7404205650156711,
+            0.8225367440014887,
+            0.8569068818069199,
+            0.8363110191038817,
+            0.764732989338228,
+            0.7781836505009423,
+            0.8036046599136114
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7196404365992375,
+            "median": 0.7908941552072768,
+            "max": 0.8569068818069199,
+            "arithmetic_mean": 0.7902921182849977
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9884730060886929,
+            1.0414552443742153,
+            1.0936320382860583,
+            1.127671446454215,
+            1.116101186355988,
+            1.0284602942726142,
+            1.0720451056399882,
+            1.1070486183126111
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9884730060886929,
+            "median": 1.0828385719630234,
+            "max": 1.127671446454215,
+            "arithmetic_mean": 1.0718608674730479
+          },
+          "wins": 7,
+          "ties": 0,
+          "losses": 1
+        },
+        {
+          "group": 4,
+          "operation": "mul",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7755175808007113,
+            0.7336024541259348,
+            0.7967057111246628,
+            0.7785478636039291,
+            0.7989328941106387,
+            0.7960051443666809,
+            0.7592969455521039,
+            0.786574842833775
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7336024541259348,
+            "median": 0.782561353218852,
+            "max": 0.7989328941106387,
+            "arithmetic_mean": 0.7781479295648046
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.527011566385477,
+            0.5573101946693846,
+            0.4444969559823561,
+            0.5436712970120847,
+            0.5249520794698324,
+            0.5527608945717064,
+            0.5468949025930574,
+            0.5306305191402938
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.4444969559823561,
+            "median": 0.5371509080761893,
+            "max": 0.5573101946693846,
+            "arithmetic_mean": 0.528466051228024
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.6949436473755094,
+            0.7618705409341968,
+            0.671047243576472,
+            0.7333849004784091,
+            0.7166034545227068,
+            0.7002103690034197,
+            0.7256201598157096,
+            0.714714367326827
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.671047243576472,
+            "median": 0.7156589109247669,
+            "max": 0.7618705409341968,
+            "arithmetic_mean": 0.7147993353791562
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 5,
+          "operation": "mul",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.5353160125786574,
+            0.5356930853899003,
+            0.5647234180735314,
+            0.546392222651872,
+            0.5075560653335563,
+            0.5364041342731741,
+            0.5107711720407221,
+            0.5094086801279961
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.5075560653335563,
+            "median": 0.5355045489842789,
+            "max": 0.5647234180735314,
+            "arithmetic_mean": 0.5307830988086762
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7775707101189718,
+            0.7653209343366125,
+            0.7776861988649368,
+            0.7778420685531878,
+            0.7749455975044913,
+            0.7788333057751868,
+            0.7773771438429131,
+            0.7848406205300065
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7653209343366125,
+            "median": 0.7776284544919543,
+            "max": 0.7848406205300065,
+            "arithmetic_mean": 0.7768020724407882
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            1.0291928711383567,
+            1.0883244391321885,
+            1.025961785819529,
+            1.0562616796714097,
+            1.1165572052244905,
+            1.0687993901965869,
+            1.0971176303966281,
+            1.0242486514566855
+          ],
+          "summary": {
+            "count": 8,
+            "min": 1.0242486514566855,
+            "median": 1.0625305349339982,
+            "max": 1.1165572052244905,
+            "arithmetic_mean": 1.0633079566294843
+          },
+          "wins": 8,
+          "ties": 0,
+          "losses": 0
+        },
+        {
+          "group": 6,
+          "operation": "square",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.7718704015997696,
+            0.7866953379999974,
+            0.7832337058419193,
+            0.7672408040187375,
+            0.7988094301539722,
+            0.7516619053784516,
+            0.7874603051995809,
+            0.7422134780511688
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.7422134780511688,
+            "median": 0.7775520537208445,
+            "max": 0.7988094301539722,
+            "arithmetic_mean": 0.7736481710304496
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.6775415769971075,
+            0.6678971369724875,
+            0.6643988246397043,
+            0.6877077129415622,
+            0.6342802753533467,
+            0.6582864016251616,
+            0.6986982832491693,
+            0.7061501435501997
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6342802753533467,
+            "median": 0.6727193569847976,
+            "max": 0.7061501435501997,
+            "arithmetic_mean": 0.6743700444160924
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.8406774518657781,
+            0.871799778765088,
+            0.8920409974578762,
+            0.8753542678549974,
+            0.8552626856793778,
+            0.8021887492631623,
+            0.9354500315612955,
+            0.9151251123334815
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.8021887492631623,
+            "median": 0.8735770233100426,
+            "max": 0.9354500315612955,
+            "arithmetic_mean": 0.8734873843476322
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 7,
+          "operation": "square",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.6536407304171924,
+            0.6845206965138342,
+            0.7002239931818388,
+            0.7017373470507797,
+            0.6729232465056557,
+            0.6646338893471694,
+            0.7511095030197223,
+            0.6969298967605221
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6536407304171924,
+            "median": 0.6907252966371782,
+            "max": 0.7511095030197223,
+            "arithmetic_mean": 0.6907149128495893
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9751540000521669,
+            0.9270398731778678,
+            0.9504309562582148,
+            0.9523836794244017,
+            0.9701915165032392,
+            0.9436282093260814,
+            0.9822199749994205,
+            0.8919384182879768
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.8919384182879768,
+            "median": 0.9514073178413083,
+            "max": 0.9822199749994205,
+            "arithmetic_mean": 0.9491233285036711
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9474793238855443,
+            0.9972748467988944,
+            0.901093056754084,
+            0.905128595079629,
+            0.9687817955745844,
+            0.9599374851864007,
+            0.9819483177611614,
+            0.881310928763668
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.881310928763668,
+            "median": 0.9537084045359725,
+            "max": 0.9972748467988944,
+            "arithmetic_mean": 0.9428692937254958
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 8,
+          "operation": "inverse",
+          "mode": "chain1",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.6226813498718424,
+            0.614843774864565,
+            0.6122879471692595,
+            0.6160421454946494,
+            0.6499759663411683,
+            0.6054141562241945,
+            0.6542538687096381,
+            0.49200171375234486
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.49200171375234486,
+            "median": 0.6154429601796072,
+            "max": 0.6542538687096381,
+            "arithmetic_mean": 0.6084376153034577
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        },
+        {
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_bridge",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.971965078263469,
+            0.9893060115353788,
+            0.9881262828130472,
+            1.0350806227120317,
+            0.9931039636151648,
+            1.0259527194592193,
+            0.952846385510443,
+            0.9957565954999844
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.952846385510443,
+            "median": 0.9912049875752718,
+            "max": 1.0350806227120317,
+            "arithmetic_mean": 0.9940172074260923
+          },
+          "wins": 2,
+          "ties": 0,
+          "losses": 6
+        },
+        {
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "fe52_canonical_resident",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.9882342539692947,
+            0.9856866007629291,
+            1.0219015387460404,
+            1.0359324138465087,
+            0.9838348810084809,
+            1.0501539102915471,
+            0.9641728076815553,
+            0.989632023852793
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.9641728076815553,
+            "median": 0.9889331389110438,
+            "max": 1.0501539102915471,
+            "arithmetic_mean": 1.0024435537698937
+          },
+          "wins": 3,
+          "ties": 0,
+          "losses": 5
+        },
+        {
+          "group": 9,
+          "operation": "inverse",
+          "mode": "ilp4",
+          "route": "ct64_api_security_baseline",
+          "ratio_definition": "same-round FE64 region-mean ns/op divided by candidate region-mean ns/op",
+          "security_contract_equal_claim": false,
+          "ratios": [
+            0.6034644291173413,
+            0.6446354016680752,
+            0.6629455968278289,
+            0.6391054368164484,
+            0.6733443387063176,
+            0.6887692963834618,
+            0.6222445065430151,
+            0.6542793506295504
+          ],
+          "summary": {
+            "count": 8,
+            "min": 0.6034644291173413,
+            "median": 0.6494573761488128,
+            "max": 0.6887692963834618,
+            "arithmetic_mean": 0.6485985445865048
+          },
+          "wins": 0,
+          "ties": 0,
+          "losses": 8
+        }
+      ]
+    }
+  ]
+}

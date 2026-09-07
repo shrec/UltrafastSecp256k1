@@ -1,0 +1,284 @@
+{
+  "schema": "parseatlas_p2_build_manifest_v1",
+  "recorded_utc": "2026-09-05 20:12:49 UTC",
+  "status": "measured_experimental_only_no_production_integration",
+  "repository": {
+    "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
+    "repo_id": "repo_666797171f0141c58bf05f579b2ee16e",
+    "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+    "branch": "experiment/representation-search",
+    "dirty_baseline": true
+  },
+  "authority": {
+    "manager_session": "01a06be6-2904-7c62-9e7d-1245c34a5312",
+    "task_mcp": "owner-suspended; no canonical claim, launch or acceptance in this wave",
+    "source_graph": "verified manager queries used at orientation, implementation boundaries, validation and review; final driver/test bodies fresh",
+    "worker_source_graph": "worker role tools unavailable; manager-provided exact targets, no role impersonation"
+  },
+  "source_baseline": {
+    "prior_manifest": "experiments/parseatlas_secp256k1/data/p1_corrected_build_20260905.json",
+    "production_changes_this_wave": false,
+    "prior_corrections_preserved": [
+      "src/cpu/src/field.cpp",
+      "src/cpu/src/field_asm_x64_gas.S",
+      "audit/test_regression_field_reduce_carry.cpp"
+    ],
+    "owner_gitignore_preserved": true
+  },
+  "commands": {
+    "library_configure": "cmake -S src/cpu -B /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed -DCMAKE_BUILD_TYPE=Release -DSECP256K1_USE_LTO=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_TESTING=OFF",
+    "library_build": "cmake --build /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed --target fastsecp256k1 --parallel 8",
+    "driver_gcc": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p2_field_compare.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p2-field.sDWRFA/p2_field_compare_gcc_v2",
+    "driver_clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/probes/p2_field_compare.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p2-field.sDWRFA/p2_field_compare_clang_v2",
+    "correctness_builds": {
+      "native": "g++ -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/include -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p2_field_representations.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p2-field.sDWRFA/test_p2_native_v2",
+      "clang": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p2_field_representations.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp src/cpu/src/field_asm.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o -pthread -latomic -o /tmp/parseatlas-p2-field.sDWRFA/test_p2_clang_v2",
+      "sanitizer": "g++ -std=c++20 -O1 -g -fno-lto -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -DSECP256K1_NO_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p2_field_representations.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp -pthread -latomic -o /tmp/parseatlas-p2-field.sDWRFA/test_p2_asan_v2"
+    },
+    "correctness_runs": {
+      "native": "/tmp/parseatlas-p2-field.sDWRFA/test_p2_native_v2",
+      "clang": "/tmp/parseatlas-p2-field.sDWRFA/test_p2_clang_v2",
+      "sanitizer": "ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 /tmp/parseatlas-p2-field.sDWRFA/test_p2_asan_v2"
+    },
+    "optional_diagnostic": [
+      "/tmp/parseatlas-p2-field.sDWRFA/test_p2_native_v2 --lazy-boundary-only",
+      "/tmp/parseatlas-p2-field.sDWRFA/test_p2_clang_v2 --lazy-boundary-only"
+    ],
+    "series1": "taskset -c 4 /tmp/parseatlas-p2-field.sDWRFA/p2_field_compare_gcc_v2 --seed 20260905 --min-ms 200 --rounds 8 --output experiments/parseatlas_secp256k1/data/p2_run1_20260905.json",
+    "series2": "taskset -c 4 /tmp/parseatlas-p2-field.sDWRFA/p2_field_compare_gcc_v2 --seed 20260905 --min-ms 200 --rounds 8 --reverse-order --output experiments/parseatlas_secp256k1/data/p2_run2_20260905.json",
+    "symbol_sizes": "nm -S --defined-only -C /tmp/parseatlas-p2-field.sDWRFA/p2_field_compare_gcc_v2",
+    "macro_probe": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -dM -E -x c++ -include secp256k1/field_52.hpp /dev/null"
+  },
+  "ct_library_compile_command": {
+    "directory": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed",
+    "command": "/usr/bin/c++ -DNDEBUG -DSECP256K1_BIP324=1 -DSECP256K1_HAS_ADAPTOR=1 -DSECP256K1_HAS_ASM=1 -DSECP256K1_HAS_BIP352=1 -DSECP256K1_HAS_ECIES=1 -DSECP256K1_HAS_FROST=1 -DSECP256K1_HAS_LTC_SP=1 -DSECP256K1_HAS_WALLET=1 -DSECP256K1_HAS_ZK=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -I/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/../../include -I/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu -O3 -DNDEBUG -std=gnu++20 -fPIC -O3 -march=native -fno-math-errno -fno-trapping-math -funroll-loops -finline-functions -fno-plt -ftree-vectorize -fipa-pta -fgcse-sm -fgcse-las -ftree-loop-im -ftree-loop-ivcanon -fivopts -fvariable-expansion-in-unroller -fpredictive-commoning -fopt-info-vec-optimized -o CMakeFiles/fastsecp256k1.dir/src/ct_field.cpp.o -c /home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/ct_field.cpp",
+    "file": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/src/cpu/src/ct_field.cpp",
+    "output": "CMakeFiles/fastsecp256k1.dir/src/ct_field.cpp.o"
+  },
+  "observed_driver_preprocessor": {
+    "SECP256K1_HYBRID_4X64_ACTIVE": 1,
+    "SECP256K1_USE_FAST_REDUCTION": 1,
+    "SECP256K1_FE52_COMPUTE": 1,
+    "SECP256K1_HAS_ASM": 1,
+    "USE_INLINE_ASSEMBLY": 1,
+    "__SIZEOF_INT128__": 16,
+    "UFSECP_FE52_FORCE_INLINE_KERNELS": 1,
+    "SECP256K1_NO_ASM": null,
+    "SECP256K1_NO_INT128": null,
+    "SECP256K1_FAST_52BIT": null
+  },
+  "macro_note": "null means not defined in this driver preprocessor probe; it is not a claim about every translation unit. Sanitizer has SECP256K1_NO_ASM=1.",
+  "measurement": {
+    "compiler": "GCC 14.2.0",
+    "full_series_compiler": "GCC only",
+    "clang_usage": "driver smoke plus independently compiled correctness; Clang driver links the frozen GCC CMake library",
+    "cpu": "Intel Core i5-14400F",
+    "logical_cpus": 16,
+    "physical_cores": 10,
+    "pinned_cpu": 4,
+    "sibling_cpu": 5,
+    "governor": "powersave",
+    "turbo": "enabled, unchanged",
+    "lto": false,
+    "operations_per_lane_per_job": 1024,
+    "lanes": [
+      1,
+      4
+    ],
+    "rounds_per_cell_per_series": 8,
+    "warmups": 2,
+    "min_region_ms": 200,
+    "series": 2,
+    "owned_builds_or_correctness_overlapped_full_series": false,
+    "background_services_thermal_or_indexing_controlled": false,
+    "pmu_cache_spills_or_bandwidth_measured": false,
+    "corpus_checksum_fnv1a64": "e706509ec61dda1d"
+  },
+  "validation": {
+    "core_configurations": 3,
+    "assertions_per_same_corpus": 2769460,
+    "mismatches": 0,
+    "checksum_fnv1a64": "ef652f4c3eada148",
+    "optional_lazy_diagnostic_exit_code": 1,
+    "optional_lazy_diagnostic_status": "expected reproduced NeedFix outside canonical core contract",
+    "numeric_audit_checks": 13831,
+    "numeric_audit_errors": 0
+  },
+  "exclusions": [
+    "Pre-rework double-normalizing bridge binaries and smokes excluded from full-series claims",
+    "Smoke timings are validation only and not pooled with performance series",
+    "Raw symbol sizes exclude callees and are not total hot-path, register-spill or cache evidence",
+    "Resident FE52 is an amortized region contract, not a drop-in per-operation replacement",
+    "Unary bridge unused second argument may retain avoidable ABI/address overhead",
+    "Finite correctness is not a universal proof or constant-time certification",
+    "Lazy-sum bound applies to total fully canonical summands only; arbitrary canonical initial accumulator counts once",
+    "Existing scalar F2 performance is not a field-p or single-add speedup",
+    "No whole-engine, novel-algorithm or world-record claim"
+  ],
+  "hashed_files": [
+    {
+      "path": "experiments/parseatlas_secp256k1/probes/p2_field_compare.cpp",
+      "sha256": "5094a7e94242393617c2b3fb3cce9cf0a43fe0472810825f11aae75f80812568"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/tests/test_p2_field_representations.cpp",
+      "sha256": "d08ef0b751b94900c204148d9bfb0109e5cba09cad81fda23b997f65ee880c89"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P2_FIELD_PROTOCOL.md",
+      "sha256": "c969edc6f10c1bc47220ac3a5037f6ee036edc037ffbdd6d6682e8d715981ba2"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P2_FIELD_25_LENSES.md",
+      "sha256": "109efc59c6285a62d172cf856880a47792817984615041f7db71d40e9976da47"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P1_PRIMITIVE_RESULTS.md",
+      "sha256": "1aa92a7111ab1cb5190a353ab686fdce18a2599a90c73154f6a04e1c9b22333f"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/F2_REDUCTION_RESULTS.md",
+      "sha256": "2c38ae0389b5ddc5d7f27717d5f5a6be0b031c3e85b7e76d7fdf46f952664609"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p1_corrected_build_20260905.json",
+      "sha256": "56757b312d3a9a17799c055c82f2188fcdbe8e3c7dad19aefa44a31be7aaa2e0"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_validation_20260905.json",
+      "sha256": "de190b7d7e46e50324af197ff5c03199c197d2754d5ae568ed0557bce589b3bd"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_lazy_needfix_20260905.json",
+      "sha256": "dac1bde36bd8d009ceadb084eeeda54d5a45472b9b854c65b868bfb8f88a925b"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_run1_20260905.json",
+      "sha256": "8320d99b9b022dbbb9bbf095b7600288b4c6ffe21edb5c66420071b743b39026"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_run2_20260905.json",
+      "sha256": "3e4122b5eac7d08f4113396531376efcc91674c2c9a2681b705e0e27d465715d"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_symbol_sizes_20260905.txt",
+      "sha256": "e68a83a653e03988c0361e35a867d0ebdec37e99c8f132322aa2df94be493b13"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field.hpp",
+      "sha256": "da944a2803c7ec3f07fd2a3e1ec93581bdc94dc6f3f9db402edc9459b4b1b381"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field_52.hpp",
+      "sha256": "95ca595490b827c6cc1965a7ae2feb1ae72546c3b60dba0562f94f842f998898"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/field_52_impl.hpp",
+      "sha256": "2c3f77d7855e9881ebeaf2b7f53de61e683de5201c77d23caaa288df8bf2afb3"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/ct/field.hpp",
+      "sha256": "5b542f7898fb2dbf596301e8beb358f160831fee4775401476ad87b0d6c7c4b1"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/ct/ops.hpp",
+      "sha256": "b566e525310791ec6f8c7d6f209f33d9426a72a41d3c97a331a9392e57ca8531"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/config.hpp",
+      "sha256": "fd5596e13d41f7ec566af10862a31d30acde06b73570cae67f8a23540cc6b956"
+    },
+    {
+      "path": "src/cpu/include/secp256k1/u128_compat.hpp",
+      "sha256": "b80397848d437fcf5812015febe74e63227e4ca758248c00fa711f797a4109a0"
+    },
+    {
+      "path": "src/cpu/src/field.cpp",
+      "sha256": "6a3d2bf87e1619de395d737a198b228810f09486508bed7203d07fccadfd218c"
+    },
+    {
+      "path": "src/cpu/src/field_52.cpp",
+      "sha256": "b797a1c7a1219735424859d912596d5c3f50e1848036865d15d2879adeb8207a"
+    },
+    {
+      "path": "src/cpu/src/ct_field.cpp",
+      "sha256": "6452c6d58e48676347ac2c3552c68c8a47bf7e29771887f9d820154775194c44"
+    },
+    {
+      "path": "src/cpu/src/ct_carry_helpers_p.hpp",
+      "sha256": "10227397d13e0dcac862fb6d0d57d0fc11a4c047b3d30a8ba5ee07c9818eb478"
+    },
+    {
+      "path": "src/cpu/src/field_asm.cpp",
+      "sha256": "f69ff39527bc345bd58883e473b2894052090a36b0fca8372ffcd88f1928517d"
+    },
+    {
+      "path": "src/cpu/src/field_asm_x64_gas.S",
+      "sha256": "4be633bc21143cd03834bbbde2ffa3280fd6780f93e6925770f365e0a7471f24"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a",
+      "sha256": "238294f2959e1b161428bca9a1baa990b803ee933f7f876b5b6e6cdc9b4fd577"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/ct_field.cpp.o",
+      "sha256": "022b84b2d5037d6a5bb4e67b9eda555ca442024e5738a7834cb4ce85c0958089"
+    },
+    {
+      "path": "/tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o",
+      "sha256": "a93dd468425759c28f513084ffbc97fe8b7d17c6a08c17594297f45855134c37"
+    },
+    {
+      "path": "/tmp/parseatlas-p2-field.sDWRFA/p2_field_compare_gcc_v2",
+      "sha256": "80738c4a620aa8e135f4f9297d1bead38b06f4c657c76d7a36fddfd1ce669df1"
+    },
+    {
+      "path": "/tmp/parseatlas-p2-field.sDWRFA/p2_field_compare_clang_v2",
+      "sha256": "d5117f165940706bae5accc34cd0a27959f886a6f9377cbeb2df942bc6192c35"
+    },
+    {
+      "path": "/tmp/parseatlas-p2-field.sDWRFA/test_p2_native_v2",
+      "sha256": "e2c14ddefa3953a2d350209b8e604dcd6ea1e61557291d2d47c103b724274d6e"
+    },
+    {
+      "path": "/tmp/parseatlas-p2-field.sDWRFA/test_p2_clang_v2",
+      "sha256": "b3a87a826ac438e09f79f87f31169e72659a58618d58f9dcfabc8da3f4cfb2a2"
+    },
+    {
+      "path": "/tmp/parseatlas-p2-field.sDWRFA/test_p2_asan_v2",
+      "sha256": "21135163cb8e03a3beaa0e1c79ff9b6b02dc1b4c3e233581df4343b9fbaf8fc4"
+    },
+    {
+      "path": "/tmp/parseatlas-p2-field.sDWRFA/p2_gcc_v2_smoke.json",
+      "sha256": "a96649467adf810f9122c07105f7ecfc6832628ab8fae0938152aeb18d449ff0"
+    },
+    {
+      "path": "/tmp/parseatlas-p2-field.sDWRFA/p2_clang_v2_smoke.json",
+      "sha256": "5c497336e729bdcb9ccddbcad62e20a598b539da8310d71f0d96d61e8affd996"
+    },
+    {
+      "path": "/tmp/parseatlas-p2-field.sDWRFA/p2_gcc_v2_manager_smoke.json",
+      "sha256": "481e9d2b724395502064d340d33de9a1d26af521139a5cfa53381755e94faaad"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/P2_FIELD_RESULTS.md",
+      "sha256": "8765bf8f1211d264b2b4fdb02ea5eb73c4e9b72f5f1ae69d9f33df7ccec69591"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/RESEARCH_FRONTIER.md",
+      "sha256": "54616857756547e61416bc64a9961b8159df7bb84404e29c02e88e3f7f20c20a"
+    },
+    {
+      "path": "experiments/parseatlas_secp256k1/data/p2_numeric_audit_20260905.json",
+      "sha256": "d3f7eef617f1e28dae92341001867999f72b0c36108abe0939288b7f3484ab1c"
+    },
+    {
+      "path": "audit/test_regression_field_reduce_carry.cpp",
+      "sha256": "95f40ab0808515f9e6336467921e6c44ddc70529244d7b81be659652ac746cd1"
+    },
+    {
+      "path": "research/ParseAtlas/case_studies/modular_arithmetic_guidance.md",
+      "sha256": "03d70a369e4df8094091e235fce1bad2635121cd0976795dc9ff22639fb07ca1"
+    }
+  ]
+}

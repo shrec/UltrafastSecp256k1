@@ -1,0 +1,394 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ultrafastsecp256k1.local/parseatlas/primitive_graph.schema.json",
+  "title": "Pinned, source-observed CPU primitive inventory (not a proof or runtime trace)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reference_revision",
+    "evidence_class",
+    "scope",
+    "sources",
+    "witnesses",
+    "nodes",
+    "edges",
+    "test_anchors",
+    "historical_evidence",
+    "omissions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "parseatlas.primitive_graph.v1"
+    },
+    "reference_revision": {
+      "const": "fef231d4e4173bd016fb2a3a1eff67087396a203"
+    },
+    "evidence_class": {
+      "const": "SOURCE_OBSERVED"
+    },
+    "scope": {
+      "$ref": "#/$defs/text"
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "sha256": {
+            "$ref": "#/$defs/hash"
+          }
+        }
+      }
+    },
+    "witnesses": {
+      "type": "array",
+      "minItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "path",
+          "symbol",
+          "start_line",
+          "end_line",
+          "tokens"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "symbol": {
+            "$ref": "#/$defs/text"
+          },
+          "start_line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "end_line": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "tokens": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/text"
+            }
+          }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "layer",
+          "domain",
+          "representation",
+          "contract",
+          "witness_ids",
+          "research_obligations",
+          "domain_range",
+          "input_state",
+          "output_state",
+          "invariants",
+          "ct_class",
+          "consumers",
+          "test_evidence",
+          "benchmark_evidence"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "layer": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 4
+          },
+          "domain": {
+            "enum": [
+              "word",
+              "Fp",
+              "Fn",
+              "group",
+              "protocol"
+            ]
+          },
+          "representation": {
+            "$ref": "#/$defs/text"
+          },
+          "contract": {
+            "$ref": "#/$defs/text"
+          },
+          "witness_ids": {
+            "$ref": "#/$defs/refs"
+          },
+          "research_obligations": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "domain_range": {
+            "$ref": "#/$defs/text"
+          },
+          "input_state": {
+            "$ref": "#/$defs/text"
+          },
+          "output_state": {
+            "$ref": "#/$defs/text"
+          },
+          "invariants": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "ct_class": {
+            "enum": [
+              "NOT_ESTABLISHED",
+              "VARIABLE_TIME_PUBLIC_ONLY",
+              "BACKEND_CONDITIONAL_NOT_ESTABLISHED",
+              "PUBLIC_INPUT_NOT_CT_REQUIRED"
+            ]
+          },
+          "consumers": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "test_evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "anchor_ids",
+              "reason"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "SOURCE_ANCHORS_ONLY",
+                  "NO_ANCHOR_IN_SCOPE"
+                ]
+              },
+              "anchor_ids": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/$defs/id"
+                }
+              },
+              "reason": {
+                "$ref": "#/$defs/text"
+              }
+            }
+          },
+          "benchmark_evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "status",
+              "historical_ids",
+              "reason"
+            ],
+            "properties": {
+              "status": {
+                "enum": [
+                  "SECONDARY_NOT_IMPORTED",
+                  "NOT_LOCATED"
+                ]
+              },
+              "historical_ids": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "$ref": "#/$defs/id"
+                }
+              },
+              "reason": {
+                "$ref": "#/$defs/text"
+              }
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "minItems": 9,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to",
+          "kind",
+          "condition",
+          "claim",
+          "witness_ids"
+        ],
+        "properties": {
+          "from": {
+            "$ref": "#/$defs/id"
+          },
+          "to": {
+            "$ref": "#/$defs/id"
+          },
+          "kind": {
+            "enum": [
+              "consumed_by",
+              "converts_to",
+              "dispatches_to"
+            ]
+          },
+          "condition": {
+            "$ref": "#/$defs/text"
+          },
+          "claim": {
+            "$ref": "#/$defs/text"
+          },
+          "witness_ids": {
+            "$ref": "#/$defs/refs"
+          }
+        }
+      }
+    },
+    "test_anchors": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "node_ids",
+          "witness_ids",
+          "execution_status"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "node_ids": {
+            "$ref": "#/$defs/refs"
+          },
+          "witness_ids": {
+            "$ref": "#/$defs/refs"
+          },
+          "execution_status": {
+            "const": "NOT_RUN_BY_INVENTORY"
+          }
+        }
+      }
+    },
+    "historical_evidence": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "status",
+          "reason",
+          "id",
+          "node_ids",
+          "witness_ids",
+          "reported_evidence_kind",
+          "reported_result"
+        ],
+        "properties": {
+          "path": {
+            "$ref": "#/$defs/path"
+          },
+          "status": {
+            "const": "SECONDARY_NOT_IMPORTED"
+          },
+          "reason": {
+            "$ref": "#/$defs/text"
+          },
+          "id": {
+            "$ref": "#/$defs/id"
+          },
+          "node_ids": {
+            "$ref": "#/$defs/refs"
+          },
+          "witness_ids": {
+            "$ref": "#/$defs/refs"
+          },
+          "reported_evidence_kind": {
+            "enum": [
+              "REPORTED_MEASUREMENT",
+              "REPORTED_MODEL_OR_LIMIT"
+            ]
+          },
+          "reported_result": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "omissions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/text"
+      }
+    }
+  },
+  "$defs": {
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "path": {
+      "type": "string",
+      "pattern": "^(src/cpu/|experiments/representation_search/)[A-Za-z0-9_./-]+$"
+    },
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      }
+    }
+  }
+}

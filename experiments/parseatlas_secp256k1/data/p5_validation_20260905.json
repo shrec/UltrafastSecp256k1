@@ -1,0 +1,224 @@
+{
+  "schema": "parseatlas_p5_validation_v1",
+  "status": "pass",
+  "review": "Manager reran mechanical gates before complete source/contract review; worker author and manager reviewer separated.",
+  "production_changes": false,
+  "configs": {
+    "native": {
+      "compile_command": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_field_product.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_native",
+      "compile": {
+        "chunk_id": "bb654e",
+        "wall_time_seconds": 0.00000124,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_native",
+      "run": {
+        "chunk_id": "56f2e8",
+        "wall_time_seconds": 0.786333552,
+        "exit_code": 0,
+        "original_token_count": 306,
+        "output": "{\"schema\":\"parseatlas_p5_field_product_correctness_v1\",\"status\":\"pass\",\"mismatches\":0,\"finite_corpus_only\":true,\"timing_claim\":false,\"constant_time_claim\":false,\"oracle\":\"Boost exact 256x256 products and arbitrary512 modulo p; corrected FE64 on canonical pairs\",\"output_checks\":\"full 8 raw product limbs and 64 BE bytes; canonical 4 raw residue limbs and all32 BE bytes\",\"fixture_entries_may_repeat\":true,\"distinct_counts_exclude_derived_chain_states\":true,\"seed_hex\":\"5041355f50524f44\",\"raw_pair_entries\":14132,\"distinct_raw_pairs\":14100,\"canonical_pair_entries\":13102,\"distinct_canonical_pairs\":13073,\"direct_wide_entries\":12071,\"distinct_direct_wide_inputs\":12058,\"named_carry_KATs\":3,\"product_checks\":136173,\"residue_checks\":257669,\"reference_checks\":66534,\"preservation_checks\":201672,\"same_object_raw_products\":54468,\"first_fold_checks\":12071,\"high_product_checks\":48284,\"q_equals_K_cases\":487,\"qK_above_u64_cases\":504,\"second_fold_checks\":12071,\"second_fold_overflow_cases\":103,\"third_fold_checks\":12071,\"final_p_correction_cases\":8,\"accumulator192_checks\":5,\"accumulator_highword_cases\":4,\"chain_cases\":32,\"derived_chain_steps\":1024,\"negative_controls\":110,\"assertions\":714283,\"checksum_fnv1a64\":\"75711b730275b15a\"}\n"
+      },
+      "result": {
+        "schema": "parseatlas_p5_field_product_correctness_v1",
+        "status": "pass",
+        "mismatches": 0,
+        "finite_corpus_only": true,
+        "timing_claim": false,
+        "constant_time_claim": false,
+        "oracle": "Boost exact 256x256 products and arbitrary512 modulo p; corrected FE64 on canonical pairs",
+        "output_checks": "full 8 raw product limbs and 64 BE bytes; canonical 4 raw residue limbs and all32 BE bytes",
+        "fixture_entries_may_repeat": true,
+        "distinct_counts_exclude_derived_chain_states": true,
+        "seed_hex": "5041355f50524f44",
+        "raw_pair_entries": 14132,
+        "distinct_raw_pairs": 14100,
+        "canonical_pair_entries": 13102,
+        "distinct_canonical_pairs": 13073,
+        "direct_wide_entries": 12071,
+        "distinct_direct_wide_inputs": 12058,
+        "named_carry_KATs": 3,
+        "product_checks": 136173,
+        "residue_checks": 257669,
+        "reference_checks": 66534,
+        "preservation_checks": 201672,
+        "same_object_raw_products": 54468,
+        "first_fold_checks": 12071,
+        "high_product_checks": 48284,
+        "q_equals_K_cases": 487,
+        "qK_above_u64_cases": 504,
+        "second_fold_checks": 12071,
+        "second_fold_overflow_cases": 103,
+        "third_fold_checks": 12071,
+        "final_p_correction_cases": 8,
+        "accumulator192_checks": 5,
+        "accumulator_highword_cases": 4,
+        "chain_cases": 32,
+        "derived_chain_steps": 1024,
+        "negative_controls": 110,
+        "assertions": 714283,
+        "checksum_fnv1a64": "75711b730275b15a"
+      }
+    },
+    "clang": {
+      "compile_command": "clang++-18 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_field_product.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp src/cpu/src/field_asm.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/CMakeFiles/fastsecp256k1.dir/src/field_asm_x64_gas.S.o -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_clang",
+      "compile": {
+        "chunk_id": "7e8c8a",
+        "wall_time_seconds": 0.000001186,
+        "exit_code": 0,
+        "original_token_count": 74,
+        "output": "src/cpu/src/field.cpp:2997:23: warning: unused function 'safegcd_divsteps_62_jacobi_var' [-Wunused-function]\n 2997 | static inline int64_t safegcd_divsteps_62_jacobi_var(int64_t delta, uint64_t f0, uint64_t g0,\n      |                       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n1 warning generated.\n"
+      },
+      "run_command": "/tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_clang",
+      "run": {
+        "chunk_id": "7e5113",
+        "wall_time_seconds": 0.650171326,
+        "exit_code": 0,
+        "original_token_count": 306,
+        "output": "{\"schema\":\"parseatlas_p5_field_product_correctness_v1\",\"status\":\"pass\",\"mismatches\":0,\"finite_corpus_only\":true,\"timing_claim\":false,\"constant_time_claim\":false,\"oracle\":\"Boost exact 256x256 products and arbitrary512 modulo p; corrected FE64 on canonical pairs\",\"output_checks\":\"full 8 raw product limbs and 64 BE bytes; canonical 4 raw residue limbs and all32 BE bytes\",\"fixture_entries_may_repeat\":true,\"distinct_counts_exclude_derived_chain_states\":true,\"seed_hex\":\"5041355f50524f44\",\"raw_pair_entries\":14132,\"distinct_raw_pairs\":14100,\"canonical_pair_entries\":13102,\"distinct_canonical_pairs\":13073,\"direct_wide_entries\":12071,\"distinct_direct_wide_inputs\":12058,\"named_carry_KATs\":3,\"product_checks\":136173,\"residue_checks\":257669,\"reference_checks\":66534,\"preservation_checks\":201672,\"same_object_raw_products\":54468,\"first_fold_checks\":12071,\"high_product_checks\":48284,\"q_equals_K_cases\":487,\"qK_above_u64_cases\":504,\"second_fold_checks\":12071,\"second_fold_overflow_cases\":103,\"third_fold_checks\":12071,\"final_p_correction_cases\":8,\"accumulator192_checks\":5,\"accumulator_highword_cases\":4,\"chain_cases\":32,\"derived_chain_steps\":1024,\"negative_controls\":110,\"assertions\":714283,\"checksum_fnv1a64\":\"75711b730275b15a\"}\n"
+      },
+      "result": {
+        "schema": "parseatlas_p5_field_product_correctness_v1",
+        "status": "pass",
+        "mismatches": 0,
+        "finite_corpus_only": true,
+        "timing_claim": false,
+        "constant_time_claim": false,
+        "oracle": "Boost exact 256x256 products and arbitrary512 modulo p; corrected FE64 on canonical pairs",
+        "output_checks": "full 8 raw product limbs and 64 BE bytes; canonical 4 raw residue limbs and all32 BE bytes",
+        "fixture_entries_may_repeat": true,
+        "distinct_counts_exclude_derived_chain_states": true,
+        "seed_hex": "5041355f50524f44",
+        "raw_pair_entries": 14132,
+        "distinct_raw_pairs": 14100,
+        "canonical_pair_entries": 13102,
+        "distinct_canonical_pairs": 13073,
+        "direct_wide_entries": 12071,
+        "distinct_direct_wide_inputs": 12058,
+        "named_carry_KATs": 3,
+        "product_checks": 136173,
+        "residue_checks": 257669,
+        "reference_checks": 66534,
+        "preservation_checks": 201672,
+        "same_object_raw_products": 54468,
+        "first_fold_checks": 12071,
+        "high_product_checks": 48284,
+        "q_equals_K_cases": 487,
+        "qK_above_u64_cases": 504,
+        "second_fold_checks": 12071,
+        "second_fold_overflow_cases": 103,
+        "third_fold_checks": 12071,
+        "final_p_correction_cases": 8,
+        "accumulator192_checks": 5,
+        "accumulator_highword_cases": 4,
+        "chain_cases": 32,
+        "derived_chain_steps": 1024,
+        "negative_controls": 110,
+        "assertions": 714283,
+        "checksum_fnv1a64": "75711b730275b15a"
+      }
+    },
+    "sanitizer": {
+      "compile_command": "g++-14 -std=c++20 -O1 -g -fno-lto -fno-omit-frame-pointer -fsanitize=address,undefined -fno-sanitize-recover=all -DSECP256K1_NO_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_field_product.cpp src/cpu/src/field.cpp src/cpu/src/field_52.cpp src/cpu/src/ct_field.cpp -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_asan",
+      "compile": {
+        "chunk_id": "7c5309",
+        "wall_time_seconds": 0.000001146,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      },
+      "run_command": "ASAN_OPTIONS=detect_leaks=1:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1:print_stacktrace=1 /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_asan",
+      "run": {
+        "chunk_id": "6138d3",
+        "wall_time_seconds": 1.494228567,
+        "exit_code": 0,
+        "original_token_count": 306,
+        "output": "{\"schema\":\"parseatlas_p5_field_product_correctness_v1\",\"status\":\"pass\",\"mismatches\":0,\"finite_corpus_only\":true,\"timing_claim\":false,\"constant_time_claim\":false,\"oracle\":\"Boost exact 256x256 products and arbitrary512 modulo p; corrected FE64 on canonical pairs\",\"output_checks\":\"full 8 raw product limbs and 64 BE bytes; canonical 4 raw residue limbs and all32 BE bytes\",\"fixture_entries_may_repeat\":true,\"distinct_counts_exclude_derived_chain_states\":true,\"seed_hex\":\"5041355f50524f44\",\"raw_pair_entries\":14132,\"distinct_raw_pairs\":14100,\"canonical_pair_entries\":13102,\"distinct_canonical_pairs\":13073,\"direct_wide_entries\":12071,\"distinct_direct_wide_inputs\":12058,\"named_carry_KATs\":3,\"product_checks\":136173,\"residue_checks\":257669,\"reference_checks\":66534,\"preservation_checks\":201672,\"same_object_raw_products\":54468,\"first_fold_checks\":12071,\"high_product_checks\":48284,\"q_equals_K_cases\":487,\"qK_above_u64_cases\":504,\"second_fold_checks\":12071,\"second_fold_overflow_cases\":103,\"third_fold_checks\":12071,\"final_p_correction_cases\":8,\"accumulator192_checks\":5,\"accumulator_highword_cases\":4,\"chain_cases\":32,\"derived_chain_steps\":1024,\"negative_controls\":110,\"assertions\":714283,\"checksum_fnv1a64\":\"75711b730275b15a\"}\n"
+      },
+      "result": {
+        "schema": "parseatlas_p5_field_product_correctness_v1",
+        "status": "pass",
+        "mismatches": 0,
+        "finite_corpus_only": true,
+        "timing_claim": false,
+        "constant_time_claim": false,
+        "oracle": "Boost exact 256x256 products and arbitrary512 modulo p; corrected FE64 on canonical pairs",
+        "output_checks": "full 8 raw product limbs and 64 BE bytes; canonical 4 raw residue limbs and all32 BE bytes",
+        "fixture_entries_may_repeat": true,
+        "distinct_counts_exclude_derived_chain_states": true,
+        "seed_hex": "5041355f50524f44",
+        "raw_pair_entries": 14132,
+        "distinct_raw_pairs": 14100,
+        "canonical_pair_entries": 13102,
+        "distinct_canonical_pairs": 13073,
+        "direct_wide_entries": 12071,
+        "distinct_direct_wide_inputs": 12058,
+        "named_carry_KATs": 3,
+        "product_checks": 136173,
+        "residue_checks": 257669,
+        "reference_checks": 66534,
+        "preservation_checks": 201672,
+        "same_object_raw_products": 54468,
+        "first_fold_checks": 12071,
+        "high_product_checks": 48284,
+        "q_equals_K_cases": 487,
+        "qK_above_u64_cases": 504,
+        "second_fold_checks": 12071,
+        "second_fold_overflow_cases": 103,
+        "third_fold_checks": 12071,
+        "final_p_correction_cases": 8,
+        "accumulator192_checks": 5,
+        "accumulator_highword_cases": 4,
+        "chain_cases": 32,
+        "derived_chain_steps": 1024,
+        "negative_controls": 110,
+        "assertions": 714283,
+        "checksum_fnv1a64": "75711b730275b15a"
+      }
+    }
+  },
+  "smoke": {
+    "compile_command": "g++-14 -std=c++20 -O3 -march=native -fno-lto -DNDEBUG -DSECP256K1_HAS_ASM=1 -DSECP256K1_USE_FAST_REDUCTION=1 -DUSE_INLINE_ASSEMBLY -Isrc/cpu/include -Wall -Wextra experiments/parseatlas_secp256k1/tests/test_p5_kernel_smoke.cpp /tmp/parseatlas-p1-primitives.1hlZNv/build-fixed/libfastsecp256k1.a -pthread -latomic -o /tmp/parseatlas-p5-field-product.3Z4xU1/test_p5_kernel_smoke",
+    "compile": {
+      "chunk_id": "f5ebac",
+      "wall_time_seconds": 0.421161114,
+      "exit_code": 0,
+      "original_token_count": 0,
+      "output": ""
+    },
+    "run": {
+      "chunk_id": "cdef3e",
+      "wall_time_seconds": 0.000004349,
+      "exit_code": 0,
+      "original_token_count": 13,
+      "output": "P5 smoke PASS checks=6845 checksum=977d03fa1f0f9f66\n"
+    }
+  },
+  "counts_note": "Each of three configurations reuses the same finite corpus. Assertions, product/residue checks, fixture entries and distinct inputs are different counters; do not sum them as distinct cases.",
+  "source_hashes": {
+    "kernel": "4c9bb9f0865a44c4da15480b9ad2adab45db0efceeb2581e1db572ee0ff04d26",
+    "oracle": "fc6a4830e5428a6d5117820fcecf1cbe4ff975bc006245fd56b67140661d2921",
+    "smoke": "c87e3e923fff45455ce54d5000f2fc003c49c0c1a29f4d9ac3019bef3480e68f"
+  },
+  "rework": [
+    {
+      "kind": "manager_invocation",
+      "result": "Initial smoke compile lacked include/library flags; fatal missing secp256k1/field.hpp; premature binary run exit127. Corrected exact command compiles and passes. No code defect or changed file."
+    },
+    {
+      "kind": "benchmark_prefreeze_warnings",
+      "initial_driver_sha256": "dfaca74f243f53c6433bd2b0b032d9027e2c00ebaf1cd37312f5a94e37919fe8",
+      "findings": "Five misleading-indentation warnings in JSON formatting; serializer runtime lane argument lacked explicit admissible-range guard, producing GCC stringop-overflow warning.",
+      "resolution": "Worker split statements, rejects lanes outside1/4 and explicitly bounds serializer loop by States.size. Four malformed-lane tests added. Final GCC/Clang builds clean; finalsmokes and syntheticdiagnostics rerun. No fullperformance on prefixed version.",
+      "final_driver_sha256": "9adcabba6473c6d865a62d8980345bf790840e05ec318bc5832701f5f2b9867d"
+    }
+  ],
+  "limitations": [
+    "Written integer proof and finite tests, not machine-checked verification or CT certification.",
+    "Clang field sources independently compiled with retained assembly object; native GCC links frozen corrected library.",
+    "Existing Clang unused safegcd_divsteps_62_jacobi_var warning retained, not new P5 code.",
+    "Intermediate helper replay separate from complete compiled jobs."
+  ]
+}

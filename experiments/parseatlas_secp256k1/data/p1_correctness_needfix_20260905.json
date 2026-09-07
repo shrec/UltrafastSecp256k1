@@ -1,0 +1,28 @@
+{
+  "schema": "parseatlas.p1.correctness_needfix.v1",
+  "status": "confirmed_pre_fix",
+  "head": "fef231d4e4173bd016fb2a3a1eff67087396a203",
+  "native": {
+    "chunk_id": "184555",
+    "wall_time_seconds": 0.000003295,
+    "exit_code": 1,
+    "original_token_count": 122,
+    "output": "{\"schema\":\"parseatlas_p1_primitives_correctness_v1\",\"status\":\"fail\",\"error\":\"field boundary 144/0 a_be=fffffffffffffffffffffffffffffffffffffffffffffffffffffffdffffffff b_be=0000000000000000000000000000000000000000000000000000000000000000: square: actual_be=000000000000000000000000000000000000000000000000fffff85f000e8530 actual_raw_limbs_u256=000000000000000000000000000000000000000000000000fffff85f000e8530 expected_be=000000000000000000000000000000000000000000000000fffff860000e8900\"}\n"
+  },
+  "portable": {
+    "chunk_id": "17ff1c",
+    "wall_time_seconds": 0.000002028,
+    "exit_code": 1,
+    "original_token_count": 122,
+    "output": "{\"schema\":\"parseatlas_p1_primitives_correctness_v1\",\"status\":\"fail\",\"error\":\"field boundary 1031/2 a_be=8000000000000000000000000000000000000000000000000000000000000001 b_be=fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e: mul: actual_be=7ffffffffffffffffffffffffffffffffffffffffffffffffffffffdfffff85d actual_raw_limbs_u256=7ffffffffffffffffffffffffffffffffffffffffffffffffffffffdfffff85d expected_be=7ffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2e\"}\n"
+  },
+  "native_source_sha256": "d3f816d3b68c0df1b12af190afa5bbb62d99ec980b94aee438ba0bcb2e0fff9e",
+  "portable_source_sha256": "db5792d9bc0b51cfd12927af11fae7160c1a671b8028e0c4d73ef7f3fb6e6812",
+  "diagnostic_test_sha256": "5441f59bb546fd505fb6e2f4ef307f48072ab00d633fcb8c89631152b98df7f8",
+  "native_binary_sha256": "3d6c2de819322c839ed72f3bfa4cc8ce872fa6cf78b479e099dd9a006b169e5e",
+  "portable_binary_sha256": "5e64199ba10df48b31e888b3a2a852ceb8139aaf8f83df9d7cf902932d86ec86",
+  "native_cause": "K & carry with carry0/1 gives0/1 instead of0/K,3GASsites. Witness deltaK-1=0x1000003d0.",
+  "portable_cause": "Stage2 i=0 drops carry from limb3 into limb4 inbothint128/manualbranches; witness deltaK=0x1000003d1.",
+  "cross_check": "IndependentClangASMoriginaltest alsoexit1 fieldboundary144/0square. PortableASanUBSanreported arithmetic mismatch without sanitizer diagnostic.",
+  "timing_status": "BLOCKED before any benchmark. Original binaries/library and buildmanifest retained. Original engine is not accepted as sole arithmeticoracle."
+}

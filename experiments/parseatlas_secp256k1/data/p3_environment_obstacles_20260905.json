@@ -1,0 +1,32 @@
+{
+  "schema": "parseatlas_p3_environment_obstacles_v1",
+  "recorded_utc": "2026-09-05 20:42:51 UTC",
+  "pmu": {
+    "status": "unavailable",
+    "command": "perf stat -e cycles,instructions -- true",
+    "exit_code": 255,
+    "perf_version": "6.8.12",
+    "reason": "Access denied; perf_event_paranoid=4",
+    "settings_changed": false,
+    "impact": "No PMU instruction/cycle/cache/traffic claims. Native elapsed-time benchmark and static emitted-code inspection remain possible."
+  },
+  "source_graph": {
+    "status": "NeedFix_observed",
+    "refresh_job_id": "9236fad4ed0b4c7c904eba91c24baadf",
+    "error": "RuntimeError:index_subprocess:identity_slot_owned",
+    "new_header_query": "sum_fe52_e2e",
+    "new_header_target": "experiments/parseatlas_secp256k1/probes/p3_field_sum_kernels.hpp",
+    "after_refresh_requested": {
+      "files_scanned": 0,
+      "bytes_scanned": 0,
+      "hit_count": 0
+    },
+    "fallback": "bounded exact worker handoff header and smoke reads after target absent in current index; no broad discovery; preexisting production dependencies indexed and queried",
+    "resolution": "resolved on final exact body requery at index2026-09-05T20:40:00.655852+00:00: fresh source/header hash7f3bad31a705de319fbdb584338f79175592636054476ea76177961cdafb32b8"
+  },
+  "worker_role_tools": {
+    "status": "NeedFix_observed",
+    "description": "Worker-specific Source Graph tools remain unexposed in live tool discovery; direct workers use verified manager exact targets under retained owner Task suspension, without manager-role impersonation.",
+    "scope": "No legacy database writes or broad filesystem discovery."
+  }
+}
