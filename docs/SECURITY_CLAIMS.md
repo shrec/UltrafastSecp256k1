@@ -13,13 +13,25 @@ surfaces.
 
 For a 64-byte compact signature, "valid" previously depended on which GPU route
 handled the row. CUDA's batch kernel and the OpenCL parsers rejected `r >= n`
-or `s >= n` (strict compact parse); CUDA's collect kernel, Metal's
-batch/collect, and the device-side single-verify path reduced the raw limbs
-mod `n` before comparing, so the non-canonical `(r, s + n)` encoding (congruent
-mod `n`, and representable in 32 bytes whenever `s < 2^256 - n`) verified
-exactly like the canonical one. The same 64 bytes changed meaning by entrypoint,
-which also broke the documented guarantee in `src/gpu/src/gpu_backend_cuda.cu`
-that the collect verdict is bit-identical to `verify_batch`.
+or `s >= n` (strict compact parse). The defect was on the `s` side: CUDA's
+collect kernel converted the host-side compact bytes with
+`bytes_to_ecdsa_sig` -> `bytes_to_scalar` (no mod-`n` reduction) and its verify
+path compared the unreduced `s`, so the non-canonical `(r, s + n)` encoding
+(congruent mod `n`, and representable in 32 bytes whenever `s < 2^256 - n`)
+verified exactly like the canonical one. The `r` side was already tight
+pre-fix: the final `R.x` comparison is against the unreduced `r`, so `(r + n, s)`
+and `(r + n, s + n)` were already rejected everywhere before this change, and
+those rows are kept in the regression corpus as a guard against future change,
+not a reproduced bug. [Measured on an RTX 5060 Ti: CUDA collect accepted
+`(r, s + n)` while both `verify_batch` and the CPU oracle rejected it; `r + n`
+rows were rejected on every entrypoint.] The same 64 bytes changed meaning by
+entrypoint, which also broke the documented guarantee in
+`src/gpu/src/gpu_backend_cuda.cu` that the collect verdict is bit-identical to
+`verify_batch`. Metal's batch/collect paths and the device-side single-verify
+overload show the same unreduced-limbs pattern by source analysis (guard
+placement verified against the kernel/overload wiring in
+`src/metal/shaders/secp256k1_extended.h`); no Metal hardware was exercised, so
+those statements are inferred, not measured.
 
 - **Security claim: one uniform contract.** Every device-side `ecdsa_verify()`
   (the single choke point shared by the single/batch/collect entrypoints and the
