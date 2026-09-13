@@ -46,6 +46,7 @@
 #include "ct/ct_scalar.cuh"
 #include "ct/ct_point.cuh"
 #include "ct/ct_sign.cuh"
+#include "msm.cuh"
 
 #include <cuda_runtime.h>
 #include <cstdio>
@@ -828,6 +829,143 @@ static BenchResult bench_ct_scalar_mul_impl(const BenchConfig& cfg) {
     return result;
 }
 
+// ============================================================================
+// MSM -- multi-scalar multiplication, whole pipeline
+// ============================================================================
+// Times what the CUDA backend actually does for sum(s_i * P_i): a scatter pass
+// (one full scalar_mul_glv per point) followed by a tree reduction.
+//
+// The reduction is replicated here rather than reused: the backend's copies are
+// file-local __global__ functions in src/gpu/src/gpu_backend_cuda.cu and are not
+// exported from any device header. Both the current scatter path and any future
+// bucket path must be timed through this same reduction for the comparison to
+// mean anything, so it lives with the benchmark.
+#if !SECP256K1_CUDA_LIMBS_32
+
+__global__ void bench_msm_block_reduce_k(
+    const JacobianPoint* __restrict__ partials, int n, JacobianPoint* block_results)
+{
+    extern __shared__ JacobianPoint s_msm[];
+
+    int tid = threadIdx.x;
+    int idx = blockIdx.x * blockDim.x + tid;
+
+    if (idx < n) {
+        s_msm[tid] = partials[idx];
+    } else {
+        s_msm[tid].infinity = true;
+        field_set_zero(&s_msm[tid].x);
+        field_set_zero(&s_msm[tid].y);
+        field_set_one(&s_msm[tid].z);
+    }
+    __syncthreads();
+
+    for (int stride = blockDim.x >> 1; stride > 0; stride >>= 1) {
+        if (tid < stride) {
+            if (s_msm[tid].infinity) {
+                s_msm[tid] = s_msm[tid + stride];
+            } else if (!s_msm[tid + stride].infinity) {
+                JacobianPoint tmp;
+                jacobian_add(&s_msm[tid], &s_msm[tid + stride], &tmp);
+                s_msm[tid] = tmp;
+            }
+        }
+        __syncthreads();
+    }
+
+    if (tid == 0) block_results[blockIdx.x] = s_msm[0];
+}
+
+__global__ void bench_msm_final_reduce_k(
+    const JacobianPoint* partials, int n, JacobianPoint* out)
+{
+    JacobianPoint acc;
+    acc.infinity = true;
+    field_set_zero(&acc.x);
+    field_set_zero(&acc.y);
+    field_set_one(&acc.z);
+
+    for (int i = 0; i < n; ++i) {
+        if (partials[i].infinity) continue;
+        if (acc.infinity) {
+            acc = partials[i];
+        } else {
+            JacobianPoint tmp;
+            jacobian_add(&acc, &partials[i], &tmp);
+            acc = tmp;
+        }
+    }
+    *out = acc;
+}
+
+// stages: 1 = scatter only, 2 = scatter + block reduce, 3 = full pipeline.
+// Splitting them apart is what says whether the single-threaded final reduce is
+// worth attacking -- GPU-PIPPENGER-NEG already ruled out replacing the scatter
+// with a bucket scheme, but it says nothing about the reduction tail.
+static BenchResult bench_msm_impl(const BenchConfig& cfg, int stages, const char* label) {
+    // ~1GB ceiling: each point costs sizeof(JacobianPoint) twice (input +
+    // partial) plus a scalar.
+    int N = std::min(cfg.batch_size, 1 << 22);
+    constexpr int kBlk = 256;
+    int const n_blks = (N + kBlk - 1) / kBlk;
+
+    std::vector<Scalar> h_scalars(N);
+    std::vector<JacobianPoint> h_pts(N);
+    gen_scalars(h_scalars.data(), N, 0x4D534DULL);
+
+    // All points are G. Bucket occupancy depends on the scalar digits, not on
+    // which point sits in the bucket, so this costs the algorithm nothing and
+    // matches what the other point benchmarks in this file do.
+    for (int i = 0; i < N; ++i) {
+        h_pts[i].x.limbs[0] = 0x59F2815B16F81798ULL;
+        h_pts[i].x.limbs[1] = 0x029BFCDB2DCE28D9ULL;
+        h_pts[i].x.limbs[2] = 0x55A06295CE870B07ULL;
+        h_pts[i].x.limbs[3] = 0x79BE667EF9DCBBACULL;
+        h_pts[i].y.limbs[0] = 0x9C47D08FFB10D4B8ULL;
+        h_pts[i].y.limbs[1] = 0xFD17B448A6855419ULL;
+        h_pts[i].y.limbs[2] = 0x5DA4FBFC0E1108A8ULL;
+        h_pts[i].y.limbs[3] = 0x483ADA7726A3C465ULL;
+        h_pts[i].z.limbs[0] = 1;
+        h_pts[i].z.limbs[1] = 0;
+        h_pts[i].z.limbs[2] = 0;
+        h_pts[i].z.limbs[3] = 0;
+        h_pts[i].infinity = false;
+    }
+
+    Scalar* d_scalars = nullptr;
+    JacobianPoint *d_pts = nullptr, *d_partials = nullptr;
+    JacobianPoint *d_blk = nullptr, *d_out = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_scalars,  N * sizeof(Scalar)));
+    CUDA_CHECK(cudaMalloc(&d_pts,      N * sizeof(JacobianPoint)));
+    CUDA_CHECK(cudaMalloc(&d_partials, N * sizeof(JacobianPoint)));
+    CUDA_CHECK(cudaMalloc(&d_blk,      n_blks * sizeof(JacobianPoint)));
+    CUDA_CHECK(cudaMalloc(&d_out,      sizeof(JacobianPoint)));
+    CUDA_CHECK(cudaMemcpy(d_scalars, h_scalars.data(), N * sizeof(Scalar),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_pts, h_pts.data(), N * sizeof(JacobianPoint),
+                          cudaMemcpyHostToDevice));
+
+    int const threads = cfg.threads_per_block;
+    int const blocks  = (N + threads - 1) / threads;
+    size_t const smem = kBlk * sizeof(JacobianPoint);
+
+    BenchConfig msm_cfg = cfg;
+    msm_cfg.batch_size = N;
+    auto result = run_bench("MSM", label, msm_cfg, [&]() {
+        msm_scatter_kernel<<<blocks, threads>>>(d_scalars, d_pts, d_partials, N);
+        if (stages >= 2)
+            bench_msm_block_reduce_k<<<n_blks, kBlk, smem>>>(d_partials, N, d_blk);
+        if (stages >= 3)
+            bench_msm_final_reduce_k<<<1, 1>>>(d_blk, n_blks, d_out);
+    });
+
+    cudaFree(d_scalars); cudaFree(d_pts); cudaFree(d_partials);
+    cudaFree(d_blk); cudaFree(d_out);
+    return result;
+}
+
+#endif  // !SECP256K1_CUDA_LIMBS_32
+
 #if !SECP256K1_CUDA_LIMBS_32
 static BenchResult bench_ct_ecdsa_sign_impl(const BenchConfig& cfg) {
     int N = std::min(cfg.batch_size, 1 << 13);  // CT signing is expensive
@@ -1215,6 +1353,25 @@ int main(int argc, char** argv) {
         auto r = bench_ct_scalar_mul_impl(cfg); print_result(r); results.push_back(r);
         rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
     }
+
+#if !SECP256K1_CUDA_LIMBS_32
+    // =================================================================
+    // Section 8: MSM (multi-scalar multiplication)
+    // =================================================================
+    std::printf("\n=== MSM (Multi-Scalar Multiplication) ===\n");
+    {
+        auto r = bench_msm_impl(cfg, 1, "msm scatter only"); print_result(r); results.push_back(r);
+        rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
+    {
+        auto r = bench_msm_impl(cfg, 2, "msm scatter+blockreduce"); print_result(r); results.push_back(r);
+        rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
+    {
+        auto r = bench_msm_impl(cfg, 3, "msm sum(k_i*P_i)"); print_result(r); results.push_back(r);
+        rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
+#endif
 
 #if !SECP256K1_CUDA_LIMBS_32
     if (cfg.suite == "all") {
