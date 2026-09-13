@@ -1,5 +1,60 @@
 # Audit Changelog
 
+## 2026-09-13 - GPU MSM finished its reduction on one thread
+
+`CudaBackend::msm()` block-reduced the scatter output and then handed whatever
+was left to `msm_reduce_and_compress_kernel<<<1, 1>>>`. That finisher is a single
+thread walking the array with `jacobian_add`, so its cost is one serial point
+addition per surviving element -- 4096 of them at N=1M, 16384 at N=4M.
+
+The repository had no MSM benchmark at all, so the cost was invisible. Adding one
+to `gpu_bench_unified` in three stage-gated variants (scatter only, scatter +
+block reduce, full) sharing a single setup path makes it measurable and, more
+usefully, attributable.
+
+Measured on an RTX 5060 Ti (sm_120, CUDA 13.2, driver 580.178.04, GPU idle at
+39 C with no other compute processes), `--suite core`, 3 warmup + 5 passes,
+IQR median, five whole-binary runs per side:
+
+| stage | before (ns/pt) | after (ns/pt) |
+|-------|---------------:|--------------:|
+| scatter only | 171.39 | 171.35 - 171.45 |
+| scatter + block reduce | 173.39 | 173.41 - 173.49 |
+| full pipeline | **188.08 - 188.57** | **173.49 - 173.54** |
+
+The first two stages are the control and they do not move; the entire delta sits
+in the stage that changed. The finisher's share falls from 15.14 ns/pt to
+0.08 ns/pt. Full-pipeline median 188.40 -> 173.53 ns/pt, **-7.9%** (5.31 ->
+5.76 Mpts/s); at N=4M, 188.27 -> 172.81, -8.2%. The before and after ranges do
+not overlap.
+
+The fix keeps block-reducing while the tail is longer than 32, ping-ponging
+between `d_partials` and `d_blk_parts` -- the scatter output in `d_partials` has
+already been consumed by the first pass, and every intermediate count after that
+pass is at most n/256, so both buffers are large enough at any n without touching
+`MsmPool`. When the tail is already short the loop does not run and behaviour is
+unchanged, which is why the pre-existing N=4 equivalence case still passes
+untouched.
+
+Correctness gated the measurement. `audit/test_gpu_ops_equivalence.cpp` gains
+`test_msm_large_n_equiv`, which compares `ufsecp_gpu_msm` against
+`ufsecp_multi_scalar_mul` byte-for-byte at N=70000 -- 274 blocks, one loop pass
+down to 2, so the loop body, the buffer swap and a non-trivial finisher count are
+all exercised. The existing N=4 case covers the other side, where the loop must
+not run. Full run: 380 passed, 0 failed, 0 skipped.
+
+What this does **not** claim: the numbers come from the benchmark's own replica of
+the backend pipeline, which was given the identical change so the two sides stay
+comparable. A speedup figure for the `ufsecp_gpu_msm` C ABI itself, including its
+host-side conversion and PCIe transfers, has not been measured and is not asserted
+here.
+
+It also does not claim a large win. Scatter is 90.8% of MSM and stays exactly
+where it was: knowledge base `GPU-PIPPENGER-NEG` records a parallel bucket
+Pippenger already built, differential-tested and measured 12-50x *slower* than the
+naive scatter, so that side is closed. The reduction tail was the remaining cheap
+8%, and it is now spent.
+
 ## 2026-09-08 - CI spent hours doing ThinLTO on Debug sanitizer binaries
 
 Every long CI job is a build, not a test. Step timings from one push:

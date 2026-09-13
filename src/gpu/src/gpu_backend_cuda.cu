@@ -1852,8 +1852,34 @@ gmb_cleanup:
             d_partials, n_int, d_blk_parts);
         CUDA_TRY(cudaGetLastError());
 
-        /* Phase 2b: final single-thread reduce over the small block results */
-        msm_reduce_and_compress_kernel<<<1, 1>>>(d_blk_parts, scatter_blocks, d_out33, d_ok);
+        /* Phase 2b: keep reducing in parallel while the tail is still long.
+         * The finisher below runs on one thread, so every point left to it costs
+         * a full serial jacobian_add. At N=1M that tail was scatter_blocks=4096
+         * adds -- 8.0% of the entire MSM, measured on an RTX 5060 Ti (knowledge
+         * base GPU-MSM-REDUCE-TAIL-MEASURED).
+         *
+         * Ping-pong between d_blk_parts and d_partials: the scatter output in
+         * d_partials was already consumed by the pass above, and the pool sizes
+         * it for the full n, which is far more than any level needs. When
+         * scatter_blocks is already short the loop does not run at all, so small
+         * batches keep their previous behaviour exactly. */
+        constexpr int kFinisherMax = 32;
+        int            reduce_count = scatter_blocks;
+        JacobianPoint* d_red_in     = d_blk_parts;
+        JacobianPoint* d_red_out    = d_partials;
+        while (reduce_count > kFinisherMax) {
+            int const next_blocks = (reduce_count + kReduceBlock - 1) / kReduceBlock;
+            msm_block_reduce_kernel<<<next_blocks, kReduceBlock, smem>>>(
+                d_red_in, reduce_count, d_red_out);
+            CUDA_TRY(cudaGetLastError());
+            reduce_count = next_blocks;
+            JacobianPoint* const swap = d_red_in;
+            d_red_in  = d_red_out;
+            d_red_out = swap;
+        }
+
+        /* Phase 2c: final single-thread reduce over the now-short tail */
+        msm_reduce_and_compress_kernel<<<1, 1>>>(d_red_in, reduce_count, d_out33, d_ok);
         CUDA_TRY(cudaGetLastError());
         CUDA_TRY(cudaDeviceSynchronize());
 

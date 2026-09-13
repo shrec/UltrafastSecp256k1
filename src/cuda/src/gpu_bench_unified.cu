@@ -955,8 +955,24 @@ static BenchResult bench_msm_impl(const BenchConfig& cfg, int stages, const char
         msm_scatter_kernel<<<blocks, threads>>>(d_scalars, d_pts, d_partials, N);
         if (stages >= 2)
             bench_msm_block_reduce_k<<<n_blks, kBlk, smem>>>(d_partials, N, d_blk);
-        if (stages >= 3)
-            bench_msm_final_reduce_k<<<1, 1>>>(d_blk, n_blks, d_out);
+        if (stages >= 3) {
+            // Mirrors the backend's tail reduce (gpu_backend_cuda.cu msm()) so
+            // the before/after stays apples-to-apples: same shape, same
+            // kFinisherMax, same ping-pong buffers.
+            constexpr int kFinisherMax = 32;
+            int count = n_blks;
+            JacobianPoint* in  = d_blk;
+            JacobianPoint* out = d_partials;
+            while (count > kFinisherMax) {
+                int const next = (count + kBlk - 1) / kBlk;
+                bench_msm_block_reduce_k<<<next, kBlk, smem>>>(in, count, out);
+                count = next;
+                JacobianPoint* const swap = in;
+                in  = out;
+                out = swap;
+            }
+            bench_msm_final_reduce_k<<<1, 1>>>(in, count, d_out);
+        }
     });
 
     cudaFree(d_scalars); cudaFree(d_pts); cudaFree(d_partials);

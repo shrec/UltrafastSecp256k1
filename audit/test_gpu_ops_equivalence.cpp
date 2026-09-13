@@ -20,6 +20,7 @@
 #include <cstring>
 #include <cstdint>
 #include <array>
+#include <vector>
 
 #include "ufsecp/ufsecp_gpu.h"
 #include "ufsecp/ufsecp.h"
@@ -396,6 +397,78 @@ cleanup:
     ufsecp_ctx_destroy(cpu_ctx);
 }
 
+/* ============================================================================
+ * 8. msm equivalence at a batch large enough to reach the multi-level tail
+ * ============================================================================ */
+static void test_msm_large_n_equiv(ufsecp_gpu_ctx* ctx) {
+    std::printf("[gpu_equiv] msm (large N, multi-level tail reduce)\n");
+
+    /* The CUDA backend block-reduces the scatter output and then finishes on a
+     * single thread, so every point left to that finisher costs a serial point
+     * addition. msm() therefore keeps block-reducing while the tail is longer
+     * than 32, and N here is picked to make that loop actually run: 70000 points
+     * give 274 blocks, one pass takes 274 down to 2, and the finisher sees 2 --
+     * covering the loop body, the ping-pong buffer swap, and a finisher count
+     * that is neither the old full block count nor 1.
+     *
+     * A SECOND loop pass would need N > 2M, far too slow for a CPU-reference MSM
+     * in an audit test, and it re-runs the same code the first pass does.
+     * test_msm_equiv (N=4) covers the other side: a tail short enough that the
+     * loop must not run at all. */
+    constexpr size_t N = 70000;
+    constexpr size_t kDistinctPoints = 256;
+
+    ufsecp_ctx* cpu_ctx = nullptr;
+    CHECK_OK(ufsecp_ctx_create(&cpu_ctx), "CPU ctx_create succeeds");
+    if (!cpu_ctx) return;
+
+    /* Points repeat on a 256-entry cycle: the reduction tree is indifferent to
+     * which point sits where, and generating 70000 distinct pubkeys on the CPU
+     * would dominate the test's runtime for no added coverage. */
+    std::vector<uint8_t> base(kDistinctPoints * 33);
+    for (size_t i = 0; i < kDistinctPoints; ++i) {
+        uint8_t sk[32] = {};
+        fill_deterministic(sk, 32, static_cast<uint8_t>(i + 1));
+        sk[0] = 0;                        /* stay well below the group order */
+        sk[31] = static_cast<uint8_t>(sk[31] | 1u);   /* and non-zero */
+        CHECK_OK(ufsecp_pubkey_create(cpu_ctx, sk, base.data() + i * 33),
+                 "CPU pubkey_create succeeds");
+    }
+
+    std::vector<uint8_t> points(N * 33);
+    std::vector<uint8_t> scalars(N * 32);
+    for (size_t i = 0; i < N; ++i) {
+        std::memcpy(points.data() + i * 33,
+                    base.data() + (i % kDistinctPoints) * 33, 33);
+        uint8_t* s = scalars.data() + i * 32;
+        fill_deterministic(s, 32, static_cast<uint8_t>(i & 0xFF));
+        s[0] = 0;                                   /* < group order */
+        s[1] = static_cast<uint8_t>(i >> 8);        /* all N scalars distinct */
+        s[31] = static_cast<uint8_t>(s[31] | 1u);   /* non-zero */
+    }
+
+    uint8_t gpu_result[33] = {};
+    auto err = ufsecp_gpu_msm(ctx, scalars.data(), points.data(), N, gpu_result);
+    if (err == UFSECP_ERR_GPU_UNSUPPORTED) {
+        SKIP("msm unsupported");
+        ufsecp_ctx_destroy(cpu_ctx);
+        return;
+    }
+    CHECK(err == UFSECP_OK, "GPU msm (N=70000) succeeds");
+
+    uint8_t cpu_result[33] = {};
+    auto cpu_err = ufsecp_multi_scalar_mul(cpu_ctx, scalars.data(), points.data(),
+                                           N, cpu_result);
+    CHECK(cpu_err == UFSECP_OK, "CPU multi_scalar_mul (N=70000) succeeds");
+
+    if (err == UFSECP_OK && cpu_err == UFSECP_OK) {
+        CHECK(std::memcmp(gpu_result, cpu_result, 33) == 0,
+              "GPU msm == CPU multi_scalar_mul at N=70000");
+    }
+
+    ufsecp_ctx_destroy(cpu_ctx);
+}
+
 /* ============================================================================ */
 
 int main() {
@@ -434,6 +507,7 @@ int main() {
     test_hash160_equiv(ctx);
     test_ecrecover_equiv(ctx);
     test_msm_equiv(ctx);
+    test_msm_large_n_equiv(ctx);
 
     ufsecp_gpu_ctx_destroy(ctx);
 
