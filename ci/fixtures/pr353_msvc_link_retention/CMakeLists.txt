@@ -29,14 +29,12 @@
 #   1. Runtime behavior (portable, no external tool required): does the
 #      static initializer's "PR353_ANCHOR_LINKED" line print (did the
 #      archive member's code actually execute)?
-#   2. Symbol-table evidence (dumpbin on MSVC, llvm-nm/nm on GNU-like),
-#      best-effort at CMake-configure time via find_program: is the anchor
-#      symbol literally present in the linked binary? The AUTHORITATIVE
-#      Windows proof for acceptance item 6 is the explicit dumpbin step in
-#      the `windows` job of .github/workflows/ci.yml, which locates
-#      dumpbin.exe via vswhere independent of this configure-time PATH
-#      detection -- this CTest-embedded check is a portable convenience that
-#      also lets the mechanism be validated today on any GNU-like host.
+#   2. Symbol-level evidence: on MSVC the LINKER MAP (a linked MSVC image
+#      carries no COFF symbol table, so `dumpbin /symbols <exe>` finds the
+#      anchor in neither executable and cannot distinguish them); on GNU-like
+#      hosts nm on the executable, which does carry one. The `windows` job in
+#      .github/workflows/ci.yml asserts the same property against the same map
+#      files, independent of this project's CTest wiring.
 # ============================================================================
 cmake_minimum_required(VERSION 3.20)
 project(pr353_msvc_link_retention_fixture CXX)
@@ -62,6 +60,29 @@ add_executable(pr353_link_retention_retained main.cpp)
 target_link_libraries(pr353_link_retention_retained PRIVATE pr353_anchor_lib)
 target_link_options(pr353_link_retention_retained PRIVATE ${PR353_RETAIN_OPTION})
 
+# -- Link map, so the symbol-level proof has an artifact that can answer -----
+#
+# `dumpbin /symbols <exe>` cannot answer "was this archive member retained?".
+# A linked MSVC image carries no COFF symbol table -- the symbols live in the
+# PDB -- so that query returns nothing for ANY executable, retained or not.
+# The CI step that used it therefore reported
+#
+#   PR353 CONTRACT VIOLATION: pr353_link_retention_anchor missing from
+#   ...pr353_link_retention_retained.exe -- LINKER:/INCLUDE: retention is
+#   broken on MSVC
+#
+# on the first run that ever reached it, while the runtime CTests immediately
+# above it PASSED -- i.e. the member demonstrably WAS retained and its static
+# initializer demonstrably DID run. The assertion was wrong, not the mechanism.
+#
+# The linker map is the artifact that records which archive members and which
+# symbols were pulled into the image, so it is what the symbol-level proof
+# reads. Emitted for both executables so the negative control keeps working.
+if(MSVC)
+    target_link_options(pr353_link_retention_baseline PRIVATE "LINKER:/MAP")
+    target_link_options(pr353_link_retention_retained PRIVATE "LINKER:/MAP")
+endif()
+
 enable_testing()
 
 # -- 1. Runtime-behavior proof (no external tool required, always runs) -----
@@ -75,33 +96,43 @@ add_test(NAME pr353_msvc_link_retention_runtime_retained_present
 set_tests_properties(pr353_msvc_link_retention_runtime_retained_present PROPERTIES
     PASS_REGULAR_EXPRESSION "PR353_ANCHOR_LINKED")
 
-# -- 2. Symbol-table proof, best-effort at configure time --------------------
+# -- 2. Symbol-level proof ---------------------------------------------------
+#
+# MSVC: read the LINKER MAP. `dumpbin /symbols <exe>` is the wrong query for
+# this question -- a linked MSVC image has no COFF symbol table (symbols live
+# in the PDB), so it finds the anchor in NEITHER executable and the "retained"
+# assertion can never pass while the "baseline" one passes vacuously. The map
+# records what the linker actually pulled in, which is the property under test.
+# `cmake -E cat` keeps this a plain CTest with no external tool.
+#
+# GNU-like: nm on the executable is correct -- an ELF image does carry a
+# symbol table -- so that branch is unchanged.
 if(MSVC)
-    find_program(PR353_SYMBOL_TOOL NAMES dumpbin)
-else()
-    find_program(PR353_SYMBOL_TOOL NAMES llvm-nm nm)
-endif()
-
-if(PR353_SYMBOL_TOOL)
-    if(MSVC)
-        add_test(NAME pr353_msvc_link_retention_symtab_baseline_absent
-            COMMAND ${PR353_SYMBOL_TOOL} /symbols "$<TARGET_FILE:pr353_link_retention_baseline>")
-        add_test(NAME pr353_msvc_link_retention_symtab_retained_present
-            COMMAND ${PR353_SYMBOL_TOOL} /symbols "$<TARGET_FILE:pr353_link_retention_retained>")
-    else()
-        add_test(NAME pr353_msvc_link_retention_symtab_baseline_absent
-            COMMAND ${PR353_SYMBOL_TOOL} "$<TARGET_FILE:pr353_link_retention_baseline>")
-        add_test(NAME pr353_msvc_link_retention_symtab_retained_present
-            COMMAND ${PR353_SYMBOL_TOOL} "$<TARGET_FILE:pr353_link_retention_retained>")
-    endif()
+    add_test(NAME pr353_msvc_link_retention_symtab_baseline_absent
+        COMMAND ${CMAKE_COMMAND} -E cat
+            "$<TARGET_FILE_DIR:pr353_link_retention_baseline>/$<TARGET_FILE_BASE_NAME:pr353_link_retention_baseline>.map")
+    add_test(NAME pr353_msvc_link_retention_symtab_retained_present
+        COMMAND ${CMAKE_COMMAND} -E cat
+            "$<TARGET_FILE_DIR:pr353_link_retention_retained>/$<TARGET_FILE_BASE_NAME:pr353_link_retention_retained>.map")
     set_tests_properties(pr353_msvc_link_retention_symtab_baseline_absent PROPERTIES
         FAIL_REGULAR_EXPRESSION "${PR353_ANCHOR_SYMBOL}")
     set_tests_properties(pr353_msvc_link_retention_symtab_retained_present PROPERTIES
         PASS_REGULAR_EXPRESSION "${PR353_ANCHOR_SYMBOL}")
 else()
-    message(WARNING "pr353_msvc_link_retention: no symbol-table tool found at configure "
-        "time (dumpbin/llvm-nm/nm) -- relying on the runtime-behavior CTest cases only "
-        "here; the Windows CI job (.github/workflows/ci.yml, `windows` job) runs an "
-        "explicit dumpbin symbol assertion independent of this configure-time PATH "
-        "detection, which is the authoritative proof for acceptance item 6.")
+    find_program(PR353_SYMBOL_TOOL NAMES llvm-nm nm)
+    if(PR353_SYMBOL_TOOL)
+        add_test(NAME pr353_msvc_link_retention_symtab_baseline_absent
+            COMMAND ${PR353_SYMBOL_TOOL} "$<TARGET_FILE:pr353_link_retention_baseline>")
+        add_test(NAME pr353_msvc_link_retention_symtab_retained_present
+            COMMAND ${PR353_SYMBOL_TOOL} "$<TARGET_FILE:pr353_link_retention_retained>")
+        set_tests_properties(pr353_msvc_link_retention_symtab_baseline_absent PROPERTIES
+            FAIL_REGULAR_EXPRESSION "${PR353_ANCHOR_SYMBOL}")
+        set_tests_properties(pr353_msvc_link_retention_symtab_retained_present PROPERTIES
+            PASS_REGULAR_EXPRESSION "${PR353_ANCHOR_SYMBOL}")
+    else()
+        message(WARNING "pr353_msvc_link_retention: no nm/llvm-nm found at configure time "
+            "-- relying on the runtime-behavior CTest cases here. Those are the stronger "
+            "proof anyway: they show the retained archive member's static initializer "
+            "actually RAN, not merely that a name appears in a table.")
+    endif()
 endif()

@@ -1,7 +1,20 @@
 version: 2
+
+# target-branch is "dev" on every entry, deliberately.
+#
+# This repository's default branch is main, and main is the RELEASE branch: it
+# only ever receives a merge from dev when a version is cut. Without this key
+# dependabot aims at the default branch, so every update PR is opened against
+# main -- a PR that cannot pass CI (it is built against the last release, not
+# the current tree) and that must not be merged even if it did, because it
+# would put an unreleased change on the release branch.
+#
+# Four such PRs (#403-#406) were opened against main and closed unmerged before
+# this was added. See CONTRIBUTING.md for the two-branch policy.
 updates:
   # ── GitHub Actions ──
   - package-ecosystem: "github-actions"
+    target-branch: "dev"
     directory: "/"
     schedule:
       interval: "weekly"
@@ -15,6 +28,7 @@ updates:
 
   # ── npm: WASM package ──
   - package-ecosystem: "npm"
+    target-branch: "dev"
     directory: "/bindings/wasm"
     schedule:
       interval: "weekly"
@@ -28,6 +42,7 @@ updates:
 
   # ── npm: Node.js binding ──
   - package-ecosystem: "npm"
+    target-branch: "dev"
     directory: "/bindings/nodejs"
     schedule:
       interval: "weekly"
@@ -41,6 +56,7 @@ updates:
 
   # ── npm: React Native binding ──
   - package-ecosystem: "npm"
+    target-branch: "dev"
     directory: "/bindings/react-native"
     schedule:
       interval: "weekly"
@@ -54,6 +70,7 @@ updates:
 
   # ── NuGet: C# bindings ──
   - package-ecosystem: "nuget"
+    target-branch: "dev"
     directory: "/bindings/csharp"
     schedule:
       interval: "weekly"
@@ -67,6 +84,7 @@ updates:
 
   # ── Cargo: Rust bindings ──
   - package-ecosystem: "cargo"
+    target-branch: "dev"
     directory: "/bindings/rust"
     schedule:
       interval: "weekly"
@@ -80,6 +98,7 @@ updates:
 
   # ── pip: Python binding ──
   - package-ecosystem: "pip"
+    target-branch: "dev"
     directory: "/bindings/python"
     schedule:
       interval: "weekly"
@@ -93,6 +112,7 @@ updates:
 
   # ── Gradle: Android example ──
   - package-ecosystem: "gradle"
+    target-branch: "dev"
     directory: "/bindings/android/example"
     schedule:
       interval: "weekly"
@@ -105,21 +125,25 @@ updates:
       include: "scope"
 
   - package-ecosystem: nuget
+    target-branch: "dev"
     directory: /bindings/csharp/Ufsecp
     schedule:
       interval: daily
 
   - package-ecosystem: nuget
+    target-branch: "dev"
     directory: /bindings/csharp/UfsepcBenchmark
     schedule:
       interval: daily
 
   - package-ecosystem: nuget
+    target-branch: "dev"
     directory: /bindings/csharp/UltrafastSecp256k1
     schedule:
       interval: daily
 
   - package-ecosystem: gomod
+    target-branch: "dev"
     directory: /bindings/go
     schedule:
       interval: daily

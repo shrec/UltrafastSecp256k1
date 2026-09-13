@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-04T00:10:59.853763+00:00",
+  "generated_at": "2026-09-07T00:56:04.383527+00:00",
   "library": "out/ci-audit/include/ufsecp/libufsecp.so.4.5.0",
   "repeat": 5,
   "overall_pass": true,

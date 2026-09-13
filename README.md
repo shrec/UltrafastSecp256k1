@@ -59,7 +59,7 @@ Project-wide (branch-independent — not pinned to `main` or `dev`):
 
 > **No external third-party security audit has been performed.** All audit evidence is self-generated and independently reproducible via CAAS. See [SECURITY.md](SECURITY.md) §Audit Status.
 
-> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 467-module unified runner with 276 exploit PoC tests.
+> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 478-module unified runner with 276 exploit PoC tests.
 
 **Reproduce from patch (primary — stable):**
 ```bash
@@ -95,7 +95,7 @@ python3 ci/caas_runner.py --profile bitcoin-core-backend --json -o btc.json
 → [`docs/BITCOIN_CORE_BACKEND_EVIDENCE.md`](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md) — evidence package  
 → [`docs/DER_PARITY_MATRIX.md`](docs/DER_PARITY_MATRIX.md) — DER/parser parity
 
-**CT signing (CT-vs-CT, production-equivalent, GCC 14.2.0, 2026-09-03):** **~1.34× ECDSA · ~1.27× Schnorr** vs libsecp256k1 (turbo lock CONFIRMED: intel_pstate/no_turbo=1, governor=performance, taskset -c 0 nice -20). Canonical data: [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](docs/bench_unified_2026-09-03_gcc14_x86-64.json). Full compiler breakdown: [docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
+**CT signing (CT-vs-CT, production-equivalent, GCC 14.2.0, 2026-09-07):** **~1.52× ECDSA · ~1.48× Schnorr** vs libsecp256k1 (turbo lock CONFIRMED: intel_pstate/no_turbo=1, governor=performance, taskset -c 0 nice -20). Canonical data: [`docs/bench_unified_2026-09-07_gcc14_x86-64.json`](docs/bench_unified_2026-09-07_gcc14_x86-64.json). Full compiler breakdown: [docs/BITCOIN_CORE_BACKEND_EVIDENCE.md §CT Signing](docs/BITCOIN_CORE_BACKEND_EVIDENCE.md).
 
 > **ConnectBlock (primary block-validation workload):** within ±1.5% of libsecp256k1 depending on build configuration.
 > - With Release+LTO (GCC 14.2.0, **required for any positive result — without LTO the result is negative**): **+0.9–1.5%** across ConnectBlock aggregate profiles (AllEcdsa, AllSchnorr, Mixed)
@@ -274,7 +274,7 @@ This project: `code → test → execution → evidence → continuous verificat
 We do not rely on trust. We provide reproducible evidence.
 
 - Every exploit attempt becomes a permanent regression test
-- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 191 non-exploit audit modules and 276 exploit PoCs ( 467 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
+- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 202 non-exploit audit modules and 276 exploit PoCs ( 478 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
 - Every claim maps to a test in [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md)
 - Every performance number has pinned compiler/driver/toolkit versions and raw logs
 
@@ -307,7 +307,7 @@ Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.
 
 > All performance claims in this README link to that document. Do not rely on inline numbers without checking the corresponding benchmark entry for hardware, batch size, and measurement conditions.
 >
-> Canonical raw data (GCC 14.2.0, 2026-09-03): [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](docs/bench_unified_2026-09-03_gcc14_x86-64.json)
+> Canonical raw data (GCC 14.2.0, 2026-09-07): [`docs/bench_unified_2026-09-07_gcc14_x86-64.json`](docs/bench_unified_2026-09-07_gcc14_x86-64.json)
 
 ## Why UltrafastSecp256k1? — Detail
 
@@ -868,7 +868,7 @@ Full CPU signature support and GPU public-data batch verification:
 
 ### CPU Signature Benchmarks
 
-Current release-grade CPU signature numbers are kept in benchmark artifacts, not duplicated here. Use [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](docs/bench_unified_2026-09-03_gcc14_x86-64.json) for the canonical GCC 14.2.0 run and [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for methodology, hardware notes, and historical comparisons.
+Current release-grade CPU signature numbers are kept in benchmark artifacts, not duplicated here. Use [`docs/bench_unified_2026-09-07_gcc14_x86-64.json`](docs/bench_unified_2026-09-07_gcc14_x86-64.json) for the canonical GCC 14.2.0 run and [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for methodology, hardware notes, and historical comparisons.
 
 ---
 
@@ -882,10 +882,10 @@ The `ct::` namespace provides constant-time operations for secret-key material -
 | Generator Mul (k×G) | 9,200 ns | 15,347 ns | 1.67× |
 | Scalar Inverse | — | 2,503 ns | CT-only |
 | Point Add (complete) | — | 400 ns | CT-only |
-| ECDSA sign (end-to-end) | 22,063 ns | 21,945 ns | **0.99× (CT faster)** |
-| Schnorr sign (end-to-end) | 17,980 ns | 17,804 ns | **0.99× (CT faster)** |
+| ECDSA sign (end-to-end) | 19,442 ns | 19,311 ns | **0.99× (CT faster)** |
+| Schnorr sign (end-to-end) | 15,219 ns | 15,233 ns | **1.00× (parity)** |
 
-*GCC 14.2.0, Intel i5-14400F, turbo disabled, CPU-pinned. Source: [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](docs/bench_unified_2026-09-03_gcc14_x86-64.json)*
+*GCC 14.2.0, Intel i5-14400F, turbo disabled, CPU-pinned. Source: [`docs/bench_unified_2026-09-07_gcc14_x86-64.json`](docs/bench_unified_2026-09-07_gcc14_x86-64.json)*
 
 **CT layer provides:** `ct::field_mul`, `ct::field_inv`, `ct::scalar_mul`, `ct::point_add_complete`, `ct::point_dbl`
 
@@ -1291,7 +1291,7 @@ Two security profiles are **always active** -- no flag-based selection:
 ### CT / Hardened Profile (`ct::` namespace)
 
 - Constant-time arithmetic -- no secret-dependent branches or memory access
-- ~1.1–1.9× performance penalty vs FAST for primitive operations (see CT overhead table in docs/BENCHMARKS.md; release-grade measurement: `docs/bench_unified_2026-09-03_gcc14_x86-64.json`, CT overhead table, GCC 14.2.0)
+- ~1.1–1.9× performance penalty vs FAST for primitive operations (see CT overhead table in docs/BENCHMARKS.md; release-grade measurement: `docs/bench_unified_2026-09-07_gcc14_x86-64.json`, CT overhead table, GCC 14.2.0)
 - Use for: signing, private key handling, nonce generation, ECDH
 
 **Choose the appropriate profile for your use case.** Using FAST with secret data is a security vulnerability.
@@ -1624,7 +1624,7 @@ cosign verify-blob SHA256SUMS \
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
-| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 191 non-exploit modules + 276 exploit PoCs and platform verdicts |
+| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 202 non-exploit modules + 276 exploit PoCs and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [ARM64 Audit & Benchmark](docs/ARM64_AUDIT_BENCHMARK.md) | ARM64 platform certification and performance analysis |
@@ -1691,6 +1691,7 @@ We want to acknowledge the teams whose public work informed parts of our journey
 - **[@craigraw](https://github.com/craigraw)** ([Sparrow Wallet](https://sparrowwallet.com)) -- For creating the [bench_bip352](https://github.com/craigraw/bench_bip352) standalone BIP-352 Silent Payments scanning benchmark, which provided an independent, reproducible pipeline comparison between secp256k1 implementations.
 - **Community / GigaChad** -- For running the full CUDA test suite on RTX 5070 Ti (Blackwell), confirming 45/45 tests pass, and identifying the `CMAKE_CUDA_SEPARABLE_COMPILATION` flag required for Blackwell devices. Results in [docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md).
 - **[@kawacukennedy](https://github.com/kawacukennedy)** -- For systematic code review across CPU, GPU (CUDA/OpenCL/Metal), and bindings layers, reporting 9 verified issues including Metal `is_ready()` guard omissions ([#344](https://github.com/shrec/UltrafastSecp256k1/issues/344)), CUDA device memory leaks ([#345](https://github.com/shrec/UltrafastSecp256k1/issues/345)), OpenCL synchronization gaps ([#346](https://github.com/shrec/UltrafastSecp256k1/issues/346)), Metal sentinel guard omissions ([#347](https://github.com/shrec/UltrafastSecp256k1/issues/347)), and API/documentation inconsistencies ([#343](https://github.com/shrec/UltrafastSecp256k1/issues/343), [#348](https://github.com/shrec/UltrafastSecp256k1/issues/348), [#349](https://github.com/shrec/UltrafastSecp256k1/issues/349), [#350](https://github.com/shrec/UltrafastSecp256k1/issues/350), [#352](https://github.com/shrec/UltrafastSecp256k1/issues/352)).
+- **[@tatotogonidze-cmd](https://github.com/tatotogonidze-cmd)** -- For the BIP-352 GPU audit coverage finding ([#384](https://github.com/shrec/UltrafastSecp256k1/pull/384)): independently diagnosing that CPU-only builds linked no GPU provider, and separating "a GPU backend was selected" from "the operation actually ran" -- the latter was a silent-pass advisory in our own regression, where an available backend with an unsupported `bip352_scan_batch_multispend` reported PASS having verified nothing.
 
 We share our optimizations, GPU kernels, embedded ports, and cross-platform techniques freely -- because open-source cryptography grows stronger when knowledge flows in every direction.
 

@@ -241,7 +241,7 @@ fi
 run_caas_check "Source graph quality"                   python3 ci/check_source_graph_quality.py
 run_caas_check "Bitcoin Core test results"              python3 ci/check_bitcoin_core_test_results.py
 run_caas_check "Core build mode"                        python3 ci/check_core_build_mode.py
-run_caas_check "Secret path change gate"                python3 ci/check_secret_path_changes.py --base origin/main
+run_caas_check "Secret path change gate"                python3 ci/check_secret_path_changes.py --base origin/dev
 echo ""
 
 if [[ $FULL -eq 0 ]]; then

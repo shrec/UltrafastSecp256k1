@@ -1044,6 +1044,13 @@ inline bool ecdsa_verify(thread const uchar msg_hash[32], thread const JacobianP
                           thread const ECDSASignature &sig) {
     if (scalar256_is_zero(sig.r) || scalar256_is_zero(sig.s)) return false;
 
+    // Reject out-of-range compact scalars (r >= n or s >= n) so every Metal
+    // verify route matches the strict compact-parse contract of CUDA/OpenCL
+    // (batch_compressed + lbtc collect previously reduced s+n mod n here).
+    Scalar256 order_n;
+    for (int i = 0; i < 8; i++) order_n.limbs[i] = SECP256K1_N[i];
+    if (scalar256_ge(sig.r, order_n) || scalar256_ge(sig.s, order_n)) return false;
+
     Scalar256 z = scalar_from_bytes(msg_hash);
     Scalar256 s_inv = scalar_inverse(sig.s);
     Scalar256 u1 = scalar_mul_mod_n(z, s_inv);

@@ -2,6 +2,133 @@
 
 **UltrafastSecp256k1 v4.5.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-09-10 - Strict compact-ECDSA range (`r`,`s` in `[1, n-1]`) enforced uniformly on every GPU verify path
+
+The compact-ECDSA strictness guard added in this wave is a verification-contract
+alignment, not a CT boundary change. It is recorded here because the secret-path
+gate classifies the GPU verify sources and `CHANGELOG.md` as CT secret-bearing
+surfaces.
+
+**1. The disagreement it removes**
+
+For a 64-byte compact signature, "valid" previously depended on which GPU route
+handled the row. CUDA's batch kernel and the OpenCL parsers rejected `r >= n`
+or `s >= n` (strict compact parse); CUDA's collect kernel, Metal's
+batch/collect, and the device-side single-verify path reduced the raw limbs
+mod `n` before comparing, so the non-canonical `(r, s + n)` encoding (congruent
+mod `n`, and representable in 32 bytes whenever `s < 2^256 - n`) verified
+exactly like the canonical one. The same 64 bytes changed meaning by entrypoint,
+which also broke the documented guarantee in `src/gpu/src/gpu_backend_cuda.cu`
+that the collect verdict is bit-identical to `verify_batch`.
+
+- **Security claim: one uniform contract.** Every device-side `ecdsa_verify()`
+  (the single choke point shared by the single/batch/collect entrypoints and the
+  sign-and-verify countermeasure) now rejects `r >= n || s >= n` up front.
+  Boundary inputs verify identically against the CPU strict oracle
+  (`ufsecp_ecdsa_verify`, `parse_compact_strict` + low-S), so a compact
+  signature either verifies everywhere or nowhere across CPU, CUDA, OpenCL and
+  Metal.
+- **No CT boundary change:** `r` and `s` are PUBLIC bytes of the signature. The
+  guard is a fixed-limb `>=` comparison with no secret-dependent branch or
+  memory access, and it runs before any secret-touching verify math.
+- **No secret lifecycle change:** no new resident secret buffer, no added or
+  removed `secure_erase` site — see `docs/SECRET_LIFECYCLE.md` for the pairing.
+- **Tests:** `audit/test_gpu_ecdsa_compact_range.cpp` — `[A]` a
+  CPU-only source gate pins the guard inside each backend's `ecdsa_verify()`
+  body (before `scalar_inverse`), so a guard stranded in a helper no verify
+  path calls cannot satisfy it; `[B]` an on-device boundary differential over
+  a small-`(r, s)` recovered base and its congruent malleations
+  `(r, s+n)/(r+n, s)/(r+n, s+n)` plus the `{0, n-1, n, 2^256-1}` extremes,
+  through both batch and collect, checked row-by-row against the CPU oracle.
+  Invalid rows stay at the seeded marker (fail-closed). Rows are synced into
+  `docs/CT_VERIFICATION.md` / `docs/TEST_MATRIX.md` by `ci/sync_all_docs.py`.
+
+### 2026-09-07 - Fixed-base disk cache OFF by default, FE52 kernels always inlined, PT_TLS alignment (build-surface changes; no CT boundary moves)
+
+Three changes in this wave touch the root `CMakeLists.txt` and the FE52 field
+kernels, both of which the secret-path change gate classifies as CT
+secret-bearing surfaces. **None of them moves a CT boundary.** Each is recorded
+here so that classification is answered rather than waived.
+
+**1. `SECP256K1_FIXED_BASE_DISK_CACHE` (new CMake option, default OFF)**
+
+`FixedBaseConfig::use_cache` previously defaulted to `true` with an empty
+`cache_dir`, and the path resolver consulted `cache_dir` only when a file was
+already there — so the first run of any caller wrote the fixed-base comb table
+into its **current working directory** (`cache_w18.bin`, 255 MB at the default
+`window_bits = 18`). Reported by Eric Voskuil against libbitcoin's test suite.
+
+- **Security claim: PUBLIC DATA, no secret ever reached that file.** The
+  fixed-base table is precomputed multiples of the generator `G` — the same
+  values any observer can derive. This is a filesystem side-effect defect, not
+  a key-material disclosure, and no advisory is warranted for shipped versions
+  on that basis.
+- **What changed (final state):** the table is built **once** and reused. The
+  default location is the per-user cache directory the platform reserves for
+  this — `$XDG_CACHE_HOME/secp256k1` or `~/.cache/secp256k1`,
+  `~/Library/Caches/secp256k1`, `%LOCALAPPDATA%\secp256k1` — created if missing
+  and kept, so a later process loads it instead of recomputing. **Never the
+  working directory, in any mode.** The system temp directory is only a fallback
+  for when none of those can be determined, and that fallback is the one case
+  removed at exit. `-DSECP256K1_FIXED_BASE_DISK_CACHE=OFF` opts out entirely
+  (nothing written, table rebuilt per process); the macro is defined as 0 or 1
+  either way so the header default cannot disagree with the compiled library.
+- **Ownership:** a cache file in a caller-named directory is the caller's and is
+  never deleted by the library. `set_cache_directory()` / `SECP256K1_CACHE_DIR`
+  create the directory on the first save rather than requiring it to exist.
+- **Why not "write nothing":** an intermediate revision defaulted the cache off
+  entirely. That fixed the litter but made every process rebuild a ~250 MB
+  table, which is the wrong trade for a table whose purpose is to be computed
+  once; it is what turned `audit/test_exploit_selftest_api` from 6.6 s into a
+  120 s CI timeout on every platform. The location was the defect, not the
+  caching.
+- **Test:** `audit/test_regression_fixed_base_cache_lifecycle.cpp`, checks
+  FBC-1..4, which exercise both modes regardless of how the library was built.
+
+**2. FE52 kernels are `always_inline` on every target**
+
+`UFSECP_FE52_FORCE_INLINE_KERNELS` is removed, not flipped: `fe52_mul_inner`
+and `fe52_sqr_inner` are now `always_inline` wherever `field_52_impl.hpp`
+compiles.
+
+- **Security claim: NO CT BOUNDARY CHANGE.** A 5x52 field multiply is
+  straight-line `__int128` arithmetic with no data-dependent branch and no
+  secret-dependent memory access; it is timing-invariant whether it is inlined
+  or called. Inlining changes instruction scheduling, not data dependence. The
+  same two kernels back both the `fast::` and the `ct::` paths, and their
+  operand-independence is what the CT claim in section 7 rests on — that
+  property is unaffected.
+- **What it also removes:** the previous per-build macro was an ODR hazard.
+  `FieldElement52::operator*` and its siblings are `always_inline`
+  external-linkage inlines whose bodies call these kernels, so a binary linked
+  from TUs that disagreed about the macro was a silent mismatch rather than a
+  diagnostic. One shape everywhere removes that failure mode.
+- **Evidence:** x86-64 A/B (i5-14400F, GCC 14.2, governor pinned, turbo off,
+  cpu0, `nice -20`) moved 90 of 104 engine operations >= 500 ns by more than 2%;
+  ARM64 confirmed on two independent machines — a Rockchip RK3588 Cortex-A76
+  here, and an Apple M5 Max by the reporter of GitHub issue #336 on a
+  10,356,829-row BIP-352 scan (14.04-14.52s -> 12.40-12.83s, against a
+  re-measured v3.68.0 baseline of 12.3-12.7s). Cost: `libfastsecp256k1.a` grows
+  14.84% on x86-64 and 22.4% on arm64.
+
+**3. `alignas(64)` on `tl_context_owner` (PT_TLS segment alignment)**
+
+Every `thread_local` in the library was naturally 8- or 16-aligned, so the
+linker emitted `PT_TLS p_align = 8` — and Android arm64 Bionic **refuses to
+load** an executable whose TLS segment is aligned below 64
+("executable's TLS segment is underaligned"). No Android arm64 binary linking
+this library could start.
+
+- **Security claim: NO SECRET LIFETIME CHANGE.** `tl_context_owner` holds a
+  `shared_ptr` to the fixed-base precompute context — public multiples of `G`,
+  the same data as item 1. Raising its alignment changes segment layout, not
+  what is stored or how long it lives. Secret-bearing thread-locals are
+  unaffected and their erasure contracts are unchanged.
+- **Test:** `audit/test_regression_tls_segment_alignment.cpp`, TLS-ALIGN-1/2,
+  which parses the running binary's own program headers via `AT_PHDR` rather
+  than scanning source, so a future `thread_local` added anywhere cannot
+  silently drop the segment alignment back to 8.
+
 ### 2026-07-15 - `ufsecp_gpu_bip352_scan_batch_multispend` added: GPU BIP-352 multi-spend-key scan (GitHub issue #335, paired with `include/ufsecp/ufsecp_gpu.h`)
 
 Added `GpuBackend::bip352_scan_batch_multispend` / C ABI

@@ -19,6 +19,7 @@ Pull requests that do not meet these requirements will be rejected.
 
 - [Requirements for Acceptable Contributions](#-requirements-for-acceptable-contributions)
 - [Developer Certificate of Origin (DCO)](#developer-certificate-of-origin-dco)
+- [Crediting Issue Reporters](#crediting-issue-reporters)
 - [Code of Conduct](#code-of-conduct)
 - [Getting Started](#getting-started)
 - [Development Process](#development-process)
@@ -53,6 +54,48 @@ Signed-off-by: Your Name <your.email@example.com>
 ```
 
 All commits in a pull request **must** include this sign-off line. Commits without it will not be accepted.
+
+## 🙏 Crediting Issue Reporters
+
+**When a fix originates from someone else's report, the fix commit carries their
+`Co-authored-by` trailer.** Not the docs alone — the commit.
+
+This is a hard rule for maintainers, not a nicety. GitHub's contributors graph is
+computed from commit authorship on the default branch; an acknowledgment in
+`README.md`, `CHANGELOG.md` or `docs/CONTRIBUTORS.md` is invisible to it. A reporter
+who hands us a root cause, a reproduction, or a working diagnosis has contributed to
+the commit that fixes it, and the commit should say so.
+
+```
+fix(field): correct the FE52 reduction bound
+
+...
+
+Co-authored-by: reporter <reporter@users.noreply.github.com>
+```
+
+Use the reporter's GitHub noreply address (`<id>+<username>@users.noreply.github.com`,
+or `<username>@users.noreply.github.com`) unless they have published another address —
+GitHub links the trailer to their profile by email.
+
+Applies when the report materially determined the fix: a root cause, a reproduction we
+could not produce ourselves, a profile that located the hot path, a security finding, or
+a patch we adapted rather than merged. It does not apply to a bare "this is broken"
+without diagnosis — those still get the acknowledgment entries below.
+
+Alongside the trailer, a contribution that changes behaviour is recorded in all three
+places this project credits people:
+
+| Where | What goes there |
+|---|---|
+| [`docs/CONTRIBUTORS.md`](docs/CONTRIBUTORS.md) | A row naming the finding, with the issue or PR link |
+| [`CHANGELOG.md`](CHANGELOG.md) | A bullet under `[Unreleased]` → `### Credited` |
+| [`README.md`](README.md) | A line in the acknowledgments list |
+
+**Trailers are never added retroactively.** Rewriting a pushed commit changes its hash
+and every hash above it, which breaks forks, clones, signatures, and every commit link
+in our own issues and audit evidence. If a past fix is missing a trailer, the credit
+goes in the three documents above and the trailer is used from the next commit onward.
 
 ## 🤝 Code of Conduct
 

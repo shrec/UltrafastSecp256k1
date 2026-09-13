@@ -524,30 +524,53 @@ static void test_timing_variance() {
         "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140"); // n-1
 
     constexpr int TRIALS = 100;
+    constexpr int WARMUP = 20;
     double samples_low[TRIALS];
     double samples_high[TRIALS];
     double sum_low = 0.0, sum_high = 0.0;
 
+    // Warm up BOTH scalars before timing anything.
+    //
+    // Without this the first timed loop absorbs every one-time cost in the
+    // process -- lazy fixed-base initialisation, first-touch page faults on the
+    // precompute table, branch predictor and cache warm-up -- and the ratio
+    // reports that instead of the property under test. It bit exactly that way
+    // on macOS CI when the fixed-base table started being LOADED from the cache
+    // file rather than built in memory: the pages were cold on first touch, so
+    // the k=1 leg measured 2.219x the k=n-1 leg and this module hard-failed on a
+    // difference that has nothing to do with the scalar.
+    //
+    // Initialisation cost is not secret-dependent, so removing it from the
+    // measurement makes the check MORE sensitive to the thing it exists for, not
+    // less. The 2.0x threshold and the CV noise guard below are unchanged.
+    for (int i = 0; i < WARMUP; ++i) {
+        volatile auto rl = secp256k1::ct::scalar_mul(G, k_low);
+        volatile auto rh = secp256k1::ct::scalar_mul(G, k_high);
+        (void)rl; (void)rh;
+    }
+
+    // Interleaved A/B/A/B rather than all-A-then-all-B. On a shared runner the
+    // machine drifts (frequency, co-tenant load) over the ~100 ms this takes,
+    // and a blocked layout charges the whole drift to whichever leg ran second.
+    // Interleaving spreads it across both, which is what makes a surviving
+    // difference attributable to the scalar.
     for (int i = 0; i < TRIALS; ++i) {
         auto t0 = std::chrono::high_resolution_clock::now();
-        volatile auto r = secp256k1::ct::scalar_mul(G, k_low);
-        (void)r;
+        volatile auto rl = secp256k1::ct::scalar_mul(G, k_low);
+        (void)rl;
         auto t1 = std::chrono::high_resolution_clock::now();
+        volatile auto rh = secp256k1::ct::scalar_mul(G, k_high);
+        (void)rh;
+        auto t2 = std::chrono::high_resolution_clock::now();
+
         samples_low[i] = static_cast<double>(
             std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
-        sum_low += samples_low[i];
-    }
-    double avg_low = sum_low / TRIALS;
-
-    for (int i = 0; i < TRIALS; ++i) {
-        auto t0 = std::chrono::high_resolution_clock::now();
-        volatile auto r = secp256k1::ct::scalar_mul(G, k_high);
-        (void)r;
-        auto t1 = std::chrono::high_resolution_clock::now();
         samples_high[i] = static_cast<double>(
-            std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+            std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count());
+        sum_low  += samples_low[i];
         sum_high += samples_high[i];
     }
+    double avg_low  = sum_low  / TRIALS;
     double avg_high = sum_high / TRIALS;
 
     // Coefficient of variation — detects multi-tenant CI noise (hypervisor jitter,

@@ -127,11 +127,12 @@ struct alignas(4) FieldElement26 {
 // fe26 op is 20-40ns — inlining removes it (P0 from perf report).
 //
 // fe26_mul_inner / fe26_sqr_inner are declared without SECP256K1_INLINE
-// because their definitions in field_26.cpp explicitly mark them
-// `__attribute__((optimize("O2"), noinline))` on GCC/Clang to keep these
-// large bodies out of the caller's inlining budget. SECP256K1_INLINE
-// expands to `__attribute__((always_inline)) inline` on GCC/Clang and
-// would conflict with the noinline attribute (-Werror=attributes).
+// because their definitions in field_26.cpp explicitly mark them noinline per
+// the field-kernel inlining policy: optimize("O2") + noinline on GCC, clang
+// gets plain noinline since it ignores the GCC-only optimize attribute (see
+// the "Field-kernel inlining policy" block in field_52_impl.hpp).
+// SECP256K1_INLINE expands to `__attribute__((always_inline)) inline` on
+// GCC/Clang and would conflict with the noinline attribute (-Werror=attributes).
 void fe26_mul_inner(std::uint32_t* SECP256K1_RESTRICT r,
                     const std::uint32_t* SECP256K1_RESTRICT a,
                     const std::uint32_t* SECP256K1_RESTRICT b) noexcept;

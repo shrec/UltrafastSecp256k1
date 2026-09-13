@@ -64,6 +64,11 @@
 
 static int g_fail = 0;
 static bool g_gpu_available = false;
+// Set only once BCV-5..8 have actually compared a GPU result against the CPU
+// oracle. Distinct from g_gpu_available, which only says a backend reported
+// itself runtime-available -- a backend can be available and still not
+// implement bip352_scan_batch_multispend, in which case no GPU coverage ran.
+static bool g_gpu_coverage_exercised = false;
 #define ASSERT_TRUE(cond, msg)  do { if (!(cond)) { std::printf("FAIL [%s]: %s\n", __func__, msg); ++g_fail; } } while(0)
 #define ASSERT_FALSE(cond, msg) do { if ( (cond)) { std::printf("FAIL [%s]: %s\n", __func__, msg); ++g_fail; } } while(0)
 
@@ -181,6 +186,16 @@ static bool bcv_ctx_failure_is_hard(bool backend_available, bool ctx_create_ok) 
     return backend_available && !ctx_create_ok;
 }
 
+// Selecting a runtime-available backend is not the same as exercising it. If
+// bip352_scan_batch_multispend returns UFSECP_ERR_GPU_UNSUPPORTED for every
+// call, the loop `continue`s past the BCV-6 assert, no oracle cell is compared,
+// and nothing has been verified -- so the run must report a coverage gap rather
+// than PASS. Reported by the PR #384 review (2026-09-06); the flaw was that the
+// exit code keyed on backend selection instead of on work actually done.
+static bool bcv_gpu_coverage_is_advisory(bool backend_selected, bool op_supported) {
+    return !backend_selected || !op_supported;
+}
+
 static int bcv_mock_never_available(uint32_t) { return 0; }
 
 // Mutation: a compiled backend (nonzero ufsecp_gpu_backend_count()) with
@@ -193,6 +208,20 @@ static void test_bcv_backend_selection_mutation() {
     ASSERT_TRUE(picked == -1,
                 "mutation: compiled backend present but ufsecp_gpu_is_available() "
                 "== 0 for every id must select no backend");
+}
+
+// Mutation: a runtime-available backend that does not implement the operation
+// leaves BCV-5..8 unverified, so it must still be reported as a coverage gap.
+// Keying the exit code on backend selection alone turns "selected a GPU, ran
+// nothing on it" into a PASS -- the silent-pass advisory this suite forbids.
+static void test_bcv_coverage_gap_mutation() {
+    ASSERT_TRUE(bcv_gpu_coverage_is_advisory(/*backend_selected=*/true, /*op_supported=*/false),
+                "mutation: available backend whose bip352_scan_batch_multispend is "
+                "unsupported must report a coverage gap, not PASS");
+    ASSERT_TRUE(bcv_gpu_coverage_is_advisory(/*backend_selected=*/false, /*op_supported=*/false),
+                "no runtime-available backend is a coverage gap");
+    ASSERT_FALSE(bcv_gpu_coverage_is_advisory(/*backend_selected=*/true, /*op_supported=*/true),
+                 "sanity: an available backend that ran the operation is real coverage");
 }
 
 // Mutation: once a backend is selected as runtime-available, a ctx-create
@@ -372,6 +401,7 @@ static void test_bcv_gpu_batch_matches_cpu_oracle() {
                     "oracle cells checked\n",
                     static_cast<int>(scan_keys.size()), cells_checked);
         ASSERT_TRUE(cells_checked > 0, "BCV-6b: at least one oracle cell must have been checked");
+        g_gpu_coverage_exercised = !bcv_gpu_coverage_is_advisory(g_gpu_available, true);
     } else {
         std::printf("SKIP BCV-5..8: bip352_scan_batch_multispend unsupported on every "
                     "available GPU backend (advisory)\n");
@@ -384,14 +414,20 @@ static void test_bcv_gpu_batch_matches_cpu_oracle() {
 int test_regression_bip352_ct_varbase_run() {
     g_fail = 0;
     g_gpu_available = false;
+    g_gpu_coverage_exercised = false;
     test_bcv_backend_selection_mutation();
     test_bcv_ctx_failure_hard_mutation();
+    test_bcv_coverage_gap_mutation();
     test_bcv_cpu_correctness();
     test_bcv_gpu_batch_matches_cpu_oracle();
 
     if (!g_gpu_available) {
         std::printf("  BIP-352 CT variable-base regression: no runtime-available GPU "
                     "provider on this machine -- BCV-5..8 GPU coverage not exercised\n");
+    } else if (!g_gpu_coverage_exercised) {
+        std::printf("  BIP-352 CT variable-base regression: a GPU provider was available "
+                    "but bip352_scan_batch_multispend is unsupported on it -- BCV-5..8 GPU "
+                    "coverage not exercised\n");
     }
     if (g_fail == 0)
         std::printf("PASS: BIP-352 CT variable-base scalar mul regression (CRIT-02)\n");
@@ -401,11 +437,14 @@ int test_regression_bip352_ct_varbase_run() {
 #ifdef STANDALONE_TEST
 int main() {
     int rc = test_regression_bip352_ct_varbase_run();
-    // No runtime-available GPU provider on this machine: BCV-1..4 (CPU path)
-    // and the pure backend-selection/ctx-failure mutation tests still ran,
-    // but BCV-5..8 GPU coverage never executed. Report that as a CTest skip
-    // (77), not a silent PASS, so GPU coverage gaps stay visible.
-    if (rc == 0 && !g_gpu_available) return ADVISORY_SKIP_CODE;
+    // BCV-1..4 (CPU path) and the pure mutation tests always run. BCV-5..8 need
+    // both a runtime-available GPU provider AND that provider implementing
+    // bip352_scan_batch_multispend; when either is missing, no GPU coverage
+    // executed. Report that as a CTest skip (77), not a silent PASS, so the gap
+    // stays visible. Keying this on g_gpu_available alone reported PASS for an
+    // available-but-unsupported backend -- see bcv_gpu_coverage_is_advisory().
+    if (rc == 0 && bcv_gpu_coverage_is_advisory(g_gpu_available, g_gpu_coverage_exercised))
+        return ADVISORY_SKIP_CODE;
     return rc;
 }
 #endif

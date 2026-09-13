@@ -33,14 +33,14 @@
     {
       "exists": true,
       "path": "docs/TEST_MATRIX.md",
-      "sha256": "08cc7e5a304f38b38fb2a8d0fc96008a1b0ff051c0006bcae22041626082d21e",
-      "size": 83189
+      "sha256": "71d1b4c95ad12f1235cbee37fbf00af5d9ec57f7fae157b1bff11e96dd960f8f",
+      "size": 88266
     },
     {
       "exists": true,
       "path": "docs/CT_VERIFICATION.md",
-      "sha256": "0fb41b8e433a7be37f010a0a23e143926a48ad9b17935281f5d0e1fd7b54e46e",
-      "size": 49162
+      "sha256": "691aefe558f8f35ed443002b3b7f8f6fc17147be86ee009d20b7dbb07cc8e024",
+      "size": 52454
     },
     {
       "exists": true,
@@ -156,7 +156,7 @@
           {
             "findings": [
               {
-                "message": "Audit test-quality findings: files=465, critical=0, high=0, medium=0, low=0",
+                "message": "Audit test-quality findings: files=474, critical=0, high=0, medium=0, low=0",
                 "severity": "INFO"
               },
               {
@@ -170,7 +170,7 @@
           {
             "findings": [
               {
-                "message": "All 778 security patterns preserved",
+                "message": "All 787 security patterns preserved",
                 "severity": "PASS"
               }
             ],
@@ -200,27 +200,15 @@
           {
             "findings": [
               {
-                "message": "25 files modified/deleted since graph build (2026-09-03T23:01:31)",
+                "message": "2 files modified/deleted since graph build (2026-09-13T20:45:55)",
                 "severity": "WARN"
               },
               {
-                "message": "MODIFIED: README.md",
+                "message": "MODIFIED: docs/INCIDENT_DRILL_LOG.json",
                 "severity": "INFO"
               },
               {
-                "message": "MODIFIED: docs/API_SECURITY_CONTRACTS.json",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: docs/ARM64_AUDIT_BENCHMARK.md",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: docs/ASSURANCE_CLAIMS.json",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: docs/ATTACK_GUIDE.md",
+                "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
                 "severity": "INFO"
               }
             ],
@@ -272,7 +260,7 @@
           {
             "findings": [
               {
-                "message": "58 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign",
+                "message": "65 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign",
                 "severity": "WARN"
               }
             ],
@@ -404,7 +392,7 @@
           {
             "findings": [
               {
-                "message": "7 changed files have matching docs",
+                "message": "3 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -414,11 +402,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 142.7 days (threshold: 14)",
+                "message": "Mutation report age: 152.6 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (142.7 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (152.6 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -652,7 +640,7 @@
                 "severity": "INFO"
               },
               {
-                "message": "Source graph \"files\" has 1758 rows (threshold: 200)",
+                "message": "Source graph \"files\" has 1775 rows (threshold: 200)",
                 "severity": "PASS"
               }
             ],
@@ -666,19 +654,19 @@
                 "severity": "PASS"
               },
               {
-                "message": "INT-CROSS-LIBSECP [warning]: last_verified 88d ago (> 45d freshness SLO)",
+                "message": "INT-CROSS-LIBSECP [warning]: last_verified 97d ago (> 45d freshness SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "INT-DER-BLOCK704789 [warning]: last_verified 83d ago (> 60d freshness SLO)",
+                "message": "INT-DER-BLOCK704789 [warning]: last_verified 92d ago (> 60d freshness SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "INT-ECDSA-CACHE-SAMEX [warning]: last_verified 83d ago (> 60d freshness SLO)",
+                "message": "INT-ECDSA-CACHE-SAMEX [warning]: last_verified 92d ago (> 60d freshness SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "INT-SCHNORR-VERIFY [warning]: last_verified 83d ago (> 60d freshness SLO)",
+                "message": "INT-SCHNORR-VERIFY [warning]: last_verified 92d ago (> 60d freshness SLO)",
                 "severity": "WARN"
               },
               {
@@ -708,18 +696,6 @@
                 "severity": "PASS"
               },
               {
-                "message": "CT-ECDSA-SIGN: PRE-ALERT: 6d until evidence stale \u2014 re-verify",
-                "severity": "WARN"
-              },
-              {
-                "message": "CT-SCHNORR-SIGN: PRE-ALERT: 6d until evidence stale \u2014 re-verify",
-                "severity": "WARN"
-              },
-              {
-                "message": "CT-KEYPAIR-SECKEY: PRE-ALERT: 6d until evidence stale \u2014 re-verify",
-                "severity": "WARN"
-              },
-              {
                 "message": "CT-GPU-PUBLIC-DATA-BOUNDARY: owner-gated, not current evidence (last_verified 2026-06-11)",
                 "severity": "INFO"
               }
@@ -732,22 +708,6 @@
               {
                 "message": "7 fuzz surfaces (4 blocking, 1 warning, 2 owner-gated); no missing/stale/unconverted-crash",
                 "severity": "PASS"
-              },
-              {
-                "message": "FUZZ-ABI-INVALID-INPUT: PRE-ALERT: 7d until campaign evidence stale \u2014 re-run",
-                "severity": "WARN"
-              },
-              {
-                "message": "FUZZ-DER-PARSER: PRE-ALERT: 7d until campaign evidence stale \u2014 re-run",
-                "severity": "WARN"
-              },
-              {
-                "message": "FUZZ-ECDSA-VERIFY: PRE-ALERT: 7d until campaign evidence stale \u2014 re-run",
-                "severity": "WARN"
-              },
-              {
-                "message": "FUZZ-SCHNORR-VERIFY: PRE-ALERT: 7d until campaign evidence stale \u2014 re-run",
-                "severity": "WARN"
               },
               {
                 "message": "FUZZ-LIBBITCOIN-BRIDGE-DIFF: owner-gated, not current evidence (last_verified 2026-06-02)",
@@ -768,19 +728,19 @@
                 "severity": "PASS"
               },
               {
-                "message": "GPU-CUDA-PUBLIC-DATA: PRE-ALERT: 7d until stale \u2014 re-verify",
+                "message": "GPU-CUDA-PUBLIC-DATA [warning]: last_verified 92d ago (> 90d SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "GPU-OPENCL-PUBLIC-DATA: PRE-ALERT: 7d until stale \u2014 re-verify",
+                "message": "GPU-OPENCL-PUBLIC-DATA [warning]: last_verified 92d ago (> 90d SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "GPU-METAL-PUBLIC-DATA: PRE-ALERT: 7d until stale \u2014 re-verify",
+                "message": "GPU-METAL-PUBLIC-DATA [warning]: last_verified 92d ago (> 90d SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md) \u2014 last_verified 126d ago (past 120d)",
+                "message": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md) \u2014 last_verified 135d ago (past 120d)",
                 "severity": "INFO"
               },
               {
@@ -841,12 +801,12 @@
           "status": "available",
           "value": {
             "dirty": true,
-            "ref": "experiment/representation-search",
-            "sha": "be39b820e122e344fb602051607e964a6416a830",
-            "short": "be39b820e1"
+            "ref": "dev",
+            "sha": "b82ae128caa9cbc960df94097758c49f5ee913ea",
+            "short": "b82ae128ca"
           }
         },
-        "generated_at": "2026-09-04T00:19:04.993214+00:00",
+        "generated_at": "2026-09-13T20:55:50.172382+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -863,17 +823,17 @@
             },
             "flags_hash": "93f0268349a55f05"
           },
-          "collected_at": "2026-09-04T00:19:04.993152+00:00",
+          "collected_at": "2026-09-13T20:55:50.172339+00:00",
           "git": {
             "dirty": true,
-            "ref": "experiment/representation-search",
-            "sha": "be39b820e122e344fb602051607e964a6416a830",
-            "short": "be39b820e1"
+            "ref": "dev",
+            "sha": "b82ae128caa9cbc960df94097758c49f5ee913ea",
+            "short": "b82ae128ca"
           },
           "platform": {
             "machine": "x86_64",
             "python": "3.12.3",
-            "release": "6.8.0-138-generic",
+            "release": "6.8.0-139-generic",
             "system": "Linux"
           },
           "submodules": null,
@@ -889,7 +849,7 @@
           },
           "version": "4.5.0"
         },
-        "run_id": "audit_gate-be39b820e1-20260904T001904",
+        "run_id": "audit_gate-b82ae128ca-20260913T205550",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -995,7 +955,7 @@
               {
                 "check_id": "p2__audit_test_quality",
                 "severity": "info",
-                "title": "Audit test-quality findings: files=465, critical=0, high=0, medium=0, low=0"
+                "title": "Audit test-quality findings: files=474, critical=0, high=0, medium=0, low=0"
               },
               {
                 "check_id": "p2__audit_test_quality",
@@ -1011,7 +971,7 @@
               {
                 "check_id": "p3__security_patterns",
                 "severity": "pass",
-                "title": "All 778 security patterns preserved"
+                "title": "All 787 security patterns preserved"
               }
             ],
             "name": "P3: Security Patterns",
@@ -1044,32 +1004,17 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "25 files modified/deleted since graph build (2026-09-03T23:01:31)"
+                "title": "2 files modified/deleted since graph build (2026-09-13T20:45:55)"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: README.md"
+                "title": "MODIFIED: docs/INCIDENT_DRILL_LOG.json"
               },
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: docs/API_SECURITY_CONTRACTS.json"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: docs/ARM64_AUDIT_BENCHMARK.md"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: docs/ASSURANCE_CLAIMS.json"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: docs/ATTACK_GUIDE.md"
+                "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -1131,7 +1076,7 @@
               {
                 "check_id": "p8__test_documentation",
                 "severity": "advisory:medium",
-                "title": "58 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign"
+                "title": "65 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign"
               }
             ],
             "name": "P8: Test Documentation",
@@ -1293,7 +1238,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "7 changed files have matching docs"
+                "title": "3 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1304,12 +1249,12 @@
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 142.7 days (threshold: 14)"
+                "title": "Mutation report age: 152.6 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (142.7 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (152.6 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1588,7 +1533,7 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "pass",
-                "title": "Source graph \"files\" has 1758 rows (threshold: 200)"
+                "title": "Source graph \"files\" has 1775 rows (threshold: 200)"
               }
             ],
             "name": "G-12: Source Graph Quality",
@@ -1604,22 +1549,22 @@
               {
                 "check_id": "g-13__integration_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "INT-CROSS-LIBSECP [warning]: last_verified 88d ago (> 45d freshness SLO)"
+                "title": "INT-CROSS-LIBSECP [warning]: last_verified 97d ago (> 45d freshness SLO)"
               },
               {
                 "check_id": "g-13__integration_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "INT-DER-BLOCK704789 [warning]: last_verified 83d ago (> 60d freshness SLO)"
+                "title": "INT-DER-BLOCK704789 [warning]: last_verified 92d ago (> 60d freshness SLO)"
               },
               {
                 "check_id": "g-13__integration_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "INT-ECDSA-CACHE-SAMEX [warning]: last_verified 83d ago (> 60d freshness SLO)"
+                "title": "INT-ECDSA-CACHE-SAMEX [warning]: last_verified 92d ago (> 60d freshness SLO)"
               },
               {
                 "check_id": "g-13__integration_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "INT-SCHNORR-VERIFY [warning]: last_verified 83d ago (> 60d freshness SLO)"
+                "title": "INT-SCHNORR-VERIFY [warning]: last_verified 92d ago (> 60d freshness SLO)"
               },
               {
                 "check_id": "g-13__integration_evidence_freshness",
@@ -1654,27 +1599,12 @@
               },
               {
                 "check_id": "g-14__ct_evidence_freshness",
-                "severity": "advisory:medium",
-                "title": "CT-ECDSA-SIGN: PRE-ALERT: 6d until evidence stale \u2014 re-verify"
-              },
-              {
-                "check_id": "g-14__ct_evidence_freshness",
-                "severity": "advisory:medium",
-                "title": "CT-SCHNORR-SIGN: PRE-ALERT: 6d until evidence stale \u2014 re-verify"
-              },
-              {
-                "check_id": "g-14__ct_evidence_freshness",
-                "severity": "advisory:medium",
-                "title": "CT-KEYPAIR-SECKEY: PRE-ALERT: 6d until evidence stale \u2014 re-verify"
-              },
-              {
-                "check_id": "g-14__ct_evidence_freshness",
                 "severity": "info",
                 "title": "CT-GPU-PUBLIC-DATA-BOUNDARY: owner-gated, not current evidence (last_verified 2026-06-11)"
               }
             ],
             "name": "G-14: CT Evidence Freshness",
-            "verdict": "PASS with advisory"
+            "verdict": "PASS"
           },
           {
             "findings": [
@@ -1682,26 +1612,6 @@
                 "check_id": "g-15__fuzz_campaign_evidence",
                 "severity": "pass",
                 "title": "7 fuzz surfaces (4 blocking, 1 warning, 2 owner-gated); no missing/stale/unconverted-crash"
-              },
-              {
-                "check_id": "g-15__fuzz_campaign_evidence",
-                "severity": "advisory:medium",
-                "title": "FUZZ-ABI-INVALID-INPUT: PRE-ALERT: 7d until campaign evidence stale \u2014 re-run"
-              },
-              {
-                "check_id": "g-15__fuzz_campaign_evidence",
-                "severity": "advisory:medium",
-                "title": "FUZZ-DER-PARSER: PRE-ALERT: 7d until campaign evidence stale \u2014 re-run"
-              },
-              {
-                "check_id": "g-15__fuzz_campaign_evidence",
-                "severity": "advisory:medium",
-                "title": "FUZZ-ECDSA-VERIFY: PRE-ALERT: 7d until campaign evidence stale \u2014 re-run"
-              },
-              {
-                "check_id": "g-15__fuzz_campaign_evidence",
-                "severity": "advisory:medium",
-                "title": "FUZZ-SCHNORR-VERIFY: PRE-ALERT: 7d until campaign evidence stale \u2014 re-run"
               },
               {
                 "check_id": "g-15__fuzz_campaign_evidence",
@@ -1715,7 +1625,7 @@
               }
             ],
             "name": "G-15: Fuzz Campaign Evidence",
-            "verdict": "PASS with advisory"
+            "verdict": "PASS"
           },
           {
             "findings": [
@@ -1727,22 +1637,22 @@
               {
                 "check_id": "g-16__gpu/hardware_evidence",
                 "severity": "advisory:medium",
-                "title": "GPU-CUDA-PUBLIC-DATA: PRE-ALERT: 7d until stale \u2014 re-verify"
+                "title": "GPU-CUDA-PUBLIC-DATA [warning]: last_verified 92d ago (> 90d SLO)"
               },
               {
                 "check_id": "g-16__gpu/hardware_evidence",
                 "severity": "advisory:medium",
-                "title": "GPU-OPENCL-PUBLIC-DATA: PRE-ALERT: 7d until stale \u2014 re-verify"
+                "title": "GPU-OPENCL-PUBLIC-DATA [warning]: last_verified 92d ago (> 90d SLO)"
               },
               {
                 "check_id": "g-16__gpu/hardware_evidence",
                 "severity": "advisory:medium",
-                "title": "GPU-METAL-PUBLIC-DATA: PRE-ALERT: 7d until stale \u2014 re-verify"
+                "title": "GPU-METAL-PUBLIC-DATA [warning]: last_verified 92d ago (> 90d SLO)"
               },
               {
                 "check_id": "g-16__gpu/hardware_evidence",
                 "severity": "info",
-                "title": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md) \u2014 last_verified 126d ago (past 120d)"
+                "title": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md) \u2014 last_verified 135d ago (past 120d)"
               },
               {
                 "check_id": "g-16__gpu/hardware_evidence",
@@ -1804,21 +1714,21 @@
           }
         ],
         "summary": {
-          "advisory": 81,
+          "advisory": 71,
           "blocking": 0,
-          "info": 60,
+          "info": 57,
           "sections": 34,
           "skipped_sections": 0,
-          "total_findings": 141,
-          "warnings": 21
+          "total_findings": 131,
+          "warnings": 14
         },
         "verdict": "PASS with advisory"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "060faab68318c444a9f6dcec43d4e4504ec725b171d92578c2ac12ea3bc9caf9",
-      "stdout_sha256": "ecd9a8b1f92282198e0a15f237eb679de6835518b4ca316c13e45f69f89457d0"
+      "stderr_sha256": "0974c82f18df3702fca79c9d3d75b8f38cc369d0eaa9ee31a0bf6d393018d46e",
+      "stdout_sha256": "b268ad9489fbccb63fd5869b93ffdd531e9823abe9dedc985ce063582519dbd3"
     },
     {
       "name": "audit_gap_report_strict",
@@ -2120,13 +2030,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-09-04T00:19:10.821873+00:00"
+        "timestamp": "2026-09-13T20:55:54.500126+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "363ea1465c0ade8769746390c05ccf4123be8324c10f212d161aec9c2abe475c"
+      "stdout_sha256": "43eab6748a74569842731acb1de936318848b30ab8bb0006a15593537f302cee"
     },
     {
       "name": "supply_chain_gate",
@@ -2172,25 +2082,25 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-09-04T00:19:11.002637+00:00"
+        "timestamp": "2026-09-13T20:55:54.615578+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "33d957e2d2b7542b3b1e90c3e910fc5fd6de862991b5260185137cd72e2ec6f4"
+      "stdout_sha256": "310bd2df6f236db6abacd2ce3b0634a6ffd2cd9e0e433b5031c935698ead5198"
     }
   ],
-  "generated_at": "2026-09-04T00:19:11.029257+00:00",
+  "generated_at": "2026-09-13T20:55:54.629439+00:00",
   "git": {
-    "branch": "experiment/representation-search",
-    "commit": "be39b820e122e344fb602051607e964a6416a830",
+    "branch": "dev",
+    "commit": "b82ae128caa9cbc960df94097758c49f5ee913ea",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
   "runtime": {
     "machine": "x86_64",
-    "platform": "Linux-6.8.0-138-generic-x86_64-with-glibc2.39",
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.39",
     "python": "3.12.3"
   },
   "schema_version": "1.0.0",

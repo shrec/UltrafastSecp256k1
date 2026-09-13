@@ -163,6 +163,7 @@ int test_gpu_abi_gate_run();          // Discovery, lifecycle, ops-if-available
 int test_gpu_zk_prove_verify_differential_run(); // CPU range-proof → GPU poly-check accept/reject
 int test_gpu_lbtc_columns_diff_run(); // GPU vs CPU lbtc columns + engine dispatcher fallback
 int test_gpu_collect_verify_parity_run(); // native collect verdict == verify_batch verdict (per-row)
+int test_gpu_ecdsa_compact_range_run(); // GPU ECDSA strict r/s<n range: source gate + boundary differential
 int test_regression_hash256_var_batch_run(); // hash256_var batch structural/boundary KAT vs SHA256::hash256 oracle
 int test_regression_hash256_var_parity_run(); // hash256_var cross-backend (CUDA/OpenCL/Metal) byte-identical parity
 int test_regression_merkle_pair_hash_run(); // merkle_pair_hash structural/boundary KAT + cross-backend parity vs SHA256::hash256 oracle
@@ -224,6 +225,12 @@ int test_exploit_safegcd_divsteps_run();              // Bernstein-Yang SafeGCD 
 int test_exploit_ecdsa_pmn_wraparound_run();          // ECDSA PMN wraparound: r ∈ [n,p) constant + logic (2026-05-05)
 int test_exploit_custom_nonce_injection_run();        // RFC 6979 nonce edge cases (null/zero/n/n-1)
 int test_regression_ct_blinding_nonce_path_run();    // CT nonce path uses generator_mul_blinded (2026-05-12)
+int test_regression_hmac_guard_fail_closed_run();    // RFC 6979 HMAC length guards zero out[32] before returning
+int test_regression_metal_shader_closure_run();      // Metal shader include closure complete + copied
+int test_regression_metal_buffer_binding_order_run(); // Metal dispatch order == kernel [[buffer(N)]] order
+int test_regression_precompute_noop_reconfigure_run();// identical configure_fixed_base must not rebuild the table
+int test_regression_fixed_base_cache_lifecycle_run(); // fixed-base cache: no CWD litter, cache_dir honoured on write
+int test_regression_tls_segment_alignment_run();      // PT_TLS p_align >= 64 (Android arm64 loadability)
 int test_regression_ct_scalar_inverse_zero_run();   // SEC-001: CT scalar_inverse zero-branch removal (2026-05-21)
 int test_regression_ct_ops_run();                   // SEC-002/007/008/010, CT-004/005: CT ops regressions (consolidated 2026-06-09 — was split across two byte-identical files)
 int test_regression_bip324_privkey_lifetime_run();  // SEC-006: Bip324Session privkey_ lifetime documentation (2026-05-21)
@@ -667,6 +674,7 @@ int test_regression_schnorr_abi_edge_cases_run();        // TQ-005: Schnorr r==0
 int test_regression_ct_mixed_add_magnitude_run();        // CA-mixed-add: point_add_mixed_complete magnitude contract
 int test_regression_ct_sanitizer_detection_run();        // 2026-05-14: Clang TSan/MSan/ASan macro detection in ct_field.cpp
 int test_regression_field_reduce_carry_run();            // 2026-05-14: FE64 reduce() carry propagation result[2..4]
+int test_regression_field_26_exact_limb_run();           // 2026-09-08: FE26 exact-limb KATs (Python truth) — fe26 equivalent of the reduce-carry guard
 int test_regression_mul128_portability_run();            // 2026-06-16: 64x64->128 multiply path equivalence (Windows-ARM64 clang-cl port)
 int test_regression_shim_static_ctx_run();              // ecf47967: g_static_ctx PERF-005 field alignment fix
 int test_regression_ellswift_ct_path_run();              // CT-001: ellswift_create CT path + XDH round-trip
@@ -745,7 +753,15 @@ int test_regression_cuda_buffer_raii_run(); // #345: CUDA_TRY early returns reta
 int test_regression_metal_batch_sentinel_run(); // #347: dispatch failure is not a signature verdict
 int test_regression_opencl_collect_dispatch_run(); // #346: padded collect dispatch + checked queue sync
 int test_regression_p2sh_context_abi_run(); // #348: additive P2SH context diagnostics ABI
+int test_regression_fe52_magnitude_model_run(); // #396: FE52 magnitude model pinned against the live formulas
 
+// === CI contract regressions (source-coupled, no library dependency) ===
+// Both read a workflow file out of the checked-out tree and assert the
+// invariants that keep a mandatory job honest. They were on disk with a
+// _run() entry point but no ALL_MODULES row, which check_exploit_wiring.py
+// reports as unwired -- the exact drift that gate exists to catch.
+int test_shim_security_gate_policy_run();        // gate.yml shim-security step: report policy + executable scenarios
+int test_windows_cuda_workflow_contract_run();   // windows-cuda.yml: pinned toolkit, valid sub-packages, unmasked hook job
 // ============================================================================
 // Forward declarations -- 2026-05-22 SHIM-013: ecdsa_verify cache consistency
 // ============================================================================
@@ -864,6 +880,7 @@ static const AuditModule ALL_MODULES[] = {
     { "field_52",          "FieldElement52 (5x52) vs 4x64",               "math_invariants", test_field_52_main, false },
 #endif
     { "field_26",          "FieldElement26 (10x26) vs 4x64",              "math_invariants", test_field_26_main, false },
+    { "regression_field_26_exact_limb", "FE26 exact-limb KATs + trigger family (Python truth)", "math_invariants", test_regression_field_26_exact_limb_run, false },
 
     // ===================================================================
     // Section 2: Constant-Time / Side-Channel Analysis
@@ -875,6 +892,7 @@ static const AuditModule ALL_MODULES[] = {
     { "ct_verif_formal",   "Formal CT verification (ctgrind/MSAN)",       "ct_analysis",    test_ct_verif_formal_run, true },
     { "diag_scalar_mul",   "CT scalar_mul vs fast (diagnostic)",           "ct_analysis",    diag_scalar_mul_run, false },
     { "ct_blinding_nonce", "CT nonce path uses generator_mul_blinded",      "ct_analysis",    test_regression_ct_blinding_nonce_path_run, false },
+    { "hmac_guard_fail_closed", "RFC 6979 HMAC length guards zero out[32] instead of returning it untouched", "ct_analysis", test_regression_hmac_guard_fail_closed_run, false },
 
     // ===================================================================
     // Section 3: Differential & Cross-Library Testing
@@ -926,6 +944,11 @@ static const AuditModule ALL_MODULES[] = {
     // the on-device collect-vs-verify_batch per-row parity self-skips when no GPU
     // backend is present (or a backend lacks a native collect override).
     { "gpu_collect_verify_parity", "GPU collect-verify parity (native OpenCL/Metal/CUDA collect == verify_batch verdict)", "differential", test_gpu_collect_verify_parity_run, false },
+    // advisory=false: the CPU-only source gate scans the in-tree kernel sources
+    // and MUST pass everywhere (it failed against the pre-fix permissive
+    // ecdsa_verify paths); the on-device boundary-scalar differential
+    // self-skips when no GPU backend is available.
+    { "gpu_ecdsa_compact_range", "GPU ECDSA compact-sig strict r/s<n range (source gate + boundary-scalar differential)", "differential", test_gpu_ecdsa_compact_range_run, false },
     // advisory=false: null-ctx contract runs CPU-only and MUST pass everywhere;
     // the on-device KAT/boundary checks (per backend) self-skip when no GPU
     // backend is compiled in or a device is unavailable.
@@ -1487,7 +1510,7 @@ static const AuditModule ALL_MODULES[] = {
     // is always identical in Release builds. The sanitizer guard bug only manifests
     // in TSan/ASan builds; this Release-build test cannot detect the guarded regression.
     { "regression_ct_sanitizer_detection", "2026-05-14: Clang sanitizer macro detection — ct field_add/sub/mul/sqr vs fast parity; advisory (only catches guard regression in sanitizer builds, not Release)", "ct_analysis", test_regression_ct_sanitizer_detection_run, true },
-    { "regression_field_reduce_carry", "2026-05-14: FE64 reduce() carry propagation — (2^255-1)^2 mod p matches Python truth, (p-1)^2 == 1; guards result[2]→[3]→[4] cascade chain", "math_invariants", test_regression_field_reduce_carry_run, false },
+    { "regression_field_reduce_carry", "FE64 reduce() carry propagation, both losses: the C first fold must cascade through every remaining limb (2026-05-14), and the x86-64 GAS second fold must expand the 0/1 carry to a full mask before ANDing with K — it added K&1 == 1, so a = 2^256-2^33-1 (legal, a < p) squared came out short by exactly K-1 (2026-09-06). Exact-limb KATs vs Python truth plus direct KATs on all three GAS reduction copies including their self-aliased forms", "math_invariants", test_regression_field_reduce_carry_run, false },
     { "regression_mul128_portability", "2026-06-16: 64x64->128 multiply path equivalence — portable schoolbook == __int128 == detail::mulhi64 over edge+random; guards the Windows-ARM64 (clang-cl) _umul128/mulhi64 port off the x86-only MSVC <intrin.h> intrinsic", "math_invariants", test_regression_mul128_portability_run, false },
     { "regression_shim_static_ctx", "ecf47967: g_static_ctx field alignment after PERF-005 cached_r_G addition", "math_invariants", test_regression_shim_static_ctx_run, true },
     // === 2026-05-11 Security audit regression guards (CT-001, CT-006, RT-011, SHIM-001, SHIM-010, SHIM-012) ===
@@ -1750,12 +1773,33 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_metal_snark_readiness", "Metal ECDSA/Schnorr SNARK witness methods reject an uninitialised runtime with GpuError::Device before count/null handling or buffer allocation (MSR-0..3)", "memory_safety", test_regression_metal_snark_readiness_run, false },
     // === 2026-07-21 CUDA batch allocation lifetime regression (#345) ===
     { "regression_cuda_buffer_raii", "CUDA ECDSA/Schnorr verify, FROST partial verify, and ECDSA/Schnorr SNARK witness allocations are RAII-owned across every CUDA_TRY early return (CBR-0..8)", "memory_safety", test_regression_cuda_buffer_raii_run, false },
+    // === 2026-09-07 Android arm64 loadability: PT_TLS alignment ===
+    { "regression_tls_segment_alignment", "The linked image's PT_TLS segment is aligned to >= 64 bytes, which Android arm64 Bionic requires to load an executable at all (TLS-ALIGN-1..2)", "memory_safety", test_regression_tls_segment_alignment_run, false },
+    // === 2026-09-07 fixed-base disk cache lifecycle (evoskuil: cache_w18.bin left behind) ===
+    { "regression_fixed_base_cache_lifecycle", "Fixed-base precompute cache writes nothing by default, honours a configured cache_dir on the FIRST write (not only on read), never falls back to the CWD, and leaves a caller-named file alone (FBC-1..4)", "memory_safety", test_regression_fixed_base_cache_lifecycle_run, false },
+    // === 2026-09-07 Metal shader include closure (macOS runtime-compile fallback) ===
+    { "regression_metal_shader_closure", "Metal shader include closure is complete and fully copied: every quoted include of secp256k1_kernels.metal resolves, SHADER_FILES covers the whole closure, and the loader keeps no hardcoded header list (MSC-1..4)", "memory_safety", test_regression_metal_shader_closure_run, false },
+    { "regression_metal_buffer_binding_order", "Metal host dispatch argument order matches each kernel's [[buffer(N)]] parameter order: schnorr_verify_batch bound the message and the x-only pubkey swapped and rejected every valid BIP-340 signature (MBB-1..3)", "memory_safety", test_regression_metal_buffer_binding_order_run, false },
+    { "regression_precompute_noop_reconfigure", "Re-applying an identical FixedBaseConfig keeps the built fixed-base context instead of recomputing the ~250 MB table; a real change still invalidates (PNR-1..4)", "memory_safety", test_regression_precompute_noop_reconfigure_run, false },
     // === 2026-07-21 Metal generic batch fatal-not-invalid regression (#347) ===
     { "regression_metal_batch_sentinel", "Metal ECDSA/Schnorr generic batch verification detects unwritten result buffers and returns GpuError::Launch for CPU fallback instead of emitting signature verdicts (MBS-0..4)", "memory_safety", test_regression_metal_batch_sentinel_run, false },
     // === 2026-07-21 OpenCL collect dispatch/synchronisation regression (#346) ===
     { "regression_opencl_collect_dispatch", "OpenCL ECDSA/Schnorr collect paths check kernel arguments and queue completion, use padded explicit-local dispatch, and retain bounds guards for ghost work-items (OCD-0..7)", "memory_safety", test_regression_opencl_collect_dispatch_run, false },
     // === 2026-07-21 P2SH context diagnostics ABI regression (#348) ===
     { "regression_p2sh_context_abi", "ufsecp_addr_p2sh_with_ctx provides context diagnostics while preserving the legacy ufsecp_addr_p2sh symbol and byte-identical output, including the zero-length edge (PCA-0..9 + PCA-5Z)", "memory_safety", test_regression_p2sh_context_abi_run, false },
+    // === #396: the 5x52 magnitude model, written down and measured ===
+    // The bounds holding the point formulas together lived only as integer
+    // literals at the negate() call sites and as prose beside them. This pins
+    // the live formulas against GEJ_{X,Y,Z}_MAGNITUDE_MAX every run, so a
+    // formula swap that violates a bound fails here instead of corrupting
+    // silently. Per-value tracking (shadow fields on FieldElement52) is the
+    // other half of #396 and is still open.
+    { "regression_fe52_magnitude_model", "#396: FE52 magnitude model -- classification incl. wrapped limbs, measured kernel postconditions (mul 1/1, sqr 1/2, normalize_weak 1/1), negate() bounds proven honest, live dbl/add steady state inside GEJ_{X,Y,Z}_MAGNITUDE_MAX, and the EFD dbl-2009-l near-miss shown to corrupt real products (FMM-1..5)", "math_invariants", test_regression_fe52_magnitude_model_run, false },
+    // === CI contract regressions: the gate configuration is part of the
+    // security surface, so it is audited like any other invariant. Both are
+    // non-advisory: they read a file that always exists in a checked-out tree.
+    { "shim_security_gate_policy", "gate.yml's shim security regression step reconciles the runner exit code with advisory/non-advisory module results -- static contract plus the real extracted bash+python pipeline executed against synthetic audit reports", "security_gate", test_shim_security_gate_policy_run, false },
+    { "windows_cuda_workflow_contract", "windows-cuda.yml keeps the pinned CUDA toolkit revision, Windows-valid sub-packages, fail-fast toolchain diagnostics, outputs confined to out/windows-cuda, and the libbitcoin-direct hook job real and unmasked", "security_gate", test_windows_cuda_workflow_contract_run, false },
 };
 
 static constexpr int NUM_MODULES = sizeof(ALL_MODULES) / sizeof(ALL_MODULES[0]);

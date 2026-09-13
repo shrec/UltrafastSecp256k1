@@ -166,9 +166,26 @@ struct MetalCtx {
         return [device newBufferWithBytes:data length:bytes options:MTLResourceStorageModeShared];
     }
 
-    void dispatch_sync(id<MTLComputePipelineState> pipe, uint32_t count,
+    // Returns false when the GPU could not run the dispatch.
+    //
+    // This used to return void and ignore cmd.error, which made two completely
+    // different outcomes look identical to every module above: a kernel that ran
+    // and reported "no", versus a command buffer that faulted and never ran at
+    // all. Both left the output buffer at its initial value, so both surfaced as
+    // a bare [error=1]. Section 2 failed that way on the macOS CI runner with no
+    // hint of a cause. Report the reason and let the caller stop.
+    bool dispatch_sync(id<MTLComputePipelineState> pipe, uint32_t count,
                        std::vector<id<MTLBuffer>> buffers) {
         @autoreleasepool {
+            // A nil argument is a host wiring bug (a kernel parameter nobody
+            // bound), not a GPU condition -- name it rather than letting the
+            // driver fault on the first write to it.
+            for (size_t i = 0; i < buffers.size(); i++) {
+                if (buffers[i] == nil) {
+                    fprintf(stderr, "  [metal] buffer %zu is nil -- kernel argument not bound\n", i);
+                    return false;
+                }
+            }
             id<MTLCommandBuffer> cmd = [queue commandBuffer];
             id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
             [enc setComputePipelineState:pipe];
@@ -182,6 +199,12 @@ struct MetalCtx {
             [enc endEncoding];
             [cmd commit];
             [cmd waitUntilCompleted];
+            if (cmd.error != nil) {
+                fprintf(stderr, "  [metal] dispatch failed: %s\n",
+                        [[cmd.error localizedDescription] UTF8String]);
+                return false;
+            }
+            return true;
         }
     }
 };
@@ -209,7 +232,8 @@ static bool mtl_ecdsa_sign(const uint8_t priv[32], const uint8_t msg[32],
     // failure (output zeroed) from a legitimately zero signature.
     auto result_buf  = g_ctx.alloc_with_data(&results_flag, sizeof(bool));
 
-    g_ctx.dispatch_sync(pipe, 1, {msg_buf, key_buf, sig_buf, cnt_buf, result_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {msg_buf, key_buf, sig_buf, cnt_buf, result_buf}))
+        return false;
 
     memcpy(sig_out, [sig_buf contents], 64);
     // Use the result flag from the kernel (Guardrail 9) instead of inferring from sig bytes.
@@ -229,7 +253,8 @@ static bool mtl_ecdsa_verify(const uint8_t pub[64], const uint8_t msg[32],
     auto res_buf  = g_ctx.alloc(sizeof(uint32_t));
     auto cnt_buf  = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {msg_buf, pub_buf, sig_buf, res_buf, cnt_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {msg_buf, pub_buf, sig_buf, res_buf, cnt_buf}))
+        return false;
 
     uint32_t result = *(uint32_t*)[res_buf contents];
     return result != 0;
@@ -242,16 +267,26 @@ static bool mtl_schnorr_sign(const uint8_t priv[32], const uint8_t msg[32],
     if (!pipe) return false;
 
     uint32_t count = 1;
+    bool results_flag = false;
     auto msg_buf  = g_ctx.alloc_with_data(msg, 32);
     auto key_buf  = g_ctx.alloc_with_data(priv, 32);
     auto sig_buf  = g_ctx.alloc(64);
     auto cnt_buf  = g_ctx.alloc_with_data(&count, sizeof(count));
+    // GPU Guardrail 9: schnorr_sign_batch declares `device bool *results
+    // [[buffer(4)]]` and writes results[tid] just like ecdsa_sign_batch. This
+    // call bound only buffers 0..3, so the kernel's very first store went to an
+    // unbound argument -- every Schnorr module in the Metal audit failed for
+    // that reason alone, on a signing path that is otherwise fine.
+    auto result_buf = g_ctx.alloc_with_data(&results_flag, sizeof(bool));
 
-    g_ctx.dispatch_sync(pipe, 1, {msg_buf, key_buf, sig_buf, cnt_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {msg_buf, key_buf, sig_buf, cnt_buf, result_buf}))
+        return false;
 
     memcpy(sig_out, [sig_buf contents], 64);
-    // Valid signature requires both R.x != 0 and s != 0
-    return !scalar_is_zero(sig_out) && !scalar_is_zero(sig_out + 32);
+    // Use the kernel's flag (Guardrail 9) rather than inferring from sig bytes;
+    // an all-zero signature is what the kernel writes ON failure, so inferring
+    // conflates "failed" with "succeeded and happened to produce zeros".
+    return *reinterpret_cast<const bool*>([result_buf contents]);
 }
 
 // Schnorr verify: pubkey_x(32B BE) + msg(32B) + sig(64B) -> bool
@@ -267,7 +302,8 @@ static bool mtl_schnorr_verify(const uint8_t pubkey_x[32], const uint8_t msg[32]
     auto res_buf  = g_ctx.alloc(sizeof(uint32_t));
     auto cnt_buf  = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {msg_buf, pk_buf, sig_buf, res_buf, cnt_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {msg_buf, pk_buf, sig_buf, res_buf, cnt_buf}))
+        return false;
 
     uint32_t result = *(uint32_t*)[res_buf contents];
     return result != 0;
@@ -294,7 +330,8 @@ static bool mtl_generator_mul(const uint8_t scalar_be[32], uint8_t pub_out[64]) 
     auto r_buf = g_ctx.alloc(64);  // AffinePoint = 2 * FieldElement = 2 * 8 * uint32
     auto c_buf = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {s_buf, r_buf, c_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {s_buf, r_buf, c_buf}))
+        return false;
 
     // Result is AffinePoint{uint limbs[8], uint limbs[8]} = LE limbs
     // Convert to big-endian bytes
@@ -333,7 +370,8 @@ static bool mtl_field_mul(const uint32_t a[8], const uint32_t b[8], uint32_t r[8
     auto r_buf = g_ctx.alloc(32);
     auto c_buf = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {a_buf, b_buf, r_buf, c_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {a_buf, b_buf, r_buf, c_buf}))
+        return false;
 
     memcpy(r, [r_buf contents], 32);
     return true;
@@ -349,7 +387,8 @@ static bool mtl_field_sqr(const uint32_t a[8], uint32_t r[8]) {
     auto r_buf = g_ctx.alloc(32);
     auto c_buf = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {a_buf, r_buf, c_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {a_buf, r_buf, c_buf}))
+        return false;
 
     memcpy(r, [r_buf contents], 32);
     return true;
@@ -366,7 +405,8 @@ static bool mtl_field_add(const uint32_t a[8], const uint32_t b[8], uint32_t r[8
     auto r_buf = g_ctx.alloc(32);
     auto c_buf = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {a_buf, b_buf, r_buf, c_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {a_buf, b_buf, r_buf, c_buf}))
+        return false;
 
     memcpy(r, [r_buf contents], 32);
     return true;
@@ -383,7 +423,8 @@ static bool mtl_field_sub(const uint32_t a[8], const uint32_t b[8], uint32_t r[8
     auto r_buf = g_ctx.alloc(32);
     auto c_buf = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {a_buf, b_buf, r_buf, c_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {a_buf, b_buf, r_buf, c_buf}))
+        return false;
 
     memcpy(r, [r_buf contents], 32);
     return true;
@@ -399,7 +440,8 @@ static bool mtl_field_inv(const uint32_t a[8], uint32_t r[8]) {
     auto r_buf = g_ctx.alloc(32);
     auto c_buf = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {a_buf, r_buf, c_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {a_buf, r_buf, c_buf}))
+        return false;
 
     memcpy(r, [r_buf contents], 32);
     return true;
@@ -418,7 +460,8 @@ static bool mtl_point_add(const JacPoint32& a, const JacPoint32& b, JacPoint32& 
     auto r_buf = g_ctx.alloc(sizeof(JacPoint32));
     auto c_buf = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {a_buf, b_buf, r_buf, c_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {a_buf, b_buf, r_buf, c_buf}))
+        return false;
 
     memcpy(&r, [r_buf contents], sizeof(JacPoint32));
     return true;
@@ -434,7 +477,8 @@ static bool mtl_point_double(const JacPoint32& a, JacPoint32& r) {
     auto r_buf = g_ctx.alloc(sizeof(JacPoint32));
     auto c_buf = g_ctx.alloc_with_data(&count, sizeof(count));
 
-    g_ctx.dispatch_sync(pipe, 1, {a_buf, r_buf, c_buf});
+    if (!g_ctx.dispatch_sync(pipe, 1, {a_buf, r_buf, c_buf}))
+        return false;
 
     memcpy(&r, [r_buf contents], sizeof(JacPoint32));
     return true;
@@ -452,7 +496,14 @@ static bool mtl_batch_field_inv(uint32_t* elements, uint32_t count) {
     auto scratch_buf = g_ctx.alloc(count * 32);
     auto params_buf  = g_ctx.alloc_with_data(&params, sizeof(params));
 
-    // Dispatch 1 threadgroup
+    // Dispatch 1 threadgroup. This kernel needs dispatchThreadgroups (the
+    // Montgomery trick is one cooperating group), so it cannot go through
+    // dispatch_sync above -- but it must still check cmd.error. It used to
+    // `return true` unconditionally, which meant a faulted command buffer left
+    // `elements` holding the ORIGINAL values and the caller then compared
+    // a * a^-1 == 1 ... which is false, so it happened to fail loudly for the
+    // identity check. Any module reading the buffer without such a check would
+    // have reported PASS on a dispatch that never ran.
     @autoreleasepool {
         id<MTLCommandBuffer> cmd = [g_ctx.queue commandBuffer];
         id<MTLComputeCommandEncoder> enc = [cmd computeCommandEncoder];
@@ -466,6 +517,11 @@ static bool mtl_batch_field_inv(uint32_t* elements, uint32_t count) {
         [enc endEncoding];
         [cmd commit];
         [cmd waitUntilCompleted];
+        if (cmd.error != nil) {
+            fprintf(stderr, "  [metal] batch_inverse dispatch failed: %s\n",
+                    [[cmd.error localizedDescription] UTF8String]);
+            return false;
+        }
     }
 
     memcpy(elements, [elem_buf contents], count * 32);
@@ -740,8 +796,32 @@ static int audit_batch_scalar_mul() {
 }
 
 // Batch Jacobian to Affine (via batch_inverse kernel)
+//
+// This used to be `return audit_batch_inversion();`, i.e. the same test run
+// twice under two names -- Section 3 reported 2/2 PASS on one distinct check.
+// Jacobian->affine does not just need a * a^-1 == 1 (which batch_inv already
+// pins); it needs the BATCHED inverse of every Z to equal the inverse that
+// single-element inversion would have produced. A Montgomery-trick bug that
+// mixes two slots' accumulators still satisfies a * a^-1 == 1 per slot only if
+// the slots stay paired -- so compare against field_inv element by element.
 static int audit_batch_j2a() {
-    return audit_batch_inversion();  // Same underlying mechanism
+    constexpr int N = 8;
+    uint32_t batched[N * 8], singles[N * 8];
+    for (int i = 0; i < N; i++) {
+        // Different inputs than audit_batch_inversion, so the two modules do not
+        // share a fixture either.
+        fe32_from_u64((uint64_t)(i * 7919 + 13), &batched[i * 8]);
+        memcpy(&singles[i * 8], &batched[i * 8], 32);
+    }
+
+    if (!mtl_batch_field_inv(batched, N)) return 1;
+
+    for (int i = 0; i < N; i++) {
+        uint32_t one_at_a_time[8];
+        if (!mtl_field_inv(&singles[i * 8], one_at_a_time)) return 10 + i;
+        if (!fe32_eq(one_at_a_time, &batched[i * 8])) return 20 + i;
+    }
+    return 0;
 }
 
 // =============================================================================

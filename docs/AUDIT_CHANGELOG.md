@@ -1,70 +1,1376 @@
 # Audit Changelog
 
-## 2026-09-03 — The gate suite goes green: 8 failing gates, one of them a real contradiction
+## 2026-09-08 - CI spent hours doing ThinLTO on Debug sanitizer binaries
 
-`ci_local.sh` reported 5 of 30 checks failing and `run_fast_gates.sh` 8 of 74.
-None of it was caused by the commit under test — the identical set reproduces on
-the parent commit in a detached worktree — but "pre-existing" is not "fine", and
-one of the eight was two gates asserting opposite things about the same line.
+Every long CI job is a build, not a test. Step timings from one push:
 
-### The contradiction: `crt`
+| job | total | build | test |
+|-----|-------|-------|------|
+| MSan (ci.yml) | 127m | **127m** | 5m39s |
+| MSan (security-audit.yml) | 123m | **123m** | 4m49s |
+| ASan + UBSan (security-audit.yml) | 90m | 76m | 13m30s |
+| Sanitizers (ASan+UBSan) (ci.yml) | 74m | 65m | 8m57s |
+| linux (clang-17, Debug) | 64m | 60m | 3m52s |
+| Valgrind Memcheck | 58m | 32m | 26m25s |
+| Sanitizers (TSan) | 41m | 27m | 14m15s |
 
-`ci/check_windows_cuda_contract.py` listed `crt` in `REQUIRED_SUBPACKAGES`.
-`audit/test_windows_cuda_workflow_contract.cpp` asserts sub-packages
-`must never include 'crt'`. Both run against `.github/workflows/windows-cuda.yml`,
-and no edit to that file could satisfy both.
+Parsing the ninja progress lines out of the MSan job log splits that build:
+**1186 compiles took 10.4 min; 434 links took 112.4 min.** Median link 25 s, max
+83 s. ccache was working -- the log shows a restore-key hit, and 10 min of
+compiling for 1186 objects proves it.
 
-The history resolves it. `crt` entered the Python gate on 2026-07-21
-(`fix(ci): install Windows CUDA CRT headers`); the workflow dropped it again on
-2026-08-26 (`ci(windows): stabilize CUDA toolchain workflow`), which is also when
-the C++ assertion was added — but the Python set was never updated. The Windows
-network installer publishes no `crt` package; nvcc already carries those headers,
-and requesting a name that does not exist fails the whole toolkit install rather
-than degrading. So the shipped workflow and the later in-workflow contract test
-are right: `crt` moved from `REQUIRED_SUBPACKAGES` to
-`INVALID_WINDOWS_SUBPACKAGES`, and `ci/test_audit_scripts.py`'s fixture — which
-encoded the old direction, asserting that a workflow *without* `crt` must be
-rejected — was rewritten so both halves still bite: an incomplete set (thrust
-omitted) and a Windows-invalid name (`cudart_dev`, `crt`) are separate faults,
-plus a new fixture pinning `crt` alone as rejected.
+`src/cpu/CMakeLists.txt` exports ThinLTO to consumers:
 
-### Two CI-contract tests that ran almost nowhere
+```cmake
+target_link_options(${SECP256K1_LIB_NAME} INTERFACE -flto=thin -fuse-ld=lld)
+```
+
+so every executable linking the library redoes whole-program codegen. This tree
+declares ~444 `add_executable` calls in `audit/CMakeLists.txt` alone, and
+`SECP256K1_USE_LTO` defaulted `ON` with no build-type guard, so the MSan job
+(Debug + `-fsanitize=memory` + `-fsanitize-memory-track-origins=2`) ThinLTO'd
+434 binaries in order to run 15 of them. Its own configure log says so:
+
+```
+-- Secp256k1: LTO check - SECP256K1_USE_LTO=ON, Compiler=Clang
+-- Secp256k1: OK LTO ENABLED (ThinLTO with Clang + lld, INTERFACE propagated)
+```
+
+Optimizing a binary that runs once, under 10-20x instrumentation, to find a bug.
+
+**Measured, controlled A/B.** One machine (16 cores), clang-18, Debug,
+`-DSECP256K1_USE_ASM=OFF`, the same 85 targets built in both configurations,
+per-edge times read from ninja's own `.ninja_log` rather than wall clock:
+
+|                        | LTO ON | LTO OFF | ratio |
+|------------------------|--------|---------|-------|
+| link CPU, 85 targets   | 2110.65 s | 18.54 s | **114x** |
+| median link            | 25.11 s | 0.21 s | 117x |
+| max link               | 83.11 s | 0.41 s | 201x |
+| compile CPU, 180 objs  | 622.40 s | 481.48 s | 1.3x |
+
+Compilation is faster too -- `-flto=thin` slows the compile side as well. The
+ranges are not close to overlapping; this is not noise.
+
+A full Debug build then completes end to end: 1643 ninja edges, 1200 compiles
+and 453 links, **157.17 s wall** on 16 cores, exit 0. Link CPU is 2.0 min out of
+41.3 min -- **4.9% of the build**, against 91.5% in the CI MSan job. Median link
+0.24 s, max 1.83 s.
+
+What this does NOT claim: a CI number. That machine has 16 cores, GitHub's has
+4, and CI's compile side is ccache-warm while this build was cold. The measured
+claim is the 114x on link CPU and the 91.5% -> 4.9% shift in where build time
+goes. What the sanitizer jobs actually cost after this lands is whatever the
+next run reports.
+
+`SECP256K1_USE_LTO` now defaults `OFF` when `CMAKE_BUILD_TYPE` is `Debug` and
+`ON` otherwise. Release, RelWithDebInfo and MinSizeRel are untouched, so every
+benchmark, release artifact and reproducible-build job keeps LTO exactly as
+before -- no performance claim in any document changes. `option()` does not
+overwrite a cache entry the caller set, so `-DSECP256K1_USE_LTO=ON` still forces
+it on in Debug.
+
+**New gate: `ci/check_lto_build_type_default.py`** (LTO-1..3), wired into
+`run_fast_gates.sh`. It runs three real `cmake` configures into throwaway
+directories and reads the verdict back out of `CMakeCache.txt`, so it tests the
+build system as CI invokes it rather than pattern-matching the CMakeLists text:
+
+- LTO-1 Debug defaults OFF
+- LTO-2 Release defaults ON -- the negative control, without which LTO-1 would
+  also pass against "LTO deleted entirely"
+- LTO-3 Debug plus an explicit `-DSECP256K1_USE_LTO=ON` stays ON
+
+3/3 in 4.0 s. Mutation check: restoring the unconditional `option(... ON)` gives
+1/3 failed, naming LTO-1 and printing the reason.
+
+**`gen_build_options.py` no longer renders a variable as a default.** A computed
+default made the table print the literal `${_secp256k1_lto_default}`. The
+generator now reads a `# gen_build_options-default:` annotation from the comment
+block directly above the declaration, and refuses to write the doc at all if a
+`${...}` default has no annotation -- so this cannot silently degrade again for
+the next computed default. Its self-test still passes 100%.
+
+Not changed, recorded for whoever picks it up:
+
+- The three sanitizers run **twice** per push, once in `ci.yml` and once in
+  `security-audit.yml`. They are not quite identical -- the security-audit ASan
+  job has a `Selftest under sanitizers` step (CORR-01) the ci.yml one lacks --
+  so merging them is real work, not a deletion.
+- MSan builds 434 executables to run 15. With LTO off the build is no longer the
+  bottleneck, but `cmake --build --target <list>` would still cut it further.
+- The Release jobs (`linux-arm64` 48m, `linux-riscv64` 55m, `rocm` 37m,
+  `macos` 29m, benchmark 33m build) keep full ThinLTO across all ~434 test
+  executables. Whether test binaries need LTO in Release is the same question,
+  unanswered here.
+
+## 2026-09-08 - Metal audit: Schnorr signing failed on an unbound kernel argument
+
+The advisory Metal audit on the macOS runner reported `ISSUES-FOUND` with all
+nine signature-related modules failing and all twelve math modules passing:
+
+```
+[13/27] ECDSA sign + verify roundtrip                FAIL  (17140 ms) [error=1]
+[14/27] Schnorr/BIP-340 sign + verify roundtrip      FAIL  (12524 ms) [error=1]
+[15/27] ECDSA verify rejects wrong pubkey            FAIL  (1 ms)     [error=1]
+[19/27] RFC-6979 ECDSA deterministic nonce           FAIL  (0 ms)     [error=1]
+[20/27] BIP-340 Schnorr known-key roundtrip          FAIL  (0 ms)     [error=1]
+[21/27] ECDSA multi-key (10 keys) sign+verify        FAIL  (0 ms)     [error=10]
+[22/27] Schnorr multi-key (10 keys) sign+verify      FAIL  (0 ms)     [error=10]
+[26/27] ECDSA 50-iteration stress                    FAIL  (9 ms)     [error=10]
+[27/27] Schnorr 25-iteration stress                  FAIL  (8 ms)     [error=10]
+```
+
+The error codes are the modules' own return values, and every one of them is the
+code for "the sign call returned false" -- including module 15, whose code for
+"verify accepted a signature made under the wrong key" is 3. So no verify ever
+wrongly accepted anything; the audit never reached a verify at all.
+
+**`mtl_schnorr_sign` bound four buffers to a kernel that declares five.**
+`schnorr_sign_batch` takes `device bool *results [[buffer(4)]]` -- it has since
+GPU-GUARDRAIL-9-SCHNORR added it to match `ecdsa_sign_batch` -- and writes
+`results[tid] = ok`. The audit runner never bound argument 4, so the kernel's
+first store went to an unbound argument. This is in the diagnostic tool only:
+the shipped host backend `src/gpu/src/gpu_backend_metal.mm` binds all 32 of its
+dispatch sites correctly, and no signing path in the library is affected.
+
+Three further defects in the same file, all of which made the first one harder
+to see than it should have been:
+
+- `MetalCtx::dispatch_sync` returned `void` and ignored `cmd.error`. A faulted
+  command buffer and a kernel that ran and answered "no" both left the output
+  buffer at its initial value, so both surfaced as a bare `[error=1]` with no
+  cause. It now returns `bool`, reports the driver's message, names a nil
+  argument before the driver faults on it, and every one of the 12 call sites
+  checks it.
+- `mtl_batch_field_inv` encodes its own command buffer (the Montgomery trick
+  needs `dispatchThreadgroups`) and returned `true` unconditionally. Its one
+  caller happened to catch a failed dispatch through the `a * a^-1 == 1` check,
+  but any future caller reading the buffer directly would have reported PASS on
+  a dispatch that never ran. It now checks `cmd.error`.
+- `audit_batch_j2a` was `return audit_batch_inversion();` -- the same test under
+  two names, so Section 3 reported 2/2 PASS on one distinct check. It is now a
+  real batch-vs-single-element inverse comparison on its own fixture, which is
+  the property Jacobian-to-affine conversion actually depends on.
+
+**`regression_metal_buffer_binding_order` extended to cover the second host.**
+MBB already asserted the arity rule that this bug breaks -- it just never read
+this file. `kHostFile` becomes `kHostFiles`, with the pipeline-lookup and
+dispatch spellings as per-host parameters (`make_pipeline`/`dispatch_sync_checked`
+vs `get_pipeline`/`dispatch_sync`), and the site parser gained two things the
+new file needs: it now requires the dispatch name to be followed by `(` so a
+prose mention in a comment cannot be mistaken for a call, and it parses
+hand-encoded `[enc setBuffer:X offset:0 atIndex:N]` sites so `batch_inverse` is
+covered rather than skipped. A host file that parses to zero sites now fails
+MBB-0 instead of silently dropping out of the gate.
+
+Coverage went from 32 dispatch sites to 45; the module goes 238/238 -> 318/318.
+Mutation check: restoring the four-buffer bind gives 312/313 with
+
+```
+[FAIL] [src/metal/src/metal_audit_runner.mm] MBB-2: 'schnorr_sign_batch' is
+       dispatched with 5 buffer(s), matching its [[buffer(N)]] parameter count
+     host passes 4: msg_buf key_buf sig_buf cnt_buf
+     kernel wants 5: msg_hashes privkeys signatures count results
+```
+
+It is a source scan, so it runs on every platform with no Metal device.
+
+What this does NOT explain: the three ECDSA modules bound all five buffers
+correctly and still failed. That cause is still unknown -- it needs a Metal
+device, and the runner previously discarded the one piece of evidence that would
+identify it. With `cmd.error` now reported, the next macOS run says why.
+
+## 2026-09-08 - Valgrind failed intermittently on thread TLS that is alive by design
+
+`Valgrind Memcheck` went red with "Valgrind found memory errors" while the same
+content passed on `dev`. One error, one context:
+
+```
+960 bytes in 3 blocks are possibly lost in loss record 5 of 7
+  at calloc / allocate_dtv (dl-tls.c:370) / _dl_allocate_tls (dl-tls.c:629)
+  by allocate_stack / pthread_create@@GLIBC_2.34
+  by std::thread::_M_start_thread
+  by batch_pool.hpp:40 <- batch_verify.cpp:76
+  by secp256k1::ecdsa_batch_verify_mt (batch_verify.cpp:787)
+```
+
+`detail::batch_worker_pool()` is a deliberately leaked singleton, and
+`src/cpu/src/batch_verify.cpp` says why at the definition: its destructor would
+join the workers at static-destruction time, which on Windows runs during DLL
+unload with the loader lock held, and joining there deadlocks because the
+workers need that same lock to exit. So the pool's threads are still RUNNING
+when the process exits, and glibc's per-thread dynamic thread vector --
+allocated inside `pthread_create` -- has no pointer Valgrind can follow.
+"Possibly lost" is exactly the right report for that, and it is not a leak:
+the threads are alive on purpose and the OS reclaims their stacks and TLS.
+
+The gate includes `possible` in `--errors-for-leak-kinds`, so it failed whenever
+the pool had spawned threads and the record was not already covered. It was
+intermittent because the byte/block count depends on how many workers ran before
+exit -- the same run showed 1,365,184 bytes in 12 blocks already suppressed and
+3 blocks slipping through.
+
+`ci/valgrind.supp` gains a rule scoped to the `pthread_create` TLS allocation
+specifically. Definite and indirect leaks are untouched anywhere, and a real
+leak in the batch path -- anything our own code allocates and drops -- is still
+reported, because the pattern requires `_dl_allocate_tls`, which this library
+never calls.
+
+Reproduced and verified locally on `test_regression_ecdsa_batch_verify_mt`:
+
+```
+before:  possibly lost 4,800 bytes in 15 blocks
+         ERROR SUMMARY: 3 errors from 3 contexts (suppressed: 0)   exit 1
+after:   definitely lost 0 / indirectly lost 0 / possibly lost 0
+         ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 3 from 3)   exit 0
+```
+
+## 2026-09-08 - three CI gates that could fail without anything being wrong
+
+The fixed-base cache change made the suite roughly 20x faster on macOS (the
+`abi` label went from 43.96 to 1.97 sec*proc) and every timeout it had caused
+cleared. What was left were three gates whose failure did not mean a defect.
+None of these is a threshold relaxation; each one removes a way for a green
+build to report red.
+
+**1. `audit_ct.cpp` timing-variance module had no warm-up.**
+
+```
+[FAIL] CT scalar_mul timing ratio 2.219x >= 2.0x
+```
+
+It timed 100 `ct::scalar_mul(G, k=1)` then 100 `ct::scalar_mul(G, k=n-1)` and
+compared the averages, with nothing run beforehand. The first loop therefore
+absorbed every one-time cost in the process, and it started mattering the
+moment the fixed-base table began being LOADED from the cache file instead of
+built in memory: the pages are cold on first touch where a freshly built table
+is already resident. The k=1 leg measured 2.219x the k=n-1 leg on a difference
+that has nothing to do with the scalar.
+
+Both scalars are now warmed 20 times before timing, and the samples are taken
+interleaved A/B/A/B instead of all-A-then-all-B, so runner drift over the
+measurement window is charged to both legs rather than to whichever ran second.
+Initialisation cost is not secret-dependent, so removing it makes the check more
+sensitive to what it exists for. The 2.0x threshold and the CV noise guard are
+untouched. Measured after: `k=1 35896 ns, k=n-1 35919 ns, ratio 1.001, CV 0.02`.
+
+**2. `gpu_abi_gate` had a 60 s budget for ~56 s of work.**
+
+Three consecutive macOS runs: 53.40 s, 56.48 s, 60.04 s (Timeout). No hang, no
+failing check -- the test creates and destroys GPU contexts, compiles Metal
+shaders, exercises concurrent context creation and pool growth. A budget that
+close to the measured cost is a flake generator. Raised to 300 s, which still
+catches a real hang (the whole suite is ~10 min) and leaves room for a slower
+backend: the same binary took over 120 s locally against OpenCL.
+
+**3. `py_nonce_bias` failed a run on one 4-sigma reading.**
+
+Windows reported `LSB (bit 0): 51.990% set, z=3.98, p=6.9e-5` and failed the
+build. The same library measured 50.700% / 49.970% / 50.040% on three
+consecutive local runs -- no systematic bias.
+
+The 254 interior bits already carried a multiple-testing rule (>= 2 bits must
+flag together) with a documented false positive behind it. MSB and LSB had no
+such protection: inputs are freshly random every invocation, so at p < 1e-4 per
+bit, two specially-treated bits and roughly six platforms per push, a false
+failure is not rare enough to ignore.
+
+`ci/nonce_bias_detector.py` now re-draws an independent sample of the same size
+when MSB or LSB alarms and re-tests only that bit, failing only if the alarm
+reproduces. The threshold is unchanged at 4 sigma; a real bias is a property of
+the implementation and reproduces, a fluke does not, which puts the
+false-failure rate at p^2 ~ 5e-9 with full sensitivity retained. Collisions and
+the KS verdict are never re-litigated -- a repeated r-value is catastrophic on
+first sight.
+
+Verified in both directions with injected data (bit 0 forced to 53% set):
+
+```
+fluke: biased first draw, clean confirmation
+    LSB 53.480% z=6.96 -> [confirm] 50.180% p=7.19e-01 -> not reproduced
+    Overall: PASS   exit=0
+real:  biased in both draws
+    LSB 52.790% z=5.58 -> [confirm] 53.020% p=1.54e-09 -> REPRODUCED
+    Overall: FAIL   exit=1
+```
+
+## 2026-09-07 - fixed-base table: built once, saved, loaded thereafter (per-user cache directory)
+
+The disk cache is on by default again. What changed is WHERE it goes, which is
+what was actually wrong: an empty `cache_dir` used to mean the CURRENT WORKING
+DIRECTORY, so every process touching a fixed-base multiplication left a 255 MB
+`cache_w18.bin` wherever it happened to run. That was Eric Voskuil's report.
+Turning the cache off entirely fixed the litter but made every process rebuild
+a ~250 MB table, which is the wrong trade for a table whose whole purpose is to
+be computed once.
+
+The default location is now the per-user cache directory the platform reserves
+for exactly this, created if missing and kept:
+
+```
+Linux/BSD   $XDG_CACHE_HOME/secp256k1   else  ~/.cache/secp256k1
+macOS       ~/Library/Caches/secp256k1
+Windows     %LOCALAPPDATA%\secp256k1
+```
+
+the same convention `write_fixed_base_config()` already used for the auto-tune
+config, so a machine keeps its table and its config together. The system temp
+directory is now only a fallback for when none of those can be determined, and
+that fallback is the only case still deleted at exit. `set_cache_directory()` /
+`SECP256K1_CACHE_DIR` still override, and a named directory is created on the
+first save rather than only working once someone has made it by hand.
+
+`SECP256K1_FIXED_BASE_DISK_CACHE` now defaults to ON and is the opt-OUT for
+builds that must write nothing; it is defined as 0 or 1 either way, so the
+header default can never disagree with what the library was compiled with.
+
+Measured on one binary, `audit/test_exploit_selftest_api`, with
+`XDG_CACHE_HOME` pointed at a scratch directory:
+
+| | wall | what happened |
+|---|---|---|
+| run 1 | 2.68 s | built the table, wrote 255 MB to the cache directory |
+| run 2 | 0.42 s | loaded it |
+| run 3 | 0.44 s | loaded it |
+
+and the working directory stayed empty in all three.
+
+For context, the same test across today's changes:
+
+```
+6.57 s   original (cache file in the caller's CWD)
+24.7 s   cache off, every process rebuilding        <- the regression
+2.2 s    after the no-op-reconfigure fix, cache off
+0.42 s   cache on, per-user directory, reused       <- now
+```
+
+`FBC-1` in `audit/test_regression_fixed_base_cache_lifecycle.cpp` now asserts
+that the shipped default matches the build flag in BOTH directions -- a header
+that says one thing while the library was compiled expecting the other is an
+ODR-shaped mismatch, not a preference. FBC-2..4 are unchanged and still pin that
+a named directory is honoured on the first run, that nothing lands in the CWD in
+either mode, and that a caller's file is never deleted.
+
+## 2026-09-07 - a no-op `configure_fixed_base()` rebuilt the whole fixed-base table
+
+`configure_fixed_base()` called `invalidate_context_locked()` unconditionally,
+so re-applying the SAME settings threw away the built table and recomputed it.
+The library's own `Selftest()` (src/cpu/src/selftest.cpp:1301-1317) opens with
+
+```cpp
+FixedBaseConfig cfg{};
+... optional env overrides ...
+configure_fixed_base(cfg);
+ensure_fixed_base_ready();
+```
+
+on EVERY invocation, so `audit/test_exploit_selftest_api.cpp` -- which runs the
+selftest eight times to prove idempotency -- rebuilt the ~250 MB
+`window_bits=18` table eight times.
+
+**Why it was invisible until now.** While `use_cache` defaulted to true, each
+"rebuild" was a load of `cache_w18.bin` rather than a recomputation, so the
+waste was I/O nobody measured. Turning that default off (3b612081, because the
+file was being left in the caller's working directory -- evoskuil's report)
+removed the padding, and the cost surfaced on every platform at once:
+
+| | 108e810e | e0ed21f0 |
+|---|---|---|
+| `exploit_selftest_api`, linux gcc-14 Release | 6.57 s | ***Timeout 120 s |
+| full ctest suite, same job | 496 s | 1670 s |
+
+`exploit_selftest_api` timed out on linux, windows, macOS and rocm alike;
+windows additionally lost `metamorphic_adaptor` and
+`soundness_snark_witness_attestation` to the same pressure.
+
+**The measurement that identified it.** One binary, one build directory,
+`SECP256K1_FIXED_BASE_DISK_CACHE` toggled and nothing else changed:
+
+```
+cache ON,  cold (empty dir, builds + writes 255 MB)   6.0 s
+cache ON,  warm (loads)                               4.3 s
+cache OFF                                     23.8 - 24.3 s
+```
+
+A cold build that also writes a quarter-gigabyte finishing 4x faster than one
+that writes nothing is not a cache-hit-rate story -- it is the same table being
+built several times.
+
+**The fix is not the cache and not a longer timeout.** `configure_fixed_base()`
+now compares the incoming effective configuration (after adaptive-GLV
+adjustment and environment overrides) against the one in force, field by field,
+and invalidates only on a real change. Same binary, after:
+
+```
+exploit_selftest_api   24.7 s -> 2.2 s      peak RSS 557 MB -> 280 MB
+```
+
+which is also faster than the 6.57 s it took when the disk cache was masking
+the problem.
+
+The comparison is exhaustive rather than restricted to "fields that shape the
+table": `build_context()` snapshots the whole config into `ctx->config` and
+callers read settings back off that snapshot, so keeping a context across a
+change to any field would let `g_config` and `ctx->config` disagree.
+
+**New module: `regression_precompute_noop_reconfigure`** (PNR-1..4), using the
+issue #336 `SECP256K1_PRECOMPUTE_TEST_HOOKS` identity/epoch surface:
+
+- PNR-1 an identical config keeps the same context identity and epoch
+- PNR-2 NEGATIVE CONTROL -- changing `window_bits` still invalidates and
+  republishes, so PNR-1 cannot be satisfied by never invalidating
+- PNR-3 a config differing only in a non-table field still invalidates
+- PNR-4 `1*G` through the surviving table is still `G`
+
+Proof it blocks -- restoring the unconditional `invalidate_context_locked()`:
+
+```
+  [FAIL] PNR-1: re-applying an identical FixedBaseConfig keeps the SAME context
+  [FAIL] PNR-1: re-applying an identical FixedBaseConfig does not bump the epoch
+  6/8 checks passed
+```
+
+reverted: 8/8.
+
+## 2026-09-07 - Metal `schnorr_verify_batch` rejected every valid signature (buffer binding swapped)
+
+The Metal host bound its dispatch arguments in the wrong order:
+
+```
+host:    {buf_pks, buf_msgs, buf_sigs, buf_res, buf_count}
+kernel:   msg_hashes[[0]], pubkeys_x[[1]], signatures[[2]], results[[3]], count[[4]]
+```
+
+so `schnorr_verify_batch` verified every row with the message and the x-only
+public key exchanged, and returned 0 for correct BIP-340 signatures. ECDSA was
+bound correctly (`{buf_msgs, buf_pubs, ...}`) and was never affected.
+
+**Not a false-accept.** Swapping the pair cannot make an invalid signature
+verify other than with negligible probability, so nothing was ever wrongly
+accepted. The effect is that GPU Schnorr batch verify returned "invalid" for
+everything on Apple hardware — a correctness and availability defect, not a
+signature-forgery one. The `collect` sibling
+(`lbtc_schnorr_verify_collect`) binds correctly and was right the whole time,
+which is precisely how the parity test found this.
+
+**Why it survived.** `audit/test_gpu_collect_verify_parity.cpp` cross-checks
+collect against verify_batch per row and catches it exactly — but needs a Metal
+device, and `CI / macos (Release)` never reached it: two audit tests were
+leaking a fail-closed shader-path override (5546119c), and after that the audit
+binary stopped building at all (49d9c96c). On the first macOS run that both
+built and executed the suite, the parity test failed 3 of its 24 checks:
+
+```
+FAIL: schnorr collect == verify_batch verdict per-row (valid corpus)
+FAIL: schnorr collect: untouched row key_buffer[0]==0 & batch[0]==1
+FAIL: schnorr collect == verify_batch verdict per-row (tampered corpus)
+[gpu_collect_verify_parity] pass=21 fail=3
+```
+
+**New module: `regression_metal_buffer_binding_order`** (MBB-1..3). The parity
+test needs a GPU; this one reads the shader sources and the host backend and
+checks that all 32 dispatch sites bind in their kernel's `[[buffer(N)]]` order.
+It runs on every platform with no Metal device and no Apple toolchain, which is
+the point — a binding-order swap is a source-level mistake and does not need
+hardware to catch.
+
+MBB-3 matches abbreviated host names (`buf_sigs`) against kernel parameter
+names (`signatures`) by prefix/token overlap, with an explicit alias table where
+the two vocabularies genuinely differ. The table is deliberately narrow: no
+entry maps a key-shaped buffer onto a message-shaped parameter, which is what
+makes the original swap fail rather than alias its way through.
+
+Proof it bites — restoring the shipped order and re-running the built module:
+
+```
+  [FAIL] MBB-3: schnorr_verify_batch buffer(0) -- host 'buf_pks' is the kernel's 'msg_hashes'
+  [FAIL] MBB-3: schnorr_verify_batch buffer(1) -- host 'buf_msgs' is the kernel's 'pubkeys_x'
+  236/238 checks passed
+```
+
+reverted: 238/238.
+
+## 2026-09-07 - the libsecp comparison base was mislabelled, and the 2026-09-03 ratios are not reproducible
+
+Refreshing the canonical benchmark turned up two things about the comparison
+itself. Neither is a code regression.
+
+**1. The comparison target was never v0.8.0.**
+
+`docs/bench_unified_2026-09-03_gcc14_x86-64.json` recorded
+`libsecp_version: "v0.8.0 (PR #1859 force-inline)"`, and README repeated it.
+The checkout it actually measured is:
+
+```
+$ git -C _research_repos/secp256k1 describe --tags
+v0.7.0-257-gf9a944f            # f9a944f, 2025-12-19
+$ git tag --contains HEAD
+v0.8.0                         # v0.8.0 CONTAINS this commit -- it is not in it
+$ git log --oneline --grep=1859
+(no match)                     # the force-inline PR the label credits is absent
+```
+
+The clone has not moved since 2025-12-25 (single `clone` reflog entry, source
+mtimes to match), so this was mislabelled from the start rather than drifting.
+The 2026-09-07 artifact records the commit, the `git describe`, and the fact
+that v0.8.0 contains it; canonical_numbers.json gains `_libsecp_reference` with
+the same identity. The three historical mentions in this changelog are left as
+written -- they record what was believed at the time.
+
+**2. The 2026-09-03 ratios do not reproduce on the same commit.**
+
+The 2026-09-03 tree (`c7d987b0`) was rebuilt in a detached worktree with
+identical flags and re-measured today:
+
+| Ultra vs libsecp | 2026-09-03 artifact | c7d987b0 today | dev today |
+|---|---|---|---|
+| CT ECDSA sign | 1.34x | **1.50x** | 1.52x |
+| CT Schnorr sign | 1.27x | **1.45x** | 1.48x |
+| ECDSA verify | 1.00x | **1.15x** | 1.13x |
+| point_add (J+A mixed) | 0.97x | **1.17x** | 1.17x |
+| point_dbl | 1.14x | **1.31x** | 1.29x |
+| serialize 65B | 2.17x | **3.15x** | 3.19x |
+
+The old tree and the new tree agree with each other and both disagree with the
+recorded artifact. So the shift sits between the 2026-09-03 measurement and
+today's environment, not in any code merged since. What changed on the host is
+not established here; the libsecp source is byte-identical in all three cases.
+
+Practical consequence: **2026-09-03 is not a usable regression baseline.** A
+"regression vs 2026-09-03" is not evidence without re-measuring that commit
+alongside, which is what this entry did.
+
+**What our code actually did.** Comparing c7d987b0 to dev, both measured today,
+the Ultra-vs-libsecp ratios are flat except where we changed something:
+`scalar from_bytes` 0.77x -> 1.09x (the `__int128` gating in `Scalar::from_bytes`)
+and `field add` 1.39x -> 1.67x. No ratio moved backwards.
+
+One genuine own-code regression stands, unrelated to libsecp:
+`FE52::inverse_safegcd` 1188 -> 1538 ns (+29.4%), inter-run spread 0.4% across
+five clean runs. Not yet investigated.
+
+**Methodology note.** libsecp is compiled INTO the benchmark binary --
+`src/cpu/bench/libsecp_provider.c` does `#include "secp256k1.c"` -- with
+`-O3 -march=native`, no LTO. Its numbers are therefore not independent of our
+build. Also: `bench_unified` is silently not created when `LIBSECP_SRC_DIR`
+does not resolve (it is a relative path four levels up), so the benchmark can
+vanish from a build with no error.
+
+## 2026-09-07 — two audit tests were fail-closing Metal for everything that ran after them
+
+`CI / macos (Release)` kept failing `gpu_abi_gate`, `gpu_collect_verify_parity`
+and `unified_audit` with
+
+    [Metal] ERROR: Failed to load metallib: library not found
+
+Adding a diagnostic to the shader-source fallback settled it: none of that
+fallback's messages ever appeared. `ensure_library()` was not reaching the
+default search at all — it was taking the EXPLICIT-OVERRIDE branch, which is
+deliberately fail-closed and does not fall back.
+
+Nothing in production sets that override. Two audit tests do, and neither put
+it back:
+
+  * `test_gpu_abi_gate`'s `test_metal_shader_path_thread_safety()` sets it 400
+    times to a scratch directory. The very next case in the same binary is the
+    BIP-352 pool — GROW-1..4, which failed against that scratch path.
+  * `test_c_abi_negative`'s NEG-21 accept cases (`.11e`, `.12`, `.12b`) set it
+    to another scratch directory. In `unified_audit_runner` that module is
+    number 70 of 468, so every Metal module ordered after it failed — BCV-6,
+    SW-BIP352-*, SW-BIP352-METAL-*.
+
+On any host without a Metal backend nothing noticed, which is why this survived.
+
+There was also no way to undo it. `set_metal_shader_path_override()` rejects
+null and empty — both documented errors, and the C ABI's null case is pinned by
+NEG-21.11 — so once set, a process was pinned to that override for its lifetime.
+That is a real gap for any host wanting to point at a directory temporarily, not
+just for tests. `clear_metal_shader_path_override()` (gpu_backend.hpp, internal
+header, not installed) now exists, and both tests save and restore around their
+own scratch values.
+
+Two new blocking checks so this cannot come back:
+
+| check | asserts |
+|---|---|
+| `MSP-THREAD-2` (`gpu_abi_gate`) | leaving the guarded scope restores the previous override |
+| `NEG-21.14` (`c_abi_negative`) | the NEG-21 block restores the override it changed |
+
+Proof they block: instantiating the guard as a declaration only (`};` instead of
+`} shader_path_guard;`) turns c_abi_negative 314/314 into 313/314 with NEG-21.14
+naming the leak. gpu_abi_gate goes 36 → 39 checks, all passing.
+
+This does not explain `gpu_collect_verify_parity`, which runs in its own process
+and sets no override; its failures are Metal compute divergence on the runner's
+Apple Paravirtual device, alongside a `range_proof_poly_batch` pipeline
+compilation failure and a GPU hang. That is tracked separately.
+
+## 2026-09-07 — the Metal runtime-shader fallback has never been able to run
+
+`CI / macos (Release)` still failed `gpu_abi_gate`, `gpu_collect_verify_parity`
+and `unified_audit` after the metallib path fix, with
+
+    [Metal] ERROR: Failed to load metallib: library not found
+
+`ensure_library()` has a second way to get a Metal library: compile the shader
+sources at runtime with `newLibraryWithSource()`. Reading it turned up a defect
+that predates this whole investigation.
+
+`metal_load_combined_source()` concatenated a hardcoded list:
+
+    secp256k1_field.h, secp256k1_point.h, secp256k1_bloom.h, secp256k1_extended.h
+
+**`secp256k1_bloom.h` does not exist.** Not in `src/metal/shaders`, not anywhere
+in the tree. A missing header made `metal_load_file()` return `""`, which failed
+the whole candidate directory, so the function returned `{}` for every directory
+on every call — the fallback was dead code for as long as that list existed.
+
+Two further problems sat behind it. The list named 4 of the 11 headers
+`secp256k1_kernels.metal` actually includes, and it ignored the nested includes
+(`point -> field`, `extended -> point`, `zk -> extended`): a concatenation
+cannot leave `#include "..."` lines in place, because `newLibraryWithSource` has
+no include path. And `src/metal/CMakeLists.txt`'s `SHADER_FILES` copied the same
+four headers, so a copied `shaders/` directory was incomplete regardless.
+
+The loader now expands the entry file's own includes recursively, once each,
+leaving `<metal_stdlib>` for the Metal compiler — so there is no list in C++
+that can drift from the kernel. `SHADER_FILES` was extended to the full
+11-header closure, and `UFSECP_METAL_SHADER_SRC_DIR` bakes in the absolute
+source-tree `shaders/` path so the fallback resolves from any working directory.
+
+Simulated over the real shader tree: 315,076 bytes, 11 headers, 63 `kernel void`
+entry points, and no remaining quoted include.
+
+New module `regression_metal_shader_closure` (`memory_safety`, blocking, MSC-1..4)
+pins it. Source scan, so it runs with no Metal device and no Apple toolchain —
+which is the point, since the defect only ever showed on macOS CI. Proof it
+blocks, three mutations:
+
+| mutation | result |
+|---|---|
+| kernel includes a header that does not exist (the original bug) | 22/22 → 21/23, MSC-1 + MSC-2 |
+| `SHADER_FILES` drops `secp256k1_ct_sign.h` | 22/22 → 21/22, MSC-2 |
+| loader reverts to a hardcoded `kHeaders[]` naming the missing file | 22/22 → 20/22, MSC-3 ×2 |
+
+22/22 from the repo root and from `/tmp`.
+
+## 2026-09-07 — Three unified_audit modules failed on Windows for reasons that were not about the code
+
+`CI / windows (Release)` reported `unified_audit` at 412/466 with 5 blocking
+failures. Two were the POSIX-path assertions fixed in `0edf85f6`. The other
+three each hit a platform assumption in the module itself and reported it as a
+security failure.
+
+**`fe52_magnitude_model` returned ADVISORY_SKIP_CODE and was counted as a FAIL.**
+The whole module was gated on `SECP256K1_FAST_52BIT`, which means Point *stores*
+5x52 coordinates. MSVC x64 cl has no `__int128`, so it keeps 4x64 Point storage
+while still running the 5x52 kernels as the ecmult compute path via
+`u128_compat` (`config.hpp:43-60`). FMM-1/2/3 test those kernels and were live
+on that build; only FMM-4/5, which read live Point coordinates, need the storage
+macro. The module now splits on `SECP256K1_FE52_COMPUTE` vs
+`SECP256K1_FAST_52BIT`: 42 checks where Point stores 5x52, **31 real checks**
+where it does not, and the advisory skip reserved for platforms with no 5x52
+kernels at all (ESP32/STM32/wasm). FMM-3's bounds are literals with a
+`static_assert` pinning them to `GEJ_{X,Y}_MAGNITUDE_MAX` wherever those exist,
+so the group keeps running without silently drifting from the constants.
+Verified by compiling the module with the storage guard forced off, reproducing
+the MSVC shape on this host: 31 passed, 0 failed, rc=0.
+
+**`opencl_bip352_faultinject_symbols_absent` had no Windows branch at all.**
+`self_exe_path()` handled `__linux__` and `__APPLE__` and returned `{}`
+otherwise, so SAS-2/SAS-3 could never run, `g_checked_something` stayed 0, and
+the module returned `ADVISORY_SKIP_CODE` — a FAIL for an `advisory=false`
+module. Added the `GetModuleFileNameA` branch, and fixed the shell quoting the
+`nm` invocations use (`'...'` is not quoting in cmd.exe, so even with a path
+they would have failed).
+
+More importantly, the module now has a floor that needs no toolchain: **SAS-1**
+reads `src/gpu/src/gpu_backend_opencl.cpp` through `audit_read_source_file()`
+and asserts that every mention of all four hook symbols falls inside the
+`SECP256K1_BUILD_FAULT_INJECTION_TESTS` guard. `nm` asks the stronger question
+and stays primary; SAS-1 makes sure the module never executes zero checks.
+Proof it blocks: adding a hook-symbol mention immediately *before* the guard
+opens turns `Result: PASS` into `FAIL [test_hook_definitions_are_macro_gated]`.
+
+**`gpu_bip352_scan` looked for `cl` on PATH.** SW-BIP352-SCANONLY preprocesses
+`secp256k1_extended.h` with and without `-DSECP256K1_METAL_SCAN_ONLY`. The
+Windows job runs ctest from a plain shell, not a Developer Command Prompt, so
+`cl` is not on PATH and the single hard-coded command could never succeed. It
+now tries `cl`, `clang-cl`, `clang++`, `g++`, `cc` in turn and reports which one
+ran; when none is available it emits a visible `SKIP` naming the missing tool
+instead of a `FAIL`. Verified both ways on Linux: `preprocessor: cc` with 9
+checks passing, and with an emptied PATH the SKIP line with the module still at
+0 failures.
+
+Full runner from `/tmp` after all three: **AUDIT-READY, 417/468, ALL PASSED,
+0 blocking failures**.
+
+## 2026-09-07 — RFC 6979 HMAC length guards get the test their fix shipped without
+
+`d2544fc8` made `HMAC_Ctx::compute_short`, `::compute_two_block` and
+`::compute_three_block` in `src/cpu/src/ecdsa.cpp` zero their 32-byte output
+before returning on a length-precondition violation. Before it, the guards
+returned with `out[32]` never written, so a caller that hit one read back
+whatever was on its stack and could not distinguish it from a real HMAC.
+
+That commit contains no test — `ci/check_security_fix_has_test.py --since d2544fc8~1`
+names it by hash, against this repository's own absolute same-commit-test rule.
+New module `regression_hmac_guard_fail_closed` (`ct_analysis`, blocking) is the
+missing one: 13 checks pinning that each of the three guards still carries its
+size_t-wrap condition AND zeroes `out` in the same statement it returns from,
+plus that `init_zero_key32`'s process-lifetime midstate is computed by
+`init_key32(ZERO_KEY32)` rather than transcribed from a table.
+
+It is a source scan, deliberately. `HMAC_Ctx` is in an anonymous namespace with
+no header, no external linkage and no ABI entry point, and every production
+caller passes a compile-time-fixed length — so the guarded branch is
+unreachable from any test translation unit by construction. That is also why
+this is a latent hazard rather than a live bug. Proof it blocks: four mutations
+of `ecdsa.cpp` (each guard reverted to a bare `return;`, and the midstate
+transcribed with `memcpy` instead of computed) are each caught, 13/13 → 12/13,
+11/13, 11/13, 12/13. CWD-independent via `UFSECP_SOURCE_ROOT`: 13/13 both from
+the repo root and from `/tmp`.
+
+The narrower half of the story is recorded in `docs/SECRET_LIFECYCLE.md`: the
+in-file rationale claims a zeroed output is rejected downstream by
+`parse_bytes_strict_nonzero`, which holds only at the six `compute_short(V, 32, V)`
+candidate sites. Every `compute_two_block`/`compute_three_block` call writes the
+DRBG key `K`, where a zeroed output is never parsed. The property the module
+pins is the one that holds everywhere: a deterministic zero instead of stack
+residue.
+
+## 2026-09-07 — CAAS residual evidence refreshed, and one artifact that could never be refreshed
+
+`Preflight` and `Gate / PR-Push / Block 3` were failing on
+`security_autonomy 90/100`, because the `audit_sla` gate blocked on five evidence
+artifacts 45-68 days past a 14/30-day SLO. Two separate things were wrong.
+
+**One artifact was unrefreshable by construction.** `audit_sla_check.py`'s
+`_file_age_days()` documents itself as falling back to mtime "only when the file
+is not tracked by git", but it tested the wrong thing:
+
+```python
+git log -1 --format=%ct -- <path>     # non-empty => trust it
+```
+
+`git log -- <path>` also returns the commit that **deleted or untracked** a path.
+`out/reports/risk_surface_report.json` has been untracked and gitignored since
+caba608d (2026-07-01), so it reported that commit's date forever — regenerating
+it changed nothing, and it dragged the autonomy score to 90 on evidence that was
+current. The check now asks whether the path is tracked *right now*
+(`git ls-files --error-unmatch`) before trusting `git log`. Measured on the real
+file: **65.0 days (BLOCK) → 0.0 days (ok)**, while a tracked file whose mtime is
+touched to now still reports its commit age, so the fix does not turn everything
+into mtime.
+
+`check_audit_sla_build_report_not_tracked()` already asserted this artifact must
+stay untracked, for exactly this reason. The reasoning was right and the test was
+not sufficient, because *untracked* was never the property that mattered. The new
+`check_audit_sla_untracked_artifact_uses_mtime()` pins the behaviour instead.
+
+(That fix and its test were recovered from the `experiment/representation-search`
+branch, where they had been written on 2026-09-04 and never pushed.)
+
+**The other four were genuinely stale, and are refreshed from real runs**, in the
+shape the previous refresh (90179de3) established — a new dated file per suite in
+`audit/ci-evidence/`, not a re-dated old one:
+
+| evidence | run today |
+|---|---|
+| `adversarial_protocol_20260907.txt` | MuSig2 / FROST / FFI hostile-caller suite |
+| `ecies_regression_20260907.txt` | 92 passed, 0 failed |
+| `fuzz_parsers_20260907.txt` | parser fuzz smoke |
+| `fuzz_address_bip32_ffi_20260907.txt` | address / BIP-32 / FFI fuzz smoke |
+| `regression_ct_ops_20260907.txt` | CT primitive ops |
+
+`docs/DETERMINISM_GOLDEN.json` was regenerated by `ci/check_determinism_gate.py`
+— `overall_pass: true`, 3 checks, 0 issues, and identical to the 2026-07-22
+golden in every field except `generated_at` and the library path, so the property
+it pins is unchanged and freshly verified rather than re-dated.
+`docs/API_SECURITY_CONTRACTS.json` and `docs/ASSURANCE_CLAIMS.json` carry a
+re-verification stamp: `ci/check_api_contracts.py` PASS (11 entries, no drift)
+and `ci/validate_assurance.py` PASS (8 claims), with the contracts note recording
+that this cycle's changed files — the field/ASM reduction fix and the Metal
+metallib fix — touch no declared C ABI surface.
+
+Python audit self-test: 246 passed, 0 skipped.
+
+## 2026-09-07 — macOS: three GPU audit modules failed on a missing file, not on the GPU
+
+`CI / macos (Release)` reported `gpu_abi_gate`, `unified_audit` and
+`regression_bip352_ct_varbase` as failures, with GPU BIP-352 scans returning
+non-OK. The cause was one line in the log:
+
+```
+[Metal] ERROR: Failed to load metallib: library not found
+```
+
+`src/metal/CMakeLists.txt` copies `secp256k1_kernels.metallib` next to exactly
+three targets — `metal_secp256k1_test`, `metal_secp256k1_bench_full`,
+`metal_audit_runner` — all of which live in `<build>/src/metal`. The CPU audit
+binaries (`unified_audit_runner` plus ~500 standalone CTest targets) live in
+`<build>/audit`, and ctest runs them from there. `gpu_backend_metal.mm`'s
+CWD-relative candidate list is `secp256k1_kernels.metallib`, `./…`, `../…`,
+`../../…`, `../metal/…`, `../../metal/…`, `../../../metal/…` — every one of
+which assumes a `<build>/metal`, and none of which reaches `<build>/src/metal`
+from `<build>/audit`. So the library was built, was correct, and was
+unreachable.
+
+Two changes, both additive:
+
+- the metallib is now also copied into `${CMAKE_BINARY_DIR}/audit`, attached to
+  `metal_shaders` because `add_custom_command(TARGET …)` requires the target to
+  be defined in the same directory and `audit/` is a sibling added later;
+- `../src/metal/…` and `../../src/metal/…` join the resolver's candidate list,
+  after every path that resolved before, so nothing that used to load changes.
+
+Not reproducible here — there is no macOS host on this machine — so this rests
+on the build-graph and the resolver's own candidate list rather than on a local
+run. Verified only that the Linux configure, full build and fast gates are
+unaffected.
+
+## 2026-09-06 — field reduce() lost a carry two different ways, and returned a wrong number for a legal input
+
+Recovered from the `experiment/representation-search` working tree, where it sat
+unfinished and unpushed. Reproduced on `dev` before applying anything.
+
+**The reachable one.** `a = 2^256 - 2^33 - 1` is a perfectly ordinary field
+element — `a < p`, canonical, nothing special about it except its shape. On
+`dev`:
+
+```
+input                 fffffffffffffffffffffffffffffffffffffffffffffffffffffffdffffffff
+expected a^2 mod p    fffff860000e8900
+FieldElement::square  fffff85f000e8530      <-- short by 0x1000003d0 = K - 1
+```
+
+`square()`, `operator*` and `square_inplace()` all agreed with each other and all
+disagreed with the arithmetic. The cause is one instruction in
+`field_asm_x64_gas.S`, in the second reduction fold of all three GAS copies
+(`reduce_4_asm`, `field_mul_full_asm`, `field_sqr_full_asm`):
+
+```asm
+    mov  rax, 0x1000003D1
+    and  rax, rdi            # rdi is 0 or 1
+```
+
+The comment above it says "Use AND mask instead of MULX" — but the mask was never
+built. `0x1000003D1 & 1` is `1`, not `K`, so whenever the first fold overflowed,
+the reduction added **1** where it owed **K**, and the result came out short by
+exactly `K - 1`. Fixed by `neg` on the carry first, turning 0/1 into 0/-1 so the
+AND does what the comment always claimed.
+
+**The second one**, in the portable `reduce()` in `field.cpp`: the first fold
+propagated its carry into `result[i+2]` and, at most, `result[i+3]` — a chain
+that cannot reach `result[4]`. Replaced with a cascade through every remaining
+limb. This is the path taken by the sanitizer, coverage and no-ASM cross builds.
+
+**Blast radius, measured.** 8,484 vectors (values near `p`, near `2^256`,
+`2^k ± small`, the trigger family, and 4,000 uniform random), each squared and
+multiplied, against Python ground truth:
+
+| build | square mismatches | multiply mismatches |
+|---|---:|---:|
+| `dev` before | **9** | **64** |
+| after, ASM path (BMI2/ADX) | 0 | 0 |
+| after, `-DSECP256K1_USE_ASM=OFF` (C `reduce()`) | 0 | 0 |
+
+So this is a family of legal inputs, not one freak vector — and both the assembly
+and the portable path had to be fixed to close it.
+
+`regression_field_reduce_carry` already existed — it was written on 2026-05-14
+for the first of these two losses — and is **extended** rather than added. The new
+coverage is exact-limb KATs rather than `operator==` (which normalises its
+operands and would hide a non-canonical result), plus direct KATs on all three
+GAS reduction copies including their self-aliased forms, so a regression in any
+one copy is caught independently of which wrapper the public API happens to
+select. That an existing module named for exactly this bug class did not catch
+the second loss is the reason the new cases compare raw limbs: the old ones went
+through `operator==`, and its normalisation hid the difference.
+
+Module count unchanged (468) — the row is the same row, with a description that
+now names both losses.
+
+## 2026-09-06 — the 5x52 magnitude model, written down and measured (#396)
+
+Issue #396: `FieldElement52` carries no magnitude information, so a magnitude
+precondition violation produces a silently wrong field element — valid unsigned
+limbs in valid memory, simply the wrong number. Nothing for ASan/UBSan/MSan to
+report. The bounds that hold the point formulas together lived as integer
+literals at the `negate()` call sites in `point.cpp` and as prose in the comments
+beside them, with nothing connecting the two. #397 was an instance of them
+disagreeing, by 4 magnitudes, for as long as it took someone to work the
+arithmetic out by hand.
+
+This lands the half that needs no layout change: the model as code, the bounds as
+constants, and the **live formulas measured against them on every run**.
+
+**The model.** `secp256k1/field_52_magnitude.hpp` — `magnitude_of(limbs)` and
+`magnitude_ok(limbs, m)`, header-only and `constexpr`. A value has magnitude m
+when `n[0..3] <= m*M52` and `n[4] <= m*M48`. The ceiling division is written as
+div-plus-remainder rather than `(limb + mask - 1) / mask`, because the value being
+classified may be a wrapped limb near 2^64 — which is precisely the state the
+model exists to catch, and which the rounding form would overflow and report as a
+*small* magnitude.
+
+**The bounds.** `GEJ_X_MAGNITUDE_MAX = 8`, `GEJ_Y_MAGNITUDE_MAX = 4`,
+`GEJ_Z_MAGNITUDE_MAX = 1` in `point.hpp`, the values `jac52_add_mixed_inplace`'s
+`negate()` literals already assume. First time they exist as constants rather
+than as folklore in four comments.
+
+**Do not transfer libsecp256k1's numbers.** Their `negate` computes
+`2*(m+1)*p - a`; ours computes `(m+1)*p - a`. Our slack is exactly half theirs
+and their published ceilings do not apply here.
+
+**Measured on this tree** (g++-14 -O2, x86-64), all of it asserted by the new
+module rather than recorded as prose:
+
+| what | measured |
+|---|---|
+| `fe52_mul_inner` output, magnitude-1 inputs | `n[0..3] <= 1*M52`, `n[4] <= 1*M48` |
+| `fe52_sqr_inner` output, magnitude-1 inputs | `n[0..3] <= 1*M52`, **`n[4] <= 2*M48`** |
+| `normalize_weak` output | `n[0..3] <= 1*M52`, `n[4] <= 1*M48` |
+| `negate(4)` | correct through actual magnitude 5, first wrong at **6** |
+| `negate(8)` | correct through actual magnitude 9, first wrong at **10** |
+| `Point::dbl` steady state | X 3, Y 3, Z 1 |
+| `Point::add` steady state | X 4, Y 2, Z 1 |
+
+The squaring kernel's top limb reaching `2*M48` is why a model derived from the
+low limbs alone is wrong for this tree — a plausible `n[4] <= m<<48` rule would
+have aborted on the first field square.
+
+**The near-miss, now measured rather than modelled.** #396 names three published,
+mathematically correct EFD doubling formulas — `dbl-2009-l`, `dbl-2007-bl`,
+`mdbl-2007-bl` — whose steady state is X 22 / Y 10. Both are past the thresholds
+above. Feeding a magnitude-22 value through `negate(8)` and then a multiply
+disagrees with the mathematically correct answer in **396 of 400** trials; the
+magnitude-10 Y path through `negate(4)` in **391 of 400**. The control at the
+magnitude-3 the live formulas actually reach corrupts **0 of 400**. So the risk
+the issue describes is real arithmetic corruption, not a bookkeeping mismatch.
+
+**Teeth.** `regression_fe52_magnitude_model` (FMM-1..5, math_invariants,
+advisory=false) fails if a coordinate leaves its declared bound. Verified by
+mutation: lowering `GEJ_X_MAGNITUDE_MAX` from 8 to 2 fails FMM-4 on both
+`Point::dbl` and `Point::add`, and restoring it passes 42/42.
+
+**Known limitation, recorded rather than tracked.** #396 is closed with this
+change; per-value tracking is deliberately not part of it. `FieldElement52` still
+carries no magnitude of its own, so a violation constructed and consumed inside a
+single expression remains invisible — the guard here is at the formula boundary,
+not at every operation.
+
+The reason it is not a follow-up ticket but a documented constraint: shadow
+fields take `sizeof(FieldElement52)` from 40 to 48, and three things break on
+that, **none of them a compile error in the build such a macro would target**.
+
+1. `EcdsaPublicKey` goes 1456 → 1744 and `SchnorrXonlyPubkey` 1488 → 1776,
+   against the fixed **1504-byte** opaque buffers the shim's C ABI reserves for
+   them (`secp256k1.h`, `secp256k1_schnorrsig.h`). In the C path that is a buffer
+   overflow with no diagnostic.
+2. `table_lookup_core` and `comb_lookup` (`ct_point.cpp`) hard-code an 80-byte
+   `x.n[0..4] || y.n[0..4]` window at `base0 / +32 / +64`, assuming
+   `offsetof(CTAffinePoint, y) == 40`. At 48 the AVX2 loads straddle padding:
+   compiles clean, runs branchless, returns wrong points.
+3. `field_52.hpp` / `field_52_impl.hpp` are installed public headers and `Point`
+   embeds FE52 by value, so a macro-on translation unit linked against a
+   macro-off one is a silent ODR/size mismatch.
+
+All three are solvable — CMake refusals for the shim and for install, the scalar
+`fe52_cmov` fallback in place of the AVX2 windows under the macro — but that is a
+change with its own proof obligations, and it is only worth starting from the
+measured model landed here: the postconditions it would assert had to be measured
+first, and one of them (the `sqr` top limb reaching `2*M48`) is not what the
+obvious derivation gives. Recorded in the knowledge base as
+`FE52-SHADOW-FIELD-BLOCKERS-001`.
+
+## 2026-09-06 — `optimize("O2")` on the FE52 kernels is a no-op on clang (#336)
+
+`fe52_mul_inner` and `fe52_sqr_inner` carry
+`__attribute__((optimize("O2"), noinline)) static` whenever
+`UFSECP_FE52_FORCE_INLINE_KERNELS` is 0 — which is every target except x86-64.
+The guard selected that branch for `defined(__GNUC__) || defined(__clang__)`.
+Clang defines `__GNUC__` and does **not** implement `optimize()`:
+
+```
+field_52_impl.hpp:262:16: warning: unknown attribute 'optimize' ignored
+                                   [-Wunknown-attributes]
+field_52_impl.hpp:1475:16: warning: unknown attribute 'optimize' ignored
+```
+
+Two warnings per translation unit, on every ARM64 clang build, for a clause that
+was doing nothing. The clause is now GCC-only and clang gets plain `noinline`.
+
+Measured, not assumed — assembly compared before and after the edit, normalised
+only for `.file`/`.ident`:
+
+| compiler | target | flag | result |
+|---|---|---|---|
+| clang-17 | aarch64, `-mcpu=apple-m1 -O3` | 0 | byte-identical, 2 warnings → **0** |
+| aarch64 gcc-13 | `-O2` and `-O0` | 0 and 1 | byte-identical |
+| g++-14, clang++-17 | x86-64 `-O2` | 0 and 1 | byte-identical |
+
+The GCC branch is untouched deliberately: the attribute is load-bearing there.
+On aarch64 gcc-13 at `-O0` with the flag off, the kernel compiles to 494 asm
+lines rather than the 3029 the force-inline path produces — that is the
+Debug/coverage behaviour the attribute exists for, and it survives.
+
+**No default changed on any target.** `UFSECP_FE52_FORCE_INLINE_KERNELS` is still
+1 on x86-64 and 0 elsewhere. Issue #336's remaining ARM64 gap — the reporter's
+profiles show these kernels as out-of-line leaves on clang/arm64, where v3.68
+had them inlined — can only be settled by an A/B on his Apple M5 Max, and this
+change deliberately does not pre-empt it. Nothing here is a performance claim.
+
+Two policy comment blocks in the same header contradicted each other: the older
+one instructed "Do NOT use SECP256K1_FE52_FORCE_INLINE (always_inline) here",
+which the shipped x86-64 default has contradicted since the inlining A/B. The
+older block now says what it is actually explaining and defers to the newer one,
+and the override documentation names the real requirement — the macro must hold
+the same value in every translation unit, because `FieldElement52::operator*` is
+an always_inline external-linkage inline whose body calls these kernels, so a
+mixed binary is an ODR mismatch rather than a diagnostic.
+
+## 2026-09-06 — BIP-352 GPU coverage gap: an available backend that runs nothing
+
+From reviewing PR #384 (an outside contribution proposing a different fix for a
+problem `999be718` had already solved). The PR is superseded and regresses the
+CPU-only case, but its review surfaced one real defect in **our** code, and that
+is what this entry lands.
+
+`regression_bip352_ct_varbase` keyed its exit code on `g_gpu_available`, which is
+set the moment `ufsecp_gpu_is_available()` reports a runtime-available backend —
+before any operation is attempted. If `bip352_scan_batch_multispend` then returns
+`UFSECP_ERR_GPU_UNSUPPORTED` for every call, the loop `continue`s past the BCV-6
+assertion, no oracle cell is ever compared, `g_fail` stays 0 — and the module
+returned 0, i.e. **CTest PASS**, for a run in which BCV-5..8 verified nothing. It
+printed "SKIP BCV-5..8: ... unsupported on every available GPU backend
+(advisory)" on the way past, which made the exit code and the console disagree.
+That is the silent-pass advisory this suite exists to forbid.
+
+Selecting a backend is not the same as exercising it. The decision now goes
+through `bcv_gpu_coverage_is_advisory(backend_selected, op_supported)`, in the
+same injectable-and-mutation-tested style as the two sibling decisions in this
+file, and `g_gpu_coverage_exercised` is set only where `any_supported` already
+proves a real comparison happened. `test_bcv_coverage_gap_mutation()` pins all
+three cases and needs no GPU. `_run()` now distinguishes "no provider" from
+"provider present, operation unsupported" in its printed notice.
+
+Verified on this machine, all three states:
+
+| Configuration | Result |
+|---|---|
+| CPU-only (no backend compiled) | CTest **SKIP** (77) — unchanged |
+| `-DSECP256K1_BUILD_OPENCL=ON`, real device | **PASS**, 15 scan-key cases × n_spend{1,2,3,8} = 840 byte-exact oracle cells checked |
+| available backend, operation unsupported | now a coverage gap → 77; pinned by `test_bcv_coverage_gap_mutation` |
+
+**PR #384 itself is not merged.** Its diagnosis was correct and independently
+reached — CPU-only builds linked no GPU provider, so every `ufsecp_gpu_*` symbol
+was undefined — but `999be718` had already fixed that by raw-compiling the C ABI
+closure into the target, which keeps BCV-5..8 running against the fallback
+provider. The PR compiles that half out instead: on a CPU-only build its target
+gets no `SECP256K1_BUILD_GPU_AUDIT`, the `return 77` is preprocessed away, and
+the module prints `PASS` and exits 0 with no GPU coverage and no notice — while
+the second, GPU-only target does not exist at all, because `src/gpu/CMakeLists.txt`
+never defines `secp256k1_gpu_host` when zero backends are compiled. It is also 89
+commits behind with content conflicts in both files, where git fuses the two
+mutually exclusive architectures rather than choosing between them.
+
+## 2026-09-06 — `dev` CI restored: three build breaks, two link breaks, three stale contracts
+
+Every required check on `dev` was red. The causes below are independent; none is
+a defect in the library's arithmetic or protocol behaviour. All three compile
+breaks come from the same 2026-09-03 performance wave; the two link breaks are
+older, and were simply unreachable behind them.
+
+### The build break — a Scalar given a Point-only method
+
+`perf(cpu): in-place point ops at 54 self-assignment sites` (9e7d9d61) rewrote
+`X = X.op(Y)` to `X.op_inplace(Y)` across 54 call sites. Fifty-three of those
+targets are a `Point` or a `FieldElement`. One is not:
+
+```
+compat/libsecp256k1_shim/src/shim_musig.cpp:472
+-    if (g_neg) e->ctx.gacc = e->ctx.gacc.negate();
++    if (g_neg) e->ctx.gacc.negate_inplace();
+```
+
+`MuSig2KeyAggCtx::gacc` is a `fast::Scalar`, and `negate_inplace()` exists only
+on `Point`. `Scalar::negate()` is const and returns a value, so there is no
+in-place twin to substitute — the rewrite had no valid form at this site and the
+line does not compile. Reverted to the returning form.
+
+This single line is why **25 of the 31 red checks were red**: every leg that
+compiles the shim stopped at the same object file — all four `linux` matrix
+legs, `linux-arm64`, `linux-riscv64`, `macos`, `windows`, `windows-arm64-clang-cl`,
+`android`, `rocm`, `coverage`, all five Security Audit sanitizer legs, SonarCloud,
+Benchmark Dashboard, Performance Smoke and the BIP-340/341/327 conformance leg.
+Verified by a full local `-k 0` build (GCC 14.2.0, Release, CI flags): 1636/1636
+targets, 0 errors.
+
+### The second build break — a dead helper under -Werror
+
+`perf(cpu): close two of the three deficits against libsecp256k1 v0.8.0`
+(7365bb3e) replaced the generic four-limb `ge(a, b)` in `src/cpu/src/scalar.cpp`
+with a specialised `order_overflow(x)` at all nine call sites. Nothing else ever
+called `ge()`, so it became dead — invisible in an ordinary build, fatal in the
+one leg that compiles with `SECP256K1_WERROR=ON`:
+
+```
+src/cpu/src/scalar.cpp:47:20: error: 'bool secp256k1::fast::{anonymous}::ge(
+  const limbs4&, const limbs4&)' defined but not used [-Werror=unused-function]
+```
+
+This is why `Security Audit / Build with -Werror` failed 43 seconds in, before
+the shim was ever reached — a genuinely separate cause from the `shim_musig`
+break above, hidden behind it in every other leg. `ge()` is removed rather than
+marked `[[maybe_unused]]`: leaving an unreferenced comparison helper next to the
+one callers are meant to use invites the wrong one to be picked up later. Its
+reasoning — why the comparison is branchless, and what the borrow chain cost —
+is folded into `order_overflow`'s comment, which was already written as a
+comparison against it. `order_overflow` itself is pinned by
+`regression_scalar_reduce_and_safegcd_divstep`, which recomputes the reduction
+independently in base 256 and checks the n-1 / n / 2^256-1 boundary, so removing
+the orphan changes nothing that is not already covered.
+
+Local `-Werror` reproduction (g++-14, Release, `-DSECP256K1_MARCH=x86-64-v3`,
+tests/bench/examples off, exactly the CI configure): 46/46 targets, zero
+diagnostics.
+
+### MSVC: an ungated `__int128` in the same perf rewrite
+
+Removing the dead `ge()` let the Windows legs get far enough to reveal the other
+half of 7365bb3e. Its rewritten `Scalar::from_bytes` reduces by adding
+2^256 - n through an `unsigned __int128` accumulator, with no guard:
+
+```
+src\cpu\src\scalar.cpp(207): error C4235: nonstandard extension used:
+  '__int128' keyword not supported on this architecture
+```
+
+Every other `__int128` use in the file sits inside `#ifndef SECP256K1_NO_INT128`
+or `#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)` — the
+gating 9572d8ad added for exactly this reason — and CMake defines
+`SECP256K1_NO_INT128=1` for MSVC. This one site was written without it. It broke
+`Windows CUDA` and `Benchmark Dashboard / benchmark-windows`; `windows-arm64-clang-cl`
+was unaffected because clang-cl does implement `__int128`.
+
+`from_bytes` now carries the same guard with a portable `#else` that runs the
+identical carry chain through `add64` (`_addcarry_u64` on MSVC): same addend,
+same discarded carry out of the top limb, same branchlessness — only the
+accumulator width differs. Validated by building the whole tree with
+`-DSECP256K1_NO_INT128=1` and running the suite on that configuration:
+**422/422 passed**, which includes
+`regression_scalar_reduce_and_safegcd_divstep`'s independent base-256
+recomputation of the reduction at n-1, n and 2^256-1.
+
+### The Windows CUDA contract failed for a line-ending reason
+
+`audit/test_windows_cuda_workflow_contract.cpp` reads `windows-cuda.yml` with
+`std::ios::binary` and matches multi-line anchors such as
+`"\n  windows-cuda:\n    name:"`. The hosted Windows runners check out with
+`core.autocrlf=true`, so the text it matched against contained CRLF and three
+mutation setups reported `pattern not found` — on Windows only, while the same
+test passed everywhere else. `read_file` now normalises CRLF to LF, and a new
+`crlf_normalisation` live check asserts a CRLF copy of the file reduces to
+exactly the LF text the anchors match, so the fix cannot silently rot.
+
+### Two contract checkers disagreed about `crt`
+
+`ci(windows): stabilize CUDA toolchain workflow` (0c2082ec) pinned the toolkit
+to 12.8.1, dropped `crt` from the installer sub-packages, and added the C++
+contract above — whose `subpackages_valid_no_crt` check asserts `crt` is never
+listed. It did not update `ci/check_windows_cuda_contract.py`, which still
+*required* `crt`. The two contracts were unsatisfiable together, so the Python
+gate failed on every push from 2026-08-26 on, taking Doc Gates, Preflight and
+the Fast CAAS Gates block with it. The Python gate now mirrors the C++ contract
+(`crt` moved from required to Windows-invalid, alongside `cudart_dev`), and the
+WIN-CUDA self-test fixtures were reworked: one fixture drops a genuinely
+required package, another lists both offenders and asserts the report names
+both.
+
+### Two audit modules were on disk but never dispatched
 
 `test_shim_security_gate_policy.cpp` and `test_windows_cuda_workflow_contract.cpp`
-(both added 2026-08-26) had a `_run()` and a `main()` but no `ALL_MODULES` row and
-no entry in `audit/CMakeLists.txt`. The Windows one ran only from the Windows job
-it guards; the shim one ran nowhere at all. Both are now wired
-(`section: security_gate`, `advisory=false`), which takes the runner from 465 to
-**467 modules**.
+each had a `_run()` entry point, no `ALL_MODULES[]` row, and no CMake target —
+exactly the drift `check_exploit_wiring.py` exists to catch. Both are now wired
+into the `security_gate` section (non-advisory), registered as standalone CTest
+targets, and documented in `TEST_MATRIX.md`. Two supporting fixes were needed:
 
-Wiring alone would have been a false green. Both resolved their YAML relative to
-the current directory — `test_shim_security_gate_policy.cpp` with a bare
-`.github/workflows/gate.yml` — and a contract test that cannot read its contract
-executes zero checks, which reports as a pass. Both now resolve through
-`UFSECP_SOURCE_ROOT` first, verified by running each from `/tmp`: 15 live checks +
-23 mutation regressions, and 23 checks, respectively, in both locations.
+- `test_shim_security_gate_policy.cpp` guarded `main()` with
+  `#if defined(STANDALONE_TEST) || !defined(UNIFIED_AUDIT_RUNNER)`. That macro
+  is defined inside `unified_audit_runner.cpp` and therefore invisible to other
+  translation units, so linking it into the runner would have produced a second
+  `main`. Now `#ifdef STANDALONE_TEST`, like every other wired module.
+- It also read `.github/workflows/gate.yml` by bare relative path, which only
+  resolves from the repo root. It now walks up from the working directory, as
+  the CUDA contract already did — proven by running the standalone binary from
+  the build tree.
+- Its layer-2 scratch directory was a fixed `/tmp` path. That was safe while the
+  module ran alone; it is not once the same code runs both as its own CTest
+  target and inside `unified_audit_runner` (the `unified_audit` test), because
+  `ctest -j` can have two copies live and one `remove_all()`s the tree the other
+  is writing into. The root is now process-unique — four concurrent runs pass.
 
-### Stale canonical data
+Both dispatch and pass under the runner: `security_gate` 3/3.
 
-The three audit modules added on 2026-09-02/03 never had
-`ci/sync_module_count.py` run for them, so every doc still said 462 modules / 186
-non-exploit. `ci/sync_all_docs.py` (the umbrella script —
-`sync_module_count.py` and `sync_docs_from_canonical.py` disagree with each other
-on `AUDIT_COVERAGE.md` and never converge when run separately) propagated the real
-counts. Seven CTest targets were absent from `docs/TEST_MATRIX.md`, six of them
-from this week's work; all are now documented.
+### macOS and Windows: weak undefined symbols are an ELF-only idiom
 
-### Retroactive coverage records
+Three audit tests reference symbols that exist only in some build
+configurations and declare them weak so the file can sit in
+`unified_audit_runner`'s source list unconditionally and skip at runtime when
+they are absent. That works on ELF, where `__attribute__((weak))` leaves an
+undefined weak the linker binds to zero. It does not work anywhere else:
 
-`7eb17d90` and `86791b1a` changed files under `src/cpu/src/` without a test in the
-same commit. `7eb17d90` changed no executable statement at all — three point.cpp
-hunks correcting magnitude annotations, nothing else — and `86791b1a`'s
-`Point(Uninitialised)` paths are driven end to end by
-`regression_inplace_point_ops`, which landed one commit later. Both are recorded
-in `RETROACTIVELY_COVERED` with the covering test named, and
-`RETROACTIVELY_COVERED_FROZEN_COUNT` raised 64 → 66 as that guard requires.
+- Mach-O's `weak_import` binds to zero only for a symbol some **linked dylib**
+  could supply. With nothing in the link that could provide it, `ld` reports
+  `symbol(s) not found for architecture arm64` — `CI / macos (Release)`.
+- MSVC has no weak symbols at all; the declaration is simply strong and the
+  link fails with `LNK2019` — `CI / windows (Release)`.
 
-**Result: `run_fast_gates.sh` 74 gates, 0 failing.**
+Two separate groups of symbols, both fixed by removing the weak trick rather
+than teaching each linker to tolerate it.
+
+**The OpenCL BIP-352 fault-injection hooks** (`ufsecp_test_opencl_bip352_*`,
+referenced by `test_exploit_gpu_bip352_multispend_failclosed.cpp` and
+`test_exploit_opencl_bip352_control_call_failclosed.cpp`) exist only when
+`gpu_backend_opencl.cpp` is compiled **with**
+`SECP256K1_BUILD_FAULT_INJECTION_TESTS`. Both conditions are knowable at
+compile time — `SECP256K1_BUILD_FAULT_INJECTION_TESTS` is set on
+`unified_audit_runner`, and `SECP256K1_HAVE_OPENCL` is carried by
+`audit_gpu_backends_provider`, which is what raw-compiles that backend into the
+binary. The declarations are now keyed on both; when either is off the four
+names are null function pointers, the existing availability probe takes the
+advisory-skip path exactly as before, and no undefined symbol reaches any
+linker. Verified locally in both directions: OpenCL off (null pointers, skip
+path) and `-DSECP256K1_BUILD_OPENCL=ON` (real hooks) both build and link clean.
+
+That rework exposed a vacuous proof. `regression_opencl_bip352_faultinject_symbols_absent`
+keys its expectation on `SECP256K1_BUILD_FAULT_INJECTION_TESTS` alone and, when
+that macro is set, asserts as a *positive control* that `nm` finds the hook
+symbols in the running binary — "proves the macro is not vacuously true". With
+OpenCL off, the macro is set but nothing defines the hooks, and the control was
+passing anyway: `nm` was matching the **undefined weak references** the two test
+files themselves contributed, not a definition. Removing the weak declarations
+made `nm` reflect reality and the control failed honestly. Its expectation is
+now keyed on the same pair of conditions, and checked in both directions on this
+machine: OpenCL off → hooks genuinely absent, the original P0 security
+assertion; `-DSECP256K1_BUILD_OPENCL=ON` → hooks genuinely present, a positive
+control that now means what it says.
+
+One more turn of the same screw: the first version of that `#else` branch named
+the null pointers after the hooks, so `nm` on a Debug build (where an unused
+file-scope variable is still emitted) found `ufsecp_test_opencl_bip352_inject_fault`
+as a local symbol and the P0 absence assertion failed on `CI / linux (gcc-14,
+Debug)` — a null pointer wearing the hook's name reads exactly like the hook.
+The pointers now carry neutral names with macros mapping the call sites onto
+them, so no symbol by those names exists unless the real hooks do. Checked with
+`nm` on a Debug build: 0 matches, `security_gate` 3/3.
+
+**The five libsecp256k1 shim entry points** in
+`test_regression_schnorr_r_zero_ct.cpp` needed no weak trick at all — the repo
+already has the right mechanism for shim-dependent modules, and this one just
+was not using it. The file moves into the `if(TARGET secp256k1_shim ...)` block
+of `audit/CMakeLists.txt`, `shim_run_stubs_unified.cpp` gains the matching
+`ADVISORY_SKIP_CODE` stub, and the declarations become plain and strong. The
+`#if !defined(_MSC_VER)` null-pointer guard inside the test goes away with them,
+since the symbols are now always present wherever the file is compiled.
+
+### The two newly wired modules had to earn their place
+
+Wiring the two CI-contract tests into `unified_audit_runner` put them under two
+rules the standalone targets never applied.
+
+`ci/check_audit_cwd_independence.py` runs the whole runner from an unrelated
+working directory (`/tmp`) and requires every mandatory module to behave
+identically there. Both new modules resolved their workflow file by walking up
+from the current directory, which finds nothing from `/tmp`, so both failed and
+took the gate with them. They now try the compile-time `UFSECP_SOURCE_ROOT`
+first — the absolute repo path `audit/CMakeLists.txt` already bakes into the
+runner for exactly this reason, and what every other source-reading module here
+uses — keeping the walk-up as the fallback for translation units built without
+it (the standalone `cl.exe` compile in `windows-cuda.yml`, which runs from the
+repo root). Verified by running the runner from `/tmp`: `security_gate` 3/3.
+
+`shim_security_gate_policy`'s layer 2 extracts the gate step's `run:` script and
+executes it as a POSIX shell script. Its availability probe asked only whether
+`bash` and `python3` are on PATH, which is a false positive on Windows: both can
+be present (Git Bash, the py launcher) while the script still cannot run as
+written — native paths, drive letters, different quoting — so layer 2 failed on
+the Windows runner for reasons unrelated to the `gate.yml` contract under test.
+Layer 2 is now skipped on `_WIN32` explicitly. Layer 1, the portable half, still
+runs everywhere.
+
+### CT evidence: five rows re-verified, and the formal lane found inert
+
+`docs/CT_EVIDENCE_STATUS.json` row `CT-ECDSA-RECOVER-SIGN` was 97 days past its
+90-day freshness SLO, which is what fails `G-14 CT Evidence Freshness` and so
+`Preflight` and `Gate / PR-Push / Block 3`. Not a misfire: `recovery.cpp` was
+modified on 2026-09-03 by the in-place point-op wave and its CT evidence was
+never re-derived. Three more blocking rows were 4 days from the same fate and
+`CT-SCALAR-INVERSE` was already 108 days stale, so all five were taken together
+rather than leaving CI to go red again on 2026-09-10.
+
+Refreshed the way the previous stamp (1f950885, 2026-08-26) did it: re-run the
+row's committed evidence at a named HEAD and record what ran in `notes`. At HEAD
+`05879fe0`, gcc-14 14.2.0, Release, x86-64-v2:
+
+| Row | Committed evidence re-run | Result |
+|---|---|---|
+| CT-ECDSA-SIGN | `exploit_ct_systematic`; `signing_ct_scalar_correctness_regression` | 12/12; PASS in `unified_audit_runner` (467/467 modules, 262.9 s) |
+| CT-SCHNORR-SIGN | `regression_schnorr_ct_arithmetic` | PASS (HIGH-03 + HIGH-06) |
+| CT-ECDSA-RECOVER-SIGN | `exploit_recoverable_sign_ct`, `exploit_bug002_recovery_ct` | 24/24, 31/31 |
+| CT-KEYPAIR-SECKEY | `regression_ct_secret_is_zero` | 28/28 |
+| CT-SCALAR-INVERSE | `regression_ct_scalar_inverse_zero` | 451/451 |
+
+`ci/audit_gate.py` then reports `verdict=PASS with advisory, blocking=0`.
+
+Two gaps were found on the way there, and both are recorded rather than papered
+over.
+
+**The ctgrind harness did not cover two of these surfaces.**
+`audit/test_ct_verif_formal.cpp` exercised `ct::ecdsa_sign`, `ct::schnorr_sign`,
+`ct::ecdsa_sign_hedged`, `ct::generator_mul` and `ct::scalar_mul`, but neither
+`ct::ecdsa_sign_recoverable` nor `ct::scalar_inverse` — the two rows whose
+evidence had gone stale. Both now have cases. The recoverable one declassifies
+only after the recovery id is produced, because that id is a parity bit read off
+the nonce point and branching on it is precisely the leak the row exists to
+exclude; the inverse one covers random secrets plus the boundary values (1, n-1,
+0) that a data-dependent implementation special-cases.
+
+**The lane those cases belong to never actually runs.** `SECP256K1_CT_VALGRIND`
+— the macro that turns `SECP256K1_CLASSIFY`/`DECLASSIFY` into
+`VALGRIND_MAKE_MEM_UNDEFINED`/`DEFINED`, and the only thing `ct_verif_active()`
+keys on — has **no CMake plumbing at all**. `ci/ctgrind_validate.sh` passes
+`-DSECP256K1_CT_VALGRIND=ON` to a CMake with no such option, so it is silently
+dropped: the markers are no-ops in every build, `test_ct_verif_formal` returns
+`ADVISORY_SKIP_CODE` everywhere (the `ct_verif_formal (Skipped)` line in every
+ctest run), and the lane reports PASS on an uninstrumented binary.
+
+Forced on locally (g++-14, Debug `-O1`, `-DSECP256K1_CT_VALGRIND=1` through
+`CMAKE_CXX_FLAGS`) the harness activates for the first time: 119 checks pass and
+valgrind memcheck reports **2256 errors across 115 contexts**, in every section,
+not only the two new ones. `fast::Scalar::from_limbs` (scalar.cpp:140) dominates
+at 40 contexts; the recoverable-sign section contributes 6, at `ct_sign.cpp:518`
+and inside `rfc6979_nonce`. Those two look like documented public decision points
+the harness simply never declassifies — libsecp256k1's `valgrind_ctime_test`
+declassifies the key-validity result before branching on it, and this harness
+does not — but "looks like" is not a verdict, and 115 contexts have to be triaged
+one at a time before any of them becomes one.
+
+So the CMake plumbing is deliberately **not** added here: switching the lane on
+before that triage would convert a silent skip into a loud, unexamined failure,
+which is a worse state than the one it replaces. The manifest's `notes` say
+plainly that the tool-verdict dimension was not re-derived, so the refreshed
+dates claim exactly the committed-evidence re-run behind them and nothing more.
+Recorded as knowledge-base finding `CT-VERIF-LANE-INERT-001` (P2, open).
+
+### Stale generated counts
+
+`ALL_MODULES[]` grew (465 → 467 with the two wired modules) and five active
+CTest targets — `atomic_link_closure`, `exploit_batch_weight_seed_binding`,
+`regression_pippenger_window_bands`, `regression_single_affine_materialisation`,
+`regression_table_build_invariants` — had never been added to `TEST_MATRIX.md`.
+Assurance validation and the canonical-count gates were reporting real drift.
+Documented and resynced via `ci/sync_all_docs.py`; no count was edited by hand.
 
 ## 2026-09-03 — Two documentation defects closed (#397, #398)
 

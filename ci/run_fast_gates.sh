@@ -217,6 +217,7 @@ run "Sanitizer-assertion gate self-test"        ci/test_check_sanitizer_result_a
 run "Reviewer-doc module counts (CLAIMS-001)"   ci/check_doc_module_counts.py
 run "Build options doc sync"                    ci/gen_build_options.py --check
 run "Build options gate self-test"              ci/test_gen_build_options.py
+run "LTO default follows build type (LTO-DEBUG-001)" ci/check_lto_build_type_default.py
 run "Workflow trigger claims (CLAIM-07)"       ci/check_workflow_trigger_claims.py
 run "Secret-erase coverage (CT-04/RT-05)"      ci/check_secret_erase_coverage.py
 run "Secret-erase self-test (proof-it-blocks)" ci/test_check_secret_erase_coverage.py

@@ -122,6 +122,13 @@ if(SECP256K1_BUILD_METAL AND TARGET secp256k1_metal_lib)
     target_sources(audit_gpu_backends_provider INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_metal.mm)
     target_compile_definitions(audit_gpu_backends_provider INTERFACE SECP256K1_HAVE_METAL=1)
+    # Same absolute metallib path src/gpu/CMakeLists.txt bakes into the shared
+    # GPU backend. These audit binaries compile gpu_backend_metal.mm themselves,
+    # so without it they keep the CWD-relative search that cannot reach
+    # <build>/src/metal from <build>/audit -- which is where ctest runs them.
+    target_compile_definitions(audit_gpu_backends_provider INTERFACE
+        "UFSECP_METAL_METALLIB_DIR=\"${CMAKE_BINARY_DIR}/src/metal\""
+        "UFSECP_METAL_SHADER_SRC_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../src/metal/shaders\"")
     target_link_libraries(audit_gpu_backends_provider INTERFACE secp256k1_metal_lib)
     target_include_directories(audit_gpu_backends_provider INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/../src/metal/include)
@@ -404,10 +411,34 @@ if(TARGET secp256k1_gpu_host AND (TARGET ufsecp_shared OR TARGET ufsecp_static))
     target_include_directories(test_gpu_abi_gate PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/../include
         ${CMAKE_BINARY_DIR}/include/ufsecp    # ufsecp_version.h
+        # gpu_backend.hpp: metal_shader_path_override() /
+        # clear_metal_shader_path_override(), so MSP-THREAD-1/2 can put the
+        # process-global override back instead of fail-closing Metal for every
+        # later case in this binary.
+        ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+        # gpu_backend.hpp's first include is the CMake-generated
+        # secp256k1/secp256k1_features.h. fastsecp256k1 exports that directory
+        # PUBLIC, but this target links ufsecp_shared/ufsecp_static, which take
+        # fastsecp256k1 PRIVATE -- so the directory does not propagate here and
+        # the header is unresolvable. Name it directly rather than adding a
+        # second copy of the engine to the link line.
+        ${CMAKE_BINARY_DIR}/src/cpu/include      # secp256k1_features.h
     )
     target_compile_definitions(test_gpu_abi_gate PRIVATE STANDALONE_TEST)
     add_test(NAME gpu_abi_gate COMMAND test_gpu_abi_gate)
-    set_tests_properties(gpu_abi_gate PROPERTIES TIMEOUT 60)
+    # 60 s was too tight for what this test actually does. It is not a unit
+    # test: it creates and destroys GPU contexts, compiles Metal shaders,
+    # exercises concurrent context creation and pool growth, and runs the
+    # BIP-352 overlap and shader-path cases. On the macOS runner it measured
+    # 53.40 s, then 56.48 s, then 60.04 s -- three consecutive runs walking into
+    # a limit that was never more than a few seconds above its own cost, with no
+    # hang and no failing check. A budget that close to the measured time is a
+    # flake generator, not a guard.
+    #
+    # 300 s still catches a real hang (the whole ctest suite is ~10 min) while
+    # leaving room for a slow shared runner and for a slower backend: the same
+    # binary took over 120 s locally against an OpenCL device.
+    set_tests_properties(gpu_abi_gate PROPERTIES TIMEOUT 300)
 
     # -- GPU libbitcoin column verify differential (GPU columns vs CPU per-row) --
     add_executable(test_gpu_lbtc_columns_diff test_gpu_lbtc_columns_diff.cpp)
@@ -435,6 +466,26 @@ if(TARGET secp256k1_gpu_host AND (TARGET ufsecp_shared OR TARGET ufsecp_static))
     set_tests_properties(gpu_collect_verify_parity PROPERTIES
         TIMEOUT 120
         LABELS "gpu;libbitcoin;collect;differential")
+
+    # -- GPU ECDSA compact-sig strict-range regression ----------------------
+    # CPU-only source gate always runs (needs UFSECP_SOURCE_ROOT to resolve the
+    # in-tree kernel sources); the on-device boundary-scalar differential
+    # self-skips when no GPU backend is available.
+    add_executable(test_gpu_ecdsa_compact_range test_gpu_ecdsa_compact_range.cpp)
+    target_link_libraries(test_gpu_ecdsa_compact_range PRIVATE ${UFSECP_GPU_TEST_LIB})
+    target_include_directories(test_gpu_ecdsa_compact_range PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../include
+        ${CMAKE_BINARY_DIR}/include/ufsecp
+    )
+    target_compile_definitions(test_gpu_ecdsa_compact_range PRIVATE
+        STANDALONE_TEST
+        UFSECP_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/.."
+    )
+    add_test(NAME gpu_ecdsa_compact_range COMMAND test_gpu_ecdsa_compact_range)
+    set_tests_properties(gpu_ecdsa_compact_range PROPERTIES
+        TIMEOUT 120
+        LABELS "gpu;ecdsa;range;differential;regression")
 
     # -- GPU ops equivalence (GPU vs CPU reference) --
     add_executable(test_gpu_ops_equivalence test_gpu_ops_equivalence.cpp)
@@ -519,6 +570,7 @@ if(TARGET secp256k1_gpu_host AND (TARGET ufsecp_shared OR TARGET ufsecp_static))
             test_gpu_ecdsa_snark_witness test_gpu_bip352_scan
             test_gpu_zk_prove_verify_differential
             test_gpu_collect_verify_parity
+            test_gpu_ecdsa_compact_range
             PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE
         )
     endif()
@@ -1408,6 +1460,30 @@ audit_target_defaults(test_regression_inplace_point_ops_standalone)
 target_compile_definitions(test_regression_inplace_point_ops_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME regression_inplace_point_ops COMMAND test_regression_inplace_point_ops_standalone)
 set_tests_properties(regression_inplace_point_ops PROPERTIES TIMEOUT 120 LABELS "audit;regression;group_law;inplace")
+
+# #396: the FE52 magnitude model, measured against the live point formulas.
+add_executable(test_regression_fe52_magnitude_model_standalone test_regression_fe52_magnitude_model.cpp)
+audit_target_defaults(test_regression_fe52_magnitude_model_standalone)
+target_compile_definitions(test_regression_fe52_magnitude_model_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_fe52_magnitude_model COMMAND test_regression_fe52_magnitude_model_standalone)
+set_tests_properties(regression_fe52_magnitude_model PROPERTIES TIMEOUT 300
+    SKIP_RETURN_CODE 77
+    LABELS "audit;regression;field;magnitude;math_invariants")
+
+# CI workflow contract regressions. Both locate their workflow file by walking
+# up from the working directory, so they run correctly from the build tree as
+# well as from the repo root where unified_audit_runner dispatches them.
+add_executable(test_shim_security_gate_policy_standalone test_shim_security_gate_policy.cpp)
+audit_target_defaults(test_shim_security_gate_policy_standalone)
+target_compile_definitions(test_shim_security_gate_policy_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME shim_security_gate_policy COMMAND test_shim_security_gate_policy_standalone)
+set_tests_properties(shim_security_gate_policy PROPERTIES TIMEOUT 300 LABELS "audit;regression;ci_contract;shim")
+
+add_executable(test_windows_cuda_workflow_contract_standalone test_windows_cuda_workflow_contract.cpp)
+audit_target_defaults(test_windows_cuda_workflow_contract_standalone)
+target_compile_definitions(test_windows_cuda_workflow_contract_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME windows_cuda_workflow_contract COMMAND test_windows_cuda_workflow_contract_standalone)
+set_tests_properties(windows_cuda_workflow_contract PROPERTIES TIMEOUT 120 LABELS "audit;regression;ci_contract;cuda")
 
 add_executable(test_regression_scalar_reduce_and_safegcd_divstep_standalone test_regression_scalar_reduce_and_safegcd_divstep.cpp)
 audit_target_defaults(test_regression_scalar_reduce_and_safegcd_divstep_standalone)
@@ -3563,6 +3639,83 @@ add_test(NAME regression_ct_blinding_nonce_path
 set_tests_properties(regression_ct_blinding_nonce_path PROPERTIES
     TIMEOUT 60 LABELS "audit;regression;ct;signing;blinding;dpa")
 
+# -- RFC 6979 HMAC length guards must fail closed -----------------------------
+# d2544fc8 made compute_short / compute_two_block / compute_three_block zero
+# out[32] before returning on a length-precondition violation, instead of
+# returning with the caller's buffer untouched. That commit shipped with no
+# test (ci/check_security_fix_has_test.py names it); this is the missing one.
+# Source scan, because HMAC_Ctx is in an anonymous namespace in ecdsa.cpp and
+# no test TU can construct one -- see the file header for why that is the
+# strongest guard available here.
+add_executable(test_regression_hmac_guard_fail_closed_standalone
+    test_regression_hmac_guard_fail_closed.cpp)
+audit_target_defaults(test_regression_hmac_guard_fail_closed_standalone)
+target_compile_definitions(test_regression_hmac_guard_fail_closed_standalone PRIVATE
+    STANDALONE_TEST
+    # audit_read_source_file() resolves via this absolute compile-time root, so
+    # the scan works from any CWD -- ctest runs this from <build>/audit, and
+    # ci/check_audit_cwd_independence.py runs the same binary from /tmp.
+    UFSECP_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+add_test(NAME regression_hmac_guard_fail_closed
+    COMMAND test_regression_hmac_guard_fail_closed_standalone)
+set_tests_properties(regression_hmac_guard_fail_closed PROPERTIES
+    TIMEOUT 60 LABELS "audit;regression;rfc6979;hmac;fail-closed")
+
+# -- Metal shader include closure ---------------------------------------------
+# The runtime-shader-compile fallback in gpu_backend_metal.mm could never build
+# a translation unit: its hardcoded header list named secp256k1_bloom.h, which
+# has never existed. Source scan, so it runs with no Metal device and no Apple
+# toolchain -- which is the point, since the failure showed up only on macOS CI.
+add_executable(test_regression_metal_shader_closure_standalone
+    test_regression_metal_shader_closure.cpp)
+audit_target_defaults(test_regression_metal_shader_closure_standalone)
+target_compile_definitions(test_regression_metal_shader_closure_standalone PRIVATE
+    STANDALONE_TEST
+    UFSECP_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+add_test(NAME regression_metal_shader_closure
+    COMMAND test_regression_metal_shader_closure_standalone)
+set_tests_properties(regression_metal_shader_closure PROPERTIES
+    TIMEOUT 60 LABELS "audit;regression;metal;shaders")
+
+# -- Metal dispatch buffer-binding order --------------------------------------
+# schnorr_verify_batch bound {pks, msgs, ...} against a kernel declaring
+# {msg_hashes, pubkeys_x, ...}, so every valid BIP-340 signature was verified
+# with the message and the key swapped and rejected. Source scan for the same
+# reason as the closure test above: the GPU parity test that catches this needs
+# a Metal device, and macOS CI could not reach it.
+add_executable(test_regression_metal_buffer_binding_order_standalone
+    test_regression_metal_buffer_binding_order.cpp)
+audit_target_defaults(test_regression_metal_buffer_binding_order_standalone)
+target_compile_definitions(test_regression_metal_buffer_binding_order_standalone PRIVATE
+    STANDALONE_TEST
+    UFSECP_SOURCE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/..")
+add_test(NAME regression_metal_buffer_binding_order
+    COMMAND test_regression_metal_buffer_binding_order_standalone)
+set_tests_properties(regression_metal_buffer_binding_order PROPERTIES
+    TIMEOUT 60 LABELS "audit;regression;metal;shaders")
+
+# -- Fixed-base cache lifecycle (evoskuil: cache_w18.bin left behind) ----------
+add_executable(test_regression_fixed_base_cache_lifecycle_standalone
+    test_regression_fixed_base_cache_lifecycle.cpp)
+audit_target_defaults(test_regression_fixed_base_cache_lifecycle_standalone)
+target_compile_definitions(test_regression_fixed_base_cache_lifecycle_standalone PRIVATE
+    STANDALONE_TEST)
+add_test(NAME regression_fixed_base_cache_lifecycle
+    COMMAND test_regression_fixed_base_cache_lifecycle_standalone)
+set_tests_properties(regression_fixed_base_cache_lifecycle PROPERTIES
+    TIMEOUT 120 LABELS "audit;regression;precompute;cache")
+
+# -- PT_TLS alignment (Android arm64 could not load any binary at all) --------
+add_executable(test_regression_tls_segment_alignment_standalone
+    test_regression_tls_segment_alignment.cpp)
+audit_target_defaults(test_regression_tls_segment_alignment_standalone)
+target_compile_definitions(test_regression_tls_segment_alignment_standalone PRIVATE
+    STANDALONE_TEST)
+add_test(NAME regression_tls_segment_alignment
+    COMMAND test_regression_tls_segment_alignment_standalone)
+set_tests_properties(regression_tls_segment_alignment PROPERTIES
+    TIMEOUT 30 LABELS "audit;regression;android;abi;tls")
+
 # -- P1-SEC-001: FROST frost_sign absent signer ID (FSI-1..3) — 2026-05-21 --
 if(SECP256K1_BUILD_FROST)
 add_executable(test_exploit_frost_absent_signer_id_standalone
@@ -3932,6 +4085,8 @@ add_executable(unified_audit_runner
     test_gpu_lbtc_columns_diff.cpp
     # Native GPU collect verdict == verify_batch verdict per-row (null-ctx contract runs CPU-only)
     test_gpu_collect_verify_parity.cpp
+    # GPU ECDSA compact-sig strict r/s<n range: CPU source gate + on-device boundary-scalar differential
+    test_gpu_ecdsa_compact_range.cpp
     # CPU range-proof → GPU Bulletproof poly-check consistency (advisory; skips w/o GPU/ZK)
     test_gpu_zk_prove_verify_differential.cpp
     # -- field representation tests --
@@ -3955,6 +4110,9 @@ add_executable(unified_audit_runner
     test_regression_scalar_decomposition_and_comb.cpp
     test_regression_pippenger_window_bands.cpp
     test_regression_inplace_point_ops.cpp
+    test_regression_fe52_magnitude_model.cpp
+    test_shim_security_gate_policy.cpp
+    test_windows_cuda_workflow_contract.cpp
     test_regression_scalar_reduce_and_safegcd_divstep.cpp
     test_exploit_batch_verify_correctness.cpp
     test_exploit_batch_verify_poison.cpp
@@ -4324,12 +4482,25 @@ add_executable(unified_audit_runner
     # Regression: FE64 reduce() carry propagation in field.cpp (2026-05-14)
     # Guards the result[2]→[3]→[4] cascade for (2^255-1)^2 mod p.
     test_regression_field_reduce_carry.cpp
+    # Regression: FE26 exact-limb KATs vs Python truth (2026-09-08)
+    # Guards the fe26 equivalent of the reduce-carry loss: exact 32-byte
+    # comparison on the trigger family, never normalized operator==.
+    test_regression_field_26_exact_limb.cpp
     # Regression: 64x64->128 multiply path equivalence (Windows-ARM64 clang-cl port, 2026-06-16)
     # Guards precompute.cpp _umul128 + detail::mulhi64 routed off the x86-only MSVC intrinsic.
     test_regression_mul128_portability.cpp
     # Regression: CT nonce path uses generator_mul_blinded (2026-05-12)
     # Guards that ct::ecdsa_sign / ct::schnorr_sign activate DPA blinding.
     test_regression_ct_blinding_nonce_path.cpp
+    # Regression: RFC 6979 HMAC length guards zero out[32] before returning.
+    test_regression_hmac_guard_fail_closed.cpp
+    # Regression: the Metal shader include closure is complete and copied.
+    test_regression_metal_shader_closure.cpp
+    test_regression_metal_buffer_binding_order.cpp
+    # Regression: fixed-base cache does not litter the working directory.
+    test_regression_fixed_base_cache_lifecycle.cpp
+    # Regression: PT_TLS alignment >= 64 so Android arm64 can load the image.
+    test_regression_tls_segment_alignment.cpp
     # SEC-001: CT scalar_inverse zero-branch removal (2026-05-21)
     # Removes data-dependent if(is_zero) branch in non-int128 Fermat fallback.
     test_regression_ct_scalar_inverse_zero.cpp
@@ -4380,7 +4551,6 @@ target_sources(unified_audit_runner PRIVATE
     # SEC-002 and SEC-010 mirror their sibling BIP-352/FROST modules' guard +
     # the ADVISORY_SKIP_CODE stub already present in feature_run_stubs_unified.cpp.
     test_regression_hash_three_block_bounds.cpp
-    test_regression_schnorr_r_zero_ct.cpp
     $<$<BOOL:${SECP256K1_BUILD_BIP352}>:test_regression_opencl_bip352_scan_key_boundary.cpp>
     $<$<BOOL:${SECP256K1_BUILD_FROST}>:test_regression_frost_threshold_zero.cpp>
     # Feature module stubs: when a module is OFF, these provide advisory-skip
@@ -4452,6 +4622,14 @@ if(TARGET secp256k1_shim)
         # 2026-05-28 TRNC-1..4: NULL non-ctx arg illegal_callback in extrakeys + recovery tweak/convert
         test_regression_shim_tweak_recover_null_cb.cpp
 )
+    # SEC-006 R-zero CT guard: calls the shim's C ABI directly. It used to sit in
+    # the unconditional source list and weak-link the five secp256k1_* symbols,
+    # which is an ELF-only idiom -- Mach-O's weak_import needs a dylib that could
+    # supply them, and MSVC has no weak symbols at all, so both failed the
+    # unified_audit_runner link (CI / macos (Release), CI / windows (Release)).
+    # Compiled only where the shim is actually linked; shim_run_stubs_unified.cpp
+    # supplies the advisory-skip stub otherwise.
+    target_sources(unified_audit_runner PRIVATE test_regression_schnorr_r_zero_ct.cpp)
     target_compile_definitions(unified_audit_runner PRIVATE SECP256K1_BUILD_COMPAT_SHIM)
     target_link_libraries(unified_audit_runner PRIVATE secp256k1_shim)
     target_include_directories(unified_audit_runner PRIVATE
@@ -5200,6 +5378,19 @@ add_test(NAME regression_field_reduce_carry
 set_tests_properties(regression_field_reduce_carry PROPERTIES TIMEOUT 30
     LABELS "audit;math;regression;field")
 
+# 2026-09-08: exact-limb regression guard for FE26 (10x26), the production
+# field on ARM64 and 32-bit targets. Mirrors the FE64 reduce-carry guard but
+# at raw-limb/byte granularity (no operator== normalization), so an equivalent
+# carry loss in fe26 would be caught here.
+add_executable(test_regression_field_26_exact_limb_standalone
+    test_regression_field_26_exact_limb.cpp)
+audit_target_defaults(test_regression_field_26_exact_limb_standalone)
+target_compile_definitions(test_regression_field_26_exact_limb_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_field_26_exact_limb
+    COMMAND test_regression_field_26_exact_limb_standalone)
+set_tests_properties(regression_field_26_exact_limb PROPERTIES TIMEOUT 60
+    LABELS "audit;math;regression;field")
+
 # Regression: 64x64->128 multiply path equivalence — guards the Windows-ARM64
 # (clang-cl) _umul128/mulhi64 port off the x86-only MSVC <intrin.h> intrinsic.
 add_executable(test_regression_mul128_portability_standalone
@@ -5682,6 +5873,26 @@ if(TARGET fastsecp256k1_gh336_test_hooks)
         LABELS "audit;regression;thread-safety;memory-safety;use-after-free;source-scan")
 endif()
 target_sources(unified_audit_runner PRIVATE test_regression_precompute_gcontext_race.cpp)
+
+# -- No-op reconfigure must not rebuild the fixed-base table -------------------
+# configure_fixed_base() invalidated unconditionally, so Selftest()'s defensive
+# `configure_fixed_base(FixedBaseConfig{})` on every call rebuilt the ~250 MB
+# window-18 table each time. Invisible while the disk cache defaulted on (the
+# rebuild was a disk load); a 120 s ctest timeout once it defaulted off.
+# Needs the issue #336 diagnostic hooks to observe context identity/epoch.
+if(TARGET fastsecp256k1_gh336_test_hooks)
+    add_executable(test_regression_precompute_noop_reconfigure_standalone
+        test_regression_precompute_noop_reconfigure.cpp
+        $<TARGET_OBJECTS:fastsecp256k1_gh336_test_hooks>)
+    audit_target_defaults(test_regression_precompute_noop_reconfigure_standalone)
+    target_compile_definitions(test_regression_precompute_noop_reconfigure_standalone PRIVATE
+        STANDALONE_TEST SECP256K1_PRECOMPUTE_TEST_HOOKS=1)
+    add_test(NAME regression_precompute_noop_reconfigure
+        COMMAND test_regression_precompute_noop_reconfigure_standalone)
+    set_tests_properties(regression_precompute_noop_reconfigure PROPERTIES TIMEOUT 60
+        LABELS "audit;regression;performance;precompute")
+endif()
+target_sources(unified_audit_runner PRIVATE test_regression_precompute_noop_reconfigure.cpp)
 
 # SOUNDNESS-PROBE (GHSA-c7q2) — negative-soundness gate seed (2026-06-11)
 # advisory=false: forged adaptor pre-sig with mismatched dlog must be rejected by the DLEQ.

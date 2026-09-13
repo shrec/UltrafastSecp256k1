@@ -13,6 +13,59 @@
 > required-tool FAIL or a single PASS + SKIP is **inconclusive, never a pass**.
 > Run: `python3 ci/check_ct_evidence_status.py --json`.
 
+### 2026-09-07 precompute.cpp / CMakeLists.txt — fixed-base cache location and no-op reconfigure (no CT surface moved)
+
+Two changes touch files the secret-path gate classifies as CT secret-bearing
+surfaces. **Neither moves a CT boundary**, and both are recorded here so the
+classification is answered rather than waived.
+
+- **Fixed-base table cached in the per-user cache directory.** The table is
+  precomputed multiples of the generator `G` — public data any observer can
+  derive independently. Nothing secret has ever been written to
+  `cache_w*.bin`, so no advisory is warranted for the earlier revisions that
+  left the file in the caller's working directory; it was a filesystem
+  side-effect defect, not a key-material disclosure. What changed is the
+  location (per-user cache directory, created and kept; never the CWD) and the
+  fact that the table is built once and loaded thereafter.
+- **`configure_fixed_base()` no longer invalidates on a no-op.** Re-applying an
+  identical configuration keeps the built context instead of recomputing it. The
+  comparison is over the whole configuration, so the context and `g_config` can
+  never describe different settings. This changes *when* a public table is
+  rebuilt, not what any constant-time primitive does: `ct::scalar_mul`,
+  `ct::generator_mul_blinded`, `ct::scalar_inverse` and the RFC 6979 nonce path
+  are untouched, and no branch or memory access anywhere became dependent on
+  secret data.
+
+Tests: `regression_fixed_base_cache_lifecycle` (FBC-1..4, location and
+lifetime, both cache modes) and `regression_precompute_noop_reconfigure`
+(PNR-1..4, with a negative control proving a real config change still
+invalidates).
+
+### 2026-09-10 GPU compact-ECDSA strict-range guard — public-data boundary, no CT boundary moved
+
+Three files the secret-path gate classifies as CT secret-bearing surfaces gained
+a guard for public compact-signature scalars; this section answers that
+classification rather than waiving it.
+
+- **`src/cuda/include/ecdsa.cuh`**, **`src/metal/shaders/secp256k1_extended.h`**,
+  **`src/opencl/kernels/secp256k1_extended.cl`**: `ecdsa_verify()` on each GPU
+  backend now rejects a compact signature with `r >= n` or `s >= n` up front,
+  before the `scalar_inverse()` call, so every verify route (single, batch,
+  collect, sign-and-verify) shares one strict compact contract. The CUDA batch
+  path keeps its strict `ecdsa_sig_parse_compact_strict` parse.
+- **CT status: unchanged.** The guard compares the two public scalars `r`, `s`
+  of the already-parsed 64-byte compact signature against the group order `n`.
+  Both are public data; the comparisons are public-data (variable-time is
+  permitted for them), and no secret value reaches a new branch or memory
+  access. No CT primitive changed, no constant-time code path was made
+  variable-time, and the failure exits return before the verify math that
+  touches secret-path state.
+- Pinned by `gpu_ecdsa_compact_range` — `[A]` CPU-only source gate asserts the
+  guard sits inside each backend's `ecdsa_verify()` body before
+  `scalar_inverse()` (kills any helper-stranding regression), `[B]` on-device
+  small-`(r,s)` boundary differential through batch and collect vs the CPU
+  strict oracle. Identity with the entry in `docs/SECURITY_CLAIMS.md`.
+
 ### 2026-06-01 ct_sign.cpp — variable-length Schnorr CT sign overload (SHIM-001 restore)
 
 - **`src/cpu/src/ct_sign.cpp`**: added a variable-length overload
@@ -493,7 +546,7 @@ The OpenCL CT layer mirrors the CUDA CT implementation with OpenCL-native barrie
 - `value_barrier()` via inline OpenCL `asm volatile` or volatile loads
 - Branchless masks and conditional moves on all secret-dependent paths
 - CT scalar multiplication with fixed iteration count (GLV + signed-digit)
-- Audited via `opencl_audit_runner` ( 467 modules including CT sections)
+- Audited via `opencl_audit_runner` ( 478 modules including CT sections)
 
 ### Metal CT Layer
 
@@ -506,7 +559,7 @@ src/metal/shaders/
 The Metal CT layer uses Metal Shading Language (MSL) with:
 - `value_barrier()` via threadgroup memory fence pattern
 - Identical algorithms to CUDA/OpenCL CT layers
-- Audited via `metal_audit_runner` ( 467 modules including CT sections)
+- Audited via `metal_audit_runner` ( 478 modules including CT sections)
 
 ---
 
@@ -767,8 +820,8 @@ fixed iteration counts. All three GPU backends implement identical CT algorithms
 
 The GPU CT layers are tested via:
 - **CUDA**: `test_ct_smoke` (9 functional tests) + GPU audit runner (Section S6: CT Analysis)
-- **OpenCL**: `opencl_audit_runner` ( 467 modules including CT signing + CT ZK sections)
-- **Metal**: `metal_audit_runner` ( 467 modules including CT signing + CT ZK sections)
+- **OpenCL**: `opencl_audit_runner` ( 478 modules including CT signing + CT ZK sections)
+- **Metal**: `metal_audit_runner` ( 478 modules including CT signing + CT ZK sections)
 
 ### 5. Experimental Protocols
 

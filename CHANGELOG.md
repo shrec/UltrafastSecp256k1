@@ -13,6 +13,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generation with `ufsecp_last_error()` / `ufsecp_last_error_msg()` diagnostics.
   The existing stateless `ufsecp_addr_p2sh` symbol remains available and
   produces byte-identical addresses.
+- Completed the clang `-Wunknown-attributes` cleanup for the field kernels:
+  the two `fe26` inner functions (`fe26_mul_inner` / `fe26_sqr_inner`) still
+  spelled the GCC-only `optimize("O2")` attribute under a `__GNUC__ ||
+  __clang__` guard. They now follow the same policy as the `fe52` kernels
+  (see the "Field-kernel inlining policy" block in `field_52_impl.hpp`):
+  `optimize("O2") + noinline` on GCC, plain `noinline` on clang, which drops
+  the remaining two spurious warnings per translation unit on clang builds.
+- Added an exact-limb regression audit for the `fe26` field path
+  (`test_regression_field_26_exact_limb.cpp`), the fe26 equivalent of the
+  FE64 reduce-carry guard added in 1548d44. It pins the trigger family
+  (`2^256-2^33-1`, `2^255-1`, `p-1`, `p`, `2^256-1`) plus 200,000 randomized
+  mul/sqr/add rows against Python big-int ground truth at exact 32-byte
+  granularity — never through normalized `operator==` — so an equivalent
+  carry loss in `fe26` (the production field on ARM64 and 32-bit targets)
+  is caught by this module before any downstream module. Registered in the
+  unified audit runner under `math_invariants`.
+- Enforced a uniform strict compact-ECDSA scalar contract on every GPU verify
+  path. Previously the device-side `ecdsa_verify()` in the CUDA, Metal and
+  OpenCL backends only rejected zero scalars and silently reduced any `r`/`s`
+  limb value `>= n` modulo the group order: the CUDA `ecdsa_verify_collect`
+  kernel and the Metal `ecdsa_verify_batch_compressed` / `lbtc_ecdsa_verify_collect`
+  shaders therefore accepted the `s+n` congruent-malleation encoding that the
+  CUDA batch kernel, OpenCL and the CPU strict parse all reject — violating the
+  documented "collect verdict is bit-identical to verify_batch" invariant. Each
+  backend's `ecdsa_verify` now rejects `r >= n` or `s >= n` up front (single
+  choke point shared by single/batch/collect and sign-and-verify), and a
+  regression audit (`test_gpu_ecdsa_compact_range.cpp`) pins it with
+  an always-run CPU source gate (failed against the pre-fix sources) plus an
+  on-device `{0, n-1, n, 2^256-1, s+n}` boundary-scalar differential that
+  self-skips without a GPU.
 
 ### Credited
 
@@ -27,6 +57,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [#349](https://github.com/shrec/UltrafastSecp256k1/issues/349),
   [#350](https://github.com/shrec/UltrafastSecp256k1/issues/350),
   [#352](https://github.com/shrec/UltrafastSecp256k1/issues/352)).
+
+- **[@tatotogonidze-cmd](https://github.com/tatotogonidze-cmd)** for the BIP-352 GPU audit coverage
+  finding ([#384](https://github.com/shrec/UltrafastSecp256k1/pull/384)). The proposed patch was superseded by an earlier fix on
+  `dev`, but it independently reached the same root cause — CPU-only builds
+  linked no GPU provider, so every `ufsecp_gpu_*` symbol in
+  `test_regression_bip352_ct_varbase` was undefined — and it separated "a GPU
+  backend was selected" from "the operation actually ran". That second
+  distinction was a real hole on our side: an available backend whose
+  `bip352_scan_batch_multispend` returns `UFSECP_ERR_GPU_UNSUPPORTED` produced a
+  CTest PASS with no GPU coverage verified. Ported as
+  `bcv_gpu_coverage_is_advisory()` with `test_bcv_coverage_gap_mutation`.
 
 ## [4.5.0] - 2026-07-07
 

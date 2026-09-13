@@ -1355,6 +1355,11 @@ inline int ecdsa_sign_impl(const uchar msg_hash[32], const Scalar* priv, ECDSASi
 inline int ecdsa_verify_impl(const uchar msg_hash[32], const JacobianPoint* pubkey, const ECDSASignature* sig) {
     if (scalar_is_zero(&sig->r) || scalar_is_zero(&sig->s)) return 0;
 
+    // Reject out-of-range scalars (r >= n or s >= n) so every OpenCL verify
+    // route matches the strict compact/opaque parse contract (defense in depth:
+    // ecdsa_verify_impl itself previously reduced these mod n).
+    if (lbtc_scalar_ge_order(&sig->r) || lbtc_scalar_ge_order(&sig->s)) return 0;
+
     Scalar z;
     scalar_from_bytes_impl(msg_hash, &z);
 

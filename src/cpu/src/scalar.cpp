@@ -40,30 +40,23 @@ constexpr limbs4 ONE{1ULL, 0ULL, 0ULL, 0ULL};
 // 8-limb wide integer
 using wide8 = std::array<std::uint64_t, 8>;
 
-// CT-safe ge(): subtraction-chain, no data-dependent branches.
-// Matches field.cpp's ge() pattern. Although fast::Scalar is the
-// variable-time path, making ge() branchless eliminates secret-dependent
-// branch chains if any caller passes secret data (defense in depth).
-[[nodiscard]] bool ge(const limbs4& a, const limbs4& b) noexcept {
-    unsigned char borrow = 0;
-    for (std::size_t i = 0; i < 4; ++i) { sub64(a[i], b[i], borrow); }
-    return borrow == 0;  // no borrow → a >= b
-}
-
-// ge(x, ORDER), specialised. Same answer, same branchlessness, ~2.4x cheaper.
+// x >= ORDER, branchless. Replaces the generic four-limb ge(a, b) that used
+// to serve all nine call sites here; that function is gone, since every one of
+// them compared against ORDER and nothing else ever called it.
 //
-// ge() walks a borrow chain: four sbb instructions, each waiting on the carry
-// flag the previous one wrote. That serial dependency is the cost, and it is
-// paid by every caller even though ORDER is a compile-time constant with a
-// property that removes most of the work: ORDER[3] is 0xFFFF...FF, the largest
-// possible limb, so a[3] can never exceed it and the top limb needs only a "<"
-// test, never a ">".
+// The generic form walked a borrow chain: four sbb instructions, each waiting
+// on the carry flag the previous one wrote. That serial dependency was the
+// cost, and it was paid by every caller even though ORDER is a compile-time
+// constant with a property that removes most of the work: ORDER[3] is
+// 0xFFFF...FF, the largest possible limb, so a[3] can never exceed it and the
+// top limb needs only a "<" test, never a ">".
 //
 // So the comparison collapses to independent, order-free tests that the machine
 // issues in parallel, with `no`/`yes` carrying the lexicographic decision:
 // once a higher limb has settled the comparison, `no` masks every lower test.
-// No branches -- every term is a setcc, so this keeps ge()'s constant-time
-// property for the nonce-derived inputs that reach from_bytes.
+// Same answer, same branchlessness, ~2.4x cheaper. No branches -- every term is
+// a setcc -- so although fast::Scalar is the variable-time path, the constant-
+// time property survives for the nonce-derived inputs that reach from_bytes.
 [[nodiscard]] inline bool order_overflow(const limbs4& a) noexcept {
     int yes = 0;
     int no  = 0;
@@ -211,6 +204,7 @@ Scalar Scalar::from_bytes(const std::uint8_t* bytes32) {
     // and then selected between two 4-limb results. Measured on the same inputs:
     // that shape 18.68 ns, this one 7.82 ns (libsecp's set_b32: 8.10 ns).
     std::uint64_t const m = std::uint64_t(0) - std::uint64_t(order_overflow(limbs));
+#if defined(__SIZEOF_INT128__) && !defined(SECP256K1_NO_INT128)
     unsigned __int128 t = static_cast<unsigned __int128>(limbs[0]) + (ORDER_COMPLEMENT_0 & m);
     limbs[0] = static_cast<std::uint64_t>(t); t >>= 64;
     t += static_cast<unsigned __int128>(limbs[1]) + (ORDER_COMPLEMENT_1 & m);
@@ -219,6 +213,19 @@ Scalar Scalar::from_bytes(const std::uint8_t* bytes32) {
     limbs[2] = static_cast<std::uint64_t>(t); t >>= 64;
     t += limbs[3];
     limbs[3] = static_cast<std::uint64_t>(t);   // the carry out of 2^256 IS the reduction
+#else
+    // MSVC and the embedded targets have no __int128 (SECP256K1_NO_INT128).
+    // Identical arithmetic through add64's carry chain -- same addend, same
+    // discarded carry out of the top limb, same branchlessness; only the
+    // accumulator width differs. add64 is _addcarry_u64 on MSVC.
+    limbs4 const addend{ORDER_COMPLEMENT_0 & m, ORDER_COMPLEMENT_1 & m,
+                        ORDER_COMPLEMENT_2 & m, 0ULL};
+    unsigned char carry = 0;
+    for (std::size_t i = 0; i < 4; ++i) {
+        limbs[i] = add64(limbs[i], addend[i], carry);
+    }
+    // `carry` here is the carry out of 2^256 -- dropping it IS the reduction.
+#endif
 
     Scalar s;
     s.limbs_ = limbs;

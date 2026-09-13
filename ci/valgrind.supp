@@ -25,3 +25,44 @@
    obj:*
    ...
 }
+
+# ---------------------------------------------------------------------------
+# Persistent batch-verify worker pool: thread TLS alive at exit, not a leak
+# ---------------------------------------------------------------------------
+# detail::batch_worker_pool() (src/cpu/src/batch_verify.cpp) is a deliberately
+# leaked singleton. Its destructor would join the workers at static-destruction
+# time, which on Windows runs during DLL unload with the loader lock held —
+# joining there deadlocks, because the workers need that same lock to exit. The
+# code says so at the definition. So the pool's threads are still RUNNING when
+# the process exits.
+#
+# glibc allocates each thread's dynamic thread vector inside pthread_create
+# (_dl_allocate_tls -> allocate_dtv -> calloc). For a thread that never exits,
+# Valgrind sees that block with no pointer it can follow and reports
+# "possibly lost". Nothing is lost: the threads are alive by design and the OS
+# reclaims their stacks and TLS at exit.
+#
+# Without this, the gate fails intermittently — it depends on how many workers
+# the pool actually spawned before the process ended:
+#
+#   960 bytes in 3 blocks are possibly lost in loss record 5 of 7
+#     at calloc / allocate_dtv (dl-tls.c:370) / _dl_allocate_tls (dl-tls.c:629)
+#     by allocate_stack / pthread_create@@GLIBC_2.34
+#     by std::thread::_M_start_thread
+#     by batch_pool.hpp:40 <- batch_verify.cpp:76
+#     by secp256k1::ecdsa_batch_verify_mt (batch_verify.cpp:787)
+#
+# Scoped to the pthread_create TLS allocation specifically. Real leaks in the
+# batch path — anything allocated by our own code and dropped — are still
+# reported, and definite/indirect leaks anywhere are untouched.
+{
+   secp256k1_batch_worker_pool_thread_tls_possibly_lost
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:calloc
+   ...
+   fun:_dl_allocate_tls
+   ...
+   fun:pthread_create*
+   ...
+}

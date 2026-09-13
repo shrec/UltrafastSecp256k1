@@ -61,23 +61,20 @@ except ImportError as exc:  # Mandatory gate: an unavailable parser is a failure
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "windows-cuda.yml"
+# "crt" was required here between 2026-07-21 (a76fef55, "install Windows CUDA
+# CRT headers") and 2026-08-26, when 0c2082ec stabilised the workflow: it
+# pinned the toolkit to 12.8.1, dropped "crt", and added
+# audit/test_windows_cuda_workflow_contract.cpp, whose subpackages_valid_no_crt
+# check asserts "crt" is never listed. That commit did not update this gate, so
+# the two contracts contradicted each other and this one failed on every push
+# from then on. This gate now mirrors the C++ contract, which is the authority
+# (it runs inside the Windows job itself, before the toolkit is installed).
 REQUIRED_SUBPACKAGES = {
     "nvcc",
     "cudart",
     "thrust",
     "visual_studio_integration",
 }
-# "crt" is not a package the Windows network installer publishes -- on Windows the
-# nvcc component already carries the CRT headers, and asking for a name that does
-# not exist makes the whole toolkit install fail rather than degrade. It was added
-# to the REQUIRED set on 2026-07-21 ("fix(ci): install Windows CUDA CRT headers"),
-# removed from the workflow again on 2026-08-26 ("ci(windows): stabilize CUDA
-# toolchain workflow") when that turned out not to work, and this set was never
-# updated to match -- so this gate demanded a sub-package that
-# audit/test_windows_cuda_workflow_contract.cpp (compiled and run as the FIRST
-# step of the same workflow) asserts must never appear. Two gates asserting
-# opposite things about one line is why the fast-gate suite could not go green;
-# the shipped workflow and the later, in-workflow contract test are authoritative.
 INVALID_WINDOWS_SUBPACKAGES = {"cudart_dev", "crt"}
 REQUIRED_TARGETS = {"secp256k1_gpu_host", "secp256k1_cuda_lib"}
 

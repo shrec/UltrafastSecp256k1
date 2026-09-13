@@ -26,19 +26,20 @@ struct Check {
 
 bool locate_workflow_file(std::string& out_path) {
     namespace fs = std::filesystem;
-    std::error_code root_ec;
+    // Compile-time repo root first: unified_audit_runner is run from arbitrary
+    // working directories (ci/check_audit_cwd_independence.py runs it from an
+    // unrelated /tmp on purpose), and a CWD-relative walk-up finds nothing
+    // there. UFSECP_SOURCE_ROOT is an absolute path baked in by
+    // audit/CMakeLists.txt on the machine that later runs the binary. The
+    // walk-up stays as the fallback for translation units built without it --
+    // the standalone cl.exe compile in .github/workflows/windows-cuda.yml,
+    // which runs from the repo root.
 #ifdef UFSECP_SOURCE_ROOT
-    // Compile-time absolute repo root, baked in by audit/CMakeLists.txt. Tried
-    // before the CWD walk-up because unified_audit_runner is routinely invoked
-    // from a directory unrelated to the tree, where the walk-up finds nothing --
-    // and "not found" in a contract test means zero checks executed, which reads
-    // as a pass. The walk-up stays for the standalone CTest and MSVC builds,
-    // which compile this file without the macro.
     {
-        fs::path const rooted =
-            fs::path(UFSECP_SOURCE_ROOT) / ".github" / "workflows" / "windows-cuda.yml";
-        if (fs::exists(rooted, root_ec)) {
-            out_path = rooted.string();
+        std::error_code ec;
+        fs::path candidate = fs::path(UFSECP_SOURCE_ROOT) / ".github" / "workflows" / "windows-cuda.yml";
+        if (fs::exists(candidate, ec)) {
+            out_path = candidate.string();
             return true;
         }
     }
@@ -58,12 +59,40 @@ bool locate_workflow_file(std::string& out_path) {
     return false;
 }
 
+// CRLF -> LF. The checks and the mutation battery below match multi-line
+// anchors such as "\n  windows-cuda:\n    name:". A Windows checkout with
+// core.autocrlf=true (the default on the hosted windows runners) stores the
+// file with CRLF, and a binary read preserves those, so every multi-line
+// anchor silently missed and the mutation setup reported "pattern not found"
+// -- the contract failed on Windows for a line-ending reason while passing
+// everywhere else. Normalising makes the contract line-ending agnostic
+// without weakening any check. Proven by the crlf_normalisation live check.
+std::string normalize_line_endings(const std::string& raw) {
+    std::string out;
+    out.reserve(raw.size());
+    for (size_t i = 0; i < raw.size(); ++i) {
+        if (raw[i] == '\r' && i + 1 < raw.size() && raw[i + 1] == '\n') continue;
+        out.push_back(raw[i]);
+    }
+    return out;
+}
+
+std::string to_crlf(const std::string& lf) {
+    std::string out;
+    out.reserve(lf.size() + lf.size() / 32 + 1);
+    for (char c : lf) {
+        if (c == '\n') out.push_back('\r');
+        out.push_back(c);
+    }
+    return out;
+}
+
 bool read_file(const std::string& path, std::string& out) {
     std::ifstream f(path, std::ios::binary);
     if (!f) return false;
     std::ostringstream ss;
     ss << f.rdbuf();
-    out = ss.str();
+    out = normalize_line_endings(ss.str());
     return true;
 }
 
@@ -333,6 +362,16 @@ int test_windows_cuda_workflow_contract_run() {
     }
 
     int failures = 0;
+
+    // Line-ending independence. The anchors below span lines, so a CRLF
+    // checkout must reduce to exactly the same text a LF checkout produces --
+    // otherwise every multi-line check silently degrades into "pattern not
+    // found" on Windows only (the failure this check exists to prevent).
+    if (normalize_line_endings(to_crlf(text)) != text) {
+        std::cerr << "[windows-cuda-workflow-contract] FAIL(live): crlf_normalisation -- "
+                     "a CRLF checkout does not normalise to the LF text the checks match against\n";
+        ++failures;
+    }
 
     std::vector<Check> live_checks = validate_workflow_contract(text);
     for (const auto& c : live_checks) {

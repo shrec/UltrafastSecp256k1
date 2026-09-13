@@ -595,10 +595,14 @@ def run_cmake_configure(build_dir: Path, install_prefix: Path, extra_flags: dict
     }
 
 
-def run_build_install(build_dir: Path, timeout_s: int = 600) -> dict:
+def run_build_install(build_dir: Path, timeout_s: int = 1200) -> dict:
     """Real `cmake --build --target install`. Only ever invoked after a
     successful configure -- this is what actually produces the installed
-    package tree that check_install_tree_contents() then inspects."""
+    package tree that check_install_tree_contents() then inspects.
+    timeout_s=1200 (was 600): the CUDA combos on GPU-less GitHub runners
+    measured 570s on dev (Sep 2026) and the audit surface keeps growing,
+    so 600s became a marginal cliff that fails valid builds; 1200s keeps
+    a 2x headroom over the slowest observed combo."""
     cmd = ["cmake", "--build", str(build_dir), "--target", "install", "-j", str(os.cpu_count() or 2)]
     t0 = time.monotonic()
     try:

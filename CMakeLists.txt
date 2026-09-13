@@ -96,6 +96,22 @@ option(SECP256K1_BUILD_TESTS "Build test suite" ON)
 option(SECP256K1_BUILD_BENCH "Build benchmarks" ON)
 option(SECP256K1_BUILD_EXAMPLES "Build example programs" ON)
 option(SECP256K1_BUILD_JAVA "Build Java JNI bindings" ON)
+# Fixed-base table: build once and reuse from disk, or rebuild every process.
+#
+# ON (default): the first process to need the table computes it (~5 s and
+#               ~250 MB at window_bits=18) and saves it; every later process
+#               loads it. It goes to the per-user cache directory the platform
+#               reserves for this -- $XDG_CACHE_HOME/secp256k1 or
+#               ~/.cache/secp256k1, ~/Library/Caches/secp256k1,
+#               %LOCALAPPDATA%\secp256k1 -- created if missing and kept.
+#               Name your own with set_cache_directory() / SECP256K1_CACHE_DIR.
+# OFF         : nothing is written; the table is rebuilt in every process.
+#
+# The location is what was wrong before, not the caching: an empty cache
+# directory used to mean the CURRENT WORKING DIRECTORY, so every process
+# touching a fixed-base multiplication left a 255 MB cache_w18.bin wherever it
+# happened to run. It never goes there now, in either mode.
+option(SECP256K1_FIXED_BASE_DISK_CACHE "Build the fixed-base precompute table once and reuse it from the per-user cache directory" ON)
 option(SECP256K1_USE_ASM "Enable assembly optimizations (x64/RISC-V)" ON)
 
 # Installation options

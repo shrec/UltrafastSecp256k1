@@ -12,6 +12,7 @@
 #endif
 
 int test_shim_der_zero_r_run()               { return ADVISORY_SKIP_CODE; }
+int test_regression_schnorr_r_zero_ct_run()   { return ADVISORY_SKIP_CODE; }
 int test_shim_null_ctx_run()                 { return ADVISORY_SKIP_CODE; }
 int test_regression_shim_high_s_verify_run() { return ADVISORY_SKIP_CODE; }
 int test_regression_shim_perf_correctness_run() { return ADVISORY_SKIP_CODE; }

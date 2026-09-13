@@ -75,6 +75,30 @@ def _scope_for(rel_dir: str) -> str:
     return f"Other ({rel_dir})"
 
 
+# `# gen_build_options-default: <text>` above an option() whose default is a
+# variable. The text is what the table prints in the Default column.
+ANNOTATION_RE = re.compile(r"^\s*#\s*gen_build_options-default:\s*(\S.*?)\s*$")
+
+
+def _annotated_default(text: str, option_start: int) -> str | None:
+    """The nearest gen_build_options-default annotation above `option_start`.
+
+    Only comment lines are crossed, so the annotation must sit in the comment
+    block immediately above the declaration -- it cannot drift onto an
+    unrelated option further up the file.
+    """
+    lines = text[:option_start].splitlines()
+    for line in reversed(lines):
+        stripped = line.strip()
+        m = ANNOTATION_RE.match(line)
+        if m:
+            return m.group(1)
+        if stripped.startswith("#") or not stripped:
+            continue
+        return None
+    return None
+
+
 def parse_options(text: str):
     """Yield (name, description, default, kind) for each option call in `text`."""
     out = []
@@ -115,6 +139,21 @@ def parse_options(text: str):
             j += 1
         dt = re.match(r"[^\s)]+", text[j:])
         default = dt.group(0) if dt else "?"
+        # A computed default (`option(X "..." ${some_var})`) has no literal to
+        # print, and rendering the raw `${some_var}` into the table tells a
+        # reader nothing. Require the declaration to say what the default
+        # actually is, in a machine-read comment directly above it:
+        #
+        #   # gen_build_options-default: ON, or OFF when CMAKE_BUILD_TYPE=Debug
+        #   option(SECP256K1_USE_LTO "..." ${_secp256k1_lto_default})
+        #
+        # Absent that, `default` keeps the `${...}` token and main() refuses to
+        # write the doc -- so a computed default can never silently render as a
+        # variable name.
+        if default.startswith("${"):
+            ann = _annotated_default(text, m.start())
+            if ann:
+                default = ann
         out.append((name, desc, default, kind))
         i = max(j, m.end())
     return out
@@ -220,7 +259,29 @@ def render() -> str:
     return "\n".join(lines)
 
 
+def _unresolved_defaults() -> list[str]:
+    """Options whose Default column would print a raw ${variable}."""
+    grouped, _total, _files = collect()
+    bad = []
+    for scope, opts in grouped.items():
+        for name, (_desc, default, _kind) in opts.items():
+            if default.startswith("${"):
+                bad.append(f"{name} (in {scope}) -> {default}")
+    return sorted(bad)
+
+
 def main() -> int:
+    unresolved = _unresolved_defaults()
+    if unresolved:
+        print("::error::option() default is a variable with no "
+              "`# gen_build_options-default:` annotation above it, so the "
+              "generated table would print the variable name instead of the "
+              "real default:")
+        for b in unresolved:
+            print(f"  - {b}")
+        print("Add a comment directly above the declaration, e.g.")
+        print("  # gen_build_options-default: ON, or OFF when CMAKE_BUILD_TYPE=Debug")
+        return 1
     content = render()
     if "--stdout" in sys.argv:
         sys.stdout.write(content)

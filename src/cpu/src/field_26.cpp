@@ -311,10 +311,14 @@ void FieldElement26::negate_assign(unsigned magnitude) noexcept {
 //   c: max ~10 products x 2^52 + u_k*R0 (2^40) ~= 2^55.3, fits uint64_t
 //   u_k: extracted 26-bit value, so u_k*R0 <= 2^40, u_k*R1 <= 2^36
 
-// Same noinline + optimize("O2") guard as fe52_mul_inner — see field_52_impl.hpp.
+// Same per-function O2 policy as fe52_mul_inner — see the "Field-kernel
+// inlining policy" block in field_52_impl.hpp. optimize("O2") is GCC-only;
+// clang ignores it (-Wunknown-attributes) and gets plain noinline here.
 // Cannot use `static` here because the function is declared in field_26.hpp.
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__GNUC__) && !defined(__clang__)
 __attribute__((optimize("O2"), noinline))
+#elif defined(__clang__)
+__attribute__((noinline))
 #else
 SECP256K1_INLINE
 #endif
@@ -496,9 +500,13 @@ void fe26_mul_inner(std::uint32_t* SECP256K1_RESTRICT r,
 // Same two-accumulator algorithm as mul, but using a[i]*a[j]=a[j]*a[i]
 // symmetry: 2*a[i]*a[j] for i!=j, a[i]^2 for i=j.
 
-// Same noinline + optimize("O2") guard as fe52_sqr_inner — see field_52_impl.hpp.
-#if defined(__GNUC__) || defined(__clang__)
+// Same per-function O2 policy as fe52_sqr_inner — see the "Field-kernel
+// inlining policy" block in field_52_impl.hpp (GCC-only optimize; clang gets
+// plain noinline).
+#if defined(__GNUC__) && !defined(__clang__)
 __attribute__((optimize("O2"), noinline))
+#elif defined(__clang__)
+__attribute__((noinline))
 #else
 SECP256K1_INLINE
 #endif

@@ -18,9 +18,9 @@
       "replay_command": "python3 ci/invalid_input_grammar.py --json",
       "freshness_days": 90,
       "severity": "blocking",
-      "last_verified": "2026-06-13",
+      "last_verified": "2026-09-13",
       "status": "pass",
-      "notes": "Invalid-input rejection verifier + adversarial-protocol hostile-caller regression. FFI corpus exercised by the audit fuzz suite on every push; ci-evidence snapshot refreshed 2026-06-13."
+      "notes": "Invalid-input rejection verifier + adversarial-protocol hostile-caller regression. FFI corpus exercised by the audit fuzz suite on every push; replay_command re-run 2026-09-13 (37/37 cases pass)."
     },
     {
       "id": "FUZZ-DER-PARSER",
@@ -31,9 +31,9 @@
       "replay_command": "ctest --test-dir build -R '^fuzz_parsers$'",
       "freshness_days": 90,
       "severity": "blocking",
-      "last_verified": "2026-06-13",
+      "last_verified": "2026-09-13",
       "status": "pass",
-      "notes": "DER parse differential regression. fuzz_parsers ci-evidence snapshot (580019 cases) refreshed 2026-06-13."
+      "notes": "DER parse differential regression. fuzz_parsers ci-evidence snapshot (580019 cases) refreshed 2026-09-13."
     },
     {
       "id": "FUZZ-ECDSA-VERIFY",
@@ -44,9 +44,9 @@
       "replay_command": "ctest --test-dir build -R '^fuzz_parsers$'",
       "freshness_days": 90,
       "severity": "blocking",
-      "last_verified": "2026-06-13",
+      "last_verified": "2026-09-13",
       "status": "pass",
-      "notes": "ECDSA DER-confusion regression; libfuzzer + cflite exercise the verify/sign surface in CI."
+      "notes": "ECDSA DER-confusion regression; libfuzzer + cflite exercise the verify/sign surface in CI. fuzz_parsers replay re-run 2026-09-13 (580019 cases, 0 failed)."
     },
     {
       "id": "FUZZ-SCHNORR-VERIFY",
@@ -57,9 +57,9 @@
       "replay_command": "ctest --test-dir build -R '^fuzz_parsers$'",
       "freshness_days": 90,
       "severity": "blocking",
-      "last_verified": "2026-06-13",
+      "last_verified": "2026-09-13",
       "status": "pass",
-      "notes": "Schnorr variable-length CT-fix regression; libfuzzer + cflite exercise the verify/sign surface in CI."
+      "notes": "Schnorr variable-length CT-fix regression; libfuzzer + cflite exercise the verify/sign surface in CI. fuzz_parsers replay re-run 2026-09-13 (580019 cases, 0 failed)."
     },
     {
       "id": "FUZZ-MUSIG2-FROST-STATEFUL",

@@ -30,30 +30,27 @@ static int g_fail = 0;
 #define ASSERT_TRUE(cond, msg)  do { if (!(cond)) { std::printf("FAIL [%s]: %s\n", __func__, (msg)); ++g_fail; } } while(0)
 #define ASSERT_FALSE(cond, msg) do { if ( (cond)) { std::printf("FAIL [%s]: %s\n", __func__, (msg)); ++g_fail; } } while(0)
 
-// Weak attribute so macOS ld64 doesn't fail when the libsecp256k1 shim is
-// not linked into the unified_audit_runner target. On platforms where the
-// shim is absent these resolve to nullptr → ctx_create returns null →
-// ADVISORY_SKIP_CODE. Linux ld permits undefined weaks by default; macOS
-// requires the explicit __attribute__((weak_import)) (alias of weak).
-#if defined(__APPLE__)
-#  define SHIM_WEAK __attribute__((weak_import))
-#elif defined(_MSC_VER)
-   // MSVC has no __attribute__((weak)): declare the shim functions strong and
-   // rely on the shim being linked (SECP256K1_BUILD_SHIM=ON in the desktop build).
-#  define SHIM_WEAK
-#else
-#  define SHIM_WEAK __attribute__((weak))
-#endif
-
+// These five symbols come from the libsecp256k1 shim. They used to be declared
+// weak so this file could sit in unified_audit_runner's unconditional source
+// list and skip when the shim was absent -- but weak undefined symbols are an
+// ELF-only idiom: Mach-O's weak_import binds to zero only for a symbol some
+// linked dylib could supply, and MSVC has no weak symbols at all. Both failed
+// the link outright (CI / macos (Release), CI / windows (Release)).
+//
+// The file is now compiled only where secp256k1_shim is genuinely linked
+// (audit/CMakeLists.txt, inside the `if(TARGET secp256k1_shim ...)` block), and
+// shim_run_stubs_unified.cpp provides the ADVISORY_SKIP_CODE stub otherwise --
+// the same arrangement every other shim-dependent module here uses. So the
+// declarations are plain and strong, and no linker has to tolerate anything.
 extern "C" {
     typedef struct { unsigned char data[64]; } secp256k1_pubkey;
     typedef struct { unsigned char data[96]; } secp256k1_keypair;
     typedef struct secp256k1_context_struct secp256k1_context;
-    SHIM_WEAK secp256k1_context* secp256k1_context_create(unsigned int flags);
-    SHIM_WEAK void secp256k1_context_destroy(secp256k1_context* ctx);
-    SHIM_WEAK int secp256k1_keypair_create(const secp256k1_context*, secp256k1_keypair*, const unsigned char*);
-    SHIM_WEAK int secp256k1_schnorrsig_sign32(const secp256k1_context*, unsigned char*, const unsigned char*, const secp256k1_keypair*, const unsigned char*);
-    SHIM_WEAK int secp256k1_schnorrsig_sign_custom(const secp256k1_context*, unsigned char*, const unsigned char*, size_t, const secp256k1_keypair*, void*);
+    secp256k1_context* secp256k1_context_create(unsigned int flags);
+    void secp256k1_context_destroy(secp256k1_context* ctx);
+    int secp256k1_keypair_create(const secp256k1_context*, secp256k1_keypair*, const unsigned char*);
+    int secp256k1_schnorrsig_sign32(const secp256k1_context*, unsigned char*, const unsigned char*, const secp256k1_keypair*, const unsigned char*);
+    int secp256k1_schnorrsig_sign_custom(const secp256k1_context*, unsigned char*, const unsigned char*, size_t, const secp256k1_keypair*, void*);
 }
 
 // Modern libsecp256k1: the SIGN/VERIFY flags are deprecated and a context can do
@@ -125,18 +122,9 @@ static void test_sign_custom_64byte(secp256k1_context* ctx) {
 
 int test_regression_schnorr_r_zero_ct_run() {
     g_fail = 0;
-#if !defined(_MSC_VER)
-    // When the libsecp256k1 shim is not linked into this binary the weak
-    // function pointers resolve to nullptr — guard against that before calling.
-    // (MSVC has no weak symbols: the functions are strong, so this guard is moot
-    // there — the shim is linked in the desktop build; ctx==null is still handled.)
-    if (!secp256k1_context_create || !secp256k1_context_destroy ||
-        !secp256k1_keypair_create || !secp256k1_schnorrsig_sign32 ||
-        !secp256k1_schnorrsig_sign_custom) {
-        std::printf("SKIP SEC-006: shim not linked\n");
-        return ADVISORY_SKIP_CODE;
-    }
-#endif
+    // No weak-pointer guard here any more: this file is only compiled when the
+    // shim is linked, so the symbols are always present. A context that still
+    // fails to create is handled below.
     secp256k1_context* ctx = secp256k1_context_create(CTX_NONE);
     if (!ctx) {
         std::printf("SKIP SEC-006: shim not linked\n");

@@ -46,6 +46,7 @@
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/ecdsa.hpp"
+#include "secp256k1/recovery.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/ct/ops.hpp"
 #include "secp256k1/ct/field.hpp"
@@ -426,6 +427,86 @@ static void test_ct_ecdsa_sign_hedged() {
 }
 
 // ============================================================================
+// Test 7b: CT ECDSA recoverable sign (ct::ecdsa_sign_recoverable)
+// ============================================================================
+// Covers the CT-ECDSA-RECOVER-SIGN surface in docs/CT_EVIDENCE_STATUS.json.
+// Recovery signing is the one secret-bearing signing path this harness did not
+// exercise, so that row had committed evidence (recovery.cpp + its two audit
+// tests) but no tool that actually re-derived the CT property. The recovery id
+// is the interesting part: it is a parity bit read off the nonce point, and the
+// obvious way to compute it -- branching on that parity -- is a nonce leak.
+static void test_ct_ecdsa_sign_recoverable() {
+    g_section = "ct_verif_recoverable";
+    (void)printf("[7b] CT ECDSA recoverable sign (ct::ecdsa_sign_recoverable)\n");
+
+    std::array<uint8_t, 32> msg_hash{};
+    fill_random(msg_hash.data(), 32);
+
+    for (int i = 0; i < 3; ++i) {
+        Scalar privkey = make_random_scalar();
+        SECP256K1_CLASSIFY(&privkey, sizeof(privkey));
+
+        auto rsig = secp256k1::ct::ecdsa_sign_recoverable(msg_hash, privkey);
+
+        // The recovery id is derived from secret nonce material; declassifying
+        // it is exactly the claim under test -- if anything branched on it
+        // before this point, memcheck has already reported the violation.
+        SECP256K1_DECLASSIFY(&rsig, sizeof(rsig));
+        CHECK(rsig.sig.r.to_bytes() != Scalar::zero().to_bytes(),
+              "CT recoverable sign produces a nonzero r");
+        CHECK(rsig.recid >= 0 && rsig.recid <= 3,
+              "CT recoverable sign produces a recovery id in [0,3]");
+
+        SECP256K1_DECLASSIFY(&privkey, sizeof(privkey));
+        auto pubkey = Point::generator().scalar_mul(privkey);
+        bool ok = secp256k1::ecdsa_verify(msg_hash.data(), pubkey, rsig.sig);
+        CHECK(ok, "CT recoverable sig verifies correctly");
+    }
+}
+
+// ============================================================================
+// Test 7c: CT scalar inverse (ct::scalar_inverse)
+// ============================================================================
+// Covers the CT-SCALAR-INVERSE surface in docs/CT_EVIDENCE_STATUS.json. The
+// inverse is reached with secret input from every ECDSA signature (s = k^-1 *
+// (...)), and an inversion whose iteration count depends on the value is the
+// classic leak, so it is checked on random secrets and on the two boundary
+// values a data-dependent implementation treats specially.
+static void test_ct_scalar_inverse() {
+    g_section = "ct_verif_scalar_inverse";
+    (void)printf("[7c] CT scalar inverse (ct::scalar_inverse)\n");
+
+    for (int i = 0; i < 5; ++i) {
+        Scalar k = make_random_scalar();
+        SECP256K1_CLASSIFY(&k, sizeof(k));
+
+        Scalar inv = secp256k1::ct::scalar_inverse(k);
+
+        SECP256K1_DECLASSIFY(&inv, sizeof(inv));
+        SECP256K1_DECLASSIFY(&k, sizeof(k));
+        CHECK((k * inv).to_bytes() == Scalar::one().to_bytes(),
+              "CT scalar_inverse satisfies k * k^-1 == 1");
+    }
+
+    // Boundary secrets: one and n-1 are self-inverse, and zero has no inverse.
+    // A branchy implementation short-circuits on exactly these.
+    Scalar edges[] = { Scalar::one(), Scalar::one().negate(), Scalar::zero() };
+    for (auto& e : edges) {
+        Scalar v = e;
+        SECP256K1_CLASSIFY(&v, sizeof(v));
+        Scalar inv = secp256k1::ct::scalar_inverse(v);
+        SECP256K1_DECLASSIFY(&inv, sizeof(inv));
+        SECP256K1_DECLASSIFY(&v, sizeof(v));
+        if (v.is_zero()) {
+            CHECK(inv.is_zero(), "CT scalar_inverse(0) is 0 (no exception, no branch)");
+        } else {
+            CHECK((v * inv).to_bytes() == Scalar::one().to_bytes(),
+                  "CT scalar_inverse satisfies v * v^-1 == 1 on a boundary secret");
+        }
+    }
+}
+
+// ============================================================================
 // Test 8: CT Field -- edge case inputs (zero, one, p-1)
 // ============================================================================
 static void test_ct_field_edge_cases() {
@@ -541,6 +622,8 @@ int test_ct_verif_formal_run() {
     test_ct_ecdsa_sign();
     test_ct_schnorr_sign();
     test_ct_ecdsa_sign_hedged();
+    test_ct_ecdsa_sign_recoverable();
+    test_ct_scalar_inverse();
     test_ct_field_edge_cases();
     test_ct_scalar_edge_cases();
     test_ct_value_barrier();

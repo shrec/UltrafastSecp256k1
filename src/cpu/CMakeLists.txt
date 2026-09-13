@@ -194,7 +194,39 @@ option(SECP256K1_RISCV_USE_VECTOR "Enable RISC-V Vector Extension (RVV) if avail
 option(SECP256K1_RISCV_USE_PREFETCH "Enable prefetch hints for cache optimization" ON)
 
 # LTO/PGO options
-option(SECP256K1_USE_LTO "Enable Link Time Optimization (LTO) for C++ code" ON)
+#
+# LTO defaults ON, but NOT for Debug. ThinLTO is propagated to consumers as an
+# INTERFACE link option (see the LTO block further down), so every executable
+# that links this library redoes whole-program codegen at link time. This repo
+# builds ~434 standalone test executables, which makes that the single largest
+# cost in any build that produces them -- and in a Debug or sanitizer build it
+# buys nothing: the binary is run once, under instrumentation, to find a bug.
+#
+# Measured on this tree (clang-18, Debug, -DSECP256K1_USE_ASM=OFF, 16 cores,
+# the same 85 targets built in both configurations, per-edge times from ninja's
+# own .ninja_log):
+#
+#            link CPU (85 targets)   median link   max link
+#   LTO ON            2110.65 s        25.11 s      83.11 s
+#   LTO OFF             18.54 s         0.21 s       0.41 s
+#                    ---------------------------------------
+#                        114x            117x         201x
+#
+# Compilation is 1.3x faster too (622 s -> 481 s), because -flto=thin also
+# slows the compile side. CI showed the same shape: the MSan job spent 2 h 03 m
+# in Build, of which 91.5% was linking (112 min across 434 links, median 25 s)
+# and only 8.5% compiling.
+#
+# Release/RelWithDebInfo/MinSizeRel keep LTO -- that is where it earns its cost,
+# and every benchmark and release artifact is built optimized. An explicit
+# -DSECP256K1_USE_LTO=ON still wins here: option() does not overwrite a cache
+# entry the user set. Pinned by ci/check_lto_build_type_default.py.
+set(_secp256k1_lto_default ON)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(_secp256k1_lto_default OFF)
+endif()
+# gen_build_options-default: ON, or OFF when CMAKE_BUILD_TYPE=Debug
+option(SECP256K1_USE_LTO "Enable Link Time Optimization (LTO) for C++ code" ${_secp256k1_lto_default})
 option(SECP256K1_USE_PGO_GEN "Enable Profile-Guided Optimization - Generate profile" OFF)
 option(SECP256K1_USE_PGO_USE "Enable Profile-Guided Optimization - Use profile" OFF)
 set(SECP256K1_PGO_PROFILE_DIR "${CMAKE_BINARY_DIR}/pgo_profiles" CACHE PATH "Directory for PGO profiles")
@@ -900,6 +932,17 @@ if(SECP256K1_HAS_ASM)
     message(STATUS "  -> field_mul: ~8ns (vs 27ns intrinsics, 40ns portable)")
     message(STATUS "  -> field_square: ~7ns (vs 21ns intrinsics, 35ns portable)")
     message(STATUS "  -> Expected K*Q: ~18-24 us (vs 66 us current)")
+endif()
+
+# Fixed-base disk cache: PUBLIC so the default in precompute.hpp matches what the
+# library itself was compiled with. Without PUBLIC a consumer including the
+# header would see use_cache=false while the library was built expecting true.
+if(SECP256K1_FIXED_BASE_DISK_CACHE)
+    target_compile_definitions(${SECP256K1_LIB_NAME} PUBLIC SECP256K1_FIXED_BASE_DISK_CACHE=1)
+    message(STATUS "  Fixed-base disk cache: ON (built once, saved to the per-user cache directory, loaded thereafter)")
+else()
+    target_compile_definitions(${SECP256K1_LIB_NAME} PUBLIC SECP256K1_FIXED_BASE_DISK_CACHE=0)
+    message(STATUS "  Fixed-base disk cache: OFF (table rebuilt in every process, nothing written)")
 endif()
 
 # Enable fast modular reduction on x86_64 (even without ASM, uses BMI2 intrinsics)

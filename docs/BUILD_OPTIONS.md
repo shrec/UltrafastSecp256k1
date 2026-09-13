@@ -4,7 +4,7 @@
 >
 > Defaults below are the **CMake declaration defaults**. Named build profiles (see [CMakePresets.json](../CMakePresets.json) and [BUILDING.md](BUILDING.md)) override many of them for a minimal footprint per coin / use case. A `cmake_dependent_option` is only honoured when its guard condition holds (otherwise it is forced off).
 
-**83 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
+**84 options** across 8 scope(s). Set any flag at configure time with `-D<FLAG>=ON|OFF`.
 
 ```bash
 # Example: CPU build with the shim + MuSig2, no ZK/FROST
@@ -39,6 +39,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_BUILD_SHARED` | `OFF` | Build shared library |
 | `SECP256K1_BUILD_TESTS` | `ON` | Build test suite |
 | `SECP256K1_CORE_BACKEND_MODE` | `OFF` | Bitcoin Core alternative backend: CT enforced, strict ABI, RFC 6979 deterministic signing |
+| `SECP256K1_FIXED_BASE_DISK_CACHE` | `ON` | Build the fixed-base precompute table once and reuse it from the per-user cache directory |
 | `SECP256K1_GPU_BUILD_BIP324` | `ON` | GPU BIP-324 AEAD encrypt/decrypt ops |
 | `SECP256K1_GPU_BUILD_BIP352` | `ON` | GPU BIP-352 silent-payment scan op |
 | `SECP256K1_GPU_BUILD_ECDH` | `ON` | GPU ECDH batch op (secret-bearing) |
@@ -83,7 +84,7 @@ cmake -S . -B out/mybuild -G Ninja -DCMAKE_BUILD_TYPE=Release \
 | `SECP256K1_UNITY_BUILD` | `OFF` | Compile core as single TU (matches libsecp256k1 model) |
 | `SECP256K1_USE_ASM` | `ON` | Enable inline assembly optimizations (x64/RISC-V, 2-5x speedup) |
 | `SECP256K1_USE_FAST_REDUCTION` | `ON` | Use fast modular reduction (RISC-V asm, x64 BMI2) |
-| `SECP256K1_USE_LTO` | `ON` | Enable Link Time Optimization (LTO) for C++ code |
+| `SECP256K1_USE_LTO` | `ON, or OFF when CMAKE_BUILD_TYPE=Debug` | Enable Link Time Optimization (LTO) for C++ code |
 | `SECP256K1_USE_PGO_GEN` | `OFF` | Enable Profile-Guided Optimization - Generate profile |
 | `SECP256K1_USE_PGO_USE` | `OFF` | Enable Profile-Guided Optimization - Use profile |
 | `SECP256K1_USE_RISCV_FE52_ASM` | `OFF` | Use hand-written RISC-V assembly for 5x52 field multiply/square (slower on in-order cores like U74) |

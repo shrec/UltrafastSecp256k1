@@ -319,6 +319,21 @@ static void run_readers_against_all_writer_paths(unsigned reader_count) {
               "public cache-load wrapper publishes validated context");
     }
 
+    // The readers must actually get to run before we stop them. On Windows a
+    // thread's start-up latency can exceed this whole 16-iteration writer loop,
+    // so `stop` was observable on a reader's very first check and `completed`
+    // stayed 0 -- a scheduling artifact, not a lifecycle failure. (CI / windows
+    // (Release): "1 reader made lifecycle progress" / "18 readers made
+    // lifecycle progress".) Bounded, so a genuine hang still fails the check
+    // below instead of spinning forever.
+    auto const progress_deadline =
+        std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (completed.load(std::memory_order_relaxed) == 0 &&
+           !failed.load(std::memory_order_acquire) &&
+           std::chrono::steady_clock::now() < progress_deadline) {
+        std::this_thread::yield();
+    }
+
     stop.store(true, std::memory_order_release);
     for (std::thread& reader : readers) reader.join();
     check(!failed.load(std::memory_order_acquire),

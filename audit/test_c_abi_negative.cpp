@@ -38,7 +38,14 @@
 #include <cstdint>
 #include <array>
 #include <filesystem>
+#include <initializer_list>
+#include <string>
 #include <system_error>
+
+// metal_shader_path_override() / clear_metal_shader_path_override(): the
+// process-global override the NEG-21 accept cases must put back (see the guard
+// in that block).
+#include "gpu_backend.hpp"
 
 #ifndef UFSECP_BUILDING
 #define UFSECP_BUILDING
@@ -1411,6 +1418,9 @@ static void run_neg21_gpu(void) {
     // unrelated temporary directory (not any build/shader directory) to
     // prove the accepted path is validated on its own merits, not resolved
     // relative to the process working directory.
+    // Captured outside the block so NEG-21.14 below can compare against it.
+    std::string const shader_path_after_check =
+        secp256k1::gpu::metal_shader_path_override();
     {
         std::error_code ec;
         auto original_cwd = std::filesystem::current_path(ec);
@@ -1418,16 +1428,50 @@ static void run_neg21_gpu(void) {
         std::filesystem::create_directories(tmp_dir, ec);
         if (!ec) std::filesystem::current_path(tmp_dir, ec);
 
+        // Put the process-global shader-path override back when this block ends.
+        //
+        // The accept cases below leave it pointing at a scratch directory that
+        // holds no metallib, and the override is deliberately fail-closed: when
+        // set it REPLACES the default search instead of extending it. In
+        // unified_audit_runner this module is number 70 of 468, so on
+        // `CI / macos (Release)` every Metal module ordered after it failed
+        // against that scratch path -- BCV-6, SW-BIP352-*, SW-BIP352-METAL-*.
+        // On a host with no Metal backend nothing noticed.
+        struct ShaderPathOverrideGuard {
+            std::string saved;
+            ShaderPathOverrideGuard()
+                : saved(secp256k1::gpu::metal_shader_path_override()) {}
+            ~ShaderPathOverrideGuard() {
+                if (saved.empty()) secp256k1::gpu::clear_metal_shader_path_override();
+                else secp256k1::gpu::set_metal_shader_path_override(saved.c_str());
+            }
+        } shader_path_guard;
+
         CHECK_ERR(ufsecp_gpu_set_metal_shader_path(nullptr),
                   "NEG-21.11: gpu_set_metal_shader_path(null) -> error");
         CHECK_ERR(ufsecp_gpu_set_metal_shader_path(""),
                   "NEG-21.11b: gpu_set_metal_shader_path(empty) -> error");
         CHECK_ERR(ufsecp_gpu_set_metal_shader_path("relative/shader/dir"),
                   "NEG-21.11c: gpu_set_metal_shader_path(relative_path) -> error (fail-closed)");
-        CHECK_ERR(ufsecp_gpu_set_metal_shader_path("/tmp/../etc"),
+        // Build the absolute cases from temp_directory_path() rather than from a
+        // "/tmp/..." literal. On Windows a path with a root-directory but no
+        // root-name is NOT absolute -- std::filesystem::path("/tmp/x").is_absolute()
+        // is false there -- so every literal below was rejected by the
+        // is_absolute() guard before the check under test was ever reached. The
+        // accept cases failed outright and the reject cases passed for the wrong
+        // reason, testing POSIX path syntax rather than the traversal policy this
+        // block exists for. (CI / windows (Release): NEG-21.11e, .12, .12b.)
+        auto const abs_base = std::filesystem::temp_directory_path(ec);
+        auto const abs_path = [&abs_base](std::initializer_list<const char*> parts) {
+            std::filesystem::path p = abs_base;
+            for (const char* part : parts) p /= part;   // no normalisation: ".." survives
+            return p.string();
+        };
+
+        CHECK_ERR(ufsecp_gpu_set_metal_shader_path(abs_path({"..", "etc"}).c_str()),
                   "NEG-21.11d: gpu_set_metal_shader_path(path_traversal) -> error (fail-closed)");
         CHECK_OK(ufsecp_gpu_set_metal_shader_path(
-                     "/tmp/ufsecp_metal_shader_override_target_neg21"),
+                     abs_path({"ufsecp_metal_shader_override_target_neg21"}).c_str()),
                  "NEG-21.11e: gpu_set_metal_shader_path(valid_absolute_path) -> accepted "
                  "(from an unrelated temp CWD; existence checked lazily on first use, not here)");
 
@@ -1440,19 +1484,19 @@ static void run_neg21_gpu(void) {
         // secp256k1::gpu::detail::path_has_dotdot_component (gpu_backend.hpp),
         // shared by set_metal_shader_path_override() and the
         // UFSECP_METAL_SHADER_PATH env-var reader in gpu_backend_metal.mm.
-        CHECK_OK(ufsecp_gpu_set_metal_shader_path("/tmp/ufsecp_neg21_v2..final_dir"),
+        CHECK_OK(ufsecp_gpu_set_metal_shader_path(abs_path({"ufsecp_neg21_v2..final_dir"}).c_str()),
                  "NEG-21.12: gpu_set_metal_shader_path: component with two dots but no "
                  "\"..\" SEGMENT (\"v2..final_dir\") -> accepted (component-based check, "
                  "not a banned substring)");
-        CHECK_OK(ufsecp_gpu_set_metal_shader_path("/tmp/my..file.metallib"),
+        CHECK_OK(ufsecp_gpu_set_metal_shader_path(abs_path({"my..file.metallib"}).c_str()),
                  "NEG-21.12b: gpu_set_metal_shader_path: leaf component \"my..file.metallib\" "
                  "(two dots inside one component, no traversal) -> accepted");
-        CHECK_ERR(ufsecp_gpu_set_metal_shader_path("/tmp/ufsecp_neg21_escape/../escape"),
+        CHECK_ERR(ufsecp_gpu_set_metal_shader_path(abs_path({"ufsecp_neg21_escape", "..", "escape"}).c_str()),
                   "NEG-21.12c: gpu_set_metal_shader_path: genuine \"..\" component "
-                  "(\"/tmp/ufsecp_neg21_escape/../escape\") -> rejected (fail-closed)");
-        CHECK_ERR(ufsecp_gpu_set_metal_shader_path("/tmp/foo/../../bar.metallib"),
+                  "(<tmp>/ufsecp_neg21_escape/../escape) -> rejected (fail-closed)");
+        CHECK_ERR(ufsecp_gpu_set_metal_shader_path(abs_path({"foo", "..", "..", "bar.metallib"}).c_str()),
                   "NEG-21.12d: gpu_set_metal_shader_path: multiple \"..\" components "
-                  "(\"/tmp/foo/../../bar.metallib\") -> rejected (fail-closed)");
+                  "(<tmp>/foo/../../bar.metallib) -> rejected (fail-closed)");
         CHECK_ERR(ufsecp_gpu_set_metal_shader_path("../escape.metallib"),
                   "NEG-21.12e: gpu_set_metal_shader_path: relative path with a \"..\" "
                   "component -> rejected (both the relative-path check and the "
@@ -1507,6 +1551,16 @@ static void run_neg21_gpu(void) {
 
         if (!ec && !original_cwd.empty()) std::filesystem::current_path(original_cwd, ec);
     }
+
+    // NEG-21.14: the accept cases above must not leave the process-global
+    // shader-path override pointing at a scratch directory. The override is
+    // fail-closed -- when set it REPLACES the default search -- so a leak here
+    // disables Metal for everything that runs afterwards in the same process.
+    // In unified_audit_runner this module is number 70 of 468.
+    CHECK_OK(secp256k1::gpu::metal_shader_path_override() == shader_path_after_check
+                 ? UFSECP_OK : UFSECP_ERR_INTERNAL,
+             "NEG-21.14: the NEG-21 block restores the Metal shader-path override it "
+             "changed, so a scratch path cannot fail-close Metal for every later caller");
 
     // ufsecp_gpu_zk_ecdsa_snark_witness_batch
     uint8_t witness[760];

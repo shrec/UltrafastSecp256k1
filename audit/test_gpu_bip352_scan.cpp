@@ -626,28 +626,70 @@ static void test_bip352_metal_scan_only_self_containment() {
 
     const std::string path = source_path.string();
     const std::string stub = stub_dir.string();
+
+    // Try more than one preprocessor. The Windows job runs ctest from a plain
+    // shell, not a Developer Command Prompt, so `cl` is not on PATH and the
+    // single hard-coded command could never succeed there -- SW-BIP352-SCANONLY
+    // -PREPROCESS failed on `CI / windows (Release)` for a missing tool, not for
+    // anything about the shader guard.
+    struct Preprocessor { const char* cmd; const char* opts; const char* define; const char* null; };
+    static const Preprocessor kCandidates[] = {
 #if defined(_WIN32)
-    const std::string cmd_default =
-        "cl /nologo /EP /TP /I\"" + stub + "\" \"" + path + "\" 2>NUL";
-    const std::string cmd_scanonly =
-        "cl /nologo /EP /TP /I\"" + stub +
-        "\" /DSECP256K1_METAL_SCAN_ONLY=1 \"" + path + "\" 2>NUL";
+        { "cl",       "/nologo /EP /TP", "/DSECP256K1_METAL_SCAN_ONLY=1", "NUL" },
+        { "clang-cl", "/nologo /EP /TP", "/DSECP256K1_METAL_SCAN_ONLY=1", "NUL" },
+        { "clang++",  "-E -P -x c++",    "-DSECP256K1_METAL_SCAN_ONLY=1", "NUL" },
+        { "g++",      "-E -P -x c++",    "-DSECP256K1_METAL_SCAN_ONLY=1", "NUL" },
 #else
-    const std::string cmd_default =
-        "cc -E -P -x c++ -I\"" + stub + "\" \"" + path + "\" 2>/dev/null";
-    const std::string cmd_scanonly =
-        "cc -E -P -x c++ -I\"" + stub +
-        "\" -DSECP256K1_METAL_SCAN_ONLY=1 \"" + path + "\" 2>/dev/null";
+        { "cc",       "-E -P -x c++",    "-DSECP256K1_METAL_SCAN_ONLY=1", "/dev/null" },
+        { "clang++",  "-E -P -x c++",    "-DSECP256K1_METAL_SCAN_ONLY=1", "/dev/null" },
+        { "g++",      "-E -P -x c++",    "-DSECP256K1_METAL_SCAN_ONLY=1", "/dev/null" },
 #endif
+    };
 
     std::string default_out;
     std::string scanonly_out;
-    const bool default_ok = run_cpp_capture(cmd_default, default_out);
-    const bool scanonly_ok = run_cpp_capture(cmd_scanonly, scanonly_out);
+    bool default_ok = false;
+    bool scanonly_ok = false;
+    const char* used = nullptr;
+    for (const auto& pp : kCandidates) {
+        std::string const inc = std::string(" -I\"") + stub + "\" \"" + path + "\" 2>" + pp.null;
+        std::string const inc_msvc = std::string(" /I\"") + stub + "\" \"" + path + "\" 2>" + pp.null;
+        bool const msvc_style = (pp.opts[0] == '/');
+        std::string const c_default = std::string(pp.cmd) + " " + pp.opts +
+                                      (msvc_style ? inc_msvc : inc);
+        std::string const c_scanonly = std::string(pp.cmd) + " " + pp.opts + " " + pp.define +
+                                       (msvc_style ? inc_msvc : inc);
+        default_out.clear();
+        scanonly_out.clear();
+        if (run_cpp_capture(c_default, default_out) &&
+            run_cpp_capture(c_scanonly, scanonly_out)) {
+            default_ok = scanonly_ok = true;
+            used = pp.cmd;
+            break;
+        }
+    }
     std::filesystem::remove_all(stub_dir, fs_error);
-    CHECK(default_ok && scanonly_ok, "SW-BIP352-SCANONLY-PREPROCESS",
-          "default and scan-only preprocessing complete with the Metal stub");
-    if (!default_ok || !scanonly_ok) return;
+    if (!default_ok || !scanonly_ok) {
+        // No preprocessor on PATH is a missing tool, not a guard regression.
+        // Reported, never silently passed -- the remaining SW-BIP352 checks in
+        // this module still run and still gate.
+        SKIP("SW-BIP352-SCANONLY-PREPROCESS",
+             "no C++ preprocessor on PATH (tried cl / clang-cl / clang++ / g++ / cc) "
+             "-- the Metal scan-only guard could not be preprocessed here");
+        return;
+    }
+    // Assert something the preprocessor could actually get wrong, rather than
+    // that it ran: both passes produced output, and -DSECP256K1_METAL_SCAN_ONLY
+    // changed it. If the define were ignored -- a stale include path, a guard
+    // spelled differently, a preprocessor that silently dropped -D -- the two
+    // outputs would be identical and every per-marker count below would compare
+    // the same text against itself.
+    CHECK(!default_out.empty() && !scanonly_out.empty() &&
+              default_out != scanonly_out,
+          "SW-BIP352-SCANONLY-PREPROCESS",
+          "both preprocessings produced output and -DSECP256K1_METAL_SCAN_ONLY changed it");
+    std::printf("  preprocessor: %s  (default %zu bytes, scan-only %zu bytes)\n",
+                used, default_out.size(), scanonly_out.size());
 
     const char* toxic[] = {
         "ct_ecdsa_sign_metal",

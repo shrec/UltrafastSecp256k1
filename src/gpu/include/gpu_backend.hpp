@@ -853,5 +853,26 @@ inline std::string metal_shader_path_override() {
     return detail::metal_shader_path_storage();
 }
 
+/** Drop any explicit override, restoring the default search.
+ *
+ *  There was no way to do this. set_metal_shader_path_override() rejects null
+ *  and empty (both are documented as errors, and the C ABI's null case is
+ *  pinned by test_c_abi_negative NEG-21.11), so once ANY caller set an
+ *  override the process was pinned to it for its lifetime -- and the override
+ *  path is deliberately fail-closed, with no fallback to the default search.
+ *
+ *  That is a real gap for any host that wants to point at a directory
+ *  temporarily, and it was actively breaking the audit suite on macOS: both
+ *  test_gpu_abi_gate's thread-safety case and test_c_abi_negative's NEG-21
+ *  cases set an override to a scratch directory that holds no metallib, and
+ *  never put it back. Every Metal operation afterwards in the same process
+ *  then failed closed against that directory -- gpu_abi_gate's GROW-1..4, and
+ *  in unified_audit_runner every Metal module ordered after c_abi_negative
+ *  (module 70 of 468). On platforms with no Metal backend nothing noticed. */
+inline void clear_metal_shader_path_override() {
+    std::lock_guard<std::mutex> lock(detail::metal_shader_path_mutex());
+    detail::metal_shader_path_storage().clear();
+}
+
 } // namespace gpu
 } // namespace secp256k1

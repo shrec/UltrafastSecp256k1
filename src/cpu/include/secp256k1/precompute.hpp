@@ -52,13 +52,61 @@ struct FixedBaseConfig {
     unsigned thread_count = 0U;         // 0 = auto-detect
     
     // Cache configuration
-    bool use_cache = true;              // Enable cache system
+    //
+    // The fixed-base table is built ONCE and reused: the first process to need
+    // it computes it and writes it out, and every later process on the machine
+    // loads it instead of recomputing. At the default window_bits=18 that is a
+    // ~250 MB file and roughly 5 s of arithmetic, so this is the difference
+    // between paying that once and paying it per process.
+    //
+    //   ON (default): built on first use, saved, loaded thereafter. See
+    //                 cache_dir below for WHERE -- the per-user cache directory
+    //                 the platform reserves for this, never the working
+    //                 directory.
+    //   OFF         : built in memory on every start, nothing is written.
+    //                 Build with -DSECP256K1_FIXED_BASE_DISK_CACHE=OFF, or set
+    //                 use_cache=false through configure_fixed_base().
+    //
+    // The location is the part that was wrong before, not the caching. An empty
+    // cache_dir used to mean the CURRENT WORKING DIRECTORY, so a process that
+    // touched a fixed-base multiplication dropped cache_w18.bin into wherever it
+    // happened to be running and left it there. Reported by Eric Voskuil
+    // (evoskuil): "a math lib leaves files behind in our working directory" was
+    // his last-choice outcome, and it was what we shipped. It now goes to the
+    // per-user cache directory, which is his second choice (manageable, with a
+    // sane default) rather than his fourth.
+#if defined(SECP256K1_FIXED_BASE_DISK_CACHE) && !SECP256K1_FIXED_BASE_DISK_CACHE
+    bool use_cache = false;
+#else
+    bool use_cache = true;
+#endif
     std::string cache_path{};           // Empty = auto-detect cache path from cache_dir
     // MSan note: std::string SSO bits are untracked with uninstrumented libc++.
     // Use this bool (plain scalar, MSan-clean) instead of cache_path.empty() checks
     // inside critical paths that run under MSan (e.g. ensure_built_locked).
     bool cache_path_set = false;        // true when cache_path was explicitly set
-    std::string cache_dir = "";         // Default cache directory with all precomputed tables
+    // Where the cache goes when use_cache is on.
+    //
+    //   set   : the caller owns the file. It is written there, read from there,
+    //           and never deleted by the library.
+    //   empty : the per-user cache directory the platform reserves for this --
+    //             Linux/BSD  $XDG_CACHE_HOME/secp256k1 else ~/.cache/secp256k1
+    //             macOS      ~/Library/Caches/secp256k1
+    //             Windows    %LOCALAPPDATA%\secp256k1
+    //           created if missing, and the table is KEPT so the next process
+    //           loads it. Only if none of those can be determined does it fall
+    //           back to the system temp directory, and only that fallback is
+    //           removed when the process exits.
+    //
+    // Never the current working directory, in any mode.
+    //
+    // Previously an empty cache_dir meant exactly that -- the CWD -- and a set
+    // cache_dir was consulted only for READING: get_default_cache_path()
+    // returned the cache_dir path only when a file already existed there, so the
+    // first run of a process that had called set_cache_directory() still wrote
+    // into the CWD. "You can specify any dir" was therefore not true until
+    // someone had seeded the file by hand.
+    std::string cache_dir = "";
     unsigned max_windows_to_load = 0U;  // Load all windows for optimal performance
     
     // Progress reporting

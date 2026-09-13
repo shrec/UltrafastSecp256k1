@@ -61,6 +61,22 @@ if(SECP256K1_BUILD_METAL AND TARGET secp256k1_metal_lib)
     list(APPEND GPU_BACKEND_SOURCES src/gpu_backend_metal.mm)
     list(APPEND GPU_BACKEND_DEFS SECP256K1_HAVE_METAL=1)
     list(APPEND GPU_BACKEND_LIBS secp256k1_metal_lib)
+    # Absolute path to the metallib this build produces, so a binary run from
+    # any working directory can find it. src/metal/CMakeLists.txt emits it into
+    # its own CMAKE_CURRENT_BINARY_DIR; every other candidate in
+    # gpu_backend_metal.mm is relative to the CWD, and ctest runs the audit
+    # binaries from <build>/audit, which no relative spelling connects to
+    # <build>/src/metal. Test builds only -- an installed library must not
+    # carry a build-tree path.
+    if(SECP256K1_BUILD_TESTS)
+        list(APPEND GPU_BACKEND_DEFS
+             "UFSECP_METAL_METALLIB_DIR=\"${CMAKE_BINARY_DIR}/src/metal\"")
+        # The shader SOURCES, in the source tree. The runtime-compile fallback
+        # needs them when the prebuilt metallib cannot be loaded, and unlike the
+        # build-tree copies this directory always exists and is always complete.
+        list(APPEND GPU_BACKEND_DEFS
+             "UFSECP_METAL_SHADER_SRC_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../metal/shaders\"")
+    endif()
     message(STATUS "  GPU API: Metal backend enabled")
 endif()
 

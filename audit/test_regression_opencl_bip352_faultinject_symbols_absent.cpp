@@ -74,13 +74,20 @@
 #include <string>
 #include <array>
 
+// audit_read_source_file(): CWD-independent source resolution via UFSECP_SOURCE_ROOT.
+#include "audit_check.hpp"
+
 #ifdef __linux__
 #include <unistd.h>
 #elif defined(__APPLE__)
 #include <mach-o/dyld.h>
+#elif defined(_WIN32)
+#include <windows.h>
 #endif
 
-static constexpr int ADVISORY_SKIP_CODE = 77;
+#include <fstream>
+#include <iterator>
+
 static int g_fail = 0;
 static int g_checked_something = 0;
 
@@ -107,8 +114,25 @@ static std::string self_exe_path() {
     char buf[4096];
     uint32_t size = sizeof(buf);
     if (_NSGetExecutablePath(buf, &size) == 0) return std::string(buf);
+#elif defined(_WIN32)
+    // Windows had no branch here at all, so SAS-2/SAS-3 could never run and the
+    // module returned ADVISORY_SKIP_CODE -- which, registered advisory=false,
+    // the runner counts as a FAIL. (CI / windows (Release), unified_audit.)
+    char buf[4096];
+    DWORD n = GetModuleFileNameA(nullptr, buf, static_cast<DWORD>(sizeof(buf)));
+    if (n > 0 && n < sizeof(buf)) return std::string(buf, n);
 #endif
     return {};
+}
+
+// Quote a path for the shell popen() actually uses: cmd.exe on Windows, which
+// does not treat '...' as quoting at all, and /bin/sh elsewhere.
+static std::string shell_quote(const std::string& path) {
+#ifdef _WIN32
+    return "\"" + path + "\"";
+#else
+    return "'" + path + "'";
+#endif
 }
 
 // Run `cmd`, returning {invocation_succeeded, combined stdout+stderr}.
@@ -164,7 +188,19 @@ static bool contains_any_hook_symbol(const std::string& nm_output, const char** 
 // variant that does not define it) keeps the original security assertion:
 // the hooks must be ABSENT. The two expectations are deliberately opposite
 // and both real -- this is not a weakened test, it is a two-sided one.
-#if defined(SECP256K1_BUILD_FAULT_INJECTION_TESTS)
+// SECP256K1_BUILD_FAULT_INJECTION_TESTS alone is not enough: the hooks are
+// defined in gpu_backend_opencl.cpp, which only enters this binary when the
+// OpenCL backend is compiled in (SECP256K1_HAVE_OPENCL, from
+// audit_gpu_backends_provider). With the macro set but OpenCL off, the macro is
+// vacuously true -- nothing defines the hooks and `nm` should find nothing.
+//
+// That case used to pass anyway, for the wrong reason: the two BIP-352 fault
+// -injection tests declared the hooks `__attribute__((weak))`, and an undefined
+// weak reference still appears in `nm` output. The positive control was
+// matching the reference, not a definition. Those declarations are now keyed on
+// the same two conditions (2026-09-06, the macOS/Windows link fix), so `nm`
+// reflects reality and this expectation has to as well.
+#if defined(SECP256K1_BUILD_FAULT_INJECTION_TESTS) && defined(SECP256K1_HAVE_OPENCL)
 static constexpr bool kHooksExpectedPresent = true;
 #else
 static constexpr bool kHooksExpectedPresent = false;
@@ -188,7 +224,7 @@ static void test_symbols_absent_from_running_binary() {
 
     // -- SAS-2: local/static symbol table --
     {
-        auto [ok, out] = run_capture("nm '" + self + "'");
+        auto [ok, out] = run_capture("nm " + shell_quote(self));
         if (!ok) {
             std::printf("  [advisory-skip] SAS-2: failed to invoke nm on self\n");
         } else {
@@ -218,7 +254,7 @@ static void test_symbols_absent_from_running_binary() {
     // -- SAS-3: dynamic/exported symbol table (defense-in-depth against a
     //           visibility-only "fix") --
     {
-        auto [ok, out] = run_capture("nm -D '" + self + "'");
+        auto [ok, out] = run_capture("nm -D " + shell_quote(self));
         if (!ok) {
             std::printf("  [advisory-skip] SAS-3: failed to invoke `nm -D` on self\n");
         } else {
@@ -248,15 +284,64 @@ static void test_symbols_absent_from_running_binary() {
     }
 }
 
+// SAS-1: the source-level floor, which needs no toolchain and no
+// introspection of the running binary, so it runs on every platform.
+//
+// SAS-2/SAS-3 ask `nm` what is in the artifact. That is the stronger question
+// and stays the primary one -- but when it cannot be asked (no nm, or no way to
+// name our own executable) the module used to execute ZERO checks and return
+// ADVISORY_SKIP_CODE, which the runner counts as a FAIL for an advisory=false
+// module. This asks the question that is always answerable: are all four hook
+// definitions inside the SECP256K1_BUILD_FAULT_INJECTION_TESTS guard in the
+// file that defines them? If one ever escapes that guard, the symbol lands in
+// every build regardless of what any particular platform's nm can see.
+static void test_hook_definitions_are_macro_gated() {
+    std::string const src = audit_read_source_file("src/gpu/src/gpu_backend_opencl.cpp");
+    if (src.empty()) {
+        std::printf("  [advisory-skip] SAS-1: src/gpu/src/gpu_backend_opencl.cpp not readable\n");
+        return;
+    }
+    g_checked_something = 1;
+
+    // The guarded region: from the #if that opens it to the #endif that names
+    // it. Every hook definition must fall inside.
+    std::size_t const guard_begin =
+        src.find("#if defined(SECP256K1_BUILD_FAULT_INJECTION_TESTS)");
+    ASSERT_TRUE(guard_begin != std::string::npos,
+                "SAS-1: gpu_backend_opencl.cpp still gates the fault-injection hooks on "
+                "#if defined(SECP256K1_BUILD_FAULT_INJECTION_TESTS)");
+    if (guard_begin == std::string::npos) return;
+
+    std::size_t const guard_end = src.find("#endif", guard_begin);
+    ASSERT_TRUE(guard_end != std::string::npos,
+                "SAS-1: the fault-injection guard in gpu_backend_opencl.cpp is closed");
+    if (guard_end == std::string::npos) return;
+
+    for (auto* sym : kHookSymbols) {
+        std::size_t at = src.find(sym);
+        bool all_inside = (at != std::string::npos);
+        while (at != std::string::npos) {
+            if (at < guard_begin || at > guard_end) { all_inside = false; break; }
+            at = src.find(sym, at + 1);
+        }
+        char msg[256];
+        std::snprintf(msg, sizeof(msg),
+            "SAS-1: every mention of '%s' in gpu_backend_opencl.cpp is inside the "
+            "SECP256K1_BUILD_FAULT_INJECTION_TESTS guard", sym);
+        ASSERT_TRUE(all_inside, msg);
+    }
+}
+
 int test_regression_opencl_bip352_faultinject_symbols_absent_run() {
     std::printf("\n=== OpenCL BIP-352 fault-injection hooks absent from release build (SAS-1..3) ===\n");
     g_fail = 0;
     g_checked_something = 0;
 
+    test_hook_definitions_are_macro_gated();
     test_symbols_absent_from_running_binary();
 
     if (!g_checked_something) {
-        std::printf("  Result: advisory-skip (no usable nm/self-exe on this platform)\n");
+        std::printf("  Result: advisory-skip (no usable source, nm or self-exe on this platform)\n");
         return ADVISORY_SKIP_CODE;
     }
 

@@ -349,6 +349,14 @@ __device__ inline bool ecdsa_verify(
     // Check r, s are non-zero
     if (scalar_is_zero(&sig->r) || scalar_is_zero(&sig->s)) return false;
 
+    // Reject out-of-range compact scalars (r >= n or s >= n). The batch kernel
+    // already rejects these in ecdsa_sig_parse_compact_strict; the collect path
+    // consumes host-preconverted limbs with no parse (bytes_to_ecdsa_sig), so
+    // this single guard keeps EVERY ecdsa_verify route identical. Previously the
+    // collect path reduced s+n (s >= n) mod n, silently accepting a malleated
+    // compact signature that batch/OpenCL/CPU all reject as non-canonical.
+    if (scalar_ge(&sig->r, ORDER) || scalar_ge(&sig->s, ORDER)) return false;
+
     // z = message hash as scalar
     Scalar z;
     scalar_from_bytes(msg_hash, &z);

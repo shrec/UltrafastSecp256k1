@@ -76,10 +76,10 @@ These top-level differentiators are claim-keyed in the ledger: exploit-audit sur
 | ABI gate | FFI round-trip stability, C ABI regression detection | Full suite |
 | Performance regression | Micro-benchmark gate available for release/manual deep assurance | Manual / release |
 | **Deep differential** | Random round-trip differential tests against reference implementations | **~1,300,000+ per deep run** |
-| **Total (audit runner)** | **unified_audit_runner** across 191 non-exploit modules + 276 exploit-PoC modules (467 total) | **~1,000,000+** |
+| **Total (audit runner)** | **unified_audit_runner** across 202 non-exploit modules + 276 exploit-PoC modules (478 total) | **~1,000,000+** |
 | **Total (exploit PoC tests)** | **276 exploit-PoC modules** (264 source files — 9 modules share a file or use inline shim stubs) across 20+ coverage categories | **276 modules, 0 failures** |
 
-All 191 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures in the current CI run (not a lifetime claim — see `docs/AUDIT_COVERAGE.md` for current status).
+All 202 non-exploit audit modules across all tested platforms return **AUDIT-READY**. Zero failures in the current CI run (not a lifetime claim — see `docs/AUDIT_COVERAGE.md` for current status).
 All 276 exploit-PoC modules pass. Zero failures in the current CI run across all 20+ coverage categories.
 
 ### Self-Audit Documents
@@ -196,9 +196,9 @@ Every benchmark number in this project is:
 
 **GPU throughput:** not yet measured under canonical protocol — see "GPU Profile" section above. Out of scope for Bitcoin Core evaluation.
 
-**Canonical x86-64 numbers (i5-14400F, GCC 14.2.0, 2026-09-03):**
+**Canonical x86-64 numbers (i5-14400F, GCC 14.2.0, 2026-09-07):**
 
-Source: [`docs/bench_unified_2026-09-03_gcc14_x86-64.json`](bench_unified_2026-09-03_gcc14_x86-64.json)
+Source: [`docs/bench_unified_2026-09-07_gcc14_x86-64.json`](bench_unified_2026-09-07_gcc14_x86-64.json)
 
 | Operation | Latency | Note |
 |-----------|---------|------|

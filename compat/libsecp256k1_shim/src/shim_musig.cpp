@@ -469,7 +469,7 @@ int secp256k1_musig_pubkey_xonly_tweak_add(
     bool const g_neg = e->ctx.Q_negated;
     Point A2 = e->ctx.Q.add(tG);
     if (A2.is_infinity()) return 0;
-    if (g_neg) e->ctx.gacc.negate_inplace();                  // gacc = g*gacc
+    if (g_neg) e->ctx.gacc = e->ctx.gacc.negate();            // gacc = g*gacc
     e->ctx.tacc = (g_neg ? e->ctx.tacc.negate() : e->ctx.tacc) + t; // tacc = t + g*tacc
     bool a_odd = !A2.has_even_y();
     e->ctx.Q = a_odd ? A2.negate() : A2;

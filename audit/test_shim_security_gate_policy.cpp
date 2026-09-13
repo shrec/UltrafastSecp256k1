@@ -22,10 +22,10 @@
 //
 // Layer 2 requires `bash` and `python3` on PATH; if either is unavailable
 // (e.g. a Windows/MSVC-only environment) the executable scenarios are
-// skipped with a notice and only layer 1 runs -- this file is not yet wired
-// into unified_audit_runner's advisory/non-advisory classification, so no
-// ADVISORY_SKIP_CODE convention applies here (see file-level note at the
-// bottom of this file about deferred wiring).
+// skipped with a notice and only layer 1 runs. Layer 1 is pure text analysis
+// over a file that always exists in a checked-out tree, so the module is
+// registered non-advisory and never returns ADVISORY_SKIP_CODE: losing
+// layer 2 narrows what is proven, it does not make the module inapplicable.
 #include <algorithm>
 #include <cstdio>
 #include <filesystem>
@@ -35,11 +35,22 @@
 #include <vector>
 
 #ifdef _WIN32
+#  include <process.h>
 #  define popen  _popen
 #  define pclose _pclose
 #else
 #  include <sys/wait.h>
+#  include <unistd.h>
 #endif
+
+// Current process id, spelled the same way on both platforms.
+static unsigned long long getpid_portable() {
+#ifdef _WIN32
+    return static_cast<unsigned long long>(_getpid());
+#else
+    return static_cast<unsigned long long>(::getpid());
+#endif
+}
 
 static int g_pass = 0, g_fail = 0;
 #define CHECK(cond, msg) do { \
@@ -50,44 +61,65 @@ static int g_pass = 0, g_fail = 0;
 namespace {
 
 const char* kGateYmlPath = ".github/workflows/gate.yml";
-
-// Resolve kGateYmlPath against the compile-time repo root when there is one.
-// Wired into unified_audit_runner, this file is run from whatever directory the
-// runner was launched in; a bare relative path finds gate.yml only when that
-// happens to be the repo root. Everywhere else read_file() fails, and a contract
-// test that cannot read its contract executes zero checks -- which reports as a
-// pass, not a skip. The relative path remains the fallback for the standalone
-// build, which is compiled without UFSECP_SOURCE_ROOT.
-std::string resolve_gate_yml() {
-    namespace fs = std::filesystem;
-    std::error_code ec;
-#ifdef UFSECP_SOURCE_ROOT
-    fs::path const rooted = fs::path(UFSECP_SOURCE_ROOT) / ".github" / "workflows" / "gate.yml";
-    if (fs::exists(rooted, ec)) return rooted.string();
-#endif
-    fs::path dir = fs::current_path(ec);
-    if (!ec) {
-        for (int i = 0; i < 10; ++i) {
-            fs::path const candidate = dir / ".github" / "workflows" / "gate.yml";
-            if (fs::exists(candidate, ec)) return candidate.string();
-            fs::path const parent = dir.parent_path();
-            if (parent.empty() || parent == dir) break;
-            dir = parent;
-        }
-    }
-    return std::string(kGateYmlPath);
-}
 const char* kStepStartMarker = "- name: Run shim security regression modules";
 const char* kNextStepMarker = "\n      - name:";
 const char* kRunnerInvocation =
     "./out/ci-shim/audit/unified_audit_runner --json-only --report-dir .";
+
+// Walk up from the current directory to find the repo-relative file. The
+// module is dispatched both by unified_audit_runner (run from the repo root)
+// and by its own CTest target (run from the build tree), so a bare relative
+// path only works in one of them.
+bool locate_repo_file(const std::string& rel_path, std::string& out_path) {
+    namespace fs = std::filesystem;
+    // Compile-time repo root first -- see the note in
+    // test_windows_cuda_workflow_contract.cpp: unified_audit_runner is
+    // deliberately run from an unrelated working directory by
+    // ci/check_audit_cwd_independence.py, where a walk-up resolves nothing.
+#ifdef UFSECP_SOURCE_ROOT
+    {
+        std::error_code ec;
+        fs::path candidate = fs::path(UFSECP_SOURCE_ROOT) / rel_path;
+        if (fs::exists(candidate, ec)) {
+            out_path = candidate.string();
+            return true;
+        }
+    }
+#endif
+    fs::path dir = fs::current_path();
+    for (int i = 0; i < 10; ++i) {
+        fs::path candidate = dir / rel_path;
+        std::error_code ec;
+        if (fs::exists(candidate, ec)) {
+            out_path = candidate.string();
+            return true;
+        }
+        fs::path parent = dir.parent_path();
+        if (parent.empty() || parent == dir) break;
+        dir = parent;
+    }
+    return false;
+}
+
+// CRLF -> LF: the ordering and step-boundary checks below match multi-line
+// anchors such as "\n      - name:", which a CRLF checkout (the default on
+// Windows runners) would never match after a binary read.
+std::string normalize_line_endings(const std::string& raw) {
+    std::string out;
+    out.reserve(raw.size());
+    for (size_t i = 0; i < raw.size(); ++i) {
+        if (raw[i] == '\r' && i + 1 < raw.size() && raw[i + 1] == '\n') continue;
+        out.push_back(raw[i]);
+    }
+    return out;
+}
 
 bool read_file(const std::string& path, std::string& out) {
     std::ifstream f(path, std::ios::binary);
     if (!f) return false;
     std::ostringstream ss;
     ss << f.rdbuf();
-    out = ss.str();
+    out = normalize_line_endings(ss.str());
     return true;
 }
 
@@ -221,9 +253,15 @@ bool run_scenario(const std::string& dedented_script,
 } // namespace
 
 int test_shim_security_gate_policy_run() {
-    std::string const gate_yml_path = resolve_gate_yml();
-    printf("[shim-gate-report-policy] Contract checks against %s\n", gate_yml_path.c_str());
+    printf("[shim-gate-report-policy] Contract checks against %s\n", kGateYmlPath);
     g_pass = g_fail = 0;
+
+    std::string gate_yml_path;
+    if (!locate_repo_file(kGateYmlPath, gate_yml_path)) {
+        printf("  FAIL [%s:%d] could not locate %s from cwd or any of its 10 parents\n",
+               __FILE__, __LINE__, kGateYmlPath);
+        return 1;
+    }
 
     std::string gate_yml;
     if (!read_file(gate_yml_path, gate_yml)) {
@@ -313,8 +351,21 @@ int test_shim_security_gate_policy_run() {
     // rework): extract the real run script, dedent it exactly as YAML would,
     // swap the external runner for a controlled stub, and execute the actual
     // bash+python pipeline end-to-end for each policy outcome.
-    bool have_bash = tool_available("bash --version");
-    bool have_python3 = tool_available("python3 --version");
+    // Layer 2 executes the extracted step as a POSIX shell script: it cds into
+    // a scratch directory, runs bash and python3, and compares exit codes. On
+    // Windows both tools may be present (Git Bash, the python launcher) while
+    // the script still cannot run as written -- native paths, drive letters and
+    // the shell's own quoting differ -- so a probe that only asks "is bash on
+    // PATH" reports a false positive there and layer 2 fails for reasons that
+    // have nothing to do with the gate.yml contract under test. Layer 1 is the
+    // portable half and still runs everywhere.
+#if defined(_WIN32)
+    bool const have_bash = false;
+    bool const have_python3 = false;
+#else
+    bool const have_bash = tool_available("bash --version");
+    bool const have_python3 = tool_available("python3 --version");
+#endif
     if (!have_bash || !have_python3) {
         printf("  [shim-gate-report-policy] bash/python3 unavailable in this environment -- "
                "skipping executable scenario checks (static contract checks above still apply)\n");
@@ -324,7 +375,14 @@ int test_shim_security_gate_policy_run() {
             CHECK(false, "gate.yml: could not extract+dedent the step's run script for executable checks");
         } else {
             namespace fs = std::filesystem;
-            fs::path scratch_root = fs::temp_directory_path() / "ufsecp_shim_gate_policy_test";
+            // Process-unique: this module now runs both as its own CTest
+            // target and inside unified_audit_runner (itself the `unified_audit`
+            // test), so under `ctest -j` two copies can be live at once. A
+            // shared scratch root would let one remove_all() the directory the
+            // other is still writing scenarios into.
+            fs::path scratch_root = fs::temp_directory_path() /
+                ("ufsecp_shim_gate_policy_test_" + std::to_string(
+                    static_cast<unsigned long long>(getpid_portable())));
             std::error_code ec;
             fs::create_directories(scratch_root, ec);
 
@@ -365,6 +423,6 @@ int test_shim_security_gate_policy_run() {
     return g_fail;
 }
 
-#if defined(STANDALONE_TEST) || !defined(UNIFIED_AUDIT_RUNNER)
+#ifdef STANDALONE_TEST
 int main() { return test_shim_security_gate_policy_run(); }
 #endif

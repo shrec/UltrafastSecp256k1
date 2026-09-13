@@ -432,30 +432,36 @@ jobs:
       - name: PR #353 MSVC link-retention fixture (ctest: runtime + best-effort symbol proof)
         run: ctest --test-dir build/pr353-msvc-link-retention -C ${{ matrix.build_type }} --output-on-failure -R pr353_msvc_link_retention
 
-      - name: PR #353 MSVC link-retention fixture (dumpbin symbol assertion)
-        # Authoritative, machine-verifiable symbol-table proof for
-        # acceptance item 6: locates dumpbin.exe via vswhere (independent of
-        # whether the plain PATH used by `cmake --build` above exposes it),
-        # then asserts the anchor symbol is present in the RETAINED
-        # executable and absent from the BASELINE (negative control)
-        # executable.
+      - name: PR #353 MSVC link-retention fixture (link-map symbol assertion)
+        # Machine-verifiable symbol-level proof for acceptance item 6: asserts
+        # the anchor symbol is present in the RETAINED image and absent from
+        # the BASELINE (negative control) image.
+        #
+        # Reads the LINKER MAP, not `dumpbin /symbols <exe>`. A linked MSVC
+        # image carries no COFF symbol table -- symbols live in the PDB -- so
+        # /symbols returns nothing for ANY executable and the old form of this
+        # step reported a CONTRACT VIOLATION on the first run that ever reached
+        # it, while the runtime CTests immediately above PASSED. The member was
+        # retained; the question was being put to an artifact that cannot
+        # answer it. The map records which archive members and symbols were
+        # pulled into the image, which is exactly the property under test.
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
-          $vsPath = & $vswhere -latest -products * -property installationPath
-          $dumpbin = Get-ChildItem -Path "$vsPath\VC\Tools\MSVC" -Recurse -Filter dumpbin.exe |
-              Where-Object { $_.FullName -match 'Hostx64\\x64' } | Select-Object -First 1
-          if (-not $dumpbin) { throw "dumpbin.exe not found under $vsPath" }
+          $retained = "build/pr353-msvc-link-retention/${{ matrix.build_type }}/pr353_link_retention_retained.map"
+          $baseline = "build/pr353-msvc-link-retention/${{ matrix.build_type }}/pr353_link_retention_baseline.map"
 
-          $retained = "build/pr353-msvc-link-retention/${{ matrix.build_type }}/pr353_link_retention_retained.exe"
-          $baseline = "build/pr353-msvc-link-retention/${{ matrix.build_type }}/pr353_link_retention_baseline.exe"
+          foreach ($m in @($retained, $baseline)) {
+            if (-not (Test-Path $m)) {
+              throw "PR353 FIXTURE BROKEN: link map $m was not produced -- LINKER:/MAP is not reaching the linker, so this step cannot prove anything"
+            }
+          }
 
-          $retainedSyms = & $dumpbin.FullName /symbols $retained | Select-String "pr353_link_retention_anchor"
-          $baselineSyms = & $dumpbin.FullName /symbols $baseline | Select-String "pr353_link_retention_anchor"
+          $retainedSyms = Select-String -Path $retained -Pattern "pr353_link_retention_anchor"
+          $baselineSyms = Select-String -Path $baseline -Pattern "pr353_link_retention_anchor"
 
           if (-not $retainedSyms) {
-            throw "PR353 CONTRACT VIOLATION: pr353_link_retention_anchor missing from $retained -- LINKER:/INCLUDE: retention is broken on MSVC"
+            throw "PR353 CONTRACT VIOLATION: pr353_link_retention_anchor absent from the retained image's link map $retained -- LINKER:/INCLUDE: retention is broken on MSVC"
           }
           Write-Host "OK: anchor symbol retained via LINKER:/INCLUDE: in $retained"
 

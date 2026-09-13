@@ -23,6 +23,16 @@
 - [ ] New tests added (if applicable)
 - [ ] Benchmark results attached (if performance-related)
 
+## Credit
+
+<!-- If this fixes something someone else reported, credit them in the commit, not just
+     in the docs — GitHub's contributors graph only counts commit authorship.
+     See CONTRIBUTING.md § Crediting Issue Reporters. -->
+
+- [ ] Fixes an issue someone else reported → the fix commit carries
+      `Co-authored-by: <reporter> <...@users.noreply.github.com>`
+- [ ] N/A — no external report behind this change
+
 ## Hot Path Checklist (if applicable)
 
 - [ ] Zero heap allocations in hot path

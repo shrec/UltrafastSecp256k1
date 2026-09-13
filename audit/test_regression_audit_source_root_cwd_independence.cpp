@@ -86,6 +86,7 @@
 #include <vector>
 #include <filesystem>
 #include <functional>
+#include <algorithm>
 #include <atomic>
 
 #ifdef _WIN32
@@ -313,7 +314,8 @@ using ChildHandle = intptr_t;
 ChildHandle spawn_child(const std::string& exe, int id) {
     std::string id_str = std::to_string(id);
     return _spawnl(_P_NOWAIT, exe.c_str(), exe.c_str(),
-                    kConcurrencyChildFlag, id_str.c_str(), nullptr);
+                    kConcurrencyChildFlag, id_str.c_str(),
+                    static_cast<const char*>(nullptr));
 }
 int wait_child(ChildHandle h) {
     if (h == -1) return -1;
@@ -338,6 +340,14 @@ int run_capture_child(int id) {
         std::printf("child-marker-%d\n", id);
         return 0;
     }, rc);
+    // Windows opens the capture file in text mode, so the '\n' this child
+    // printed comes back as "\r\n" while the ifstream reads it in binary.
+    // That is line-ending translation, not a capture collision -- without
+    // this every child on Windows exited 1 and check [4] failed for a reason
+    // it does not test (CI / windows (Release)). Normalise, then keep the
+    // comparison exact: a sibling's marker, a truncated read or an empty read
+    // still fails.
+    out.erase(std::remove(out.begin(), out.end(), '\r'), out.end());
     return (rc == 0 && out == expected) ? 0 : 1;
 }
 #endif // STANDALONE_TEST && !UNIFIED_AUDIT_RUNNER

@@ -71,6 +71,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <cctype>
@@ -95,6 +96,7 @@
 #if defined(_WIN32)
 #include <process.h>  // _getpid()
 #include <io.h>       // _findfirst, _findnext
+#include <direct.h>   // _mkdir
 #else
 #include <unistd.h>   // getpid()
 #include <dirent.h>   // opendir, readdir
@@ -647,7 +649,22 @@ std::shared_ptr<PrecomputeContext> g_context;
 // mutex-owned owner, so an in-flight reader remains protected by its TLS owner.
 std::shared_ptr<PrecomputeContext> g_context_owner;
 std::atomic<PrecomputeContext const*> g_published_context{nullptr};
-thread_local std::shared_ptr<PrecomputeContext const> tl_context_owner;
+// alignas(64): required for Android arm64, and right on its own merits.
+//
+// Bionic refuses to load an executable whose PT_TLS segment is aligned below
+// 64 bytes on arm64 ("executable's TLS segment is underaligned: alignment is 8,
+// needs to be at least 64 for ARM64 Bionic"). Every thread_local in this
+// library is naturally 8- or 16-aligned, so the segment came out at 8 and ANY
+// Android arm64 executable linking libfastsecp256k1 failed to start. Verified
+// on a Rockchip RK3588 (Cortex-A76) with a plain benchmark binary; the CI
+// android(arm64-v8a) job only cross-compiles and never executes on a device,
+// which is why this was never caught.
+//
+// Raising this one object to a cache line fixes the segment alignment for the
+// whole library, and it is the object worth aligning: it is the per-thread hot
+// owner on the issue #336 acquisition path, so a cache line of its own also
+// keeps it off a line shared with another thread's state.
+alignas(64) thread_local std::shared_ptr<PrecomputeContext const> tl_context_owner;
 
 static_assert(
     std::atomic<PrecomputeContext const*>::is_always_lock_free,
@@ -2282,27 +2299,182 @@ void invalidate_context_locked() {
 #if defined(__clang__)
 __attribute__((no_sanitize("memory")))
 #endif
-std::string get_default_cache_path(unsigned window_bits) {
-    // Build cache filename with GLV suffix if enabled
+// Create one directory. Existing is success; a missing parent is not created.
+bool make_directory(const std::string& path) {
+    if (path.empty()) return false;
+    struct stat st{};
+    if (::stat(path.c_str(), &st) == 0) {
+        return (st.st_mode & S_IFDIR) != 0;
+    }
+#if defined(_WIN32)
+    return _mkdir(path.c_str()) == 0 || errno == EEXIST;
+#else
+    return ::mkdir(path.c_str(), 0700) == 0 || errno == EEXIST;
+#endif
+}
+
+// mkdir -p, splitting on both separators so a Windows path works too.
+bool make_directories(const std::string& path) {
+    if (path.empty()) return false;
+    std::string built;
+    built.reserve(path.size());
+    for (std::size_t i = 0; i < path.size(); ++i) {
+        char const c = path[i];
+        bool const sep = (c == '/' || c == '\\');
+        if (sep) {
+            // A leading "/" or a drive root ("C:\") is not a directory to create.
+            if (!built.empty() && built != "." && built.find_first_not_of("/\\") != std::string::npos &&
+                !(built.size() == 2 && built[1] == ':')) {
+                if (!make_directory(built)) return false;
+            }
+        }
+        built += c;
+    }
+    return make_directory(built);
+}
+
+// The system temp directory. Used only as a fallback when no per-user cache
+// directory can be determined -- a file placed there is session-scoped and is
+// removed when the process exits (see register_temp_cache_for_cleanup).
+//
+// Deliberately not std::filesystem::temp_directory_path(): it throws on a
+// missing TMPDIR target and reads env through libstdc++ internals that MSan
+// does not instrument. The variables below are the same ones it consults.
+std::string system_temp_dir() {
+    for (const char* var : {"TMPDIR", "TMP", "TEMP"}) {
+        const char* v = std::getenv(var);
+        if (v && *v) {
+            std::string d(v);
+            while (d.size() > 1 && (d.back() == '/' || d.back() == '\\')) d.pop_back();
+            return d;
+        }
+    }
+#if defined(_WIN32)
+    return ".";   // no TMP/TEMP set on Windows is pathological; stay put
+#else
+    return "/tmp";
+#endif
+}
+
+// Where the cache goes when the caller did not name a directory.
+//
+// The point of the cache is that the fixed-base table is built ONCE and every
+// later process loads it, so the default has to be somewhere that survives the
+// process -- the per-user cache directory the platform already reserves for
+// exactly this. Never the current working directory: a math library dropping a
+// 255 MB cache_w18.bin into whatever directory it happened to run in was
+// Eric Voskuil's report, and it is what this replaces.
+//
+//   Linux/BSD   $XDG_CACHE_HOME/secp256k1  else  $HOME/.cache/secp256k1
+//   macOS       $HOME/Library/Caches/secp256k1
+//   Windows     %LOCALAPPDATA%\secp256k1
+//
+// The same convention write_fixed_base_config() already used for the auto-tune
+// config file, so a machine keeps its table and its config side by side.
+//
+// `persistent` is false only when none of those could be determined or created
+// and we fell back to the temp directory. That is the one case where the file
+// is ours to delete on exit; a table in the user cache directory is the whole
+// point and stays.
+struct DefaultCacheDir {
+    std::string path;
+    bool persistent = false;
+};
+
+DefaultCacheDir compute_default_cache_dir() {
+    std::string user_dir;
+#if defined(_WIN32)
+    if (const char* local_app_data = std::getenv("LOCALAPPDATA")) {
+        if (*local_app_data) user_dir = std::string(local_app_data) + "\\secp256k1";
+    }
+#elif defined(__APPLE__)
+    if (const char* home = std::getenv("HOME")) {
+        if (*home) user_dir = std::string(home) + "/Library/Caches/secp256k1";
+    }
+#else
+    if (const char* xdg = std::getenv("XDG_CACHE_HOME")) {
+        if (*xdg) user_dir = std::string(xdg) + "/secp256k1";
+    }
+    if (user_dir.empty()) {
+        if (const char* home = std::getenv("HOME")) {
+            if (*home) user_dir = std::string(home) + "/.cache/secp256k1";
+        }
+    }
+#endif
+    if (!user_dir.empty() && make_directories(user_dir)) {
+        return DefaultCacheDir{user_dir, true};
+    }
+    return DefaultCacheDir{system_temp_dir(), false};
+}
+
+// Resolved once: the answer cannot change within a process, and the directory
+// creation should not be repeated on every cache lookup.
+const DefaultCacheDir& default_cache_dir_info() {
+    static const DefaultCacheDir info = compute_default_cache_dir();
+    return info;
+}
+
+std::string default_cache_dir() { return default_cache_dir_info().path; }
+
+std::string cache_filename(unsigned window_bits) {
     std::string filename = "cache_w" + std::to_string(window_bits);
     if (g_config.enable_glv) {
         filename += "_glv";
     }
     filename += ".bin";
-    
-    // Use configured cache directory
-    if (!g_config.cache_dir.empty()) {
-        std::string cache_path = g_config.cache_dir + "/" + filename;
-        // Use stat() instead of std::filesystem::exists() to avoid
-        // MSan false positives from uninstrumented libstdc++ internals.
-        struct stat st;
-        if (::stat(cache_path.c_str(), &st) == 0) {
-            return cache_path;
-        }
-    }
-    
-    // Fall back to current directory
     return filename;
+}
+
+// Resolve the cache path for BOTH reading and writing.
+//
+// The previous version consulted cache_dir only when a file already existed
+// there and otherwise returned a bare filename -- i.e. the current working
+// directory. Two consequences, both reported from the field: a caller that had
+// set a cache directory still wrote its first cache into the CWD, and a caller
+// that had set nothing got a 255 MB cache_w18.bin dropped wherever it happened
+// to be running. Neither is a thing a math library should do.
+std::string get_default_cache_path(unsigned window_bits) {
+    std::string const filename = cache_filename(window_bits);
+    std::string const dir = g_config.cache_dir.empty() ? default_cache_dir()
+                                                       : g_config.cache_dir;
+    return dir + "/" + filename;
+}
+
+// True when the cache file is a temp-directory fallback that WE chose and that
+// is therefore ours to delete on exit.
+//
+// Two things have to hold. The caller must not have named a path or directory
+// -- a named location means the caller wants the file and keeps it. And our own
+// default must have fallen back to the temp directory, which happens only when
+// no per-user cache directory could be determined or created. A table in the
+// per-user cache directory is deliberately kept: building it once and loading
+// it ever after is the entire reason the cache exists.
+bool cache_path_is_ours() {
+    return !g_config.cache_path_set && g_config.cache_dir.empty() &&
+           !default_cache_dir_info().persistent;
+}
+
+// Remove-on-exit for a cache file this library placed in the temp directory.
+//
+// evoskuil's preference order was: don't write it at all; else let us control
+// the path; else treat it as a temp file that is cleaned up; and only last,
+// leave it in the working directory. The default is now the first of those, and
+// this makes the opt-in-without-a-path case the third rather than the fourth.
+//
+// std::atexit rather than a static destructor: the path is a plain C string
+// captured by value, so nothing here depends on the order in which other static
+// objects (including g_config) are destroyed.
+void register_temp_cache_for_cleanup(const std::string& path) {
+    static std::once_flag once;
+    static std::string kept_path;
+    std::call_once(once, [&path] {
+        kept_path = path;
+        std::atexit([] {
+            if (!kept_path.empty()) {
+                std::remove(kept_path.c_str());
+            }
+        });
+    });
 }
 
 bool write_field_element(std::ofstream& file, const FieldElement& fe) {
@@ -2351,7 +2523,19 @@ bool save_precompute_cache_locked(const std::string& path) {
     }
     
     PrecomputeContext const& ctx = *g_context_owner;
-    
+
+    // Create the directory if the caller named one that does not exist yet.
+    // Our own default is created when it is resolved; this covers
+    // set_cache_directory() / SECP256K1_CACHE_DIR pointing somewhere new, so
+    // "name a directory and the table lands there" works on the FIRST run
+    // rather than only after someone has created it by hand.
+    {
+        std::size_t const slash = path.find_last_of("/\\");
+        if (slash != std::string::npos && slash > 0) {
+            (void)make_directories(path.substr(0, slash));
+        }
+    }
+
     // Atomic write: write to a temporary file, then rename.
     // This prevents cross-process races where a reader sees a partially-written file
     // (e.g. when CTest runs tests in parallel with -j).
@@ -2614,8 +2798,13 @@ void ensure_built_locked() {
             }
             publish_context_locked(std::move(next));
 
-            // Save to cache for next time
-            save_precompute_cache_locked(cache_path);
+            // Save to cache for next time.
+            if (save_precompute_cache_locked(cache_path) && cache_path_is_ours()) {
+                // We chose this path (the temp default), so we clean it up.
+                // A caller who named a directory asked for persistence and keeps
+                // their file. Registered once; the path is stable for the process.
+                register_temp_cache_for_cleanup(cache_path);
+            }
         } else {
             // Cache disabled, just build in memory
             std::shared_ptr<PrecomputeContext> next(build_context(g_config));
@@ -2631,34 +2820,98 @@ void ensure_built_locked() {
 // copy, environment overrides and invalidation in one critical section avoids
 // racing configure_fixed_base_auto()'s cache-directory preservation with
 // configure_fixed_base() or set_cache_directory().
-void apply_fixed_base_config_locked(const FixedBaseConfig& config) {
-    g_config = config;
+// Field-by-field equality. Deliberately exhaustive rather than a subset of
+// "the fields that shape the table": build_context() snapshots the WHOLE config
+// into ctx->config, and callers read settings back off that snapshot, so
+// keeping a context alive across a change to any field would let g_config and
+// ctx->config disagree. Comparing everything means the only thing this can do
+// is skip work that was provably unnecessary.
+bool same_fixed_base_config(const FixedBaseConfig& a, const FixedBaseConfig& b) {
+    return a.window_bits          == b.window_bits &&
+           a.enable_glv           == b.enable_glv &&
+           a.use_jsf              == b.use_jsf &&
+           a.adaptive_glv         == b.adaptive_glv &&
+           a.glv_min_window_bits  == b.glv_min_window_bits &&
+           a.use_comb             == b.use_comb &&
+           a.comb_width           == b.comb_width &&
+           a.thread_count         == b.thread_count &&
+           a.use_cache            == b.use_cache &&
+           a.cache_path           == b.cache_path &&
+           a.cache_path_set       == b.cache_path_set &&
+           a.cache_dir            == b.cache_dir &&
+           a.max_windows_to_load  == b.max_windows_to_load &&
+           a.progress_callback    == b.progress_callback &&
+           a.autotune             == b.autotune &&
+           a.autotune_iters       == b.autotune_iters &&
+           a.autotune_min_w       == b.autotune_min_w &&
+           a.autotune_max_w       == b.autotune_max_w &&
+           a.autotune_log_path    == b.autotune_log_path &&
+           a.db_path              == b.db_path &&
+           a.bloom_filter_path    == b.bloom_filter_path &&
+           a.fulldb_path          == b.fulldb_path;
+}
 
-    if (g_config.adaptive_glv && g_config.enable_glv &&
-        g_config.window_bits < g_config.glv_min_window_bits) {
-        g_config.enable_glv = false;
+// Apply a configuration, and rebuild the table only if the configuration
+// actually changed.
+//
+// Re-applying the SAME settings used to throw away the built context and
+// recompute it from scratch. That is a real cost -- the default window_bits=18
+// table is ~250 MB -- and callers reasonably configure defensively: Selftest()
+// (src/cpu/src/selftest.cpp) opens with `FixedBaseConfig cfg{}; configure...;
+// ensure_fixed_base_ready();` on EVERY invocation, so a process that ran the
+// selftest eight times rebuilt the table eight times.
+//
+// This went unnoticed while the disk cache defaulted on: each "rebuild" was a
+// load of cache_w18.bin rather than a recomputation. Turning that default off
+// (evoskuil's report: the file was being left in the caller's working
+// directory) removed the padding and exposed the waste -- audit/
+// test_exploit_selftest_api went from 6.6 s to a 120 s CI timeout, and the
+// whole ctest suite from 496 s to 1670 s. Measured on this tree, one binary,
+// SECP256K1_FIXED_BASE_DISK_CACHE toggled and nothing else:
+//   cache ON, cold  6.0 s     cache ON, warm  4.3 s     cache OFF  23.8-24.3 s
+//
+// The cache is not the fix and neither is a longer timeout: a no-op
+// reconfiguration should not be a quarter-gigabyte of arithmetic.
+void apply_fixed_base_config_locked(const FixedBaseConfig& config) {
+    FixedBaseConfig incoming = config;
+
+    if (incoming.adaptive_glv && incoming.enable_glv &&
+        incoming.window_bits < incoming.glv_min_window_bits) {
+        incoming.enable_glv = false;
     }
 
+    // Environment overrides are folded in BEFORE the comparison: they are part
+    // of the effective configuration, so a second call with the same argument
+    // and the same environment has to compare equal.
     if (const char* env_dir = std::getenv("SECP256K1_CACHE_DIR")) {
         if (*env_dir && std::string(env_dir).find("..") == std::string::npos) {
-            g_config.cache_dir = env_dir;
+            incoming.cache_dir = env_dir;
         }
     }
     if (const char* env_path = std::getenv("SECP256K1_CACHE_PATH")) {
         if (*env_path && std::string(env_path).find("..") == std::string::npos) {
-            g_config.cache_path = env_path;
-            g_config.cache_path_set = true;
+            incoming.cache_path = env_path;
+            incoming.cache_path_set = true;
         }
     }
     if (const char* env_maxw = std::getenv("SECP256K1_MAX_WINDOWS")) {
         auto const value =
             static_cast<unsigned>(std::strtoul(env_maxw, nullptr, 10));
         if (value > 0U) {
-            g_config.max_windows_to_load = value;
+            incoming.max_windows_to_load = value;
         }
     }
 
-    invalidate_context_locked();
+    // A context that does not exist yet cannot be kept, so the first call
+    // through here always falls through to invalidate.
+    bool const unchanged =
+        g_context_owner && same_fixed_base_config(incoming, g_config);
+
+    g_config = incoming;
+
+    if (!unchanged) {
+        invalidate_context_locked();
+    }
 }
 
 PrecomputeContext const& acquire_context_for_current_thread() {
