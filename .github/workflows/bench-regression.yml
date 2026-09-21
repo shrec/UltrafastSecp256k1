@@ -181,7 +181,7 @@ jobs:
       # must not block releases. Controlled regression decisions use the local
       # bench_unified full protocol documented in CLAUDE.md.
       if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-      uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
+      uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc # v1
       with:
         name: 'Perf Regression Gate'
         tool: 'customSmallerIsBetter'
@@ -199,7 +199,7 @@ jobs:
       # BLOCKS PR if regression exceeds threshold.
       # 2026-05-23: same 150%→200% bump as the push step — see comment above.
       if: github.event_name == 'pull_request'
-      uses: benchmark-action/github-action-benchmark@a7bc2366eda11037936ea57d811a43b3418d3073 # v1
+      uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc # v1
       with:
         name: 'Perf Regression Gate'
         tool: 'customSmallerIsBetter'
