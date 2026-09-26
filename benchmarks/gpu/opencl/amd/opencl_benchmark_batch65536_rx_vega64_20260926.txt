@@ -1,0 +1,124 @@
+UltrafastSecp256k1 OpenCL Benchmark (Batch Throughput)
+======================================================
+
+OpenCL Device: gfx900:xnack-
+  Vendor: Advanced Micro Devices, Inc.
+  Version: OpenCL 2.0 
+  Driver: 3581.0 (HSA1.1,LC)
+  Global Memory: 8176 MB
+  Local Memory: 64 KB
+  Compute Units: 64
+  Max Clock: 1630 MHz
+
+Device: gfx900:xnack- (Advanced Micro Devices, Inc.)
+Compute Units: 64
+Global Memory: 8176 MB
+Batch Size: 65536
+
+Field Arithmetic (batch=65536):
+--------------------------------------------------
+  Field Add                 20.4 ns/op  (49.00 M/s)
+  Field Sub                 18.9 ns/op  (52.88 M/s)
+  Field Mul                 18.8 ns/op  (53.13 M/s)
+  Field Sqr                 13.1 ns/op  (76.16 M/s)
+  Field Inv                424.0 ns/op  (2.36 M/s)
+
+Point Operations (batch=65536):
+--------------------------------------------------
+  Point Double              42.8 ns/op  (23.34 M/s)
+  Point Add                 82.4 ns/op  (12.14 M/s)
+
+Scalar Multiplication:
+--------------------------------------------------
+  kG (batch=256)            50.5 us/op  (20 K/s)
+  kP (batch=256)           109.8 us/op  (9 K/s)
+  kG (batch=1024)           12.7 us/op  (79 K/s)
+  kP (batch=1024)           27.5 us/op  (36 K/s)
+  kG (batch=4096)            3.2 us/op  (313 K/s)
+  kP (batch=4096)            6.9 us/op  (144 K/s)
+  kG (batch=16384)           1.8 us/op  (544 K/s)
+  kP (batch=16384)           1.8 us/op  (570 K/s)
+  kG (batch=65536)           1.8 us/op  (547 K/s)
+  kP (batch=65536)           1.7 us/op  (581 K/s)
+
+Batch Field Inversion:
+--------------------------------------------------
+  Inv (batch=256)           28.0 us/op  (36 K/s)
+  Inv (batch=1024)           7.0 us/op  (143 K/s)
+  Inv (batch=4096)           1.8 us/op  (568 K/s)
+  Inv (batch=16384)        449.4 ns/op  (2.23 M/s)
+
+============================================================
+KERNEL-ONLY Timing (no buffer alloc/copy overhead):
+============================================================
+
+Field Arithmetic (kernel-only, batch=65536):
+--------------------------------------------------
+  Field Add                  1.7 ns/op  (577.81 M/s)
+  Field Sub                  1.5 ns/op  (676.58 M/s)
+  Field Mul                  1.5 ns/op  (657.37 M/s)
+  Field Sqr                  0.8 ns/op  (1235.27 M/s)
+  Field Inv                410.0 ns/op  (2.44 M/s)
+
+Affine Point Addition (kernel-only, batch=65536):
+--------------------------------------------------
+  Affine Add (2M+1S+inv)     417.5 ns/op  (2.40 M/s)
+  Affine Lambda (2M+1S)       3.7 ns/op  (270.59 M/s)
+  Affine X-Only (1M+1S)       3.0 ns/op  (337.71 M/s)
+  Jac->Affine (per-pt)     414.1 ns/op  (2.42 M/s)
+
+Point & Scalar (kernel-only, batch=65536):
+--------------------------------------------------
+  Point Double               5.0 ns/op  (200.40 M/s)
+  Point Add                 26.9 ns/op  (37.17 M/s)
+  kG (kernel)                1.8 us/op  (553 K/s)
+  kP (kernel)                1.7 us/op  (592 K/s)
+  kP (upload)               11.9 ns/op  (84.02 M/s)
+  kP (readback)             15.5 ns/op  (64.61 M/s)
+
+[SKIP] Cannot find secp256k1_extended.cl — signature benchmarks skipped
+
+[SKIP] Cannot find secp256k1_zk.cl — ZK benchmarks skipped
+
+============================================================
+Summary:
+------------------------------------------------------------
+  Field Add                 20.4 ns/op  (49.00 M/s)
+  Field Sub                 18.9 ns/op  (52.88 M/s)
+  Field Mul                 18.8 ns/op  (53.13 M/s)
+  Field Sqr                 13.1 ns/op  (76.16 M/s)
+  Field Inv                424.0 ns/op  (2.36 M/s)
+  Point Double              42.8 ns/op  (23.34 M/s)
+  Point Add                 82.4 ns/op  (12.14 M/s)
+  kG (batch=256)            50.5 us/op  (20 K/s)
+  kP (batch=256)           109.8 us/op  (9 K/s)
+  kG (batch=1024)           12.7 us/op  (79 K/s)
+  kP (batch=1024)           27.5 us/op  (36 K/s)
+  kG (batch=4096)            3.2 us/op  (313 K/s)
+  kP (batch=4096)            6.9 us/op  (144 K/s)
+  kG (batch=16384)           1.8 us/op  (544 K/s)
+  kP (batch=16384)           1.8 us/op  (570 K/s)
+  kG (batch=65536)           1.8 us/op  (547 K/s)
+  kP (batch=65536)           1.7 us/op  (581 K/s)
+  Inv (batch=256)           28.0 us/op  (36 K/s)
+  Inv (batch=1024)           7.0 us/op  (143 K/s)
+  Inv (batch=4096)           1.8 us/op  (568 K/s)
+  Inv (batch=16384)        449.4 ns/op  (2.23 M/s)
+  Field Add                  1.7 ns/op  (577.81 M/s)
+  Field Sub                  1.5 ns/op  (676.58 M/s)
+  Field Mul                  1.5 ns/op  (657.37 M/s)
+  Field Sqr                  0.8 ns/op  (1235.27 M/s)
+  Field Inv                410.0 ns/op  (2.44 M/s)
+  Affine Add (2M+1S+inv)     417.5 ns/op  (2.40 M/s)
+  Affine Lambda (2M+1S)       3.7 ns/op  (270.59 M/s)
+  Affine X-Only (1M+1S)       3.0 ns/op  (337.71 M/s)
+  Jac->Affine (per-pt)     414.1 ns/op  (2.42 M/s)
+  Point Double               5.0 ns/op  (200.40 M/s)
+  Point Add                 26.9 ns/op  (37.17 M/s)
+  kG (kernel)                1.8 us/op  (553 K/s)
+  kP (kernel)                1.7 us/op  (592 K/s)
+  kP (upload)               11.9 ns/op  (84.02 M/s)
+  kP (readback)             15.5 ns/op  (64.61 M/s)
+============================================================
+
+Benchmark complete!

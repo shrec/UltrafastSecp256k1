@@ -173,6 +173,7 @@ See individual platform directories for detailed results:
 - [**ESP32-S3 Embedded** OK](cpu/esp32/embedded/) - **Updated 2026-02-13**
 - [ARM64 Linux](cpu/arm64/linux/)
 - [CUDA RTX 4090](gpu/cuda/rtx-40xx/)
+- [**OpenCL AMD RX Vega 64** OK](gpu/opencl/amd/) - **Updated 2026-09-26**
 
 ## 🏆 Platform Performance Comparison
 

@@ -1,0 +1,93 @@
+{
+  "schema": "ufsecp-lbtc-direct-benchmark-v1",
+  "target_context": "libbitcoin-direct-cpp",
+  "claim_scope": "local direct C++ libbitcoin batch-verify throughput",
+  "c_abi_required": false,
+  "shim_required": false,
+  "bridge_required": false,
+  "batch_size": 262144,
+  "iters": 3,
+  "pool": 50000,
+  "results": [
+    {
+      "surface": "ufsecp::lbtc",
+      "kind": "ECDSA-row",
+      "batch_size": 262144,
+      "iters": 3,
+      "pool": 50000,
+      "max_threads": 1,
+      "best_seconds": 10.982386286,
+      "m_sig_per_sec": 0.0238694936759
+    },
+    {
+      "surface": "ufsecp::lbtc",
+      "kind": "Schnorr-row",
+      "batch_size": 262144,
+      "iters": 3,
+      "pool": 50000,
+      "max_threads": 1,
+      "best_seconds": 8.171199702,
+      "m_sig_per_sec": 0.032081457994
+    },
+    {
+      "surface": "ufsecp::lbtc",
+      "kind": "ECDSA-columns",
+      "batch_size": 262144,
+      "iters": 3,
+      "pool": 50000,
+      "max_threads": 1,
+      "best_seconds": 1.943824183,
+      "m_sig_per_sec": 0.134859933472
+    },
+    {
+      "surface": "ufsecp::lbtc",
+      "kind": "Schnorr-columns",
+      "batch_size": 262144,
+      "iters": 3,
+      "pool": 50000,
+      "max_threads": 1,
+      "best_seconds": 1.872682216,
+      "m_sig_per_sec": 0.139983173739
+    },
+    {
+      "surface": "ufsecp::lbtc",
+      "kind": "ECDSA-row",
+      "batch_size": 262144,
+      "iters": 3,
+      "pool": 50000,
+      "max_threads": 24,
+      "best_seconds": 0.849216187,
+      "m_sig_per_sec": 0.308689358508
+    },
+    {
+      "surface": "ufsecp::lbtc",
+      "kind": "Schnorr-row",
+      "batch_size": 262144,
+      "iters": 3,
+      "pool": 50000,
+      "max_threads": 24,
+      "best_seconds": 0.624489451,
+      "m_sig_per_sec": 0.419773303745
+    },
+    {
+      "surface": "ufsecp::lbtc",
+      "kind": "ECDSA-columns",
+      "batch_size": 262144,
+      "iters": 3,
+      "pool": 50000,
+      "max_threads": 24,
+      "best_seconds": 1.943613431,
+      "m_sig_per_sec": 0.13487455675
+    },
+    {
+      "surface": "ufsecp::lbtc",
+      "kind": "Schnorr-columns",
+      "batch_size": 262144,
+      "iters": 3,
+      "pool": 50000,
+      "max_threads": 24,
+      "best_seconds": 1.872461492,
+      "m_sig_per_sec": 0.139999674824
+    }
+  ]
+}

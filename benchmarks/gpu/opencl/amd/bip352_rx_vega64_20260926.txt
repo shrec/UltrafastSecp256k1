@@ -1,0 +1,49 @@
+OpenCL Device: gfx900:xnack-
+  Vendor: Advanced Micro Devices, Inc.
+  Version: OpenCL 2.0 
+  Driver: 3581.0 (HSA1.1,LC)
+  Global Memory: 8176 MB
+  Local Memory: 64 KB
+  Compute Units: 64
+  Max Clock: 1630 MHz
+============================================================
+  BIP-352 Silent Payments Pipeline: CPU vs OpenCL
+============================================================
+  Device: gfx900:xnack- (Advanced Micro Devices, Inc.)
+  N = 500000 tweak points, 11 passes (median)
+
+  Local size = 128
+
+Generating 500000 deterministic tweak points...
+Done.
+Building OpenCL BIP352 pipeline kernel...
+Done.
+Pre-warming GPU clock (15 passes)...
+Done.
+
+Autotuning fused kernel local size...
+  local= 64 ->   2651.3 ns/op
+  local=128 ->   2650.8 ns/op
+  local=256 ->   2650.7 ns/op
+  selected local=256 for fused kernel
+
+  Running with local_size=256
+
+--- OpenCL (fused pipeline) ---
+  pass  1: 1325.698 ms
+  pass  2: 1325.566 ms
+  pass  3: 1325.433 ms
+  pass  4: 1325.432 ms
+  pass  5: 1325.524 ms
+  pass  6: 1325.466 ms
+  pass  7: 1325.566 ms
+  pass  8: 1325.429 ms
+  pass  9: 1325.627 ms
+  pass 10: 1325.459 ms
+  pass 11: 1325.504 ms
+
+  OpenCL: 2651.0 ns/op (0.38 M/s)
+  validation prefix: 0xe59efcd59f7bc496
+  CUDA reference:    179.1 ns/op (5.58 M/s) [GLV]
+  gap vs CUDA:       14.80x
+  Validation: [OK] MATCH
