@@ -130,7 +130,6 @@ static inline void sha512_update(SHA512Ctx* ctx, const uchar* data, uint len) {
         ctx->buf[ctx->buf_len++] = data[offset++];
     }
 }
-}
 
 static inline void sha512_final(SHA512Ctx* ctx, uchar out[64]) {
     ulong bit_len = ctx->total * 8;
