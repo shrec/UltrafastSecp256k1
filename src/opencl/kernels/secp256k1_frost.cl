@@ -40,6 +40,18 @@ static inline int frost_decompress_sec1(const __global uchar* sec1_33,
 }
 
 // -----------------------------------------------------------------------------
+// Read a 32-byte big-endian scalar from global memory.
+// scalar_from_bytes_impl takes a private array, so the bytes are copied first.
+// -----------------------------------------------------------------------------
+static inline void frost_scalar_from_global(const __global uchar* bytes32,
+                                            Scalar* out)
+{
+    uchar bytes[32];
+    for (int i = 0; i < 32; i++) bytes[i] = bytes32[i];
+    scalar_from_bytes_impl(bytes, out);
+}
+
+// -----------------------------------------------------------------------------
 // Convert a JacobianPoint to affine x bytes (big-endian) and y-parity.
 // Returns 0 if the point is at infinity, 1 on success.
 // Uses field_inv_impl to normalize Z if Z != 1.
@@ -98,9 +110,9 @@ __kernel void frost_verify_partial(
 
     /* ---- Parse scalars -------------------------------------------------- */
     Scalar z_i, rho_i, lambda_ie;
-    scalar_from_bytes_impl(z_i32       + tid * 32, &z_i);
-    scalar_from_bytes_impl(rho_i32     + tid * 32, &rho_i);
-    scalar_from_bytes_impl(lambda_ie32 + tid * 32, &lambda_ie);
+    frost_scalar_from_global(z_i32       + tid * 32, &z_i);
+    frost_scalar_from_global(rho_i32     + tid * 32, &rho_i);
+    frost_scalar_from_global(lambda_ie32 + tid * 32, &lambda_ie);
 
     /* ---- Decompress points ---------------------------------------------- */
     JacobianPoint D_jac, E_jac, Y_jac;
