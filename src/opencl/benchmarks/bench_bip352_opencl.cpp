@@ -503,8 +503,10 @@ int main(int argc, char** argv) {
     cl_int err = CL_SUCCESS;
     cl_program program = clCreateProgramWithSource(cl_ctx, 1, &src_ptr, &src_len, &err);
     check_cl(err, "clCreateProgramWithSource");
-    std::string build_options = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable"
-        " -cl-nv-opt-level=3";
+    std::string build_options = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable";
+    // NVIDIA-specific; other compilers reject unknown build options.
+    if (ctx->device_info().is_nvidia)
+        build_options += " -cl-nv-opt-level=3";
     err = clBuildProgram(program, 1, &cl_dev, build_options.c_str(), nullptr, nullptr);
     if (err != CL_SUCCESS) {
         size_t log_size = 0;
