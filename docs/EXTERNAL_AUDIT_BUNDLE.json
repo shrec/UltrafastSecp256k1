@@ -65,7 +65,7 @@
     {
       "name": "audit_gate",
       "parsed_json": {
-        "audit_verdict": "FAIL",
+        "audit_verdict": "PASS with advisory",
         "checks": [
           {
             "findings": [
@@ -200,8 +200,20 @@
           {
             "findings": [
               {
-                "message": "Graph is fresh (built: 2026-09-26T08:46:49)",
-                "severity": "PASS"
+                "message": "3 files modified/deleted since graph build (2026-09-26T09:01:47)",
+                "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: docs/INCIDENT_DRILL_LOG.json",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/INTEGRATION_EVIDENCE_STATUS.json",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
+                "severity": "INFO"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -384,7 +396,7 @@
           {
             "findings": [
               {
-                "message": "2 changed files have matching docs",
+                "message": "3 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -642,12 +654,8 @@
           {
             "findings": [
               {
-                "message": "integration evidence blocking failures: ['INT-SHIM-PARITY']",
-                "severity": "FAIL"
-              },
-              {
-                "message": "INT-SHIM-PARITY [blocking]: last_verified 31d ago (> 30d freshness SLO)",
-                "severity": "FAIL"
+                "message": "9 integration surfaces (1 blocking, 4 warning, 4 owner-gated); no blocking failures",
+                "severity": "PASS"
               },
               {
                 "message": "INT-CROSS-LIBSECP [warning]: last_verified 110d ago (> 45d freshness SLO)",
@@ -683,7 +691,7 @@
               }
             ],
             "name": "G-13: Integration Evidence Freshness",
-            "status": "FAIL"
+            "status": "PASS"
           },
           {
             "findings": [
@@ -806,11 +814,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "b66fc407f1e54bb07513ddeb8536560ec2048afc",
-            "short": "b66fc407f1"
+            "sha": "4535bd2dce7aff2224c5f10ad4c0ac10c69134f2",
+            "short": "4535bd2dce"
           }
         },
-        "generated_at": "2026-09-26T08:47:02.740576+00:00",
+        "generated_at": "2026-09-26T09:11:35.239747+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -827,12 +835,12 @@
             },
             "flags_hash": "b08a96ecab2b5a95"
           },
-          "collected_at": "2026-09-26T08:47:02.740534+00:00",
+          "collected_at": "2026-09-26T09:11:35.239682+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "b66fc407f1e54bb07513ddeb8536560ec2048afc",
-            "short": "b66fc407f1"
+            "sha": "4535bd2dce7aff2224c5f10ad4c0ac10c69134f2",
+            "short": "4535bd2dce"
           },
           "platform": {
             "machine": "x86_64",
@@ -853,7 +861,7 @@
           },
           "version": "4.6.0"
         },
-        "run_id": "audit_gate-b66fc407f1-20260926T084702",
+        "run_id": "audit_gate-4535bd2dce-20260926T091135",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -1007,12 +1015,27 @@
             "findings": [
               {
                 "check_id": "p6__graph_freshness",
-                "severity": "pass",
-                "title": "Graph is fresh (built: 2026-09-26T08:46:49)"
+                "severity": "advisory:medium",
+                "title": "3 files modified/deleted since graph build (2026-09-26T09:01:47)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/INCIDENT_DRILL_LOG.json"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/INTEGRATION_EVIDENCE_STATUS.json"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
               }
             ],
             "name": "P6: Graph Freshness",
-            "verdict": "PASS"
+            "verdict": "PASS with advisory"
           },
           {
             "findings": [
@@ -1232,7 +1255,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "2 changed files have matching docs"
+                "title": "3 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1537,13 +1560,8 @@
             "findings": [
               {
                 "check_id": "g-13__integration_evidence_freshness",
-                "severity": "blocking:critical",
-                "title": "integration evidence blocking failures: ['INT-SHIM-PARITY']"
-              },
-              {
-                "check_id": "g-13__integration_evidence_freshness",
-                "severity": "blocking:critical",
-                "title": "INT-SHIM-PARITY [blocking]: last_verified 31d ago (> 30d freshness SLO)"
+                "severity": "pass",
+                "title": "9 integration surfaces (1 blocking, 4 warning, 4 owner-gated); no blocking failures"
               },
               {
                 "check_id": "g-13__integration_evidence_freshness",
@@ -1587,7 +1605,7 @@
               }
             ],
             "name": "G-13: Integration Evidence Freshness",
-            "verdict": "FAIL"
+            "verdict": "PASS with advisory"
           },
           {
             "findings": [
@@ -1723,21 +1741,21 @@
           }
         ],
         "summary": {
-          "advisory": 70,
-          "blocking": 2,
-          "info": 55,
+          "advisory": 74,
+          "blocking": 0,
+          "info": 58,
           "sections": 34,
           "skipped_sections": 0,
-          "total_findings": 132,
-          "warnings": 15
+          "total_findings": 134,
+          "warnings": 16
         },
-        "verdict": "FAIL"
+        "verdict": "PASS with advisory"
       },
-      "passing": false,
+      "passing": true,
       "required": true,
-      "returncode": 1,
-      "stderr_sha256": "e4c213307ec53d37769b3961096a967f2ca4106b0415ab5184e71f5ae6a01db2",
-      "stdout_sha256": "ea6ebd572aa11cf5ee9d1d465a44f713df3b54a7acba7f0bd73c89f5e40d7378"
+      "returncode": 0,
+      "stderr_sha256": "6a4465a95b2ad14e0ec121c8bbe2ca286b3b11b415ee5ceaade93738b2fe55cc",
+      "stdout_sha256": "8ecbfa1950deca09b83a333d56ad31c2e9d96fbbaff6e27123d9902f011c3836"
     },
     {
       "name": "audit_gap_report_strict",
@@ -2039,13 +2057,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-09-26T08:47:07.987540+00:00"
+        "timestamp": "2026-09-26T09:11:40.518124+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "3da6e7f79b856ea90a5e5a18fa78ade588e0825e25d1f1ea440eab9028088ea3"
+      "stdout_sha256": "bb8286fff8df5d3a8900873100276c21cd556aeb38c530f8d6aa7801afd1e077"
     },
     {
       "name": "supply_chain_gate",
@@ -2091,19 +2109,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-09-26T08:47:08.099125+00:00"
+        "timestamp": "2026-09-26T09:11:40.625163+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "1e3fe0806d0fd176bc583ed52af3df1ce0e0ca6d30566b1411edc53314569b2e"
+      "stdout_sha256": "12c89a4c5326c0cb19cd4fc1508311713079c345ba8bf8c5bc4fc8f9eeb00606"
     }
   ],
-  "generated_at": "2026-09-26T08:47:08.114853+00:00",
+  "generated_at": "2026-09-26T09:11:40.640539+00:00",
   "git": {
     "branch": "dev",
-    "commit": "b66fc407f1e54bb07513ddeb8536560ec2048afc",
+    "commit": "4535bd2dce7aff2224c5f10ad4c0ac10c69134f2",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
@@ -2115,9 +2133,7 @@
   "schema_version": "1.0.0",
   "summary": {
     "missing_evidence": [],
-    "overall_pass": false,
-    "required_gate_failures": [
-      "audit_gate"
-    ]
+    "overall_pass": true,
+    "required_gate_failures": []
   }
 }
