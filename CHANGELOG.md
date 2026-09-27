@@ -53,6 +53,12 @@ consumers, and allocations retained at exit. The C ABI is unchanged
 - The BIP-352 OpenCL benchmark passes `-cl-nv-opt-level=3` only on NVIDIA, so
   it builds on other vendors
   ([#438](https://github.com/shrec/UltrafastSecp256k1/pull/438), by @echennells).
+- **The `ufsecp-sys` Rust crate did not compile**
+  ([#442](https://github.com/shrec/UltrafastSecp256k1/pull/442), by
+  @CyberAshven). `src/lib.rs` ended with a duplicated block of 58 FFI
+  declarations outside the `extern "C"` block, so the crate failed with
+  `unexpected closing delimiter` and the safe `ufsecp` wrapper could not build
+  either. The duplicate block is removed; all 180 declarations remain.
 
 ### Audit
 - `regression_opencl_static_inline_link` now fails if any file in
