@@ -1,0 +1,49 @@
+name: Rust core
+
+on:
+  push:
+    branches: [dev, main]
+    paths: ['rust/ufsecp-core/**', '.github/workflows/rust-core.yml']
+  pull_request:
+    branches: [dev, main]
+    paths: ['rust/ufsecp-core/**', '.github/workflows/rust-core.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  host:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-latest]
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/out/rust
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7 # stable
+        with:
+          components: rustfmt, clippy
+      - run: cargo fmt --manifest-path rust/ufsecp-core/Cargo.toml -- --check
+      - run: cargo clippy --locked --manifest-path rust/ufsecp-core/Cargo.toml --all-targets -- -D warnings
+      - run: cargo test --locked --release --manifest-path rust/ufsecp-core/Cargo.toml
+
+  nvptx:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [sm_75, sm_120]
+    env:
+      CARGO_TARGET_DIR: ${{ github.workspace }}/out/rust
+      RUSTFLAGS: -C target-cpu=${{ matrix.architecture }} -C panic=abort
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - run: rustup toolchain install nightly-2026-04-02 --component rust-src,llvm-tools,llvm-bitcode-linker
+      - name: Compile real GPU arithmetic (hardware execution is a separate check)
+        run: >-
+          cargo +nightly-2026-04-02 build --locked --release
+          --manifest-path rust/ufsecp-core/Cargo.toml --example cuda_probe
+          --target nvptx64-nvidia-cuda -Z build-std=core
