@@ -145,7 +145,7 @@ jobs:
         # Quality Gate failures are advisory; do not block CI for non-owners.
         # We already skip fork PRs above, but keep this as a safety net.
         continue-on-error: true
-        uses: SonarSource/sonarqube-scan-action@299e4b793aaa83bf2aba7c9c14bedbb485688ec4 # v7.1.0
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
