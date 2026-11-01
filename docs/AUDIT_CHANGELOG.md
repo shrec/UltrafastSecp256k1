@@ -1,5 +1,258 @@
 # Audit Changelog
 
+## 2026-10-02 - CUDA: verify paths use the variable-time inverse; inverse hardened
+
+Follow-up to the entry below. The variable-time inverse added there is now
+called from the CUDA verification code, and the findings of its reviews are
+addressed.
+
+**Sites switched (public data only).** Each was switched after listing its
+callers up to the kernels and checking that no caller brings a secret, or a
+value derived from one, into the inversion.
+
+| Function | Value inverted | Now |
+|----------|----------------|-----|
+| `ecdsa_verify` | `sig.s` mod n; `R'.z` | `scalar_inv_var`; `field_inv_var` |
+| `shamir_double_mul_glv` | product of the 11 table Z values | `field_inv_var` |
+| `schnorr_verify`, `schnorr_verify_xonly` | `R.z` | `field_inv_var` |
+| `ecdsa_recover` | `sig.r` mod n | `scalar_inv_var` |
+| `ecdsa_snark_witness_device` | `pubkey.z`, `sig.s` mod n, `R.z` | `field_inv_var`, `scalar_inv_var` |
+| `dleq_verify_device`, `frost_verify_partial_device` | Z of the two points compared | new `jacobian_to_affine_var` |
+| `range_verify_full_device`, `range_verify_warp_device`, `range_verify_warp_precomp_impl`, `range_verify_warp_lut4_device`, `range_verify_warp_lut4_p1par_device` | Fiat-Shamir challenges and their products mod n (13 sites) | `scalar_inv_var` |
+
+The table in `shamir_double_mul_glv` is built from the affine coordinates of
+its two points and from the two scalars. Its seven call sites are all verifiers
+(`ecdsa_verify`, the ECDSA SNARK witness, both Schnorr verifiers,
+`knowledge_verify_device`, `dleq_verify_device` twice).
+
+**Left on the Fermat inverse.** `field_inv`, `scalar_inverse` and every `ct::`
+function; the two input normalisations at the top of `shamir_double_mul_glv`
+(the ECDSA sign-then-verify wrappers pass `ct_generator_mul(sk)`, whose Z
+depends on the key); `jacobian_to_affine` and the `point_to_compressed` family
+(shared with key generation, BIP-32 and the BIP-352 scan); the base
+normalisation in `scalar_mul`, `scalar_mul_glv_wnaf` and `scalar_mul_glv_shamir`;
+all signing, ECDH, Pedersen and prover code; everything in
+`src/gpu/src/gpu_backend_cuda.cu`, `bp_gen_table.cuh`, `batch_inversion.cuh` and
+`affine_add.cuh`. Those files, and every file under `src/cuda/include/ct/`, are
+byte-identical before and after.
+
+**Known property, unchanged in kind.** The sign-then-verify wrappers
+(`ecdsa_sign_verified`, `ecdsa_sign_hedged_verified`,
+`ct::ct_ecdsa_sign_verified` and the three Schnorr ones) verify the signature
+they just produced. If that verification fails, the withheld signature has
+passed through the variable-time inverse. The verify leg was already variable
+time in that signature before this change (GLV split and loop bounds in
+`shamir_double_mul_glv`).
+
+**Hardening of the inverse.**
+- **Compile-time CT guard.** `ct::field_inv_var`, `ct::scalar_inv_var` and
+  `ct::jacobian_to_affine_var` are declared `= delete`, so an unqualified call
+  from namespace `ct` does not compile (checked with a probe translation unit:
+  the public caller builds, each of the three calls from `ct` is rejected). A
+  qualified `secp256k1::cuda::` call is not caught by the compiler.
+- **Compile-time constants.** `static_assert(MODINV30_MAX_ITERS * 30 >= 741)`,
+  and the modulus self-check now ties all nine signed 30-bit limbs to all four
+  64-bit words with nothing left above bit 255 (it covered the low 64 bits).
+  Six headers with one mutated constant each (a limb, a 64-bit word, the cap)
+  all fail to compile.
+- **Vectors.** `secp256k1_cuda_test` now has 66 field and 66 scalar vectors: two
+  inputs per modulus for which, after the first batch of divsteps, only the top
+  limb of `g` is non-zero. A mutant that drops that limb from the early-exit
+  test passed all tests before; it now fails those four vectors.
+- **Audit module `inv_var_diff`.** 622 edge inputs per modulus (was 559): the
+  inputs whose inverse is 2..64 were added. A mutant that returns a
+  non-canonical result for inverses >= 2 passed the module before; it now fails
+  it. The module count is unchanged (46).
+- **Montgomery builds.** The vector test and `inv_var_diff` are not built when
+  `SECP256K1_CUDA_USE_MONTGOMERY=1`. The self-test prints the skip, and the
+  audit runner prints one ahead of its module list. (That configuration fails
+  34 of its 51 other self-tests; this is older than, and unrelated to, the
+  inverse.)
+- **Provenance.** The upstream copyright line of libsecp256k1's `modinv32` is in
+  the header comment.
+
+**Evidence that secret-bearing device code did not change.** `cuobjdump -sass`
+(instruction text and encodings) and `--dump-resource-usage`, per function, both
+architectures (sm_89, sm_120), before and after:
+
+| Binary or object | Functions | Identical | Differ | No longer emitted | Stack size only | Identical, name matches a secret-path word |
+|------------------|----------:|----------:|-------:|------------------:|----------------:|-------------------------------------------:|
+| `secp256k1.cu.o` (library kernels) | 77 | 62 | 15 | 0 | 0 | 21 |
+| `gpu_backend_cuda.cu.o` (production backend) | 68 | 58 | 10 | 0 | 0 | 10 |
+| `secp256k1_cuda_test` | 130 | 106 | 24 | 0 | 3 | 33 |
+| `gpu_audit_runner` | 145 | 120 | 24 | 1 | 1 | 35 |
+| `test_ct_smoke` | 96 | 81 | 14 | 1 | 3 | 40 |
+| `gpu_ct_leakage_probe` | 23 | 23 | 0 | 0 | 0 | 20 |
+| `gpu_bench_unified` | 74 | 74 | 0 | 0 | 0 | 26 |
+| `secp256k1_cuda_bench` | 89 | 74 | 15 | 0 | 2 | 21 |
+| `bench_zk` | 141 | 120 | 20 | 1 | 7 | 49 |
+| `bench_snark_witness` | 79 | 64 | 15 | 0 | 2 | 21 |
+| `bench_compare` | 50 | 40 | 9 | 1 | 1 | 9 |
+
+"Functions" counts kernels and non-inlined device functions per architecture.
+"Stack size only" functions are among the identical ones: same instructions,
+different frame size because a callee changed. The secret-path words are `ct`,
+`sign`, `ecdh`, `prove`, `keypair`, `pubkey`, `bip32`, `bip352`, `pedersen`,
+`nonce`, `generator_mul`, `scan`, `commit`, `derive`, `secret`, `priv`.
+
+Every function that differs contains verification or recovery code. 36 of the
+55 names are verify-only: the production kernels (`ecdsa_verify_batch_kernel`,
+`ecdsa_verify_collect_kernel`, `schnorr_verify_batch_kernel`,
+`schnorr_verify_collect_kernel`, the three libbitcoin row/column verify
+kernels, `ecdsa_recover` and its batch kernel, `ecdsa_snark_witness_batch_kernel`,
+`frost_verify_partial_*`, `dleq_verify_batch_kernel`,
+`knowledge_verify_batch_kernel`, `shamir_double_mul_glv`, the `range_verify_*`
+functions), verify-only test or bench kernels, and the plain `scalar_inverse`
+function, which `bench_zk` no longer emits because nothing in it calls it. The
+other 19 are test and bench kernels that derive a key, sign or prove and then
+verify or recover inside one kernel
+(`test_ct_ecdsa_kernel`, `test_ct_schnorr_kernel`,
+`test_ct_schnorr_keypair_kernel`, `test_ct_zk_dleq_kernel`,
+`test_ct_zk_knowledge_kernel`, `audit_ct_ecdsa_roundtrip_kernel`,
+`audit_ct_schnorr_roundtrip_kernel`, `audit_bip340_vec0_kernel`,
+`audit_ecdsa_multi_key_kernel`, `audit_ecdsa_wrong_key_kernel`,
+`audit_schnorr_multi_key_kernel`, `audit_ecdsa_recovery_kernel`,
+`kernel_ecdsa_sign_verify`, `kernel_ecdsa_verify_bad_msg`,
+`kernel_schnorr_sign_verify`, `kernel_schnorr_verify_bad_msg`,
+`kernel_recovery_test`, `cmp_pipeline_ecdsa_k`, `cmp_pipeline_schnorr_k`); they
+change because the verifier is compiled into them. The signing and proving code
+they call is identical wherever it exists as its own function
+(`ct::ct_ecdsa_sign`, `ct::ct_schnorr_sign`, `ct::ct_generator_mul`,
+`ct::ct_jacobian_to_affine`, `ct::ct_dleq_prove_device` and others in the sm_89
+code). All pure signing, ECDH, key-generation, scan and prover kernels are
+identical, including all six kernels of `gpu_ct_leakage_probe`.
+
+**Evidence that results did not change.**
+- Same-input differential, old device code against new, on the GPU: 1,048,576
+  valid signatures and 1,048,576 corrupted ones in 16 classes (bit flips in r,
+  s, message and public key; s = 0; r = 0; s = n; r = n; s and r just above n;
+  high-s; infinity flag; Z = 0; Z replaced; negated y; r and s swapped). The
+  per-element outputs of `ecdsa_verify` (limb and strict-compact entry),
+  `schnorr_verify`, `schnorr_verify_xonly` and `ecdsa_recover` (including the
+  recovered point's raw limbs), and 131,072 ECDSA SNARK witness records, are
+  byte-identical. A negative control with one wrong inverse bit for one input in
+  4096 changes 1,466 valid and 289 corrupted elements. The harness is scratch,
+  not part of the tree.
+- `secp256k1_cuda_test` 52/52, `gpu_audit_runner` 46/46, `test_ct_smoke` 9/9,
+  and the C ABI GPU tests against the CPU library: `test_gpu_ops_equivalence`
+  380, `test_gpu_lbtc_columns_diff` 222, `test_gpu_host_api_negative` 87,
+  `test_gpu_zk_prove_verify_differential` 31, `test_gpu_ecdsa_compact_range` 29,
+  `test_gpu_ecdsa_snark_witness` 28, `test_gpu_collect_verify_parity` 24,
+  `test_gpu_backend_matrix` 4, `test_gpu_bip352_scan` 3938 (3 skipped), all with
+  0 failures and the same counts as before the change.
+
+**Audit surface.** No module was added or removed. The source gate in
+`audit/test_gpu_ecdsa_compact_range.cpp` checks that the `r >= n` / `s >= n`
+guard of the CUDA `ecdsa_verify` precedes the scalar inverse; it now accepts
+`scalar_inv_var` as that inverse (it looked for the name `scalar_inverse` only).
+
+**Measured.** RTX 5060 Ti (sm_120), CUDA 13.2. Old and new binaries run back to
+back inside one hold of the GPU lock, order alternating, five runs each. Source
+of every number: `docs/benchmark_artifacts/cuda_verify_inv_var_ab_2026-10-02_rtx5060ti.json`.
+
+| Bench | Row | Before: ns/op median (min - max) | After: ns/op median (min - max) | Median change | Ranges |
+|-------|-----|---------------------------------:|--------------------------------:|--------------:|--------|
+| `secp256k1_cuda_bench` | ECDSA Verify | 234.1 (231.4 - 243.7) | 152.4 (151.8 - 159.9) | -34.9% | no overlap, faster |
+| `secp256k1_cuda_bench` | Schnorr Verify | 169.3 (167.8 - 169.6) | 146.7 (146.1 - 147.0) | -13.3% | no overlap, faster |
+| `secp256k1_cuda_bench` | FROST Partial Verify | 691.2 (690.7 - 696.5) | 672.7 (671.4 - 675.4) | -2.7% | no overlap, faster |
+| `bench_zk` | knowledge_verify | 551.2 (550.8 - 551.3) | 529.8 (529.7 - 530.7) | -3.9% | no overlap, faster |
+| `bench_zk` | dleq_verify | 1250.7 (1245.1 - 1253.0) | 1140.6 (1139.7 - 1143.5) | -8.8% | no overlap, faster |
+| `bench_zk` | range_verify | 685836 (685636 - 686020) | 683372 (683026 - 683404) | -0.4% | no overlap, faster |
+| `bench_zk` | range_verify_warp | 185052 (184055 - 185652) | 169814 (169414 - 170344) | -8.2% | no overlap, faster |
+| `bench_zk` | verify_warp_w4 | 175219 (174987 - 176782) | 161793 (161099 - 162725) | -7.7% | no overlap, faster |
+| `bench_zk` | verify_warp_w8 | 173842 (172427 - 175103) | 160483 (159964 - 161535) | -7.7% | no overlap, faster |
+| `bench_zk` | verify_warp_lut4 | 154008 (153385 - 154595) | 141973 (141390 - 142549) | -7.8% | no overlap, faster |
+| `bench_zk` | verify_p1par_lut4 | 13630.6 (13582.6 - 13786.7) | 11755.9 (11701.9 - 11836.0) | -13.8% | no overlap, faster |
+| `bench_snark_witness` | GPU ecdsa_snark_witness_batch_kernel | 225.2 (225.1 - 225.4) | 140.3 (140.2 - 140.5) | -37.7% | no overlap, faster |
+| `bench_compare` | ECDSA / verify (GPU) | 233.6 (227.8 - 233.7) | 149.4 (149.3 - 149.7) | -36.1% | no overlap, faster |
+| `bench_compare` | Schnorr / verify (GPU) | 168.4 (168.1 - 181.4) | 147.5 (145.3 - 148.7) | -12.4% | no overlap, faster |
+| `bench_compare` | Pipeline / ECDSA (keygen+sign+verify) (GPU) | 565.8 (564.9 - 566.1) | 476.9 (476.6 - 481.2) | -15.7% | no overlap, faster |
+| `bench_compare` | Pipeline / Schnorr (keygen+sign+verify) (GPU) | 547.6 (547.4 - 548.4) | 523.9 (523.3 - 525.8) | -4.3% | no overlap, faster |
+
+The other 32 rows of these four benches (field and point arithmetic, `k*G`,
+every signing row, the provers, Pedersen commit) have overlapping ranges.
+`gpu_bench_unified --suite all`, run the same way against the binary from before
+the inverse was added, overlaps on all 19 of its older rows. In
+`secp256k1_cuda_bench` the ECDSA rows vary by about 5% between runs for both
+binaries. Its ECDSA verify row is fed Jacobian public keys with Z != 1, so that
+row still pays one Fermat inverse for the input normalisation; the production
+backend passes decoded keys with Z = 1.
+
+**Limits.** CUDA only: the OpenCL and Metal verifiers keep their Fermat
+inverses; results are bit-identical, so cross-backend value parity is unchanged.
+`ecdsa_recover` has no bench row. The CT boundary for a qualified call rests on
+review; a CI deny-pattern gate for `_inv_var` / `_affine_var` in `ct/` and the
+signing functions is still open.
+
+## 2026-10-02 - CUDA: variable-time modular inverse added (additive; no caller switched)
+
+`src/cuda/include/modinv_var.cuh` adds two device functions, `field_inv_var`
+(mod p) and `scalar_inv_var` (mod n). They are a port of the library's own CPU
+SafeGCD code (`field_safegcd30` / `scalar_safegcd30`, adapted from
+bitcoin-core/secp256k1 `modinv32_var`, MIT): Bernstein-Yang divsteps in batches
+of 30 on 9 signed 30-bit limbs. The GPU version adds a hard cap of 25 outer
+iterations (750 divsteps; 741 are proven sufficient for 256-bit inputs), a
+table-free 6-bit inner step, input reduction, and a fail-closed zero result if
+the cap is ever reached.
+
+**CT boundary.** These functions are variable time and are for public data only.
+Nothing calls them yet: `field_inv`, `scalar_inverse`, every `ct::` function and
+every existing call site are unchanged, and no file under `src/cuda/include/ct/`
+or any signing header references them. The only edit to an existing header is
+one `#include` at the end of `secp256k1.cuh`. Evidence that existing device code
+did not change: the SASS of every pre-existing kernel is identical before and
+after (`cuobjdump -sass`, sm_89 and sm_120): 68 of 68 kernels in
+`gpu_bench_unified`, 128 of 128 in `secp256k1_cuda_test` and 143 of 143 in
+`gpu_audit_runner`. Register and stack use of those kernels is identical as well.
+
+**Audit surface.**
+- `secp256k1_cuda_test`: new test `test_modinv_var_vectors` (52 tests, was 51).
+  64 field and 64 scalar vectors, including unreduced inputs, zero and the
+  modulus itself. Each vector is checked through the public function, in place
+  (`a == r`), for its outer-iteration count, and with the cap forced to 10,
+  where the result must be the inverse if 10 iterations suffice and exactly
+  zero otherwise. Largest iteration count in the vectors: 19 (field), 20 (scalar).
+- `gpu_audit_runner`: new module `inv_var_diff` in section `differential`
+  (46 modules, was 45). On the device it compares `field_inv_var` with
+  `field_inv` and `scalar_inv_var` with `scalar_inverse` as raw limbs and checks
+  `a * inv(a) == 1`, on 559 edge inputs per modulus (0, 1..3, m-1..m-3, 2^k,
+  m-2^k, and unreduced m, m+1..m+3, m+2^k, 2^256-1..2^256-4) plus 4,194,304
+  pseudo-random inputs per modulus, every 16th of them unreduced. The module
+  also fails if the number of elements checked differs from the number
+  launched. Negative control, run on a standalone copy of the module rather
+  than in the runner: flipping one result bit, once in the edge part and once
+  in the random part, makes it return failure.
+- `gpu_bench_unified`: new rows `inv (var)`, `scalar inv` and `scalar inv (var)`,
+  with the batch size, inputs and launch shape of the existing `inv` row.
+
+**Measured.** RTX 5060 Ti (sm_120), CUDA 13.2, driver 580.178.04, no other GPU
+compute process; the host CPU was busy with unrelated jobs. `--suite all`,
+3 warmup + 5 passes, five whole-binary runs. Artifacts:
+`docs/benchmark_artifacts/gpu_bench_unified_2026-10-02_rtx5060ti_run{1..5}.json`.
+
+| row | ns/op median (min - max) | M/s median | batch | kernel registers (sm_120) |
+|-----|-------------------------:|-----------:|------:|--------------------------:|
+| `inv` (Fermat chain) | 11.06 (11.05 - 11.14) | 90.45 | 65536 | 70 |
+| `inv (var)` | 1.67 (1.67 - 1.67) | 599.36 | 65536 | 58 |
+| `scalar inv` (Fermat) | 60.78 (60.74 - 60.86) | 16.45 | 65536 | 48 |
+| `scalar inv (var)` | 1.67 (1.66 - 1.68) | 599.53 | 65536 | 62 |
+
+The 19 pre-existing rows were compared against the pre-change binary run
+alternately in the same session, five runs each, in both orders. 16 rows overlap
+in both orders. The three MSM rows read 0.05% to 0.07% higher, with ranges that
+do not overlap in five of the six comparisons (for example `msm scatter only`
+171.34 - 171.39 before, 171.44 - 171.47 after), although their kernels are
+byte-identical. A build that
+runs the three new rows after all existing ones instead of next to `inv` (not
+shipped) overlaps on all 19 rows, so the shift follows the position of the new
+rows in the run, not the device code.
+
+**Limits.** CUDA only: OpenCL and Metal have no port and still invert with their
+Fermat chains. The 32-bit-limb configuration, and the field function in
+Montgomery mode, forward to the existing Fermat inverses. No GPU operation is
+faster yet; switching call sites is separate work, one site at a time, each with
+its own check that the inverted value is public.
+
 ## 2026-09-26 - GH-436 static-inline guard was vacuous; OpenCL FROST program did not build (#440)
 
 `regression_opencl_static_inline_link`, registered on 2026-09-25 as the GH-436

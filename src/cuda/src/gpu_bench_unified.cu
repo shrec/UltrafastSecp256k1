@@ -306,6 +306,21 @@ __global__ void bench_field_inv_k(const FieldElement* a, FieldElement* r, int co
     if (idx < count) field_inv(&a[idx], &r[idx]);
 }
 
+__global__ void bench_field_inv_var_k(const FieldElement* a, FieldElement* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) field_inv_var(&a[idx], &r[idx]);
+}
+
+__global__ void bench_scalar_inv_k(const Scalar* a, Scalar* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) scalar_inverse(&a[idx], &r[idx]);
+}
+
+__global__ void bench_scalar_inv_var_k(const Scalar* a, Scalar* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) scalar_inv_var(&a[idx], &r[idx]);
+}
+
 __global__ void bench_field_sqr_k(const FieldElement* a, FieldElement* r, int count) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count) field_mul(&a[idx], &a[idx], &r[idx]);
@@ -519,6 +534,40 @@ static BenchResult bench_field_inv_impl(const BenchConfig& cfg) {
     inv_cfg.batch_size = N;
     auto result = run_bench("Field Arithmetic", "inv", inv_cfg, [&]() {
         bench_field_inv_k<<<blocks, cfg.threads_per_block>>>(d_a, d_r, N);
+    });
+
+    cudaFree(d_a); cudaFree(d_r);
+    return result;
+}
+
+// Inverse entries added with modinv_var.cuh ("inv (var)", "scalar inv",
+// "scalar inv (var)"). Same batch size, input generator (seed 49, non-zero,
+// top bit clear so every value is below p and n) and launch shape as
+// bench_field_inv_impl above, so the rows compare directly with "inv".
+template <typename Elem>
+static BenchResult bench_inverse_impl(const char* section, const char* name, const BenchConfig& cfg,
+                                      void (*kernel)(const Elem*, Elem*, int)) {
+    static_assert(sizeof(Elem) == sizeof(FieldElement), "element must be 256 bits");
+    int N = std::min(cfg.batch_size, 1 << 16);
+    std::vector<FieldElement> h_a(N);
+    gen_field_elements(h_a.data(), N, 49);
+    for (int i = 0; i < N; ++i) {
+        if (h_a[i].limbs[0] == 0 && h_a[i].limbs[1] == 0 &&
+            h_a[i].limbs[2] == 0 && h_a[i].limbs[3] == 0)
+            h_a[i].limbs[0] = 1;
+    }
+
+    Elem *d_a, *d_r;
+    size_t sz = N * sizeof(Elem);
+    CUDA_CHECK(cudaMalloc(&d_a, sz));
+    CUDA_CHECK(cudaMalloc(&d_r, sz));
+    CUDA_CHECK(cudaMemcpy(d_a, h_a.data(), sz, cudaMemcpyHostToDevice));
+
+    int blocks = (N + cfg.threads_per_block - 1) / cfg.threads_per_block;
+    BenchConfig inv_cfg = cfg;
+    inv_cfg.batch_size = N;
+    auto result = run_bench(section, name, inv_cfg, [&]() {
+        kernel<<<blocks, cfg.threads_per_block>>>(d_a, d_r, N);
     });
 
     cudaFree(d_a); cudaFree(d_r);
@@ -1300,6 +1349,26 @@ int main(int argc, char** argv) {
     }
     {
         auto r = bench_field_inv_impl(cfg); print_result(r); results.push_back(r);
+        rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
+    {
+        auto r = bench_inverse_impl<FieldElement>("Field Arithmetic", "inv (var)", cfg, bench_field_inv_var_k);
+        print_result(r); results.push_back(r);
+        rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
+
+    // =================================================================
+    // Section 1b: Scalar Arithmetic (inverse mod n)
+    // =================================================================
+    std::printf("\n=== Scalar Arithmetic ===\n");
+    {
+        auto r = bench_inverse_impl<Scalar>("Scalar Arithmetic", "scalar inv", cfg, bench_scalar_inv_k);
+        print_result(r); results.push_back(r);
+        rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
+    {
+        auto r = bench_inverse_impl<Scalar>("Scalar Arithmetic", "scalar inv (var)", cfg, bench_scalar_inv_var_k);
+        print_result(r); results.push_back(r);
         rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
     }
 

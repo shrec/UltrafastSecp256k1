@@ -1524,6 +1524,16 @@ __device__ inline void jacobian_add_mixed(const JacobianPoint* p, const AffinePo
 
 #endif // SECP256K1_CUDA_LIMBS_32
 
+// Variable-time inverses, defined in modinv_var.cuh (included at the end of
+// this file). VARIABLE TIME -- PUBLIC DATA ONLY: verification code may call
+// them; nothing may call them on a secret, on a value derived from a secret,
+// or on the Z of a point produced by a secret scalar multiplication. Those
+// paths keep field_inv / scalar_inverse / jacobian_to_affine.
+__device__ inline void field_inv_var(const FieldElement* a, FieldElement* r);
+__device__ inline void scalar_inv_var(const Scalar* a, Scalar* r);
+__device__ inline bool jacobian_to_affine_var(const JacobianPoint* p,
+                                              FieldElement* out_x, FieldElement* out_y);
+
 #ifndef SECP256K1_CUDA_LIMBS_32
 // Field Multiplication with Reduction
 // Uses smart hybrid: proven 32-bit mul + proven 64-bit reduce
@@ -3735,7 +3745,7 @@ __device__ inline void shamir_double_mul_glv(
         }
     }
 
-    // Batch inversion: Montgomery's trick for 11 Z values -> 1 field_inv
+    // Batch inversion: Montgomery's trick for 11 Z values -> 1 inversion
     {
         FieldElement prefix[11];
         prefix[0] = jc[0].z;
@@ -3744,7 +3754,12 @@ __device__ inline void shamir_double_mul_glv(
         }
 
         FieldElement inv_prod;
-        field_inv(&prefix[10], &inv_prod);
+        // Variable-time inverse: the 11 Z values are functions of the AFFINE
+        // coordinates of P and Q and of the two scalars only. All callers are
+        // verifiers, for which those are public (a Jacobian input with a
+        // secret-dependent Z was normalised above with field_inv, and its Z does
+        // not reach this table).
+        field_inv_var(&prefix[10], &inv_prod);
 
         // Backward sweep: recover individual Z^-1
         FieldElement z_inv[11];
@@ -4635,11 +4650,16 @@ __device__ inline uint8_t frost_verify_partial_device(
     JacobianPoint rhs;
     jacobian_add(&R_i, &lambda_Y, &rhs);
 
-    // Compare lhs == rhs via affine x + y-parity
+    // Compare lhs == rhs via affine x + y-parity. Everything this function
+    // receives is public (partial signature, commitments, verification share,
+    // binding and challenge factors), so the affine conversion is variable time.
     uint8_t lhs_xb[32], rhs_xb[32];
-    bool lhs_odd, rhs_odd;
-    if (!point_x_bytes_and_parity(&lhs, lhs_xb, &lhs_odd)) return 0;
-    if (!point_x_bytes_and_parity(&rhs, rhs_xb, &rhs_odd)) return 0;
+    FieldElement lhs_x, lhs_y, rhs_x, rhs_y;
+    if (!jacobian_to_affine_var(&lhs, &lhs_x, &lhs_y)) return 0;
+    if (!jacobian_to_affine_var(&rhs, &rhs_x, &rhs_y)) return 0;
+    field_to_bytes(&lhs_x, lhs_xb);
+    field_to_bytes(&rhs_x, rhs_xb);
+    const bool lhs_odd = field_is_odd(&lhs_y), rhs_odd = field_is_odd(&rhs_y);
 
     if (lhs_odd != rhs_odd) return 0;
     for (int b = 0; b < 32; ++b)
@@ -4668,3 +4688,6 @@ __device__ inline void jacobian_to_compressed_device(
 
 } // namespace cuda
 } // namespace secp256k1
+
+// Variable-time inverses (field_inv_var, scalar_inv_var). PUBLIC DATA ONLY.
+#include "modinv_var.cuh"

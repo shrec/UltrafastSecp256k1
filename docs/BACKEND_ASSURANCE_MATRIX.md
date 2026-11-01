@@ -921,6 +921,7 @@ through `ufsecp_gpu.h`.
 | Pedersen commitment | Y | Y | Y | `bulletproof_verify_batch` internals |
 | Keccak-256 / `eth_address` | Y | Y | Y | internal Ethereum address derivation |
 | BIP-32 derive child | Y | - | Y | internal HD key derivation (app use) |
+| Variable-time inverse (`field_inv_var`, `scalar_inv_var`, `jacobian_to_affine_var`; public data only) | Y | - | - | internal to the CUDA verify paths (ECDSA / Schnorr verify, ecrecover, ECDSA SNARK witness, DLEQ / knowledge / FROST partial verify); not a `GpuBackend` operation. OpenCL and Metal have no port: their verifiers keep the Fermat inverse. Operation parity is unchanged and value parity holds, because the results are bit-identical to `field_inv` / `scalar_inverse` (`gpu_audit_runner` module `inv_var_diff`; `docs/AUDIT_CHANGELOG.md` 2026-10-02) |
 
 ---
 

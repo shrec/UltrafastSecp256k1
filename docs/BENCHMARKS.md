@@ -463,6 +463,63 @@ paths (sign, pubkey, batch) win by 2–2.7×. CT signing beats libsecp by ~7% CT
 | Batch Inv | 2.9 ns | 340 M/s | Kernel-only, batch 64K |
 | Jac->Affine | 14.9 ns | 66.9 M/s | Kernel-only, batch 64K |
 
+### CUDA variable-time inverse (2026-10-02)
+
+`field_inv_var` and `scalar_inv_var` (`src/cuda/include/modinv_var.cuh`) are
+variable-time SafeGCD inverses for **public data only**. The CUDA verify paths
+call them (next subsection). Rows are from `gpu_bench_unified
+--suite all` (kernel-only, 3 warmup + 5 passes, 256 threads per block), five
+whole-binary runs on an RTX 5060 Ti (sm_120, CUDA 13.2), no other GPU compute
+process, host CPU busy with unrelated jobs. Source of every number:
+`docs/benchmark_artifacts/gpu_bench_unified_2026-10-02_rtx5060ti_run{1..5}.json`.
+The `inv` row here was measured in the same runs; the older `Field Inv` row in
+the table above comes from a different build and date.
+
+| Operation | ns/op median (min - max) | M/s median (min - max) | Batch | Kernel registers (sm_120) |
+|-----------|-------------------------:|-----------------------:|------:|--------------------------:|
+| `inv` (`field_inv`, Fermat chain) | 11.06 (11.05 - 11.14) | 90.45 (89.76 - 90.52) | 65536 | 70 |
+| `inv (var)` (`field_inv_var`) | 1.67 (1.67 - 1.67) | 599.36 (597.78 - 600.23) | 65536 | 58 |
+| `scalar inv` (`scalar_inverse`, Fermat) | 60.78 (60.74 - 60.86) | 16.45 (16.43 - 16.46) | 65536 | 48 |
+| `scalar inv (var)` (`scalar_inv_var`) | 1.67 (1.66 - 1.68) | 599.53 (595.18 - 602.00) | 65536 | 62 |
+
+### CUDA verify paths with the variable-time inverse (2026-10-02)
+
+The CUDA verifiers (`ecdsa_verify`, `schnorr_verify`, `ecdsa_recover`, the ECDSA
+SNARK witness, knowledge / DLEQ / FROST partial verification, the Bulletproof
+range verifiers) now invert public values with `field_inv_var` /
+`scalar_inv_var`. Signing, ECDH and the provers are unchanged. Rows below are
+kernel-only, from the existing benches, with the binary from before the change
+and the one after it run back to back inside one hold of the GPU lock, order
+alternating, five runs each, on an RTX 5060 Ti (sm_120, CUDA 13.2). Source of
+every number, including the rows not shown:
+`docs/benchmark_artifacts/cuda_verify_inv_var_ab_2026-10-02_rtx5060ti.json`.
+
+| Bench | Row | Before: ns/op median (min - max) | After: ns/op median (min - max) | Median change | Ranges |
+|-------|-----|---------------------------------:|--------------------------------:|--------------:|--------|
+| `secp256k1_cuda_bench` | ECDSA Verify | 234.1 (231.4 - 243.7) | 152.4 (151.8 - 159.9) | -34.9% | no overlap, faster |
+| `secp256k1_cuda_bench` | Schnorr Verify | 169.3 (167.8 - 169.6) | 146.7 (146.1 - 147.0) | -13.3% | no overlap, faster |
+| `secp256k1_cuda_bench` | FROST Partial Verify | 691.2 (690.7 - 696.5) | 672.7 (671.4 - 675.4) | -2.7% | no overlap, faster |
+| `bench_zk` | knowledge_verify | 551.2 (550.8 - 551.3) | 529.8 (529.7 - 530.7) | -3.9% | no overlap, faster |
+| `bench_zk` | dleq_verify | 1250.7 (1245.1 - 1253.0) | 1140.6 (1139.7 - 1143.5) | -8.8% | no overlap, faster |
+| `bench_zk` | range_verify | 685836 (685636 - 686020) | 683372 (683026 - 683404) | -0.4% | no overlap, faster |
+| `bench_zk` | range_verify_warp | 185052 (184055 - 185652) | 169814 (169414 - 170344) | -8.2% | no overlap, faster |
+| `bench_zk` | verify_warp_w4 | 175219 (174987 - 176782) | 161793 (161099 - 162725) | -7.7% | no overlap, faster |
+| `bench_zk` | verify_warp_w8 | 173842 (172427 - 175103) | 160483 (159964 - 161535) | -7.7% | no overlap, faster |
+| `bench_zk` | verify_warp_lut4 | 154008 (153385 - 154595) | 141973 (141390 - 142549) | -7.8% | no overlap, faster |
+| `bench_zk` | verify_p1par_lut4 | 13630.6 (13582.6 - 13786.7) | 11755.9 (11701.9 - 11836.0) | -13.8% | no overlap, faster |
+| `bench_snark_witness` | GPU ecdsa_snark_witness_batch_kernel | 225.2 (225.1 - 225.4) | 140.3 (140.2 - 140.5) | -37.7% | no overlap, faster |
+| `bench_compare` | ECDSA / verify (GPU) | 233.6 (227.8 - 233.7) | 149.4 (149.3 - 149.7) | -36.1% | no overlap, faster |
+| `bench_compare` | Schnorr / verify (GPU) | 168.4 (168.1 - 181.4) | 147.5 (145.3 - 148.7) | -12.4% | no overlap, faster |
+| `bench_compare` | Pipeline / ECDSA (keygen+sign+verify) (GPU) | 565.8 (564.9 - 566.1) | 476.9 (476.6 - 481.2) | -15.7% | no overlap, faster |
+| `bench_compare` | Pipeline / Schnorr (keygen+sign+verify) (GPU) | 547.6 (547.4 - 548.4) | 523.9 (523.3 - 525.8) | -4.3% | no overlap, faster |
+
+The other 32 rows of these benches (field and point arithmetic, `k*G`, every
+signing row, the provers, Pedersen commit) have overlapping ranges. In
+`secp256k1_cuda_bench` the ECDSA rows vary by about 5% between runs for both
+binaries, which is above the 3% this project asks of a baseline; the before and
+after ranges are still far apart. The older verify rows elsewhere on this page
+were measured before this change.
+
 ### GPU Signature Operations `[archived / diagnostic — kernel-only, excl. PCIe DMA; verify against current bench before citing]`
 
 > As of early 2026, this is the only multi-backend (CUDA + OpenCL + Metal) secp256k1 library

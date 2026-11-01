@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **CUDA: variable-time modular inverse `field_inv_var` / `scalar_inv_var`**
+  (`src/cuda/include/modinv_var.cuh`). SafeGCD (Bernstein-Yang) port of the CPU
+  `safegcd30` code, for **public data only**; it must not be used on secrets or
+  on values derived from them. `field_inv`, `scalar_inverse` and every
+  constant-time path are unchanged, and an unqualified call from namespace `ct`
+  is a compile error. Covered by a `secp256k1_cuda_test` vector test, the
+  `gpu_audit_runner` module `inv_var_diff`, and `gpu_bench_unified` rows. CUDA
+  only; OpenCL and Metal have no port. Details and measurements:
+  `docs/AUDIT_CHANGELOG.md` 2026-10-02.
+
+### Changed
+- **CUDA verify paths use the variable-time inverse.** `ecdsa_verify`,
+  `schnorr_verify`, `schnorr_verify_xonly`, `ecdsa_recover`, the ECDSA SNARK
+  witness, DLEQ and FROST partial verification, the Bulletproof range verifiers
+  and the table inversion of `shamir_double_mul_glv` now invert public values
+  with `field_inv_var` / `scalar_inv_var` (new helper `jacobian_to_affine_var`
+  for public points). Accept/reject results and outputs are unchanged. Signing,
+  ECDH, key derivation, provers and every shared affine-conversion helper keep
+  the Fermat inverse. OpenCL and Metal are unchanged. Per-site reasoning,
+  evidence and measurements: `docs/AUDIT_CHANGELOG.md` 2026-10-02 and
+  `docs/BENCHMARKS.md`.
+
 ## [4.6.2] - 2026-09-27
 
 A patch release for the OpenCL backend, GPU use from libbitcoin-direct

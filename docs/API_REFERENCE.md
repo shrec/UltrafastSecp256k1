@@ -1806,6 +1806,20 @@ __device__ void field_sqr(const FieldElement* a, FieldElement* r);
 __device__ void field_inv(const FieldElement* a, FieldElement* r);
 __device__ void field_neg(const FieldElement* a, FieldElement* r);
 
+// Variable-time inverses (modinv_var.cuh, included by secp256k1.cuh).
+// PUBLIC DATA ONLY: the iteration count depends on the value. Never call them
+// on a private key, a nonce, or a Z coordinate that came from a secret scalar
+// multiplication; those paths keep field_inv / ct::field_inv / ct::scalar_inverse
+// / jacobian_to_affine. An unqualified call from namespace ct does not compile.
+// Same results as field_inv / scalar_inverse / jacobian_to_affine (0 maps to 0,
+// a == r allowed). The verify functions (ecdsa_verify, schnorr_verify,
+// ecdsa_recover, the ECDSA SNARK witness, DLEQ / FROST partial / range verify)
+// call them.
+__device__ void field_inv_var(const FieldElement* a, FieldElement* r);   // a^-1 mod p
+__device__ void scalar_inv_var(const Scalar* a, Scalar* r);              // a^-1 mod n
+__device__ bool jacobian_to_affine_var(const JacobianPoint* p,           // public point -> affine
+                                       FieldElement* out_x, FieldElement* out_y);
+
 // Domain conversion (Montgomery mode only)
 __device__ void field_to_mont(const FieldElement* a, FieldElement* r);
 __device__ void field_from_mont(const FieldElement* a, FieldElement* r);

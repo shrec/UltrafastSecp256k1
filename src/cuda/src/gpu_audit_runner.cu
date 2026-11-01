@@ -742,6 +742,169 @@ static int audit_cpu_gpu_differential_gen_mul() {
 }
 #endif  // HAVE_CPU_LIB
 
+// ----------------------------------------------------------------------------
+// Differential: variable-time inverse (modinv_var.cuh) against the Fermat
+// inverses field_inv / scalar_inverse, on the GPU.
+// ----------------------------------------------------------------------------
+// Not built in a Montgomery build: the product check below expects the plain
+// value 1, and field_inv_var there only forwards to field_inv.
+#if !SECP256K1_CUDA_LIMBS_32 && !SECP256K1_CUDA_USE_MONTGOMERY
+__device__ __forceinline__ uint64_t audit_splitmix64(uint64_t x) {
+    x += 0x9E3779B97F4A7C15ULL;
+    x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    x = (x ^ (x >> 27)) * 0x94D049BB133111EBULL;
+    return x ^ (x >> 31);
+}
+
+// Element idx < n_edge is read from the host edge list; the rest is a
+// deterministic pseudo-random 256-bit value derived from (seed, idx), with
+// every 16th one forced >= modulus (unreduced input).
+// stats[0] = var != Fermat (raw limbs), stats[1] = a * var is not 1 (or not 0
+// when a == 0 mod m), stats[2] = elements checked.
+__global__ void audit_inv_var_diff_kernel(const uint64_t* edge, int n_edge, uint64_t seed,
+                                          int is_scalar, int count, unsigned int* stats) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+    uint64_t a[4];
+    if (idx < n_edge) {
+        for (int j = 0; j < 4; ++j) a[j] = edge[4 * idx + j];
+    } else {
+        for (int j = 0; j < 4; ++j) a[j] = audit_splitmix64(seed + 4ULL * (uint64_t)idx + (uint64_t)j);
+        if ((idx & 15) == 15) {
+            a[3] = ~0ULL; a[2] = ~0ULL;                                   // >= n
+            if (!is_scalar) { a[1] = ~0ULL; a[0] |= 0xFFFFFFFF00000000ULL; }  // >= p
+        }
+    }
+    bool same, prod_ok;
+    if (is_scalar) {
+        Scalar x, ref, var, prod;
+        for (int j = 0; j < 4; ++j) x.limbs[j] = a[j];
+        scalar_inverse(&x, &ref);
+        scalar_inv_var(&x, &var);
+        scalar_mul_mod_n(&x, &var, &prod);
+        same = scalar_eq(&ref, &var);
+        const uint64_t want = scalar_is_zero(&ref) ? 0ULL : 1ULL;
+        prod_ok = prod.limbs[0] == want && (prod.limbs[1] | prod.limbs[2] | prod.limbs[3]) == 0;
+    } else {
+        FieldElement x, ref, var, prod;
+        for (int j = 0; j < 4; ++j) x.limbs[j] = a[j];
+        field_inv(&x, &ref);
+        field_inv_var(&x, &var);
+        field_mul(&x, &var, &prod);
+        same = field_eq(&ref, &var);
+        const uint64_t want = field_is_zero(&ref) ? 0ULL : 1ULL;
+        prod_ok = prod.limbs[0] == want && (prod.limbs[1] | prod.limbs[2] | prod.limbs[3]) == 0;
+    }
+    if (!same) atomicAdd(&stats[0], 1u);
+    if (!prod_ok) atomicAdd(&stats[1], 1u);
+    atomicAdd(&stats[2], 1u);
+}
+
+// r = a + b / a - b on 4 little-endian 64-bit limbs (host, edge list only)
+static void audit_u256_add(const uint64_t* a, const uint64_t* b, uint64_t* r) {
+    uint64_t c = 0;
+    for (int i = 0; i < 4; ++i) {
+        const uint64_t s = a[i] + b[i], c1 = s < a[i];
+        r[i] = s + c; c = c1 | (r[i] < s);
+    }
+}
+static void audit_u256_sub(const uint64_t* a, const uint64_t* b, uint64_t* r) {
+    uint64_t c = 0;
+    for (int i = 0; i < 4; ++i) {
+        const uint64_t d = a[i] - b[i], c1 = a[i] < b[i];
+        r[i] = d - c; c = c1 | (d < c);
+    }
+}
+
+// t = k^-1 mod m for a small k (2 <= k <= 64; m is an odd prime):
+// t = (j*m + 1) / k for the j in [1, k) that makes the division exact, so
+// t*k == 1 (mod m) by construction. Returns false if no j does (cannot happen
+// for a prime m; the caller fails the module instead of testing fewer inputs).
+static bool audit_small_inverse(const uint64_t* m, uint32_t k, uint64_t* t) {
+    for (uint32_t j = 1; j < k; ++j) {
+        uint32_t num[9], q[9];                       // j*m + 1, quotient; 32-bit limbs
+        uint64_t c = 1;
+        for (int i = 0; i < 8; ++i) {
+            c += (uint64_t)j * (uint32_t)(m[i / 2] >> (32 * (i & 1)));
+            num[i] = (uint32_t)c; c >>= 32;
+        }
+        num[8] = (uint32_t)c;
+        uint64_t rem = 0;
+        for (int i = 8; i >= 0; --i) {
+            const uint64_t cur = (rem << 32) | num[i];
+            q[i] = (uint32_t)(cur / k); rem = cur % k;
+        }
+        if (rem != 0) continue;
+        for (int i = 0; i < 4; ++i) t[i] = (uint64_t)q[2 * i] | ((uint64_t)q[2 * i + 1] << 32);
+        return q[8] == 0;
+    }
+    return false;
+}
+
+// Edge inputs for modulus m: 0, 1..3, m-1..m-3, 2^k, m-2^k, the unreduced
+// values m, m+1..m+3, m+2^k (k < 32), 2^256-1..2^256-4, and the inputs whose
+// inverse is small (2^-1 .. 64^-1), which random inputs never reach. An empty
+// list means the host failed to build it.
+static std::vector<uint64_t> audit_inv_var_edge_inputs(const uint64_t* m) {
+    std::vector<uint64_t> v;
+    auto push = [&v](const uint64_t* x) { v.insert(v.end(), x, x + 4); };
+    const uint64_t zero[4] = {0, 0, 0, 0};
+    const uint64_t ones[4] = {~0ULL, ~0ULL, ~0ULL, ~0ULL};
+    uint64_t t[4];
+    push(zero); push(ones); push(m);
+    for (uint64_t s = 1; s <= 3; ++s) {
+        const uint64_t small[4] = {s, 0, 0, 0};
+        push(small);
+        audit_u256_sub(m, small, t); push(t);
+        audit_u256_add(m, small, t); push(t);
+        audit_u256_sub(ones, small, t); push(t);
+    }
+    for (int k = 0; k < 256; ++k) {
+        uint64_t pw[4] = {0, 0, 0, 0};
+        pw[k / 64] = 1ULL << (k % 64);
+        push(pw);
+        audit_u256_sub(m, pw, t); push(t);
+        if (k < 32) { audit_u256_add(m, pw, t); push(t); }
+    }
+    // inputs whose inverse is small: (m+1)/2 = 2^-1, then 3^-1 .. 64^-1
+    for (uint32_t k = 2; k <= 64; ++k) {
+        if (!audit_small_inverse(m, k, t)) return {};
+        push(t);
+    }
+    return v;
+}
+
+// field_inv_var == field_inv and scalar_inv_var == scalar_inverse on the edge
+// list plus 2^22 pseudo-random inputs per modulus, and a * inv(a) == 1.
+static int audit_inv_var_differential() {
+    static const uint64_t MOD_P[4] = {0xFFFFFFFEFFFFFC2FULL, ~0ULL, ~0ULL, ~0ULL};
+    static const uint64_t MOD_N[4] = {0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+                                      0xFFFFFFFFFFFFFFFEULL, ~0ULL};
+    const int n_random = 1 << 22;
+    for (int is_scalar = 0; is_scalar < 2; ++is_scalar) {
+        const std::vector<uint64_t> edge = audit_inv_var_edge_inputs(is_scalar ? MOD_N : MOD_P);
+        if (edge.empty()) return 1;                 // the host could not build the list
+        const int n_edge = (int)(edge.size() / 4);
+        const int count = n_edge + n_random;
+        const uint64_t seed = is_scalar ? 0xA5A5A5A500000000ULL : 0x5A5A5A5A00000000ULL;
+
+        uint64_t* d_edge; unsigned int* d_stats;
+        unsigned int h_stats[3] = {0, 0, 0};
+        CUDA_CHECK(cudaMalloc(&d_edge, edge.size() * sizeof(uint64_t)));
+        CUDA_CHECK(cudaMalloc(&d_stats, sizeof(h_stats)));
+        CUDA_CHECK(cudaMemcpy(d_edge, edge.data(), edge.size() * sizeof(uint64_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemset(d_stats, 0, sizeof(h_stats)));
+        audit_inv_var_diff_kernel<<<(count + 255) / 256, 256>>>(d_edge, n_edge, seed, is_scalar, count, d_stats);
+        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaMemcpy(h_stats, d_stats, sizeof(h_stats), cudaMemcpyDeviceToHost));
+        cudaFree(d_edge); cudaFree(d_stats);
+
+        if (h_stats[0] != 0 || h_stats[1] != 0 || h_stats[2] != (unsigned int)count) return 1;
+    }
+    return 0;
+}
+#endif // !SECP256K1_CUDA_LIMBS_32 && !SECP256K1_CUDA_USE_MONTGOMERY
+
 // Section 5: Memory safety -- device allocation stress
 static int audit_device_memory_stress() {
     // Allocate, use, free in rapid sequence -- no leaks
@@ -2086,6 +2249,9 @@ static const GpuAuditModule GPU_MODULES[] = {
 
     // Section 4: CPU-GPU Differential
     { "diff_gen_mul",      "CPU-GPU differential gen mul",                "differential", audit_cpu_gpu_differential_gen_mul, false },
+#if !SECP256K1_CUDA_LIMBS_32 && !SECP256K1_CUDA_USE_MONTGOMERY
+    { "inv_var_diff",      "Var-time inverse vs Fermat (field+scalar)",   "differential", audit_inv_var_differential, false },
+#endif
 #ifdef HAVE_CPU_LIB
     { "diff_field_mul",    "CPU-GPU differential field mul (10 rounds)",  "differential", audit_cpu_gpu_differential_field_mul, false },
 #if !SECP256K1_CUDA_LIMBS_32
@@ -2609,6 +2775,10 @@ int main(int argc, char* argv[]) {
     if (!json_only) {
         std::printf("[Phase 1/2] Running %d GPU audit modules across %d sections...\n\n",
                     modules_to_run, NUM_GPU_SECTIONS);
+#if SECP256K1_CUDA_USE_MONTGOMERY && !SECP256K1_CUDA_LIMBS_32
+        std::printf("  [skip] inv_var_diff (var-time inverse vs Fermat): not run in a Montgomery\n"
+                    "         build; its a * inv == 1 check assumes plain field elements\n\n");
+#endif
     }
 
     std::vector<ModuleResult> results;

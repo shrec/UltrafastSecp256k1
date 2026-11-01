@@ -259,7 +259,7 @@ __device__ inline bool ecdsa_recover(
     scalar_from_bytes(msg_hash, &z);
 
     Scalar r_inv;
-    scalar_inverse(&sig->r, &r_inv);
+    scalar_inv_var(&sig->r, &r_inv);       // variable time: r is a signature scalar (public)
 
     // s * R
     JacobianPoint sR;

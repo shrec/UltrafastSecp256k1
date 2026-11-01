@@ -361,9 +361,9 @@ __device__ inline bool ecdsa_verify(
     Scalar z;
     scalar_from_bytes(msg_hash, &z);
 
-    // w = s^{-1} mod n
+    // w = s^{-1} mod n. Variable-time inverse: s is a signature scalar (public).
     Scalar w;
-    scalar_inverse(&sig->s, &w);
+    scalar_inv_var(&sig->s, &w);
 
     // u1 = z * w mod n
     Scalar u1;
@@ -379,9 +379,10 @@ __device__ inline bool ecdsa_verify(
 
     if (R_prime.infinity) return false;
 
-    // v = R'.x mod n (convert affine x to scalar)
+    // v = R'.x mod n (convert affine x to scalar). Variable-time inverse: R'.z
+    // is a function of (u1, u2) and the affine public key, all public.
     FieldElement z_inv, z_inv2, x_affine;
-    field_inv(&R_prime.z, &z_inv);
+    field_inv_var(&R_prime.z, &z_inv);
     field_sqr(&z_inv, &z_inv2);
     field_mul(&R_prime.x, &z_inv2, &x_affine);
 
@@ -533,9 +534,13 @@ __device__ inline void ecdsa_snark_witness_device(
     scalar_to_bytes(&sig->r, out->sig_r);
     scalar_to_bytes(&sig->s, out->sig_s);
 
-    /* ---- public key: Jacobian → affine ---- */
+    /* ---- public key: Jacobian → affine ----
+     * Variable-time inverse: every caller passes a public key decoded from its
+     * public encoding. Do not pass the Jacobian output of a secret scalar
+     * multiplication here (its Z depends on the key); convert that one with
+     * jacobian_to_affine first. */
     FieldElement pz_inv, pz_inv2, pz_inv3, pub_x_aff, pub_y_aff;
-    field_inv(&pubkey->z, &pz_inv);
+    field_inv_var(&pubkey->z, &pz_inv);
     field_sqr(&pz_inv, &pz_inv2);
     field_mul(&pz_inv2, &pz_inv, &pz_inv3);
     field_mul(&pubkey->x, &pz_inv2, &pub_x_aff);
@@ -548,7 +553,7 @@ __device__ inline void ecdsa_snark_witness_device(
     scalar_from_bytes(msg_hash, &z);
 
     Scalar s_inv;
-    scalar_inverse(&sig->s, &s_inv);
+    scalar_inv_var(&sig->s, &s_inv);       // signature scalar: public
     scalar_to_bytes(&s_inv, out->s_inv);
 
     Scalar u1, u2;
@@ -565,7 +570,7 @@ __device__ inline void ecdsa_snark_witness_device(
 
     /* ---- R affine x, y ---- */
     FieldElement rz_inv, rz_inv2, rz_inv3, rx_aff, ry_aff;
-    field_inv(&R.z, &rz_inv);
+    field_inv_var(&R.z, &rz_inv);          // R is a function of public (u1, u2, pubkey)
     field_sqr(&rz_inv, &rz_inv2);
     field_mul(&rz_inv2, &rz_inv, &rz_inv3);
     field_mul(&R.x, &rz_inv2, &rx_aff);
