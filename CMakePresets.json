@@ -475,6 +475,13 @@
       }
     },
     {
+      "name": "audit",
+      "configurePreset": "audit",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
       "name": "cpu-debug",
       "configurePreset": "cpu-debug",
       "output": {
