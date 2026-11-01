@@ -1,7 +1,7 @@
 {
   "version": "1.5.0",
-  "last_updated": "2026-09-21",
-  "update_note": "2026-09-21: CAAS residual-evidence refresh. Re-verified against the current headers with ci/check_api_contracts.py — PASS, 11 entries, no drift. The changed-file review for this cycle covers the dead co-Z helper removal in src/cpu/src/point.cpp (8c25dd3e: a static function that lost its only caller in 49925a1a and failed the -Werror gate) and the OpenCL SECP256K1_OPENCL_SCAN_ONLY guard (#415). Neither touches include/ufsecp/ or any declared C ABI surface: the first deletes a file-local function with no callers, the second adds preprocessor guards inside .cl kernel sources that the repo's own build never activates.",
+  "last_updated": "2026-11-01",
+  "update_note": "2026-11-01: CAAS residual-evidence refresh. Re-verified against the current headers with ci/check_api_contracts.py — PASS, no drift. The changed-file review for this cycle covers the include/ufsecp/ changes since the 2026-09-21 stamp: ufsecp_release_process_resources() (0985ca2f, #430), a process-global lifecycle entry point that frees the lazily built generator tables and batch worker pool and takes no key, nonce or signature input; the v4.6.0 -> v4.6.2 version macros in ufsecp_version.h; and a one-line SUPPORTED_GUARANTEES.md edit. None of them changes a contracted secret-handling or verification entry. The CUDA verify-path switch to the variable-time inverse (a23f3b68) is device code behind the unchanged ufsecp_gpu.h surface. No entry required a change; the stamp records the re-verification, not a content edit.",
   "entries": [
     {
       "api": "ufsecp_schnorr_sign",
