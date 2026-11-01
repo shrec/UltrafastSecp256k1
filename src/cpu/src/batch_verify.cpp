@@ -88,35 +88,36 @@ using fast::Scalar;
 using fast::Point;
 using fast::FieldElement;
 
-// -- Generate batch weight ----------------------------------------------------
-// Deterministic weight derived from all signatures in the batch.
-// This avoids requiring a CSPRNG while remaining sound.
-// Weight a_i = SHA256("batch" || i || R1 || s1 || R2 || s2 || ...)
-// For simplicity, we derive: a_i = SHA256(batch_seed || i_le32)
+// -- Batch weights ------------------------------------------------------------
+// a_0 = 1, a_i = 128 odd bits of SHA256(batch_seed || i_le32), where
+// batch_seed = SHA256(every entry's r || s || pubkey_x || msg) XOR 32 CSPRNG
+// bytes. See batch_weight() and schnorr_batch_verify_impl() below.
 
 namespace {
 
 // Below this many signatures, verifying one at a time beats building the MSM.
 //
-// The cutoff is a function of how fast the MSM is, so it moved when the MSM
-// did: msm() now routes to GLV Pippenger, which is 15-22% faster than what it
-// replaced across the whole batch range. Re-measured after that change,
-// microseconds per signature, both paths in the same binary:
+// The cutoff is a function of how fast the MSM is, so it moves when the MSM
+// does. Re-measured after the switch to 128-bit weights and
+// pippenger_msm_glv_short (3N bucket points instead of 4N): a copy of this
+// file with the cutoff forced to 1, so both paths run in the same binary,
+// i5-14400F, GCC 14.2, pinned to one core, powersave governor with turbo ON.
+// Microseconds per signature, two whole runs:
 //
-//     N   individual   MSM path
-//    32       36.97       39.97   individual
-//    36       36.56       37.56   individual
-//    40       37.18       36.71   MSM
-//    48       38.16       35.63   MSM
-//    56       38.00       34.13   MSM
-//    64       37.97       33.27   MSM
+//     N   individual      MSM path     cached: individual    MSM path
+//    16   20.62 20.58   25.79 22.15            21.01 19.39   21.83 24.08
+//    24   20.62 20.13   20.78 19.68            20.25 21.45   22.14 19.92
+//    28   20.24 19.68   19.96 18.20            19.65 21.50   16.99 19.05
+//    32   20.87 20.08   18.49 18.17            19.82 21.55   18.04 16.87
+//    40   19.89 20.84   16.69 18.33            19.57 21.72   15.65 16.97
+//    64   22.02 20.93   16.25 16.50            20.43 21.46   12.97 14.49
 //
-// The crossover is at N ~= 38. It was 96, set when the MSM was slower; leaving
-// it there would have kept every batch from 39 to 96 signatures on the path
-// that is now up to 15% slower for them.
+// The MSM path wins from N = 28 in both runs and both entry types; N = 24 is
+// a coin flip, so the cutoff sits just below 28. It was 38 with the 256-bit
+// weights.
 //
-// Note this is signatures, not MSM points: the MSM built here has n = 2N.
-constexpr std::size_t kSchnorrBatchIndividualCutoff = 38;
+// Note this is signatures, not MSM points: the MSM built here has 3N points.
+constexpr std::size_t kSchnorrBatchIndividualCutoff = 27;
 constexpr std::size_t kOpaqueBatchChunk = 4096;
 constexpr std::size_t kOpaqueBatchMinRowsPerThread = 128;
 constexpr std::size_t kOpaqueBatchStealFloor = 64;
@@ -281,12 +282,51 @@ bool verify_opaque_bounded(std::size_t count, std::uint8_t* out_results,
     return ok_all;
 }
 
-// Generate deterministic weights for batch verification.
-// batch_seed: SHA256 over all signature data (binds to entire batch).
-// Returns a_i = SHA256(batch_seed || i) interpreted as scalar.
-// All weights are derived from SHA256(batch_seed || i_le32) for every index
-// including index 0. Fixing a_0 = 1 deviates from the batch-verify soundness
-// proof which requires all weights to be uniform random.
+// Batch-binding digest: SHA256 over r || s || pubkey_x || msg of every entry,
+// in order. The caller XORs 32 CSPRNG bytes into it (P2-SEC-002), so the
+// weights are bound to the batch AND unpredictable to whoever chose it.
+// Returns false (fail closed) if any entry has no pubkey bytes.
+template <typename Entry, typename PubkeyBytesFn>
+bool schnorr_batch_seed_digest(const Entry* entries, std::size_t n,
+                               PubkeyBytesFn&& pubkey_bytes,
+                               std::array<std::uint8_t, 32>& out) {
+    SHA256 seed_ctx;
+    std::uint8_t s_bytes[32];
+    for (std::size_t i = 0; i < n; ++i) {
+        auto const* const pubkey_x = pubkey_bytes(entries[i]);
+        if (pubkey_x == nullptr) return false;
+
+        seed_ctx.update(entries[i].signature.r.data(), 32);
+        entries[i].signature.s.write_bytes(s_bytes);
+        seed_ctx.update(s_bytes, 32);
+        seed_ctx.update(pubkey_x->data(), 32);
+        seed_ctx.update(entries[i].message.data(), 32);
+    }
+    out = seed_ctx.finalize();
+    return true;
+}
+
+// Batch weights, BIP-340 batch form with 128-bit randomizers:
+//   a_0 = 1                                  (BIP-340: "a_1 = 1")
+//   a_i = low 128 bits of SHA256(seed || i_le32), bit 0 forced to 1, i >= 1
+// so every a_i is odd, nonzero and below 2^128 < n. The libsecp256k1 batch
+// proposal and libbitcoin use the same short-randomizer shape.
+//
+// Soundness. Let D_i = s_i*G - R_i - e_i*P_i; entry i is valid iff D_i = O, and
+// the batch accepts iff sum a_i*D_i = O. secp256k1 has prime order n and
+// cofactor 1, so a nonzero D_i has order n.
+//   - One invalid entry j: a_j*D_j = O needs a_j = 0 mod n, impossible for
+//     0 < a_j < n. Rejected with certainty, at every position (j = 0 included).
+//   - Two or more: fix every weight but one invalid j >= 1; a_j*D_j = -T has at
+//     most one solution mod n, and a_j takes 2^127 distinct values (128 bits,
+//     bit 0 fixed), so the batch accepts with probability <= 2^-127 per call.
+// That bound holds only if a_j cannot be predicted when the entries are
+// chosen, which is what the CSPRNG XOR into the seed provides; the short
+// weights do not change that argument, only the size of the weight space.
+//
+// The zero-weight fallback of SEC-007 is gone because it is unreachable: bit 0
+// is set, so no weight can be zero (or reduce to zero: a_i < 2^128 < n).
+//
 // seed_and_index holds the 32-byte batch seed in [0,32); this writes the
 // little-endian index into [32,36) and hashes all 36 bytes. 36 message bytes +
 // the 0x80 terminator + the 8-byte length fit one 64-byte block, so this is a
@@ -302,20 +342,21 @@ bool verify_opaque_bounded(std::size_t count, std::uint8_t* out_results,
 // offset to cancel each other in the batch sum. That regression shipped in
 // ca0dde78 and is pinned by audit/test_exploit_batch_weight_seed_binding.cpp.
 Scalar batch_weight(uint8_t (&seed_and_index)[36], uint32_t index) {
+    if (index == 0) return Scalar::one();
+
     seed_and_index[32] = static_cast<uint8_t>(index & 0xFF);
     seed_and_index[33] = static_cast<uint8_t>((index >> 8) & 0xFF);
     seed_and_index[34] = static_cast<uint8_t>((index >> 16) & 0xFF);
     seed_and_index[35] = static_cast<uint8_t>((index >> 24) & 0xFF);
 
     auto h = SHA256::hash(seed_and_index, sizeof(seed_and_index));
-    Scalar w = Scalar::from_bytes(h);
-    // SEC-007: SHA256 output equal to the curve order n reduces to 0 mod n.
-    // A zero weight would silently exclude this signature from the batch check,
-    // turning a potentially invalid signature into an unchecked one.
-    // Probability is ~2^-128 but the consequence is fail-open, so we use 1
-    // as a safe non-zero fallback.
-    if (w.is_zero()) w = Scalar::one();
-    return w;
+    std::uint64_t lo = 0;
+    std::uint64_t hi = 0;
+    for (unsigned b = 0; b < 8; ++b) {
+        lo |= static_cast<std::uint64_t>(h[b]) << (8 * b);
+        hi |= static_cast<std::uint64_t>(h[8 + b]) << (8 * b);
+    }
+    return Scalar::from_limbs({lo | 1u, hi, 0, 0});
 }
 
 struct SchnorrBatchScratch {
@@ -373,7 +414,7 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
     }
 
     // ---- Large-batch path: randomized MSM ----
-    // Compute batch seed = SHA256(csprng_rand || all signature data)
+    // Compute batch seed = SHA256(all signature data) XOR csprng_rand.
     // P2-SEC-002: XOR 32 CSPRNG bytes into the seed before the weight loop.
     // Without randomization, batch_weight_i = SHA256(SHA256(all_sig_data) || i)
     // is deterministic and computable by any adversary who knows the batch
@@ -386,19 +427,11 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
     std::uint8_t csprng_rand[32];
     secp256k1::detail::csprng_fill(csprng_rand, sizeof(csprng_rand));
 
-    SHA256 seed_ctx;
-    std::uint8_t s_bytes[32];
-    for (std::size_t i = 0; i < n; ++i) {
-        auto const* const pubkey_x = pubkey_bytes(entries[i]);
-        if (pubkey_x == nullptr) return false;
-
-        seed_ctx.update(entries[i].signature.r.data(), 32);
-        entries[i].signature.s.write_bytes(s_bytes);
-        seed_ctx.update(s_bytes, 32);
-        seed_ctx.update(pubkey_x->data(), 32);
-        seed_ctx.update(entries[i].message.data(), 32);
+    std::array<std::uint8_t, 32> batch_seed{};
+    if (!schnorr_batch_seed_digest(entries, n, pubkey_bytes, batch_seed)) {
+        detail::secure_erase(csprng_rand, sizeof(csprng_rand));
+        return false;
     }
-    auto batch_seed = seed_ctx.finalize();
     // XOR CSPRNG randomness into the batch seed (one 32-byte XOR, not per-weight).
     for (std::size_t j = 0; j < 32; ++j) {
         batch_seed[j] ^= csprng_rand[j];
@@ -411,8 +444,14 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
     uint8_t bw_buf[36];
     std::memcpy(bw_buf, batch_seed.data(), batch_seed.size());
 
-    std::size_t const msm_n = 2 * n;
-    auto& scratch = schnorr_batch_scratch(msm_n);
+    // MSM layout, both streams negated through the POINT so every scalar stays
+    // a non-negative magnitude:
+    //   [0, n):  c_i = a_i * e_i  against -P_i   full width, GLV-split by the MSM
+    //   [n, 2n): a_i              against -R_i   below 2^128, enters unsplit
+    // so pippenger_msm_glv_short runs one bucket pass over 2n + n = 3n points
+    // with 129-bit scalars, where msm() over the old 256-bit weights ran it
+    // over 4n.
+    auto& scratch = schnorr_batch_scratch(2 * n);
     Scalar* const scalars = scratch.scalars.data();
     Point* const points = scratch.points.data();
 
@@ -439,15 +478,16 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
 
         g_coeff += weight * entries[i].signature.s;
 
-        scalars[i] = (weight * challenge).negate();
-        points[i] = P_pt;
-        scalars[n + i] = weight.negate();
-        points[n + i] = R_pt;
+        scalars[i] = weight * challenge;
+        points[i] = P_pt.negate();
+        scalars[n + i] = weight;
+        points[n + i] = R_pt.negate();
     }
 
     // g_coeff = sum(weight_i * sig_i.s) — all public data; VT correct here.
     auto G_term = Point::generator().scalar_mul(g_coeff);
-    auto rest = msm(scalars, points, msm_n);
+    auto rest = pippenger_msm_glv_short(scalars, points, n,
+                                        scalars + n, points + n, n);
     auto result = G_term.add(rest);
     return result.is_infinity();
 }
@@ -467,6 +507,33 @@ void schnorr_batch_identify_invalid_impl(
 }
 
 } // anonymous namespace
+
+// -- Test views of the weight derivation --------------------------------------
+// Not declared in any public header. audit/test_regression_schnorr_batch_short_weights.cpp
+// declares and calls these so it checks the engine's OWN seed digest and weight
+// function rather than a model of them (a model is exactly what let the
+// seedless-weight regression of ca0dde78 pass audit/test_batch_randomness.cpp).
+namespace detail {
+
+std::array<std::uint8_t, 32> schnorr_batch_seed_digest_for_test(
+    const SchnorrBatchEntry* entries, std::size_t n) {
+    std::array<std::uint8_t, 32> digest{};
+    auto pubkey_bytes = [](const SchnorrBatchEntry& entry)
+        -> const std::array<uint8_t, 32>* {
+        return &entry.pubkey_x;
+    };
+    (void)schnorr_batch_seed_digest(entries, n, pubkey_bytes, digest);
+    return digest;
+}
+
+Scalar schnorr_batch_weight_for_test(const std::array<std::uint8_t, 32>& seed,
+                                     std::uint32_t index) {
+    uint8_t buf[36];
+    std::memcpy(buf, seed.data(), seed.size());
+    return batch_weight(buf, index);
+}
+
+} // namespace detail
 
 // -- Schnorr Batch Verification -----------------------------------------------
 // Equation: sum(a_i * s_i) * G = sum(a_i * R_i) + sum(a_i * e_i * P_i)

@@ -1,5 +1,78 @@
 # Audit Changelog
 
+## 2026-11-01 - CPU Schnorr batch verify: 128-bit BIP-340 randomizers, 3n-point MSM (`regression_schnorr_batch_short_weights`)
+
+**What changed.** `schnorr_batch_verify_impl` (`src/cpu/src/batch_verify.cpp`)
+now uses the BIP-340 batch form with short randomizers, as libbitcoin and the
+libsecp256k1 batch proposal do:
+
+- `a_0 = 1` (BIP-340 numbers it `a_1 = 1`); for `i >= 1`, `a_i` is the low 128
+  bits of `SHA256(seed || i_le32)` with bit 0 forced to 1. Previously every
+  `a_i` was a full 256-bit `SHA256(seed || i)` reduced mod n.
+- The seed is unchanged: `SHA256(r || s || pubkey_x || msg` over all entries`)`
+  XOR 32 CSPRNG bytes (P2-SEC-002), hashed as a 36-byte `seed || index` buffer
+  (the binding restored after ca0dde78; no `SHA256::Midstate`). The CSPRNG
+  buffer is erased as before, now also on the early fail-closed return.
+- MSM: `(-R_i, a_i)` enters the bucket engine unsplit, the minus sign carried by
+  the point; `c_i = a_i * e_i` is GLV-split against `-P_i` with the
+  `k1_neg` / `k2_neg` signs applied to the points. One Pippenger pass over
+  `2n + n = 3n` points with 129-bit scalars, through the new
+  `pippenger_msm_glv_short` (`src/cpu/src/pippenger.cpp`), whose window table
+  was measured for that shape. The old path was `msm()` over `2n` full scalars,
+  i.e. GLV Pippenger over `4n` points.
+- The `G` term is unchanged: `(sum a_i * s_i) * G`, variable-time (public data,
+  CT-VERIFY).
+- `kSchnorrBatchIndividualCutoff` re-measured: 38 -> 27.
+
+Fail-closed behaviour is unchanged: any `lift_x` / pubkey failure returns false
+and callers keep their per-signature fallback. ECDSA batch verification, all
+`ct::` code, the shim and the GPU sources are untouched.
+
+**Soundness argument.** Let `D_i = s_i*G - R_i - e_i*P_i`; entry `i` is valid
+iff `D_i = O`, and the batch accepts iff `sum a_i*D_i = O`. secp256k1 has prime
+order `n` and cofactor 1, so every nonzero `D_i` has order `n`.
+
+- *One invalid entry `j`*: acceptance needs `a_j*D_j = O`, i.e. `a_j = 0 mod n`.
+  Every `a_j` is odd and below `2^128 < n`, so this never happens: a single
+  invalid signature is rejected with certainty at every position, including
+  position 0 where `a_0 = 1`.
+- *Two or more invalid entries*: pick an invalid `j >= 1` and fix all other
+  weights. `a_j*D_j = -T` has at most one solution mod `n`, and `a_j` ranges
+  over `2^127` distinct values (128 bits with bit 0 fixed), so the batch
+  accepts with probability at most `2^-127` per call -- about `2^-128`, against
+  the about `2^-256` the full-width weights gave. That is the same security
+  level as the rest of the curve (`~2^128` group operations for a discrete
+  log), which is why BIP-340 and libsecp256k1 accept 128-bit randomizers.
+- The bound assumes `a_j` cannot be predicted when the entries are chosen.
+  That property comes from the CSPRNG bytes XORed into the seed and from the
+  seed being bound to every entry byte; neither changed. A seedless or
+  predictable seed would break the argument for any weight length, which is
+  exactly the ca0dde78 regression pinned by
+  `audit/test_exploit_batch_weight_seed_binding.cpp`.
+- The SEC-007 zero-weight fallback is removed because it is unreachable: with
+  bit 0 set and `a_i < 2^128 < n`, no weight is zero or reduces to zero.
+
+**Tests.** New `audit/test_regression_schnorr_batch_short_weights.cpp`
+(section `protocol_security`, next to `regression_batch_csprng_seed`; standalone CTest `regression_schnorr_batch_short_weights`):
+valid batches at the cutoff, window-band and power-of-two boundaries up to
+4096; one invalid signature at random positions (0 and n-1 included) rejected in
+every trial; pairs corrupted as `s_i + d`, `s_j - d` -- first shown to cancel
+exactly under equal weights -- rejected; mixed batches equal to the AND of
+per-signature `schnorr_verify`; the engine's own weight function and seed
+digest (two test views exported from `batch_verify.cpp`) checked for
+`a_0 = 1`, odd / nonzero / `< 2^128` / distinct / seed-dependent weights, and a
+seed that moves on every single-byte change of any entry. Built against an
+equal-weight mutant of the engine the module fails (0 of 34 cancelling pairs
+rejected). The existing batch modules (`exploit_batch_schnorr`,
+`exploit_batch_schnorr_forge`, `exploit_batch_verify_correctness`,
+`exploit_batch_verify_poison`, `exploit_pippenger_batch_regression`,
+`exploit_schnorr_batch_inflation`) pass unchanged.
+
+**Measurement.** A/B of the base and changed `bench_unified`, alternating, five
+whole-binary runs each: `docs/benchmark_artifacts/schnorr_batch_short_weights_ab_2026-11-01_i5-14400f.json`,
+summarised in `docs/BENCHMARKS.md`. The window sweep and the cutoff sweep are
+in the same artifact.
+
 ## 2026-10-02 - CUDA: verify paths use the variable-time inverse; inverse hardened
 
 Follow-up to the entry below. The variable-time inverse added there is now

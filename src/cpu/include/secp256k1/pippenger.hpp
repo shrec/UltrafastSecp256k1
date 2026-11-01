@@ -73,6 +73,21 @@ fast::Point pippenger_msm_glv(const fast::Scalar* scalars,
                               const fast::Point* points,
                               std::size_t n);
 
+// Short-scalar GLV variant, the Schnorr batch-verification shape. Computes
+//   sum_i full_scalars[i]  * full_points[i]   (i < n_full)
+// + sum_j short_scalars[j] * short_points[j]  (j < n_short)
+// The full-width stream is GLV-split as in pippenger_msm_glv; the short stream
+// is expected to be below 2^128 and enters the bucket engine unsplit, so the
+// MSM runs over 2*n_full + n_short points with 129-bit scalars. A short scalar
+// that is NOT below 2^128 is detected and GLV-split instead (never truncated),
+// so the result is exact for any input. Variable-time: public data only.
+fast::Point pippenger_msm_glv_short(const fast::Scalar* full_scalars,
+                                    const fast::Point* full_points,
+                                    std::size_t n_full,
+                                    const fast::Scalar* short_scalars,
+                                    const fast::Point* short_points,
+                                    std::size_t n_short);
+
 fast::Point msm(const fast::Scalar* scalars,
                 const fast::Point* points,
                 std::size_t n);

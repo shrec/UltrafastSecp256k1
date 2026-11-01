@@ -638,6 +638,7 @@ int test_regression_schnorr_r_zero_ct_run();                // SEC-006 // SEC-00
 // Forward declarations -- 2026-05-06 performance review fixes
 // ============================================================================
 int test_regression_pippenger_stale_used_run();  // BUG-01: Pippenger used[] stale across windows
+int test_regression_schnorr_batch_short_weights_run();  // Schnorr batch: 128-bit BIP-340 weights stay sound
 int test_regression_negate_inplace_generator_flag_run();  // B1: negate_inplace must clear is_generator_
 int test_regression_recover_rplus_n_overflow_run();  // bbhunt-001: ECDSA recover must reject r >= p-n in recid&2
 int test_regression_ct_glv_make_v_branchless_run();  // CT-CRYPTO-001: branchless make_v in ct::scalar_mul
@@ -1483,6 +1484,7 @@ static const AuditModule ALL_MODULES[] = {
 #endif // SECP256K1_HAS_FROST
     { "musig2_nonce_erasure_le32_ecdh", "MuSig2 secnonce/nonce erasure + LE32 round-trip + ECDH Y-parity prefix", "memory_safety", test_exploit_musig2_nonce_erasure_le32_ecdh_run, false },
     { "regression_pippenger_stale_used", "Pippenger used[] not cleared per-window — stale bits corrupt MSM for n>=48 (BUG-01, PIP-R1..R7)", "math_invariants", test_regression_pippenger_stale_used_run, false },
+    { "regression_schnorr_batch_short_weights", "Schnorr batch verify with 128-bit BIP-340 randomizers (a_0=1): single-invalid and equal-weight cancelling pairs rejected, weight shape and seed binding", "protocol_security", test_regression_schnorr_batch_short_weights_run, false },
     { "regression_negate_inplace_generator_flag", "negate_inplace must clear is_generator_ — (-G).scalar_mul(k) == -(k*G), not k*G via the fixed-base path (B1, NEG-1..5)", "math_invariants", test_regression_negate_inplace_generator_flag_run, false },
     { "regression_recover_rplus_n_overflow", "ECDSA recover rejects r >= (p-n) in the recid&2 branch — else r+n wraps mod p to a different x and returns a bogus pubkey as success vs upstream's 0 (bbhunt-001, REC-1..4)", "math_invariants", test_regression_recover_rplus_n_overflow_run, false },
     { "regression_ct_glv_make_v_branchless", "ct::scalar_mul uses branchless ct_glv_make_v (no secret if(k_neg) branch on the ECDH/ellswift/tweak_mul path) and stays numerically identical to the variable-time reference (CT-CRYPTO-001, CT-GLV-1..3)", "ct_analysis", test_regression_ct_glv_make_v_branchless_run, false },

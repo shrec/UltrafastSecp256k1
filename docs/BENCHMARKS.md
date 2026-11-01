@@ -207,6 +207,75 @@ Selected full primitives from the rerun:
 
 No regressions vs 2026-03-24 baseline.
 
+### x86-64 Schnorr batch verify with 128-bit weights (2026-11-01) `[A/B, non-canonical conditions]`
+
+`schnorr_batch_verify` now uses the BIP-340 batch form with 128-bit randomizers
+(`a_0 = 1`, `a_i` odd and below `2^128`): the `R` terms enter the MSM unsplit and
+only `a_i * e_i` is GLV-split, so one Pippenger pass runs over `3N` points
+(`pippenger_msm_glv_short`) where `msm()` used to run over `4N`; the
+individual-verify cutoff moved from 38 to 27 signatures. Soundness argument:
+`docs/AUDIT_CHANGELOG.md` 2026-11-01.
+
+Method: the base binary (commit `14e803b2`) and the changed binary, built from
+the same `build.ninja` (GCC 14.2, audit preset), run `bench_unified --suite
+extended` alternately, five whole-binary runs each, pinned with `taskset -c 2`
+on an i5-14400F. The worker sandbox has no root, so the governor stayed at
+`powersave` and turbo stayed on: these are **not** canonical bench_unified
+numbers, and the base binary's run-to-run spread is far above the 3% this page
+asks of a baseline (see the min - max columns). A row is called faster only if
+the ranges do not overlap. Source of every number, with per-run values, binary
+hashes, the window sweep and the cutoff sweep:
+`docs/benchmark_artifacts/schnorr_batch_short_weights_ab_2026-11-01_i5-14400f.json`.
+
+| Row | Before: us median (min - max) | After: us median (min - max) | Median change | Ranges |
+|-----|------------------------------:|-----------------------------:|--------------:|--------|
+| `schnorr_batch_verify(N=4)` | 84.2 (75.0 - 156.1) | 85.3 (84.5 - 90.5) | +1.3% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=16)` | 337.5 (299.2 - 490.7) | 340.8 (336.3 - 355.1) | +1.0% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=64)` | 1282.1 (1164.6 - 1668.1) | 1099.1 (1097.1 - 1110.4) | -14.3% | no overlap, faster |
+| `schnorr_batch_verify(N=128)` | 2094.0 (1933.2 - 2988.7) | 1704.3 (1699.4 - 1749.6) | -18.6% | no overlap, faster |
+| `schnorr_batch_verify(N=192)` | 4219.9 (2695.9 - 5151.6) | 2308.4 (2293.2 - 2485.0) | -45.3% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=4)` | 86.4 (77.6 - 110.4) | 95.1 (86.2 - 106.3) | +10.0% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=16)` | 356.2 (318.7 - 567.4) | 346.1 (345.3 - 409.5) | -2.8% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=64)` | 1126.4 (1108.9 - 1473.8) | 941.4 (935.5 - 1034.7) | -16.4% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=128)` | 1950.5 (1875.3 - 3121.9) | 1541.7 (1539.5 - 2087.4) | -21.0% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=192)` | 2700.5 (2630.1 - 5288.9) | 2136.2 (2133.1 - 2147.4) | -20.9% | no overlap, faster |
+
+N = 4 and N = 16 are below both cutoffs and run per-signature verification in
+both binaries, so no change is expected there. The median changes overstate
+the gain wherever the base runs were disturbed (N = 192 most of all: base runs
+2 and 3 are about twice run 1); the fastest base run against the changed
+binary's range is the conservative reading. `cached,N=128` overlaps because of
+one slow changed-binary run (2087.4) against one fast base run (1875.3). A
+canonical rerun (performance governor, turbo off) is still needed before these
+magnitudes are cited elsewhere.
+
+**Independent reproduction (manager review, same day).** Same method, rebuilt
+base and changed binaries from the same `build.ninja`, pinned with `taskset -c 6`
+(the core used above, cpu2, had a busy hyperthread sibling). Same limits: no
+root, `powersave`, turbo on, and unrelated CPU-heavy jobs running on other
+cores, so several whole runs were disturbed and the base spread is again far
+above 3%. Source:
+`docs/benchmark_artifacts/schnorr_batch_short_weights_ab_repro_2026-11-01_i5-14400f.json`.
+
+| Row | Before: us median (min - max) | After: us median (min - max) | Median change | Ranges |
+|-----|------------------------------:|-----------------------------:|--------------:|--------|
+| `schnorr_batch_verify(N=4)` | 82.8 (75.3 - 138.8) | 84.3 (84.0 - 89.2) | +1.9% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=4)` | 85.8 (79.9 - 177.1) | 86.3 (77.9 - 162.8) | +0.5% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=16)` | 320.5 (302.7 - 622.8) | 317.2 (301.6 - 368.1) | -1.0% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=16)` | 345.2 (307.4 - 635.8) | 344.9 (309.3 - 345.3) | -0.1% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=64)` | 1221.6 (1154.2 - 2042.8) | 990.7 (973.4 - 1142.8) | -18.9% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=64)` | 1071.6 (998.9 - 1812.8) | 864.7 (849.5 - 936.8) | -19.3% | no overlap, faster |
+| `schnorr_batch_verify(N=128)` | 1927.1 (1841.1 - 3780.1) | 1569.9 (1495.6 - 1704.4) | -18.5% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=128)` | 1760.6 (1713.9 - 3168.8) | 1535.0 (1369.4 - 2842.2) | -12.8% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=192)` | 2668.2 (2594.4 - 2781.0) | 2130.6 (2047.6 - 2933.8) | -20.1% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=192)` | 2632.8 (2376.9 - 2831.5) | 2058.1 (1899.7 - 2482.5) | -21.8% | overlap (inconclusive) |
+
+Reading both A/Bs together: `N=64`, `cached,N=64` and `N=128` are faster with
+non-overlapping ranges in both; every other row is inconclusive in at least one.
+The -45.3% `N=192` median above did not reproduce (here the medians differ by
+about 20%, and the ranges overlap). Neither run meets this page's 3% baseline
+rule, so the direction is established and the magnitude is not.
+
 ### x86-64 Batch Verify Rerun (2026-03-17) `[archived / diagnostic]`
 
 A retained low-risk x86 CPU improvement was keeping the Schnorr batch pubkey cache

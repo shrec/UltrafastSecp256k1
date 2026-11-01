@@ -19,6 +19,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/AUDIT_CHANGELOG.md` 2026-10-02.
 
 ### Changed
+- **CPU Schnorr batch verify uses 128-bit BIP-340 randomizers and a 3n-point
+  MSM.** `schnorr_batch_verify` now weights the batch with `a_0 = 1` and, for
+  `i >= 1`, 128 odd bits of `SHA256(seed || i)` (seed binding and CSPRNG
+  randomisation unchanged). The `R` terms enter the MSM unsplit and only
+  `a_i * e_i` is GLV-split, so one Pippenger pass runs over `3N` points through
+  the new `pippenger_msm_glv_short` (window bands measured for that shape)
+  instead of `4N`; the individual-verify cutoff moved from 38 to 27 signatures.
+  Forgery probability per batch is at most `2^-127` (one invalid signature is
+  always rejected); argument in `docs/AUDIT_CHANGELOG.md` 2026-11-01. Verdicts
+  are unchanged; ECDSA batch, `ct::`, shim and GPU code are untouched. Two
+  alternating A/Bs on an i5-14400F (non-canonical conditions: turbo on, baseline
+  spread above 3%): faster with non-overlapping ranges in both at N = 64,
+  cached N = 64 and N = 128; every other row is inconclusive in at least one, and
+  no magnitude is established. `docs/BENCHMARKS.md`,
+  `docs/benchmark_artifacts/schnorr_batch_short_weights_ab_2026-11-01_i5-14400f.json`,
+  `docs/benchmark_artifacts/schnorr_batch_short_weights_ab_repro_2026-11-01_i5-14400f.json`.
+  New audit module `regression_schnorr_batch_short_weights`.
 - **CUDA verify paths use the variable-time inverse.** `ecdsa_verify`,
   `schnorr_verify`, `schnorr_verify_xonly`, `ecdsa_recover`, the ECDSA SNARK
   witness, DLEQ and FROST partial verification, the Bulletproof range verifiers

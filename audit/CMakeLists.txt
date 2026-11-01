@@ -1033,6 +1033,15 @@ target_compile_definitions(test_exploit_batch_schnorr_standalone PRIVATE STANDAL
 add_test(NAME exploit_batch_schnorr COMMAND test_exploit_batch_schnorr_standalone)
 set_tests_properties(exploit_batch_schnorr PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr")
 
+add_executable(test_regression_schnorr_batch_short_weights_standalone
+    test_regression_schnorr_batch_short_weights.cpp)
+audit_target_defaults(test_regression_schnorr_batch_short_weights_standalone)
+target_compile_definitions(test_regression_schnorr_batch_short_weights_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_schnorr_batch_short_weights
+    COMMAND test_regression_schnorr_batch_short_weights_standalone)
+set_tests_properties(regression_schnorr_batch_short_weights PROPERTIES
+    TIMEOUT 120 LABELS "audit;regression;schnorr;batch")
+
 add_executable(test_exploit_segwit_encoding_standalone test_exploit_segwit_encoding.cpp)
 audit_target_defaults(test_exploit_segwit_encoding_standalone)
 target_compile_definitions(test_exploit_segwit_encoding_standalone PRIVATE STANDALONE_TEST)
@@ -4141,6 +4150,7 @@ add_executable(unified_audit_runner
     test_exploit_batch_schnorr_forge.cpp
     test_exploit_batch_soundness.cpp
     test_exploit_batch_weight_seed_binding.cpp
+    test_regression_schnorr_batch_short_weights.cpp
     test_regression_single_affine_materialisation.cpp
     test_regression_scalar_decomposition_and_comb.cpp
     test_regression_pippenger_window_bands.cpp
