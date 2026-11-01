@@ -1,5 +1,11 @@
 # libbitcoin integration (canonical header-only C++ surface first)
 
+> **Status (2026-11-01):** libbitcoin carried this integration on its `master` branch from June 2026
+> (`--with-ultrafast`, `-Dwith-ultrafast=ON`, `UltrafastSecp256k1-vc145` NuGet) until
+> [libbitcoin-system #2048](https://github.com/libbitcoin/libbitcoin-system/pull/2048) removed it on
+> 2026-10-02. libbitcoin now uses its own internal secp256k1. History and evidence:
+> [ADOPTION.md](ADOPTION.md#libbitcoin-former-integration).
+
 This guide is for libbitcoin-system integration work against the current
 UltrafastSecp256k1 `dev` branch. The integration rule is simple:
 

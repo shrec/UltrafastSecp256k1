@@ -22,6 +22,8 @@
     "Taproot",
     "MuSig2",
     "FROST",
+    "BIP-352",
+    "Silent Payments",
     "Bitcoin",
     "Ethereum",
     "GPU cryptography",
