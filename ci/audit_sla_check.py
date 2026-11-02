@@ -12,6 +12,12 @@ of its blocking threshold. This prevents the SLA from silently jumping straight
 from green to blocked (Bastion B3): operators get advance warning, and the
 `evidence_status` array gives every artifact's remaining runway.
 
+Ages are measured against the wall clock by default. With AUDIT_SLA_AS_OF=head they
+are measured against the commit time of HEAD instead, which asks "was the evidence
+fresh when this release was cut" -- the question for a release snapshot, whose
+evidence nothing can refresh until the next release. The report's "as_of" field
+says which reference was applied ("wall_clock" or "head").
+
 If any blocking SLO is violated, release_ready = false.
 """
 
@@ -94,6 +100,46 @@ def _status_row(name: str, slo: str, age: float | None, threshold: float, buffer
     }
 
 
+def _age_reference() -> tuple[str, float]:
+    """Return (as_of, epoch_seconds): the instant every evidence age is measured against.
+
+    Default is the wall clock, ("wall_clock", time.time()): how old is the evidence
+    right now. That is the right question on a working branch, where evidence is
+    refreshed continuously, and it is what runs when AUDIT_SLA_AS_OF is unset or
+    holds anything other than exactly "head".
+
+    AUDIT_SLA_AS_OF=head measures against the commit time of HEAD instead,
+    ("head", `git log -1 --format=%ct HEAD`): was the evidence fresh when this
+    snapshot was cut. That is the right question for a release snapshot. The release
+    branch only changes when a version is cut, so nothing on it can refresh its
+    evidence in between; against the wall clock that evidence crosses the freshness
+    SLO a fixed time after every release and every scheduled check then fails on a
+    tree nobody can change. Anchored at HEAD, the verdict depends on the snapshot
+    alone, not on the day it is checked. The ages still come from per-file git
+    history, so the checkout needs that history.
+
+    If HEAD's commit time cannot be read (no git, no repository, no commits, a
+    timeout, unparseable output) this falls back to the wall clock and reports
+    "wall_clock": the stricter reading, never an invented instant, and the report
+    shows which reference was applied.
+    """
+    if os.environ.get("AUDIT_SLA_AS_OF") == "head":
+        try:
+            result = subprocess.run(
+                ["git", "log", "-1", "--format=%ct", "HEAD", "--"],
+                capture_output=True,
+                text=True,
+                cwd=str(LIB_ROOT),
+                timeout=15,
+            )
+            ts_str = result.stdout.strip()
+            if result.returncode == 0 and ts_str:
+                return "head", float(ts_str)
+        except (subprocess.SubprocessError, ValueError, OSError):
+            pass
+    return "wall_clock", time.time()
+
+
 def _file_age_days(path: Path) -> float | None:
     """Return age of file in days based on git commit date, or None if missing/untracked.
 
@@ -101,9 +147,22 @@ def _file_age_days(path: Path) -> float | None:
     making filesystem timestamps useless for staleness detection.
     Falls back to mtime only when the file is not tracked by git (e.g. generated files
     outside the repo, or fresh local writes not yet committed).
+
+    Ages are measured against _age_reference(): the wall clock by default, HEAD's
+    commit time under AUDIT_SLA_AS_OF=head (where they are never negative).
     """
     if not path.exists():
         return None
+
+    def age_days(then: float) -> float:
+        as_of, now = _age_reference()
+        age = (now - then) / 86400.0
+        # Under "head" a file can be newer than the reference: an untracked
+        # artifact generated during this run, or a commit dated after HEAD's. It
+        # is simply current, not negative days old. The wall clock is left exactly
+        # as it always was.
+        return max(age, 0.0) if as_of == "head" else age
+
     try:
         # Ask whether the file is tracked RIGHT NOW, not whether git has ever
         # heard of it. `git log -- <path>` also returns the commit that DELETED
@@ -132,14 +191,11 @@ def _file_age_days(path: Path) -> float | None:
             )
             ts_str = result.stdout.strip()
             if ts_str:
-                age_secs = time.time() - float(ts_str)
-                return age_secs / 86400.0
+                return age_days(float(ts_str))
     except (subprocess.SubprocessError, ValueError, OSError):
         pass
     # Fallback to mtime for untracked/local-only files
-    mtime = os.path.getmtime(path)
-    age_secs = time.time() - mtime
-    return age_secs / 86400.0
+    return age_days(os.path.getmtime(path))
 
 
 def _dir_newest_age_days(dirpath: Path) -> float | None:
@@ -378,6 +434,7 @@ def run(json_mode: bool, out_file: str | None) -> int:
 
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
+        "as_of": _age_reference()[0],
         "overall_pass": release_ready,
         "release_ready": release_ready,
         "blocking_violations": len(blocking),

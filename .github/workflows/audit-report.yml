@@ -29,6 +29,10 @@ on:
 permissions:
   contents: read
 
+# Audits a release snapshot (main on schedule, a v* tag on push): evidence is aged as of HEAD's commit, not as of today.
+env:
+  AUDIT_SLA_AS_OF: head
+
 jobs:
   # =========================================================================
   # Linux (GCC-13, Release)
@@ -46,6 +50,9 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          # Per-file commit dates need full history for AUDIT_SLA_AS_OF=head; a shallow clone dates every file at HEAD.
+          fetch-depth: 0
 
       - name: Install build tools
         run: |
@@ -194,6 +201,9 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          # Per-file commit dates need full history for AUDIT_SLA_AS_OF=head; a shallow clone dates every file at HEAD.
+          fetch-depth: 0
 
       - name: Install build tools
         run: |
@@ -344,6 +354,9 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          # Per-file commit dates need full history for AUDIT_SLA_AS_OF=head; a shallow clone dates every file at HEAD.
+          fetch-depth: 0
 
       - name: Configure
         run: |

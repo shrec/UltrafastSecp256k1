@@ -1,5 +1,72 @@
 # Audit Changelog
 
+## 2026-11-02 - Audit SLA can age a release snapshot as of `HEAD` (`AUDIT_SLA_AS_OF=head`); the 6-hourly freshness watch moves to `dev`
+
+**Gap.** GitHub runs scheduled workflows on the default branch, which is `main`.
+`main` is the release branch and only changes when a version is cut, so nothing
+on it can refresh evidence between releases, yet `ci/audit_sla_check.py` aged
+every evidence file as the wall clock minus its last git commit time. On `main`
+the evidence therefore crossed the 30-day `max_stale_evidence_days` SLO about 30
+days after each release. `CAAS Freshness Check` (every 6 hours) failed on every
+scheduled run from then on, and the weekly `Audit Report` failed its "Run CAAS
+gate + autonomy for bundle completeness" step, because `security_autonomy_check.py`
+runs `audit_sla_check.py` as its `audit_sla` gate. On `dev`, where
+`caas-evidence-refresh.yml` keeps the evidence current, the same check passed.
+
+**Change.** `ci/audit_sla_check.py` gets one helper, `_age_reference()`, that
+names the instant every age is measured against. With `AUDIT_SLA_AS_OF` unset, or
+set to anything other than exactly `head`, that is the wall clock and every
+verdict and age is as before. With `AUDIT_SLA_AS_OF=head` it is the commit time
+of `HEAD` (`git log -1 --format=%ct HEAD`), used by both the git-tracked path and
+the mtime fallback of `_file_age_days`, so the check asks "was the evidence fresh
+when this release was cut". An age that would come out negative (an untracked
+file generated during the run is newer than `HEAD`) is clamped to 0.0, and if
+`HEAD`'s commit time cannot be read the helper falls back to the wall clock, the
+stricter answer, rather than inventing a value. The JSON report records the
+reference that was applied in a new `as_of` field (`wall_clock` or `head`).
+
+`audit-report.yml` audits a release snapshot (`main` on schedule, a `v*` tag on
+push), so it sets `AUDIT_SLA_AS_OF: head` at workflow level;
+`security_autonomy_check.py` is unchanged and its `audit_sla` gate inherits the
+variable. `caas-freshness-check.yml` now checks out `dev` (`ref: dev`,
+`fetch-depth: 0` kept): the 6-hourly wall-clock check watches the branch where
+evidence is refreshed and the next release is cut from, while `main`'s evidence
+is checked as of its release commit by `audit-report.yml`. Scheduled runs execute
+`main`'s copy of the workflow files and of the scripts, so this reaches the
+schedule when the next release is merged to `main`. `head` ages come from
+per-file git history, so they need a checkout that has it: `caas-freshness-check.yml`
+already fetches full history, and the three `audit-report.yml` jobs that run
+`security_autonomy_check.py` (Linux GCC, Linux Clang-17, Windows MSVC) now do too,
+with `fetch-depth: 0` and a comment saying why. At the default depth (a shallow
+clone) `git log -1 -- <file>` returns the single boundary commit, which is `HEAD`,
+for every tracked file, so every `head` age would be exactly 0.0 and the
+`audit_sla` gate would pass however old the evidence was when the release was cut.
+The `gh-pages` checkout and the `verdict` job's `fetch-depth: 1` checkout sit in
+jobs that never run the gate and are left alone.
+
+**Test.** `check_audit_sla_as_of_release_snapshot` in `ci/test_audit_scripts.py`
+(called from `main()` next to `check_audit_sla_pre_alert_and_block`) fails when:
+with `AUDIT_SLA_AS_OF` unset the reference is not the wall clock; with
+`AUDIT_SLA_AS_OF=head` the reference is not `HEAD`'s `%ct` as git reports it for
+this checkout, or `_file_age_days` of a tracked file (`ci/audit_sla_check.py`) is
+not (`HEAD` time - its last commit time) / 86400 or is negative; or, against a
+stand-in for the git calls with commits 40 and 100 days old, a tracked file is not
+60 days old under `head` and about 100 under the wall clock, a commit dated after
+`HEAD` or an untracked file newer than `HEAD` is not clamped to 0.0, an unreadable
+`HEAD` (non-zero exit, garbage output, no git) does not fall back to the wall
+clock, a value other than exactly `head` (upper-case `HEAD`, `head` with a
+trailing space, `1`, empty) does not keep the wall clock, or the JSON report's
+`as_of` does not say which reference was applied. It also fails when
+`audit-report.yml` has no workflow-level `AUDIT_SLA_AS_OF: head`, or
+`caas-freshness-check.yml` lacks `ref: dev` or has lost `fetch-depth: 0`, or when
+an `actions/checkout` step in a job of `audit-report.yml` that runs
+`security_autonomy_check.py` lacks `fetch-depth: 0`, or no job runs it. The
+workflow is parsed per job rather than counted across the file, so the `gh-pages`
+checkout and the `verdict` job's `fetch-depth: 1` do not count, and the parser is
+also run on a synthetic workflow (a full-history gate job, one at the default
+depth, one at `fetch-depth: 1`, one with no checkout, and a non-gate job) so that
+it cannot pass by finding nothing.
+
 ## 2026-11-02 - CPU-runnable exploit PoC for the GPU non-canonical point gate; `gpu_audit_runner` in `ci_local.sh` (`exploit_gpu_noncanonical_point_encoding`)
 
 **Gap.** The fix that makes the GPU C ABI host gate reject SEC1 coordinates

@@ -1581,6 +1581,306 @@ def check_audit_sla_pre_alert_and_block() -> None:
         ok(tag, "SLA blocks at deadline, pre-alerts in buffer window, reports days_until_block")
 
 
+def check_audit_sla_as_of_release_snapshot() -> None:
+    """B3 regression: AUDIT_SLA_AS_OF=head ages evidence as of HEAD, not as of today.
+
+    GitHub runs scheduled workflows on the default branch, which is main, and main
+    is the release branch: it only changes when a version is cut, so nothing on it
+    can refresh evidence between releases. audit_sla_check.py aged every file as
+    "wall clock minus its last commit", so main's evidence crossed the 30-day SLO
+    about 30 days after each release; the 6-hourly CAAS Freshness Check then failed
+    on every run, and the weekly Audit Report failed its autonomy step, whose
+    audit_sla gate runs this script.
+
+    The fix has three parts and this pins all of them:
+      * audit_sla_check.py: AUDIT_SLA_AS_OF unset (or anything but exactly "head")
+        keeps the wall clock; "head" measures every age against HEAD's commit time,
+        never negative; an unreadable HEAD falls back to the wall clock; and the
+        JSON report's as_of field says which reference was applied.
+      * audit-report.yml audits a release snapshot (main on schedule, a v* tag on
+        push), so it sets AUDIT_SLA_AS_OF: head at workflow level, and every job that
+        runs security_autonomy_check.py (and so audit_sla_check.py) checks out full
+        history: in a shallow clone git dates every tracked file at the one boundary
+        commit, which is HEAD, so every head age would read 0.0 and the gate would pass
+        however old the evidence was when the release was cut.
+      * caas-freshness-check.yml is the wall-clock watch, so it checks out dev,
+        where evidence is refreshed, instead of main.
+
+    The reference instant and one tracked file are checked against this checkout's
+    own git history. The age arithmetic runs against a stand-in for the git calls,
+    with commits 40 and 100 days old, so it stays hermetic: a checkout's own history
+    cannot give a fixed separation between HEAD and today (a CI clone is shallow and
+    its HEAD is minutes old), and a wrong ageing source could pass there. The per-job
+    checkout parser is run on a small synthetic workflow too, so it cannot go quiet.
+    """
+    from types import SimpleNamespace
+
+    tag = "B3:audit_sla_as_of_head"
+    path = SCRIPT_DIR / "audit_sla_check.py"
+    try:
+        spec = importlib.util.spec_from_file_location("audit_sla_as_of_selftest", str(path))
+        if spec is None or spec.loader is None:
+            fail(tag, "could not build module spec for audit_sla_check.py")
+            return
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    gone = [n for n in ("LIB_ROOT", "SUITE_ROOT", "subprocess", "_age_reference",
+                        "_file_age_days", "run") if not hasattr(mod, n)]
+    if gone:
+        fail(tag, f"audit_sla_check.{', '.join(gone)} is gone -- this check drives the "
+                  "reference instant, the age arithmetic and the report through them")
+        return
+
+    failures = []
+    saved_env = dict(os.environ)
+    saved_attrs = {n: getattr(mod, n) for n in ("LIB_ROOT", "SUITE_ROOT", "subprocess")}
+
+    def wall_clock_reference(label):
+        as_of, ref = mod._age_reference()
+        if as_of != "wall_clock" or abs(ref - time.time()) > 5.0:
+            failures.append(f"{label}: reference was ({as_of!r}, {ref}), want the wall clock")
+
+    def reported_as_of():
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            mod.run(True, None)
+        try:
+            return json.loads(buf.getvalue()).get("as_of")
+        except ValueError:
+            return None
+
+    def git_ct(*args):
+        r = subprocess.run(["git", "log", "-1", "--format=%ct", *args],
+                           cwd=str(LIB_ROOT), capture_output=True, text=True)
+        out = r.stdout.strip()
+        return int(out) if r.returncode == 0 and out.isdigit() else None
+
+    def gate_job_checkouts(yml):
+        """Names of the jobs that run security_autonomy_check.py, and what ails their checkouts.
+
+        Parsed per job, not counted across the file: the gh-pages checkout and the
+        verdict job's fetch-depth: 1 checkout sit in jobs that never run the gate and
+        stay as they are. A comment line does not run anything.
+        """
+        gate_jobs, problems = [], []
+        jobs = re.search(r"(?m)^jobs:[ \t]*(?:#.*)?\n", yml)
+        chunks = re.split(r"(?m)^(?=  [\w-]+:[ \t]*(?:#.*)?$)", yml[jobs.end():]) if jobs else []
+        for chunk in chunks:
+            body = "\n".join(ln for ln in chunk.splitlines() if not ln.lstrip().startswith("#"))
+            if "security_autonomy_check.py" not in body:
+                continue
+            name = body.split(":", 1)[0].strip()
+            gate_jobs.append(name)
+            first = re.search(r"(?m)^[ \t]+steps:[ \t]*\n(?:[ \t]*\n)*([ \t]+)- ", body)
+            if first is None:
+                problems.append(f"{name}: no steps: list found")
+                continue
+            steps = re.split(r"(?m)^(?=" + re.escape(first.group(1)) + r"- )", body)
+            checkouts = [s for s in steps
+                         if re.search(r"(?m)^[ \t]*(?:-[ \t]+)?uses:[ \t]*actions/checkout@", s)]
+            if not checkouts:
+                problems.append(f"{name}: no actions/checkout step")
+            problems += [f"{name}: actions/checkout without fetch-depth: 0" for s in checkouts
+                         if not re.search(r"(?m)^[ \t]+fetch-depth:[ \t]*0[ \t]*(?:#.*)?$", s)]
+        return gate_jobs, problems
+
+    # One job per case the parser must sort: only a gate job that lacks full history or a
+    # checkout may be flagged. The last is shallow on purpose, like the verdict job, and
+    # names the gate only in a comment.
+    gate_probe = "\n".join((
+        "jobs:",
+        "  full:",
+        "    steps:",
+        "      - uses: actions/checkout@x # v6",
+        "        with:",
+        "          fetch-depth: 0",
+        "      - run: python3 ci/security_autonomy_check.py",
+        "  shallow:",
+        "    steps:",
+        "      - uses: actions/checkout@x # v6",
+        "      - run: python3 ci/security_autonomy_check.py",
+        "  depth-one:",
+        "    steps:",
+        "      - name: Checkout",
+        "        uses: actions/checkout@x # v6",
+        "        with:",
+        "          fetch-depth: 1",
+        "      - run: python3 ci\\security_autonomy_check.py",
+        "  no-checkout:",
+        "    steps:",
+        "      - run: python3 ci/security_autonomy_check.py",
+        "  not-a-gate:",
+        "    steps:",
+        "      - uses: actions/checkout@x # v6",
+        "        with:",
+        "          fetch-depth: 1",
+        "      # security_autonomy_check.py is only named in this comment",
+        "      - run: python3 ci/audit_verdict.py",
+        "",
+    ))
+
+    try:
+        # -- This checkout's own history: the real git calls ---------------------
+        os.environ.pop("AUDIT_SLA_AS_OF", None)
+        wall_clock_reference("AUDIT_SLA_AS_OF unset")
+
+        os.environ["AUDIT_SLA_AS_OF"] = "head"
+        head_ct = git_ct("HEAD", "--")
+        file_ct = git_ct("--", "ci/audit_sla_check.py")
+        if head_ct is None or file_ct is None:
+            failures.append("git could not give HEAD's and ci/audit_sla_check.py's commit times here")
+        else:
+            as_of, ref = mod._age_reference()
+            if (as_of, ref) != ("head", float(head_ct)):
+                failures.append(f"AUDIT_SLA_AS_OF=head: reference was ({as_of!r}, {ref}), "
+                                f"want ('head', {head_ct}) = HEAD's commit time")
+            age = mod._file_age_days(path)
+            want = max((head_ct - file_ct) / 86400.0, 0.0)
+            if age is None or age < 0.0 or abs(age - want) > 1e-6:
+                failures.append(f"AUDIT_SLA_AS_OF=head: ci/audit_sla_check.py aged {age} days, "
+                                f"want {want} = (HEAD - its last commit) / 86400")
+
+        # -- The age arithmetic, against a stand-in for git ----------------------
+        t_head = int(time.time()) - 40 * 86400   # the snapshot was cut 40 days ago
+        t_old = t_head - 60 * 86400              # tracked.json last changed 100 days ago
+        t_skew = t_head + 5 * 86400              # skewed.json: dated after the HEAD that holds it
+        last_commit = {"tracked.json": t_old, "skewed.json": t_skew}
+        head_reply = ["ok"]
+        head_time = [t_head]
+
+        def fake_run(cmd, **_kwargs):
+            if head_reply[0] == "no git":
+                raise OSError("git: command not found")
+            if cmd[1] == "ls-files":
+                tracked = Path(cmd[-1]).name in last_commit
+                return SimpleNamespace(returncode=0 if tracked else 1, stdout="", stderr="")
+            if "HEAD" in cmd:
+                if head_reply[0] == "exit 128":
+                    return SimpleNamespace(returncode=128, stdout="", stderr="fatal: no commits")
+                if head_reply[0] == "garbage":
+                    return SimpleNamespace(returncode=0, stdout="not-a-time\n", stderr="")
+                return SimpleNamespace(returncode=0, stdout=f"{head_time[0]}\n", stderr="")
+            return SimpleNamespace(
+                returncode=0, stdout=f"{last_commit[Path(cmd[-1]).name]}\n", stderr="")
+
+        with tempfile.TemporaryDirectory(prefix="ufsecp_sla_asof_") as tmp:
+            root = Path(tmp)
+            for name in ("tracked.json", "skewed.json", "generated.json"):
+                (root / name).write_text("{}\n", encoding="utf-8")
+            # Nothing under root is evidence, so run() stays cheap and hermetic.
+            mod.LIB_ROOT = mod.SUITE_ROOT = root
+            mod.subprocess = SimpleNamespace(
+                run=fake_run, SubprocessError=subprocess.SubprocessError)
+
+            os.environ["AUDIT_SLA_AS_OF"] = "head"
+            as_of, ref = mod._age_reference()
+            if (as_of, ref) != ("head", float(t_head)):
+                failures.append(
+                    f"head: reference was ({as_of!r}, {ref}), want ('head', {float(t_head)})")
+            for name, want, why in (
+                    ("tracked.json", 60.0, "its commit is 60 days older than HEAD"),
+                    ("skewed.json", 0.0, "its commit is dated 5 days after HEAD: current, not -5"),
+                    ("generated.json", 0.0, "untracked and newer than HEAD: current, not -40")):
+                age = mod._file_age_days(root / name)
+                if age is None or age < 0.0 or abs(age - want) > 1e-6:
+                    failures.append(f"head: {name} aged {age} days, want {want} ({why})")
+            if reported_as_of() != "head":
+                failures.append("head: the JSON report's as_of is not 'head'")
+
+            # The mtime fallback follows the reference too: written at m, with HEAD dated
+            # 10 days after m, an untracked file is 10 days old as of HEAD (not ~0 as of now).
+            written = os.path.getmtime(root / "generated.json")
+            head_time[0] = int(written) + 10 * 86400
+            age = mod._file_age_days(root / "generated.json")
+            want = (head_time[0] - written) / 86400.0
+            if age is None or abs(age - want) > 1e-6:
+                failures.append(f"head: untracked generated.json aged {age} days, want {want} "
+                                "(its mtime against a HEAD dated 10 days later)")
+            head_time[0] = t_head
+
+            # Unset, or any value but exactly "head": today's wall clock, untouched.
+            for value in (None, "", "HEAD", "head ", "1"):
+                if value is None:
+                    os.environ.pop("AUDIT_SLA_AS_OF", None)
+                else:
+                    os.environ["AUDIT_SLA_AS_OF"] = value
+                label = "AUDIT_SLA_AS_OF unset" if value is None else f"AUDIT_SLA_AS_OF={value!r}"
+                wall_clock_reference(label)
+                age = mod._file_age_days(root / "tracked.json")
+                if age is None or abs(age - 100.0) > 0.05:
+                    failures.append(
+                        f"{label}: tracked.json aged {age} days, want ~100 (now - its commit)")
+            if reported_as_of() != "wall_clock":
+                failures.append("wall clock: the JSON report's as_of is not 'wall_clock'")
+
+            # HEAD asked for but unreadable: the wall clock, never an invented instant,
+            # and the report says so (it names the reference that was applied).
+            os.environ["AUDIT_SLA_AS_OF"] = "head"
+            for broken in ("exit 128", "garbage", "no git"):
+                head_reply[0] = broken
+                wall_clock_reference(f"head with an unreadable HEAD ({broken})")
+            head_reply[0] = "exit 128"
+            if reported_as_of() != "wall_clock":
+                failures.append("head with an unreadable HEAD: the JSON report's as_of is not "
+                                "'wall_clock' (the reference that was actually applied)")
+            head_reply[0] = "ok"
+
+        # -- The workflows that choose the reference -----------------------------
+        workflows = LIB_ROOT / ".github" / "workflows"
+        try:
+            report_yml = (workflows / "audit-report.yml").read_text(encoding="utf-8")
+            freshness_yml = (workflows / "caas-freshness-check.yml").read_text(encoding="utf-8")
+        except OSError as exc:
+            failures.append(f"could not read the workflows: {exc}")
+        else:
+            env_block = re.search(r"(?m)^env:[ \t]*\n((?:[ \t]+.*\n|[ \t]*\n)*)", report_yml)
+            if not (env_block and re.search(
+                    r"(?m)^[ \t]+AUDIT_SLA_AS_OF:[ \t]*head[ \t]*(?:#.*)?$", env_block.group(1))):
+                failures.append(
+                    "audit-report.yml has no workflow-level env: setting AUDIT_SLA_AS_OF: head")
+            if not re.search(r"(?m)^[ \t]+ref:[ \t]*dev[ \t]*(?:#.*)?$", freshness_yml):
+                failures.append("caas-freshness-check.yml does not check out dev (ref: dev)")
+            if not re.search(r"(?m)^[ \t]+fetch-depth:[ \t]*0[ \t]*(?:#.*)?$", freshness_yml):
+                failures.append(
+                    "caas-freshness-check.yml lost fetch-depth: 0 (per-file commit dates need history)")
+
+            # The gate jobs reach audit_sla_check.py through security_autonomy_check.py,
+            # and in a shallow clone git dates every tracked file at the one boundary
+            # commit, which is HEAD: under head every age would read 0.0 and the gate
+            # would pass however old the evidence was when the release was cut. So each
+            # of those jobs must check out full history. The per-job parser is run on a
+            # synthetic workflow first, so finding nothing in the real one cannot pass.
+            probe_jobs, probe_problems = gate_job_checkouts(gate_probe)
+            if (probe_jobs, [p.split(":")[0] for p in probe_problems]) != (
+                    ["full", "shallow", "depth-one", "no-checkout"],
+                    ["shallow", "depth-one", "no-checkout"]):
+                failures.append("the per-job checkout parser is broken: on a synthetic workflow "
+                                f"it saw gate jobs {probe_jobs} with problems {probe_problems}")
+            gate_jobs, shallow = gate_job_checkouts(report_yml)
+            if not gate_jobs:
+                failures.append("audit-report.yml has no job that runs security_autonomy_check.py")
+            failures.extend(f"audit-report.yml job {p} (per-file commit dates need full history "
+                            "for AUDIT_SLA_AS_OF=head)" for p in shallow)
+    except Exception as exc:
+        failures.append(f"check crashed: {exc!r}")
+    finally:
+        for name, value in saved_attrs.items():
+            setattr(mod, name, value)
+        os.environ.clear()
+        os.environ.update(saved_env)
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "AUDIT_SLA_AS_OF=head ages against HEAD (never negative, reported as as_of); "
+                "unset or any other value keeps the wall clock; workflows wired; the jobs "
+                "that run the gate fetch full history")
+
+
 def check_audit_sla_build_report_not_tracked() -> None:
     """B3 regression: risk_surface_report is a build-scoped generated artifact.
 
@@ -5055,6 +5355,7 @@ def main() -> int:
     check_canonical_data_date_is_stable()
     check_p21_semantic_requirement_map()
     check_audit_sla_pre_alert_and_block()
+    check_audit_sla_as_of_release_snapshot()
     check_audit_sla_build_report_not_tracked()
     check_audit_sla_untracked_artifact_uses_mtime()
     check_external_audit_bundle_negative_fixtures()
