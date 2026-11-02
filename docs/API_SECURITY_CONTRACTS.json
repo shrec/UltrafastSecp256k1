@@ -1,7 +1,7 @@
 {
   "version": "1.5.0",
-  "last_updated": "2026-11-01",
-  "update_note": "2026-11-01: CAAS residual-evidence refresh. Re-verified against the current headers with ci/check_api_contracts.py — PASS, no drift. The changed-file review for this cycle covers the include/ufsecp/ changes since the 2026-09-21 stamp: ufsecp_release_process_resources() (0985ca2f, #430), a process-global lifecycle entry point that frees the lazily built generator tables and batch worker pool and takes no key, nonce or signature input; the v4.6.0 -> v4.6.2 version macros in ufsecp_version.h; and a one-line SUPPORTED_GUARANTEES.md edit. None of them changes a contracted secret-handling or verification entry. The CUDA verify-path switch to the variable-time inverse (a23f3b68) is device code behind the unchanged ufsecp_gpu.h surface. No entry required a change; the stamp records the re-verification, not a content edit.",
+  "last_updated": "2026-11-02",
+  "update_note": "2026-11-02: CAAS residual-evidence refresh (automated: ci/refresh_residual_evidence.py in the caas-evidence-refresh lane, HEAD 9df529d7). Re-verified with python3 ci/check_api_contracts.py --json: PASS, 11 entries, no issues (entry structure, evidence tests and docs resolve, and no sensitive API/security source is changed without a contract update). The stamp records the re-verification, not a content edit, and does not replace the human review of an API change.",
   "entries": [
     {
       "api": "ufsecp_schnorr_sign",
