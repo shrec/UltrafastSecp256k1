@@ -116,6 +116,7 @@ The integration never reached a tagged libbitcoin release; the latest, v3.8.0, i
 |---|---|---|
 | [Robinhood Chain sequencer feed](https://github.com/groovg/ultrafast-robinhood-sequencer-feed) (Rust) | Opt-in `--features ufsecp` alternative to the default `secp256k1` crate for ECDSA sender recovery. The library is built from source (`scripts/build-ufsecp.sh`), and a test checks that both libraries return the same results | Project README, `build.rs`, `scripts/build-ufsecp.sh` |
 | [Satobox](https://github.com/embetrix/satobox) (Yocto/OE embedded-Linux Bitcoin full-node distribution) | Recipe `meta-satobox/recipes-support/ultrafastsecp256k1/ultrafastsecp256k1_3.15.3.bb` builds the CPU library with x86-64 / AArch64 / RISC-V platform detection; `satobox-image.bb` installs `ultrafastsecp256k1-examples`. Added 2026-02-17 and updated to v3.15.3 on 2026-03-04 | Recipe and image files in the Satobox repository |
+| [VanityPlate](https://github.com/zeroxbee/VanityPlate) (CUDA vanity address generator, 12 coins, Windows and Linux) | Vendors UltrafastSecp256k1's CUDA field arithmetic, generator table and hash160, plus the CPU field and hashing code for its CPU worker, from commit `552f86d` (v3.22.0, March 2026). Its register-only CUDA hash160 rewrite was merged back into this repository on 2026-11-02 | `third_party/UltrafastSecp256k1/` and THIRD-PARTY-NOTICES in the VanityPlate repository; the maintainer's post, [Discussion #462](https://github.com/shrec/UltrafastSecp256k1/discussions/462) |
 
 ---
 

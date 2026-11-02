@@ -44,6 +44,7 @@ so we can list you here.
 
 | Project | Use Case | Features Used | Since |
 |---|---|---|---|
+| [VanityPlate](https://github.com/zeroxbee/VanityPlate) | CUDA vanity address generator for 12 coins (Windows and Linux). It vendors 21 UltrafastSecp256k1 source files (CUDA field arithmetic, generator table and hash160; CPU field and hashing code for its CPU worker) and credits them in its THIRD-PARTY-NOTICES. Its register-only CUDA hash160 was merged back into this repository on 2026-11-02 | CUDA field arithmetic, hash160 (SHA-256 / RIPEMD-160) | v3.22.0 (`552f86d`, 2026-03) |
 
 ## Ecosystem Signals
 
@@ -64,6 +65,10 @@ These numbers are snapshots and will move over time.
 - The libbitcoin, Robinhood Chain sequencer feed, Satobox and getUltrafastSecp256k1 entries
   cite those projects' own public repositories (merged PRs, READMEs, build recipes); see
   [ADOPTION.md](ADOPTION.md) for the per-project evidence. They were checked on 2026-11-01.
+- The VanityPlate entry comes from its maintainer's post
+  ([Discussion #462](https://github.com/shrec/UltrafastSecp256k1/discussions/462), 2026-11-02) and
+  the project's README and THIRD-PARTY-NOTICES, checked the same day. Listing it is not a review of
+  VanityPlate's key generation.
 - Registry metrics were checked from the public npm and NuGet package endpoints on 2026-03-29.
 
 ---
