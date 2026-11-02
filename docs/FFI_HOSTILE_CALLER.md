@@ -1,6 +1,28 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-09-22 | **Version**: 4.6.2
+**Last updated**: 2026-11-02 | **Version**: 4.6.2
+
+### 2026-11-02 - MuSig2 session blob and key_agg input: caller contract stated (doc-only, paired with `include/ufsecp/ufsecp.h`)
+
+No ABI or behaviour change. Two caller contracts that the header had not
+stated are now written down:
+
+- **Session blob is signer-local.** `ufsecp_musig2_partial_sign_v2` signs with
+  the nonce coefficient `b` and challenge `e` stored in the session blob and
+  does not re-derive them. This is the same contract as libsecp256k1's
+  `secp256k1_musig_session` from `secp256k1_musig_nonce_process`. A hostile
+  party that gets a signer to use a session it built picks `e`, and so picks
+  what the signer signs. Each signer must therefore produce the session itself
+  with `ufsecp_musig2_start_sign_session`, from the aggregate nonce it received
+  and the message it intends to sign, and must never pass in a session received
+  from a coordinator or peer. A wrong aggregate nonce from an untrusted
+  aggregator only makes the final signature invalid, as BIP-327 allows.
+- **`ufsecp_musig2_key_agg` reads `n * 33` bytes** (compressed BIP-327 plain
+  public keys). The header used to say 32-byte x-only. A caller that follows
+  the old text passes `n * 32` bytes and the function reads `n` bytes past them.
+
+Coverage: the official BIP-327 key_agg vectors now run through the core in
+`audit/test_musig2_bip327_vectors.cpp` (module `musig2_bip327`).
 
 ### 2026-09-22 - `ufsecp_release_process_resources` hostile-caller contract (GitHub #430, paired with `include/ufsecp/ufsecp.h`)
 

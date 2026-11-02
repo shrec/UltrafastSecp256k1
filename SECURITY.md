@@ -311,7 +311,7 @@ Summary of scope:
 We appreciate responsible disclosure. Contributors who report valid security issues will be credited in the changelog (unless they prefer anonymity).
 
 - **Damir** — GHSA-c7q2-gv3g-rgxm: ECDSA adaptor pre-signature soundness (missing DLEQ binding of `r` to the adaptor point), reported with a working PoC and fixed in `src/cpu/src/adaptor.cpp` (DLEQ-bound construction). CVE request pending.
-- **Gleb Lizunov ([@hokvo](https://github.com/hokvo))** — the GPU C ABI accepted point encodings with a coordinate `>= p` that the CPU path rejects (CPU/GPU verdict mismatch, no forgery). Fixed in the shared GPU input check in `src/cpu/src/ufsecp_gpu_impl.cpp` (2026-11-02).
+- **Gleb Lizunov ([@hokvo](https://github.com/hokvo))** — the GPU C ABI accepted point encodings with a coordinate `>= p` that the CPU path rejects (CPU/GPU verdict mismatch, no forgery). Fixed in the shared GPU input check in `src/cpu/src/ufsecp_gpu_impl.cpp` (2026-11-02). The same report showed that the MuSig2 core test held no official BIP-327 vectors, that the C header described `ufsecp_musig2_key_agg` input as x-only, and that the session blob's trust boundary was undocumented; all three were fixed the same day.
 
 ---
 

@@ -2,6 +2,24 @@
 
 **UltrafastSecp256k1 v4.6.2** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-11-02 - MuSig2: session blob is signer-local; key_agg input is 33-byte keys (doc-only)
+
+No claim moves. `include/ufsecp/ufsecp.h` now states that the MuSig2 session
+blob is signer-local state: `ufsecp_musig2_partial_sign_v2` signs with the
+stored nonce coefficient `b` and challenge `e`, and does not recompute them
+from the aggregate nonce and message. This is the libsecp256k1
+`secp256k1_musig_session` contract. The MuSig2 security claim therefore holds
+only when each signer computes its own session with
+`ufsecp_musig2_start_sign_session`. A session supplied by another party lets
+that party choose what the signer signs.
+
+The header also corrects the `ufsecp_musig2_key_agg` input to `n * 33`-byte
+compressed public keys, which is what BIP-327 KeyAgg hashes and what the code
+reads. KeyAgg conformance is checked against the official BIP-327
+key_agg_vectors in both the core test (`musig2_bip327`) and the shim
+conformance job (`bip327_keyagg_vectors`). See
+[`FFI_HOSTILE_CALLER.md`](FFI_HOSTILE_CALLER.md) for the caller contract.
+
 ### 2026-09-24 - ECDH serialization and x-only input contracts
 
 The C++ ECDH variants and shim keep the secret-derived shared point in the

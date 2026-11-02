@@ -1,5 +1,19 @@
 # Audit Changelog
 
+## 2026-11-02 - MuSig2: official BIP-327 key_agg vectors in the core test; key_agg/session ABI docs (`musig2_bip327_vectors`)
+
+`audit/test_musig2_bip327_vectors.cpp` now runs the official bitcoin/bips
+`bip-0327/vectors/key_agg_vectors.json` cases through `secp256k1::musig2_key_agg`:
+the four valid cases against their exact expected x-only aggregate keys, and the
+three invalid-pubkey cases (not on curve, x >= p, 0x04 prefix) which must yield an
+infinity aggregate. The file header now separates official vectors from
+self-consistency checks, and the "Pin" comments that only printed values are
+reworded. `ufsecp.h` and `API_REFERENCE.md` corrected `ufsecp_musig2_key_agg` input
+to n * 33-byte compressed public keys, and document that the MuSig2 session blob is
+signer-local (`partial_sign_v2` does not re-derive b or e; never use a session
+received from another party). Test and docs only; no behaviour change. Gaps
+reported by Gleb Lizunov (@hokvo).
+
 ## 2026-11-02 - GPU C ABI host check rejects coordinates >= p (`gpu_api_negative`)
 
 **Defect.** `has_valid_compressed_pubkeys` and `has_valid_uncompressed_pubkeys`

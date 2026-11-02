@@ -938,7 +938,8 @@ UFSECP_API ufsecp_error_t ufsecp_multi_scalar_mul(
 #define UFSECP_MUSIG2_SECNONCE_LEN   64  /**< secret nonce (2 x 32 bytes) */
 
 /** Aggregate public keys for MuSig2.
- *  pubkeys: n * 32 bytes (x-only). keyagg_out: opaque context.
+ *  pubkeys: n * 33-byte compressed public keys (BIP-327 plain public keys).
+ *  keyagg_out: opaque context.
  *  The current fixed-size keyagg/session format supports 2 to 3 participants. */
 UFSECP_API ufsecp_error_t ufsecp_musig2_key_agg(
     ufsecp_ctx* ctx,
@@ -970,7 +971,13 @@ UFSECP_API ufsecp_error_t ufsecp_musig2_nonce_agg(
  *  keyagg must be a valid opaque context previously produced by ufsecp_musig2_key_agg.
  *  session_out binds the participant count from keyagg and must later be paired
  *  with exactly the same signer set arity during partial signing, verification,
- *  and aggregation. */
+ *  and aggregation.
+ *
+ *  SESSION TRUST BOUNDARY: session_out is signer-local state. Each signer must
+ *  produce it here from the aggregate nonce it received and the message it
+ *  intends to sign. ufsecp_musig2_partial_sign_v2 signs with the b and e stored
+ *  in it without re-deriving them, so a session blob received from a coordinator
+ *  or peer must NEVER be used for signing. */
 UFSECP_API ufsecp_error_t ufsecp_musig2_start_sign_session(
     ufsecp_ctx* ctx,
     const uint8_t aggnonce[UFSECP_MUSIG2_AGGNONCE_LEN],
@@ -1016,6 +1023,14 @@ UFSECP_API ufsecp_error_t ufsecp_musig2_partial_sign(
  *  If they do not match, the function returns UFSECP_ERR_BAD_KEY.
  *  IMPORTANT: secnonce is zeroed on ALL exit paths (including validation failure)
  *  to prevent nonce reuse even when the wrong signer_index is supplied.
+ *
+ *  SESSION TRUST BOUNDARY: the session blob is signer-local state. This function
+ *  signs with the nonce coefficient b and challenge e stored in the
+ *  session and does NOT re-derive them (same contract as libsecp256k1's
+ *  secp256k1_musig_session from secp256k1_musig_nonce_process). Each signer must
+ *  produce the session itself with ufsecp_musig2_start_sign_session, from the
+ *  aggregate nonce it received and the message it intends to sign. A session
+ *  blob received from a coordinator or any other peer must NEVER be passed in.
  *
  *  @param pubkeys  Array of n compressed public keys (33 bytes each), in the same
  *                  order that was passed to ufsecp_musig2_key_agg.  Must not be NULL. */

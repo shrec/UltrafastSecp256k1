@@ -1,18 +1,22 @@
 // ============================================================================
 // MuSig2 BIP-327 Reference Test Vectors
-// Phase V -- Pinned KAT vectors for MuSig2 protocol correctness
 // ============================================================================
 //
 // BIP-327 KeyAgg uses 33-byte compressed pubkeys (with 02/03 parity prefix)
 // for all hash inputs: L = tagged_hash("KeyAgg list", pk_1 || ... || pk_n).
 // Key aggregation is ORDER-DEPENDENT (no internal sort).
 //
-// Strategy:
-//   1. Use well-known private keys (small generator multiples)
-//   2. Pin the expected aggregated public key x-coordinate
-//   3. Pin partial signature values for regression
-//   4. Verify end-to-end via BIP-340 schnorr_verify()
-//   5. Test algebraic properties (determinism, order-dependence, scaling)
+// OFFICIAL vectors (bitcoin/bips bip-0327/vectors/key_agg_vectors.json):
+//   test [9] runs the four valid key_agg cases against their exact expected
+//   x-only aggregate keys, and the three invalid-pubkey cases (not on curve,
+//   x >= p, 0x04 prefix), which must yield an infinity aggregate.
+//   Nothing else in this file is taken from the official vectors.
+//
+// SELF-CONSISTENCY checks only (no official expected values asserted):
+//   tests [1]-[8] use small generator-multiple keys and check determinism,
+//   order dependence, Q = sum(a_i * P_i), partial-sig verification and
+//   end-to-end BIP-340 schnorr_verify(). Aggregate keys and signatures that
+//   are printf'd are for inspection only and are not asserted.
 //
 // All hex constants in this file are BIG-ENDIAN (standard crypto convention).
 // ============================================================================
@@ -115,7 +119,7 @@ static void test_key_agg_known_keys() {
     const std::vector<std::array<uint8_t, 33>> pks = {ck1, ck2};
     auto ctx = secp256k1::musig2_key_agg(pks);
 
-    // Pin the aggregated x-only key (regression)
+    // Printed for inspection only; not asserted (see test [9] for official values)
     char agg_hex[65];
     bytes_to_hex(ctx.Q_x.data(), 32, agg_hex);
     (void)std::printf("    agg_key(1,2) = %s\n", agg_hex);
@@ -237,7 +241,7 @@ static void test_2of2_signing_pinned() {
     const bool ok = secp256k1::schnorr_verify(key_ctx.Q_x, msg, schnorr_sig);
     CHECK(ok, "2-of-2 final sig passes BIP-340 verify");
 
-    // Pin the final signature for regression
+    // Printed for inspection only; not asserted
     char sig_hex[129];
     bytes_to_hex(sig.data(), 64, sig_hex);
     (void)std::printf("    sig(2of2) = %s\n", sig_hex);
@@ -545,6 +549,64 @@ static void test_signer_scaling() {
 }
 
 // ============================================================================
+// Test 9: Official BIP-327 key_agg_vectors.json cases (key_agg only)
+// ============================================================================
+// Source: bitcoin/bips bip-0327/vectors/key_agg_vectors.json ("pubkeys" array,
+// the four valid_test_cases and the three error cases with invalid pubkeys).
+static const char* const OFFICIAL_PUBKEYS[7] = {
+    "02F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9",  // 0 valid
+    "03DFF1D77F2A671C5F36183726DB2341BE58FEAE1DA2DECED843240F7B502BA659",  // 1 valid
+    "023590A94E768F8E1815C2F24B4D80A8E3149316C3518CE7B7AD338368D038CA66",  // 2 valid
+    "020000000000000000000000000000000000000000000000000000000000000005",  // 3 not on curve
+    "02FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC30",  // 4 x >= p
+    "04F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9",  // 5 0x04 prefix
+    "03935F972DA013F80AE011890FA89B67A27B7BE6CCB24D3274D18B2D4067F261A9",  // 6 valid
+};
+
+static std::array<uint8_t, 33> official_pubkey(int idx) {
+    std::array<uint8_t, 33> out{};
+    hex_to_bytes(OFFICIAL_PUBKEYS[idx], out.data(), 33);
+    return out;
+}
+
+static void test_key_agg_official_vectors() {
+    (void)std::printf("[9] MuSig2 BIP-327: official key_agg_vectors.json\n");
+
+    struct ValidCase { std::vector<int> idx; const char* expected; };
+    const ValidCase valid[] = {
+        {{0, 1, 2},    "90539EEDE565F5D054F32CC0C220126889ED1E5D193BAF15AEF344FE59D4610C"},
+        {{2, 1, 0},    "6204DE8B083426DC6EAF9502D27024D53FC826BF7D2012148A0575435DF54B2B"},
+        {{0, 0, 0},    "B436E3BAD62B8CD409969A224731C193D051162D8C5AE8B109306127DA3AA935"},
+        {{0, 0, 1, 1}, "69BC22BFA5D106306E48A20679DE1D7389386124D07571D0D872686028C26A3E"},
+    };
+    int ci = 0;
+    for (const auto& c : valid) {
+        std::vector<std::array<uint8_t, 33>> pks;
+        for (int j : c.idx) pks.push_back(official_pubkey(j));
+        auto ctx = secp256k1::musig2_key_agg(pks);
+        char label[96];
+        (void)std::snprintf(label, sizeof(label),
+                            "official valid case %d: Q_x equals expected aggregate", ci);
+        CHECK(ctx.Q_x == hex32(c.expected), label);
+        ++ci;
+    }
+
+    // Error cases: a key that fails to decompress yields a default ctx (infinity).
+    const std::vector<int> invalid[] = {{0, 3}, {0, 4}, {5, 0}};
+    ci = 0;
+    for (const auto& idxs : invalid) {
+        std::vector<std::array<uint8_t, 33>> pks;
+        for (int j : idxs) pks.push_back(official_pubkey(j));
+        auto ctx = secp256k1::musig2_key_agg(pks);
+        char label[96];
+        (void)std::snprintf(label, sizeof(label),
+                            "official invalid-pubkey case %d: aggregate is infinity", ci);
+        CHECK(ctx.Q.is_infinity(), label);
+        ++ci;
+    }
+}
+
+// ============================================================================
 // Entry point
 // ============================================================================
 
@@ -562,6 +624,7 @@ int test_musig2_bip327_vectors_run() {
     test_coefficient_properties();
     test_multiple_messages();
     test_signer_scaling();
+    test_key_agg_official_vectors();
 
     (void)std::printf("\n--- MuSig2 BIP-327 Summary: %d passed, %d failed ---\n\n",
                       g_pass, g_fail);

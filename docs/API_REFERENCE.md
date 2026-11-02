@@ -2563,13 +2563,21 @@ Size constants: `UFSECP_MUSIG2_PUBNONCE_LEN` (66), `UFSECP_MUSIG2_AGGNONCE_LEN` 
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `ufsecp_musig2_key_agg` | `(ctx, pubkeys, n, keyagg_out, agg_pubkey32_out) -> error_t` | Aggregate x-only pubkeys |
+| `ufsecp_musig2_key_agg` | `(ctx, pubkeys, n, keyagg_out, agg_pubkey32_out) -> error_t` | Aggregate `n * 33`-byte compressed public keys (BIP-327 plain public keys); the fixed-size keyagg/session format supports 2 to 3 participants |
 | `ufsecp_musig2_nonce_gen` | `(ctx, privkey, pubkey32, agg_pubkey32, msg32, extra_in, secnonce_out, pubnonce_out) -> error_t` | Generate nonce pair |
 | `ufsecp_musig2_nonce_agg` | `(ctx, pubnonces, n, aggnonce_out) -> error_t` | Aggregate public nonces |
 | `ufsecp_musig2_start_sign_session` | `(ctx, aggnonce, keyagg, msg32, session_out) -> error_t` | Start signing session |
 | `ufsecp_musig2_partial_sign` | `(ctx, secnonce, privkey, keyagg, session, signer_idx, partial_sig32_out) -> error_t` | Produce partial signature |
 | `ufsecp_musig2_partial_verify` | `(ctx, partial_sig32, pubnonce, pubkey32, keyagg, session, signer_idx) -> error_t` | Verify partial signature |
 | `ufsecp_musig2_partial_sig_agg` | `(ctx, partial_sigs, n, session, sig64_out) -> error_t` | Aggregate partials to final BIP-340 sig |
+
+**Session trust boundary.** The session blob is signer-local state.
+`ufsecp_musig2_partial_sign_v2` signs with the `b` and `e` stored in it and does
+not re-derive them (the same contract as libsecp256k1's `secp256k1_musig_session`
+from `secp256k1_musig_nonce_process`). Each signer must produce the session
+itself with `ufsecp_musig2_start_sign_session`, from the aggregate nonce it
+received and the message it intends to sign. A session blob received from a
+coordinator or peer must never be passed in.
 
 <a id="c-abi-frost"></a>
 ### FROST Threshold Signatures
