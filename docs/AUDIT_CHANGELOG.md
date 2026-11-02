@@ -1,5 +1,26 @@
 # Audit Changelog
 
+## 2026-11-02 - Evidence chain: a CI-signed record is "unverified", not "tamper", where the HMAC secret is absent (`ci/evidence_governance.py`)
+
+**Gap.** The first successful nightly refresh push (`32cb0404`, run 41485761385) appended
+`docs/EVIDENCE_CHAIN.json` record 8, signed in CI with the `CAAS_HMAC_KEY` secret
+(`signed_by_ci: true`). Every earlier record was signed locally with the public in-repo key.
+`validate_chain()` without the secret (every local checkout, and fork PRs) recomputed record 8
+with the public key and reported "HMAC mismatch — possible tamper". That failed three
+`ci_local.sh` gates (evidence chain integrity, security autonomy `evidence_governance`, and
+through them every push). Nothing was tampered with; the checker could not hold the key.
+
+**Change.** Without the secret, a `signed_by_ci: true` record whose signature does not match
+the public key goes to a new `ci_signed_unverified_records` list and is not counted as an
+issue. With the secret, nothing changes: a CI-signed record must verify, and a local record
+must match either key. Because `signed_by_ci` is outside the HMAC payload, flipping it on a
+local record to dodge the check is still caught wherever the secret is present. `validate`
+reports the count in its JSON output.
+
+**Test.** `test_evidence_governance_ci_record_without_secret` in `ci/test_caas_integrity.py`
+(CAAS-KEY-5/6): with the public key, a chain of [local, CI-signed] is valid and reports the CI
+record as unverified; adding a local record with a bad signature still makes it tampered.
+
 ## 2026-11-02 - The nightly lane refreshes the residual CAAS evidence from its real verifiers, fail-closed (RR-BAS-01 promoted)
 
 **Gap.** Four blocking freshness artifacts that `ci/audit_sla_check.py` tracks had no
