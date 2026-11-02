@@ -1,5 +1,23 @@
 # Audit Changelog
 
+## 2026-11-02 - CUDA hash160 rewrite and known-answer checks (`gpu_audit`)
+
+`src/cuda/include/hash160.cuh` now has a register-only `sha256_33` for 33-byte
+keys and a fully unrolled `ripemd160_32`, both contributed by zeroxbee
+(VanityPlate). `hash160_pubkey` keeps the generic `sha256` for any other length,
+because `hash160_pubkey_kernel` passes a runtime length and 65-byte keys must
+still hash correctly. The contributed version had dropped that length dispatch.
+
+The GPU audit runner's `audit_hash160_kernel` checked only determinism and a
+non-zero result. It now also asserts the known hash160 of key 1 in both
+encodings: `02||Gx` -> `751e76e8...433bd6` (the `sha256_33` path) and
+`04||Gx||Gy` -> `91b24bf9...1d28a5` (the generic path). On CUDA (RTX 5060 Ti,
+`cuda-release-5060ti`), 18 of 18 GPU tests pass with the new header, among them
+`gpu_audit` and `gpu_ops_equivalence` (hash160 GPU vs CPU). The kernel A/B is
+bit-identical between the old and new header on 2^22 random 33-byte and
+65-byte inputs. Measurements:
+`docs/benchmark_artifacts/cuda_hash160_unrolled_ab_2026-11-02_rtx5060ti.json`.
+
 ## 2026-11-02 - MuSig2: official BIP-327 key_agg vectors in the core test; key_agg/session ABI docs (`musig2_bip327_vectors`)
 
 `audit/test_musig2_bip327_vectors.cpp` now runs the official bitcoin/bips

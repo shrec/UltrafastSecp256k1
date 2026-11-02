@@ -1,0 +1,99 @@
+{
+ "report_type": "cuda_hash160_kernel_ab",
+ "generated_by": "scratch harness bench.cu (source inline below) driven by run_ab.py; numbers parsed from its output, none typed by hand",
+ "date": "2026-11-02",
+ "gpu": "NVIDIA GeForce RTX 5060 Ti, 580.196.07, 3090 MHz, 16311 MiB",
+ "cuda": "13.2",
+ "arch": "sm_120",
+ "method": "base = git HEAD src/cuda/include/hash160.cuh, new = working tree; one kernel thread per pubkey, 256 threads/block, n = 2^22 device-resident pubkeys of random bytes (first input = generator pubkey for len 33), 100 kernel launches timed with cudaEvent per run; order alternates per run; 5 runs each; no other GPU compute process (nvidia-smi) at start",
+ "what_changed": "register-only sha256_33 for 33-byte keys and a fully unrolled ripemd160_32, contributed by zeroxbee (VanityPlate); hash160_pubkey keeps the generic sha256 for other lengths",
+ "ptxas_kernel": {
+  "base": {
+   "stack_frame_bytes": 480,
+   "registers": 56
+  },
+  "new": {
+   "stack_frame_bytes": 128,
+   "registers": 56
+  }
+ },
+ "header_sha256": {
+  "base": "608668eb0040718c50252ba5e41926f27fcd1eb7400c36a65e63595d6749afe2",
+  "new": "e38b739203bcdf76a9a22d84b4b7ca3464024228cbb0381176f8f7eca379ea99"
+ },
+ "binary_sha256": {
+  "base": "bee0ae230a58fe3590e28ae51e034729a40ceeec0564c5cacced1144b6285408",
+  "new": "a42d614846be070194a530f0c8ab575897f5cfc17aca30535424ecb1e643fcb7"
+ },
+ "bench_source_sha256": "10352d7c81a9d0f6db886f67bcf468bbb9d891aeb86bcfc9f9562956c0175d36",
+ "bench_source": "#include \"hash160.cuh\"\n#include <cstdio>\n#include <cstdlib>\n#include <vector>\n#include <cstring>\nusing namespace secp256k1::cuda;\n__global__ void k(const uint8_t* in, int len, uint8_t* out, int n){\n  int i=blockIdx.x*blockDim.x+threadIdx.x; if(i<n) hash160_pubkey(in+(size_t)i*len,(size_t)len,out+(size_t)i*20);\n}\nint main(int argc,char**argv){\n  int len=atoi(argv[1]); int n=1<<22; int reps=atoi(argv[2]);\n  std::vector<uint8_t> h((size_t)n*len); uint64_t x=88172645463325252ULL;\n  for(auto&b:h){x^=x<<13;x^=x>>7;x^=x<<17;b=(uint8_t)x;}\n  // known vector: generator compressed pubkey\n  static const uint8_t G[33]={0x02,0x79,0xBE,0x66,0x7E,0xF9,0xDC,0xBB,0xAC,0x55,0xA0,0x62,0x95,0xCE,0x87,0x0B,0x07,0x02,0x9B,0xFC,0xDB,0x2D,0xCE,0x28,0xD9,0x59,0xF2,0x81,0x5B,0x16,0xF8,0x17,0x98};\n  if(len==33) memcpy(h.data(),G,33);\n  uint8_t *din,*dout; cudaMalloc(&din,h.size()); cudaMalloc(&dout,(size_t)n*20);\n  cudaMemcpy(din,h.data(),h.size(),cudaMemcpyHostToDevice);\n  k<<<(n+255)/256,256>>>(din,len,dout,n); cudaDeviceSynchronize();\n  cudaEvent_t a,b; cudaEventCreate(&a); cudaEventCreate(&b);\n  cudaEventRecord(a); for(int r=0;r<reps;++r) k<<<(n+255)/256,256>>>(din,len,dout,n); cudaEventRecord(b); cudaEventSynchronize(b);\n  float ms; cudaEventElapsedTime(&ms,a,b);\n  std::vector<uint8_t> o((size_t)n*20); cudaMemcpy(o.data(),dout,o.size(),cudaMemcpyDeviceToHost);\n  uint64_t fnv=1469598103934665603ULL; for(auto c:o){fnv^=c;fnv*=1099511628211ULL;}\n  printf(\"len=%d n=%d reps=%d ns_per_hash=%.4f digest=%016llx first=\",len,n,reps,ms*1e6/((double)n*reps),(unsigned long long)fnv);\n  for(int i=0;i<20;++i)printf(\"%02x\",o[i]); printf(\" err=%s\\n\",cudaGetErrorString(cudaGetLastError()));\n}\n",
+ "runs_per_tag": 5,
+ "rows": [
+  {
+   "pubkey_len": 33,
+   "base": {
+    "ns_per_hash_runs": [
+     1.1026,
+     1.1062,
+     1.1008,
+     1.1141,
+     1.1074
+    ],
+    "median": 1.1062,
+    "min": 1.1008,
+    "max": 1.1141,
+    "spread_pct": 1.2
+   },
+   "new": {
+    "ns_per_hash_runs": [
+     0.326,
+     0.3261,
+     0.3258,
+     0.3259,
+     0.3256
+    ],
+    "median": 0.3259,
+    "min": 0.3256,
+    "max": 0.3261,
+    "spread_pct": 0.15
+   },
+   "speedup_median": 3.39,
+   "ranges": "no overlap, faster",
+   "output_digest_identical": true,
+   "first_output_hash160": "751e76e8199196d454941c45d1b3a323f1433bd6"
+  },
+  {
+   "pubkey_len": 65,
+   "base": {
+    "ns_per_hash_runs": [
+     1.2376,
+     1.2357,
+     1.2341,
+     1.236,
+     1.234
+    ],
+    "median": 1.2357,
+    "min": 1.234,
+    "max": 1.2376,
+    "spread_pct": 0.29
+   },
+   "new": {
+    "ns_per_hash_runs": [
+     0.6193,
+     0.6188,
+     0.6148,
+     0.6191,
+     0.6186
+    ],
+    "median": 0.6188,
+    "min": 0.6148,
+    "max": 0.6193,
+    "spread_pct": 0.73
+   },
+   "speedup_median": 2.0,
+   "ranges": "no overlap, faster",
+   "output_digest_identical": true,
+   "first_output_hash160": "bc8a7472388d99aae715d1fefa8a4fdd3135f195"
+  }
+ ]
+}

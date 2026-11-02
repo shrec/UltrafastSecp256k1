@@ -46,6 +46,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the Fermat inverse. OpenCL and Metal are unchanged. Per-site reasoning,
   evidence and measurements: `docs/AUDIT_CHANGELOG.md` 2026-10-02 and
   `docs/BENCHMARKS.md`.
+- **CUDA hash160 is register-only for 33-byte keys.** `src/cuda/include/hash160.cuh`
+  adds `sha256_33`, a SHA-256 of exactly 33 bytes with padding baked into a
+  rolling `w[16]`, and a fully unrolled `ripemd160_32` with literal indices,
+  shifts and constants. Both were contributed by zeroxbee
+  ([VanityPlate](https://github.com/zeroxbee/VanityPlate)). `hash160_pubkey`
+  uses the fast SHA-256 for 33-byte keys and the generic one for 65-byte keys.
+  Outputs are unchanged. Kernel-only on an RTX 5060 Ti, 5 alternating runs:
+  33-byte keys 1.1062 -> 0.3259 ns/hash, 65-byte keys 1.2357 -> 0.6188 ns/hash,
+  non-overlapping ranges
+  (`docs/benchmark_artifacts/cuda_hash160_unrolled_ab_2026-11-02_rtx5060ti.json`,
+  `docs/BENCHMARKS.md`). The GPU audit runner's hash160 check now also asserts
+  the known hash160 of the compressed and uncompressed generator. OpenCL and
+  Metal are unchanged.
 
 ### Fixed
 - **GPU C ABI rejects non-canonical point coordinates.** The shared host-side

@@ -589,6 +589,26 @@ binaries, which is above the 3% this project asks of a baseline; the before and
 after ranges are still far apart. The older verify rows elsewhere on this page
 were measured before this change.
 
+### CUDA hash160: register-only SHA-256 and unrolled RIPEMD-160 (2026-11-02)
+
+`src/cuda/include/hash160.cuh` gained a register-only `sha256_33` for 33-byte
+keys and a fully unrolled `ripemd160_32`, contributed by zeroxbee (VanityPlate).
+Kernel-only A/B from a scratch harness (source embedded in the artifact): one
+thread per pubkey, 256 threads per block, 2^22 device-resident inputs, 100
+launches timed per run, base (previous header) and new run in alternating order,
+five runs each, on an RTX 5060 Ti (sm_120, CUDA 13.2), no other GPU compute
+process. Outputs are bit-identical between base and new. `ptxas -v` for the
+kernel: stack frame 480 -> 128 bytes, 56 registers in both. Source of every
+number: `docs/benchmark_artifacts/cuda_hash160_unrolled_ab_2026-11-02_rtx5060ti.json`.
+
+| Input | Before: ns/hash median (min - max) | After: ns/hash median (min - max) | Median change | Ranges |
+|-------|-----------------------------------:|----------------------------------:|--------------:|--------|
+| 33-byte compressed key | 1.1062 (1.1008 - 1.1141) | 0.3259 (0.3256 - 0.3261) | -70.5% | no overlap, faster |
+| 65-byte uncompressed key | 1.2357 (1.2340 - 1.2376) | 0.6188 (0.6148 - 0.6193) | -49.9% | no overlap, faster |
+
+This is the hash kernel alone. `ufsecp_gpu_hash160_pubkey_batch` also copies
+inputs and outputs over PCIe, which this harness does not measure.
+
 ### GPU Signature Operations `[archived / diagnostic — kernel-only, excl. PCIe DMA; verify against current bench before citing]`
 
 > As of early 2026, this is the only multi-backend (CUDA + OpenCL + Metal) secp256k1 library
