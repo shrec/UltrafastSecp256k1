@@ -15,8 +15,8 @@
     {
       "exists": true,
       "path": "docs/AUDIT_SLA.json",
-      "sha256": "91840435fc73456c5766b61244387020a0513d77181b043807ca419c2f41b98e",
-      "size": 14691
+      "sha256": "07a54b278bd911cbf749bb44b5c9129bae2a30aafe840c6931a216c40f59fd98",
+      "size": 16195
     },
     {
       "exists": true,
@@ -126,7 +126,7 @@
           {
             "findings": [
               {
-                "message": "No uncommitted changes to evaluate",
+                "message": "No changed secret-bearing paths detected",
                 "severity": "PASS"
               }
             ],
@@ -200,8 +200,20 @@
           {
             "findings": [
               {
-                "message": "Graph is fresh (built: 2026-11-02T17:00:33)",
-                "severity": "PASS"
+                "message": "3 files modified/deleted since graph build (2026-11-02T18:04:36)",
+                "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: docs/AUDIT_CHANGELOG.md",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/INCIDENT_DRILL_LOG.json",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
+                "severity": "INFO"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -252,7 +264,7 @@
           {
             "findings": [
               {
-                "message": "66 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign",
+                "message": "70 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign",
                 "severity": "WARN"
               }
             ],
@@ -384,7 +396,7 @@
           {
             "findings": [
               {
-                "message": "No uncommitted changes",
+                "message": "2 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -394,11 +406,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 202.4 days (threshold: 14)",
+                "message": "Mutation report age: 202.5 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (202.4 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (202.5 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -632,7 +644,7 @@
                 "severity": "INFO"
               },
               {
-                "message": "Source graph \"files\" has 1803 rows (threshold: 200)",
+                "message": "Source graph \"files\" has 1832 rows (threshold: 200)",
                 "severity": "PASS"
               }
             ],
@@ -768,7 +780,7 @@
           {
             "findings": [
               {
-                "message": "7 freshness artifacts all covered (2 auto, 5 residual); incident_drill_log auto-refresh=True",
+                "message": "7 freshness artifacts all covered (6 auto, 1 residual); incident_drill_log auto-refresh=True",
                 "severity": "PASS"
               }
             ],
@@ -800,46 +812,56 @@
           "reason": null,
           "status": "available",
           "value": {
-            "dirty": false,
+            "dirty": true,
             "ref": "dev",
-            "sha": "5cf2d4bb74312145fa9af6673badc5ad3e492c38",
-            "short": "5cf2d4bb74"
+            "sha": "1a00976f68d897741e9599d336cd1eb5d8a12faa",
+            "short": "1a00976f68"
           }
         },
-        "generated_at": "2026-11-02T17:02:45.142003+00:00",
+        "generated_at": "2026-11-02T18:16:46.891030+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
-            "available": false,
-            "reason": "no CMakeCache.txt found"
+            "available": true,
+            "build_dir": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/build",
+            "flags": {
+              "CMAKE_BUILD_TYPE": "Release",
+              "CMAKE_CXX_COMPILER": "/usr/bin/c++",
+              "CMAKE_CXX_FLAGS": "",
+              "CMAKE_CXX_FLAGS_RELEASE": "-O3 -DNDEBUG",
+              "CMAKE_C_COMPILER": "/usr/bin/cc",
+              "CMAKE_C_FLAGS": "",
+              "CMAKE_C_FLAGS_RELEASE": "-O3 -DNDEBUG"
+            },
+            "flags_hash": "b08a96ecab2b5a95"
           },
-          "collected_at": "2026-11-02T17:02:45.141912+00:00",
+          "collected_at": "2026-11-02T18:16:46.890989+00:00",
           "git": {
-            "dirty": false,
+            "dirty": true,
             "ref": "dev",
-            "sha": "5cf2d4bb74312145fa9af6673badc5ad3e492c38",
-            "short": "5cf2d4bb74"
+            "sha": "1a00976f68d897741e9599d336cd1eb5d8a12faa",
+            "short": "1a00976f68"
           },
           "platform": {
             "machine": "x86_64",
-            "python": "3.12.15",
-            "release": "7.0.0-1017-azure",
+            "python": "3.12.3",
+            "release": "6.8.0-147-generic",
             "system": "Linux"
           },
           "submodules": null,
           "toolchain": {
-            "c++": "c++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
-            "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+            "c++": "c++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+            "cc": "cc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
             "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)",
             "clang++": "Ubuntu clang version 18.1.3 (1ubuntu1)",
-            "cmake": "cmake version 3.31.6",
-            "g++": "g++ (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
-            "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
-            "ninja": "1.13.2"
+            "cmake": "cmake version 4.3.4",
+            "g++": "g++ (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+            "gcc": "gcc (Ubuntu 14.2.0-4ubuntu2~24.04.1) 14.2.0",
+            "ninja": "1.11.1"
           },
           "version": "4.6.2"
         },
-        "run_id": "audit_gate-5cf2d4bb74-20261102T170245",
+        "run_id": "audit_gate-1a00976f68-20261102T181646",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -912,7 +934,7 @@
               {
                 "check_id": "p0__secret-path_change_gate",
                 "severity": "pass",
-                "title": "No uncommitted changes to evaluate"
+                "title": "No changed secret-bearing paths detected"
               }
             ],
             "name": "P0: Secret-Path Change Gate",
@@ -993,12 +1015,27 @@
             "findings": [
               {
                 "check_id": "p6__graph_freshness",
-                "severity": "pass",
-                "title": "Graph is fresh (built: 2026-11-02T17:00:33)"
+                "severity": "advisory:medium",
+                "title": "3 files modified/deleted since graph build (2026-11-02T18:04:36)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/AUDIT_CHANGELOG.md"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/INCIDENT_DRILL_LOG.json"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
               }
             ],
             "name": "P6: Graph Freshness",
-            "verdict": "PASS"
+            "verdict": "PASS with advisory"
           },
           {
             "findings": [
@@ -1056,7 +1093,7 @@
               {
                 "check_id": "p8__test_documentation",
                 "severity": "advisory:medium",
-                "title": "66 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign"
+                "title": "70 CTest targets not in TEST_MATRIX.md: ${_name}_shim, bip324_kat_cuda, bip327_keyagg_vectors, bip327_sign_verify_vectors, bip327_tweak_sign"
               }
             ],
             "name": "P8: Test Documentation",
@@ -1218,7 +1255,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "No uncommitted changes"
+                "title": "2 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1229,12 +1266,12 @@
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 202.4 days (threshold: 14)"
+                "title": "Mutation report age: 202.5 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (202.4 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (202.5 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1513,7 +1550,7 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "pass",
-                "title": "Source graph \"files\" has 1803 rows (threshold: 200)"
+                "title": "Source graph \"files\" has 1832 rows (threshold: 200)"
               }
             ],
             "name": "G-12: Source Graph Quality",
@@ -1674,7 +1711,7 @@
               {
                 "check_id": "g-19__evidence_refresh_coverage",
                 "severity": "pass",
-                "title": "7 freshness artifacts all covered (2 auto, 5 residual); incident_drill_log auto-refresh=True"
+                "title": "7 freshness artifacts all covered (6 auto, 1 residual); incident_drill_log auto-refresh=True"
               }
             ],
             "name": "G-19: Evidence Refresh Coverage",
@@ -1704,21 +1741,21 @@
           }
         ],
         "summary": {
-          "advisory": 70,
+          "advisory": 74,
           "blocking": 0,
-          "info": 55,
+          "info": 58,
           "sections": 34,
           "skipped_sections": 0,
-          "total_findings": 131,
-          "warnings": 15
+          "total_findings": 134,
+          "warnings": 16
         },
         "verdict": "PASS with advisory"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "148046b3c3c37416b15b2ac33b86e3d5252aceca8653713098a5932384c44d40",
-      "stdout_sha256": "07ab997f2cb5ac56b9936155e0ff839843726474124df8ba81c25bd9e4a2010d"
+      "stderr_sha256": "7b53034a8c4b9adccfce81563676e079873785da96c3323aa53757a912f70398",
+      "stdout_sha256": "a82f4381241254208a956c6832e8e2c3b149ddb508e581fd09be09d885ec7514"
     },
     {
       "name": "audit_gap_report_strict",
@@ -2020,20 +2057,20 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-11-02T17:02:48.893597+00:00"
+        "timestamp": "2026-11-02T18:16:52.452363+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "687c6b48ccc4a3359c36acd06374e7e84c8247c3c110200da5c092510f3ec903"
+      "stdout_sha256": "eac8ea1818f38228e9e866cd2e4cc7620ef508ae1e1d962e91d5abc3b8dba0a5"
     },
     {
       "name": "supply_chain_gate",
       "parsed_json": {
         "checks": [
           {
-            "cmake_version": "cmake version 3.31.6",
+            "cmake_version": "cmake version 4.3.4",
             "issues": [],
             "name": "build_input_pinning",
             "passing": true
@@ -2072,26 +2109,26 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-11-02T17:02:48.945017+00:00"
+        "timestamp": "2026-11-02T18:16:52.560762+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "f2f9392a42720086ec92ed34940e71abde4d9e794b33e77868f694d16467e2f6"
+      "stdout_sha256": "a59f460f0e19f06ee144a7e4f2d7299bc1fac8e2f0c150dd29de4d326d4bc47d"
     }
   ],
-  "generated_at": "2026-11-02T17:02:48.967557+00:00",
+  "generated_at": "2026-11-02T18:16:52.575746+00:00",
   "git": {
     "branch": "dev",
-    "commit": "5cf2d4bb74312145fa9af6673badc5ad3e492c38",
+    "commit": "1a00976f68d897741e9599d336cd1eb5d8a12faa",
     "dirty": true
   },
-  "repo_root": "/home/runner/work/UltrafastSecp256k1/UltrafastSecp256k1",
+  "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",
   "runtime": {
     "machine": "x86_64",
-    "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
-    "python": "3.12.15"
+    "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3"
   },
   "schema_version": "1.0.0",
   "summary": {
