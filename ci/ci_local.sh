@@ -40,9 +40,21 @@ done
 # and /tmp/ci_local_msan_<PID> accumulating across multiple interrupted runs.
 BUILD_DIR=""
 MSAN_DIR=""
+# The autonomy gate rewrites these tracked files as a side effect (incident drills,
+# KPI snapshot). The nightly caas-evidence-refresh lane commits them to dev, so a
+# local run that leaves them modified makes the next `git pull` of a bot commit fail.
+# Put back the ones that were clean when this run started; never touch a file the
+# user had already changed.
+GENERATED_SIDE_EFFECTS=(docs/INCIDENT_DRILL_LOG.json docs/SECURITY_AUTONOMY_KPI.json)
+CLEAN_SIDE_EFFECTS=()
+for f in "${GENERATED_SIDE_EFFECTS[@]}"; do
+  git diff --quiet -- "$f" 2>/dev/null && CLEAN_SIDE_EFFECTS+=("$f")
+done
 _ci_local_cleanup() {
   [[ -n "${BUILD_DIR:-}" ]] && rm -rf "$BUILD_DIR" 2>/dev/null
   [[ -n "${MSAN_DIR:-}"  ]] && rm -rf "$MSAN_DIR"  2>/dev/null
+  [[ ${#CLEAN_SIDE_EFFECTS[@]} -gt 0 ]] && git checkout -- "${CLEAN_SIDE_EFFECTS[@]}" 2>/dev/null
+  true
 }
 trap '_ci_local_cleanup' EXIT INT TERM
 
