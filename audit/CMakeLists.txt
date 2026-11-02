@@ -1039,8 +1039,9 @@ audit_target_defaults(test_regression_schnorr_batch_short_weights_standalone)
 target_compile_definitions(test_regression_schnorr_batch_short_weights_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME regression_schnorr_batch_short_weights
     COMMAND test_regression_schnorr_batch_short_weights_standalone)
+# 4096-signature pool: ~24 s alone under Debug ASan+UBSan, >120 s on a shared CI runner.
 set_tests_properties(regression_schnorr_batch_short_weights PROPERTIES
-    TIMEOUT 120 LABELS "audit;regression;schnorr;batch")
+    TIMEOUT 600 LABELS "audit;regression;schnorr;batch")
 
 add_executable(test_exploit_segwit_encoding_standalone test_exploit_segwit_encoding.cpp)
 audit_target_defaults(test_exploit_segwit_encoding_standalone)
