@@ -1666,6 +1666,31 @@ target_compile_definitions(test_exploit_gpu_cpu_divergence_standalone PRIVATE ST
 add_test(NAME exploit_gpu_cpu_divergence COMMAND test_exploit_gpu_cpu_divergence_standalone)
 set_tests_properties(exploit_gpu_cpu_divergence PROPERTIES TIMEOUT 120 LABELS "audit;exploit;divergence;algebraic")
 
+# -- PoC: GPU C ABI non-canonical point encoding gate (x/y >= p) --------------
+# CPU-runnable: the predicate-boundary and CPU-ABI-parity checks need no GPU.
+# Compiles ufsecp_impl.cpp + ufsecp_gpu_impl.cpp + gpu_registry.cpp raw (same
+# shape as test_c_abi_negative_standalone) so the GPU entry-point checks run
+# whenever a GPU runtime is usable and self-skip otherwise.
+add_executable(test_exploit_gpu_noncanonical_point_encoding_standalone
+    test_exploit_gpu_noncanonical_point_encoding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_gpu_noncanonical_point_encoding_standalone)
+audit_wire_real_gpu_backends(test_exploit_gpu_noncanonical_point_encoding_standalone)
+target_include_directories(test_exploit_gpu_noncanonical_point_encoding_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include)
+target_compile_definitions(test_exploit_gpu_noncanonical_point_encoding_standalone PRIVATE
+    STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_gpu_noncanonical_point_encoding
+    COMMAND test_exploit_gpu_noncanonical_point_encoding_standalone)
+set_tests_properties(exploit_gpu_noncanonical_point_encoding PROPERTIES
+    TIMEOUT 120 LABELS "audit;exploit;gpu;point-encoding;sec1")
+
 # -- PoC: Field boundary / carry propagation exhaustive ----------------------
 add_executable(test_exploit_field_boundary_exhaustive_standalone test_exploit_field_boundary_exhaustive.cpp)
 audit_target_defaults(test_exploit_field_boundary_exhaustive_standalone)
@@ -4222,6 +4247,7 @@ add_executable(unified_audit_runner
     test_exploit_glv_endomorphism.cpp
     test_exploit_glv_kat.cpp
     test_exploit_gpu_cpu_divergence.cpp
+    test_exploit_gpu_noncanonical_point_encoding.cpp
     test_exploit_gpu_host_api_shape.cpp
     test_exploit_hedged_nonce_bias.cpp
     test_exploit_hkdf_kat.cpp

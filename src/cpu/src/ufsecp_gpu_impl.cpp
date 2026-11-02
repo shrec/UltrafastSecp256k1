@@ -26,6 +26,7 @@
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/glv.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/detail/sec1_canonical.hpp"
 
 using namespace secp256k1::gpu;
 
@@ -165,43 +166,11 @@ static ufsecp_error_t to_abi_error_clear_on_fail(
     return abi_err;
 }
 
-/* secp256k1 field prime p, big-endian (see BIP-340 / SEC 2):
- * FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F.
- * A SEC1 coordinate is canonical only when, read big-endian, it is < p.
- * All inputs at this gate are public, so the variable-time memcmp is correct. */
-static const uint8_t kSecp256k1P[32] = {
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-    0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFC, 0x2F,
-};
-
-static bool has_valid_compressed_pubkeys(const uint8_t* pubkeys33, size_t count) {
-    for (size_t index = 0; index < count; ++index) {
-        const uint8_t* entry = pubkeys33 + index * 33;
-        if (entry[0] != 0x02 && entry[0] != 0x03) {
-            return false;
-        }
-        if (std::memcmp(entry + 1, kSecp256k1P, 32) >= 0) {
-            return false;
-        }
-    }
-    return true;
-}
-
-static bool has_valid_uncompressed_pubkeys(const uint8_t* pubkeys65, size_t count) {
-    for (size_t index = 0; index < count; ++index) {
-        const uint8_t* entry = pubkeys65 + index * 65;
-        if (entry[0] != 0x04) {
-            return false;
-        }
-        if (std::memcmp(entry + 1, kSecp256k1P, 32) >= 0 ||
-            std::memcmp(entry + 33, kSecp256k1P, 32) >= 0) {
-            return false;
-        }
-    }
-    return true;
-}
+/* SEC1 prefix / coordinate-range gate (x, y < p): implemented once in
+ * secp256k1/detail/sec1_canonical.hpp (sec1_compressed_batch_canonical,
+ * sec1_uncompressed_batch_canonical) so the CPU-only exploit PoC
+ * test_exploit_gpu_noncanonical_point_encoding exercises the very predicate
+ * used here. No private copy of the check lives in this file. */
 
 static bool has_valid_recovery_ids(const int* recids, size_t count) {
     for (size_t index = 0; index < count; ++index) {
@@ -551,7 +520,7 @@ ufsecp_error_t ufsecp_gpu_ecdh_batch(
     if (SECP256K1_UNLIKELY(!privkeys32 || !peer_pubkeys33 || !out_secrets32)) {
         return UFSECP_ERR_NULL_ARG;
     }
-    if (!has_valid_compressed_pubkeys(peer_pubkeys33, count)) {
+    if (!secp256k1::detail::sec1_compressed_batch_canonical(peer_pubkeys33, count)) {
         return UFSECP_ERR_BAD_PUBKEY;
     }
     try {
@@ -573,7 +542,7 @@ ufsecp_error_t ufsecp_gpu_hash160_pubkey_batch(
     if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
     if (!clear_output_bytes(out_hash160, count, 20)) return UFSECP_ERR_BAD_INPUT;
     if (SECP256K1_UNLIKELY(!pubkeys33 || !out_hash160)) return UFSECP_ERR_NULL_ARG;
-    if (!has_valid_compressed_pubkeys(pubkeys33, count)) {
+    if (!secp256k1::detail::sec1_compressed_batch_canonical(pubkeys33, count)) {
         return UFSECP_ERR_BAD_PUBKEY;
     }
     try {
@@ -850,9 +819,9 @@ ufsecp_error_t ufsecp_gpu_frost_verify_partial_batch(
         !lambda_ie32 || !negate_R || !negate_key || !out_results)) {
         return UFSECP_ERR_NULL_ARG;
     }
-    if (!has_valid_compressed_pubkeys(D_i33, count) ||
-        !has_valid_compressed_pubkeys(E_i33, count) ||
-        !has_valid_compressed_pubkeys(Y_i33, count)) {
+    if (!secp256k1::detail::sec1_compressed_batch_canonical(D_i33, count) ||
+        !secp256k1::detail::sec1_compressed_batch_canonical(E_i33, count) ||
+        !secp256k1::detail::sec1_compressed_batch_canonical(Y_i33, count)) {
         return UFSECP_ERR_BAD_PUBKEY;
     }
     try {
@@ -914,7 +883,7 @@ ufsecp_error_t ufsecp_gpu_zk_knowledge_verify_batch(
     if (!clear_output_bytes(out_results, count, 1)) return UFSECP_ERR_BAD_INPUT;
     if (!proofs64 || !pubkeys65 || !messages32 || !out_results)
         return UFSECP_ERR_NULL_ARG;
-    if (!has_valid_uncompressed_pubkeys(pubkeys65, count)) {
+    if (!secp256k1::detail::sec1_uncompressed_batch_canonical(pubkeys65, count)) {
         return UFSECP_ERR_BAD_PUBKEY;
     }
     try {
@@ -941,10 +910,10 @@ ufsecp_error_t ufsecp_gpu_zk_dleq_verify_batch(
     if (!clear_output_bytes(out_results, count, 1)) return UFSECP_ERR_BAD_INPUT;
     if (!proofs64 || !G_pts65 || !H_pts65 || !P_pts65 || !Q_pts65 || !out_results)
         return UFSECP_ERR_NULL_ARG;
-    if (!has_valid_uncompressed_pubkeys(G_pts65, count) ||
-        !has_valid_uncompressed_pubkeys(H_pts65, count) ||
-        !has_valid_uncompressed_pubkeys(P_pts65, count) ||
-        !has_valid_uncompressed_pubkeys(Q_pts65, count)) {
+    if (!secp256k1::detail::sec1_uncompressed_batch_canonical(G_pts65, count) ||
+        !secp256k1::detail::sec1_uncompressed_batch_canonical(H_pts65, count) ||
+        !secp256k1::detail::sec1_uncompressed_batch_canonical(P_pts65, count) ||
+        !secp256k1::detail::sec1_uncompressed_batch_canonical(Q_pts65, count)) {
         return UFSECP_ERR_BAD_PUBKEY;
     }
     try {
@@ -970,8 +939,8 @@ ufsecp_error_t ufsecp_gpu_bulletproof_verify_batch(
     if (!proofs324 || !commitments65 || !H_generator65 || !out_results)
         return UFSECP_ERR_NULL_ARG;
     if (!has_valid_bulletproof_prefixes(proofs324, count) ||
-        !has_valid_uncompressed_pubkeys(commitments65, count) ||
-        !has_valid_uncompressed_pubkeys(H_generator65, 1)) {
+        !secp256k1::detail::sec1_uncompressed_batch_canonical(commitments65, count) ||
+        !secp256k1::detail::sec1_uncompressed_batch_canonical(H_generator65, 1)) {
         return UFSECP_ERR_BAD_PUBKEY;
     }
     try {
@@ -1076,7 +1045,7 @@ ufsecp_error_t ufsecp_gpu_zk_ecdsa_snark_witness_batch(
     // matching the input-validation done by bulletproof_verify_batch and the other GPU
     // ZK wrappers. Without this, an off-curve / wrong-prefix pubkey silently produces a
     // garbage witness instead of an error (SW-16).
-    if (!has_valid_compressed_pubkeys(pubkeys33, count))
+    if (!secp256k1::detail::sec1_compressed_batch_canonical(pubkeys33, count))
         return UFSECP_ERR_BAD_PUBKEY;
     try {
         return to_abi_error_clear_on_fail(
@@ -1317,9 +1286,9 @@ ufsecp_error_t ufsecp_gpu_bip352_scan_batch_multispend(
     // reaches the GPU kernel. (An off-curve x within a well-formed prefix is
     // handled per-row/column by the GPU decompression step -- see the
     // GpuBackend::bip352_scan_batch_multispend doc comment.)
-    if (!has_valid_compressed_pubkeys(spend_pubkeys33, n_spend))
+    if (!secp256k1::detail::sec1_compressed_batch_canonical(spend_pubkeys33, n_spend))
         return UFSECP_ERR_BAD_INPUT;
-    if (!has_valid_compressed_pubkeys(tweak_pubkeys33, n_tweaks))
+    if (!secp256k1::detail::sec1_compressed_batch_canonical(tweak_pubkeys33, n_tweaks))
         return UFSECP_ERR_BAD_INPUT;
     try {
         return to_abi_error_clear_on_fail(

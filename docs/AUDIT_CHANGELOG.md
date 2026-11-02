@@ -1,5 +1,34 @@
 # Audit Changelog
 
+## 2026-11-02 - CPU-runnable exploit PoC for the GPU non-canonical point gate; `gpu_audit_runner` in `ci_local.sh` (`exploit_gpu_noncanonical_point_encoding`)
+
+**Gap.** The fix that makes the GPU C ABI host gate reject SEC1 coordinates
+>= p was covered only by `test_noncanonical_coordinate_gate` in
+`audit/test_gpu_host_api_negative.cpp`, which needs a usable GPU and skips on every
+CPU-only CI runner, so the fix could regress without any gate failing. The CUDA
+hash160 known-answer checks in `gpu_audit_runner` were not run by `ci_local.sh`
+at all.
+
+**Change.** The two predicates (33-byte: prefix 0x02/0x03 and x < p; 65-byte:
+prefix 0x04, x < p and y < p) and their batch forms now live once in
+`src/cpu/include/secp256k1/detail/sec1_canonical.hpp`
+(`secp256k1::detail::sec1_*_canonical`). `ufsecp_gpu_impl.cpp` calls them
+directly and keeps no private copy; every gate caller still returns
+`UFSECP_ERR_BAD_PUBKEY` (BIP-352 multi-spend keeps its `UFSECP_ERR_BAD_INPUT`).
+The new module `exploit_gpu_noncanonical_point_encoding`
+(`audit/test_exploit_gpu_noncanonical_point_encoding.cpp`, section `exploit_poc`,
+advisory=false) runs the predicate-boundary checks and the CPU ABI parity check
+(`ufsecp_pubkey_parse` vs the predicate on 02\|\|(p+1) and 02\|\|00..01) on a
+CPU-only build; its GPU entry-point checks run only when a GPU runtime is usable
+and are otherwise reported as skipped. The boundary checks are written to fail
+when the predicate is reduced to a prefix-only check (x = p, p+1, 2^256-1, the y
+boundaries and the CPU-parity pair).
+
+**CI.** The `ci_local.sh` GPU section also builds `gpu_audit_runner` and runs it
+with `timeout 300 ... --json-only`. `gpu_audit_runner` exits 1 (not 77) when no
+CUDA device can be set, so it runs only inside the branch guarded by
+`nvidia-smi -L`; a CUDA build directory on a GPU-less machine is not a FAIL.
+
 ## 2026-11-02 - CUDA hash160 rewrite and known-answer checks (`gpu_audit`)
 
 `src/cuda/include/hash160.cuh` now has a register-only `sha256_33` for 33-byte

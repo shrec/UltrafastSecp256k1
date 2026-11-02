@@ -412,6 +412,7 @@ int test_exploit_frost_threshold_degenerate_run();
 int test_exploit_glv_endomorphism_run();
 int test_exploit_glv_kat_run();
 int test_exploit_gpu_cpu_divergence_run();
+int test_exploit_gpu_noncanonical_point_encoding_run();
 int test_exploit_gpu_host_api_shape_run();
 int test_exploit_hash256_var_bounds_run(); // hash256_var hostile-input / bounds contract (ctx-null, n=0, oversize n/stride, per-row length)
 int test_exploit_hedged_nonce_bias_run();
@@ -1140,6 +1141,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_glv_endomorphism",       "GLV Endomorphism Correctness",                "exploit_poc", test_exploit_glv_endomorphism_run, false },
     { "exploit_glv_kat",                "GLV Decomposition KAT",                       "exploit_poc", test_exploit_glv_kat_run, false },
     { "exploit_gpu_cpu_divergence",     "GPU/CPU Algebraic Consistency",               "exploit_poc", test_exploit_gpu_cpu_divergence_run, false },
+    { "exploit_gpu_noncanonical_point_encoding", "GPU Non-Canonical Point Encoding Gate", "exploit_poc", test_exploit_gpu_noncanonical_point_encoding_run, false },
     { "exploit_gpu_host_api_shape",     "GPU Host API Hostile Caller",                 "exploit_poc", test_exploit_gpu_host_api_shape_run, false },
     { "exploit_hash256_var_bounds",     "hash256_var Hostile-Input / Bounds Contract", "exploit_poc", test_exploit_hash256_var_bounds_run, false },
     { "exploit_hedged_nonce_bias",      "Hedged Signature Nonce Bias",                 "exploit_poc", test_exploit_hedged_nonce_bias_run, false },
