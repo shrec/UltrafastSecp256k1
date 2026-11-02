@@ -1,5 +1,45 @@
 # Audit Changelog
 
+## 2026-11-02 - GPU C ABI host check rejects coordinates >= p (`gpu_api_negative`)
+
+**Defect.** `has_valid_compressed_pubkeys` and `has_valid_uncompressed_pubkeys`
+in `src/cpu/src/ufsecp_gpu_impl.cpp` checked only the SEC1 prefix byte. The
+OpenCL and Metal `frost_decompress_sec1` lift x without a range check, so an
+encoding with x >= p was decoded as x - p, while the CPU `point_from_compressed`
+rejects it (`FE::parse_bytes_strict`). Every GPU entry point behind these two
+checks could disagree with the CPU on such input: FROST partial verify, ECDH,
+hash160, BIP-352 scan, the ZK SNARK witness batch, and the ZK knowledge / DLEQ /
+Bulletproof verifiers. Reported by Gleb Lizunov (@hokvo).
+
+**Fix.** Both checks compare each coordinate with p, big-endian
+(`std::memcmp(coord, p, 32) >= 0` rejects; the inputs are public, so variable
+time is correct). The fix is in the shared host check, so it covers every GPU
+backend; no kernel changed.
+
+**Impact.** Only points with a coordinate below 2^32 + 977 have a second
+encoding, and no discrete log of any such point is known, so nobody can produce
+a valid signature or partial signature over one. The effect was a verdict
+mismatch (GPU: verify failure or a computed value; CPU: `UFSECP_ERR_BAD_PUBKEY`),
+not a forgery.
+
+**Test.** `test_noncanonical_coordinate_gate` in
+`audit/test_gpu_host_api_negative.cpp` (module `gpu_api_negative`) uses
+x = p + 1, the second encoding of the point with x = 1. It asserts
+`UFSECP_ERR_BAD_PUBKEY` with zeroed outputs for FROST (D_i, E_i, Y_i), ECDH,
+hash160 and ZK knowledge verify (x = p + 1, then y = p); that the canonical
+encoding passes the check; and that the CPU `ufsecp_frost_verify_partial`
+rejects the same encoding. Against the unpatched check 7 of these assertions
+fail. With the fix, `gpu_host_api_negative`, `gpu_abi_gate` and
+`gpu_ops_equivalence` pass on CUDA (RTX 5060 Ti, `cuda-release-5060ti`).
+
+**Entry points outside these checks (probed on CUDA with x = p + 1, unchanged).**
+`ufsecp_gpu_pubkey_validate` and `ufsecp_gpu_xonly_validate` already report the
+encoding invalid, matching the CPU. `ufsecp_gpu_msm` accepts it and returns the
+same result as for the canonical encoding. `ufsecp_gpu_ecdsa_verify_batch` and
+`ufsecp_gpu_schnorr_verify_batch` were not measured, because that needs a valid
+signature under a point with a coordinate below 2^32 + 977. Tracked as a
+follow-up.
+
 ## 2026-11-01 - CPU Schnorr batch verify: 128-bit BIP-340 randomizers, 3n-point MSM (`regression_schnorr_batch_short_weights`)
 
 **What changed.** `schnorr_batch_verify_impl` (`src/cpu/src/batch_verify.cpp`)

@@ -165,10 +165,24 @@ static ufsecp_error_t to_abi_error_clear_on_fail(
     return abi_err;
 }
 
+/* secp256k1 field prime p, big-endian (see BIP-340 / SEC 2):
+ * FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFF FFFFFFFE FFFFFC2F.
+ * A SEC1 coordinate is canonical only when, read big-endian, it is < p.
+ * All inputs at this gate are public, so the variable-time memcmp is correct. */
+static const uint8_t kSecp256k1P[32] = {
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+    0xFF, 0xFF, 0xFF, 0xFE, 0xFF, 0xFF, 0xFC, 0x2F,
+};
+
 static bool has_valid_compressed_pubkeys(const uint8_t* pubkeys33, size_t count) {
     for (size_t index = 0; index < count; ++index) {
-        const uint8_t prefix = pubkeys33[index * 33];
-        if (prefix != 0x02 && prefix != 0x03) {
+        const uint8_t* entry = pubkeys33 + index * 33;
+        if (entry[0] != 0x02 && entry[0] != 0x03) {
+            return false;
+        }
+        if (std::memcmp(entry + 1, kSecp256k1P, 32) >= 0) {
             return false;
         }
     }
@@ -177,7 +191,12 @@ static bool has_valid_compressed_pubkeys(const uint8_t* pubkeys33, size_t count)
 
 static bool has_valid_uncompressed_pubkeys(const uint8_t* pubkeys65, size_t count) {
     for (size_t index = 0; index < count; ++index) {
-        if (pubkeys65[index * 65] != 0x04) {
+        const uint8_t* entry = pubkeys65 + index * 65;
+        if (entry[0] != 0x04) {
+            return false;
+        }
+        if (std::memcmp(entry + 1, kSecp256k1P, 32) >= 0 ||
+            std::memcmp(entry + 33, kSecp256k1P, 32) >= 0) {
             return false;
         }
     }

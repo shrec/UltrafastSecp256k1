@@ -47,6 +47,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   evidence and measurements: `docs/AUDIT_CHANGELOG.md` 2026-10-02 and
   `docs/BENCHMARKS.md`.
 
+### Fixed
+- **GPU C ABI rejects non-canonical point coordinates.** The shared host-side
+  input check of the GPU C ABI looked only at the SEC1 prefix byte, so a
+  compressed key whose x is `>= p` (for example `x = p + 1`, the second
+  encoding of the point with `x = 1`) reached the kernels, which reduce it mod
+  `p`; the CPU parser rejects such encodings. The check now also rejects
+  `x >= p` for 33-byte keys and `x >= p` or `y >= p` for 65-byte keys, so
+  `ufsecp_gpu_frost_verify_partial_batch`, `ufsecp_gpu_ecdh_batch`,
+  `ufsecp_gpu_hash160_pubkey_batch`, the BIP-352 scan and ZK witness batches,
+  and the ZK knowledge / DLEQ / Bulletproof verifiers return
+  `UFSECP_ERR_BAD_PUBKEY` like the CPU path. Kernels are unchanged. Only points
+  with a coordinate below `2^32 + 977` have a second encoding and no discrete
+  log of one is known, so this closes a CPU/GPU verdict mismatch, not a
+  forgery. Reported by Gleb Lizunov (@hokvo). Regression assertions in
+  `audit/test_gpu_host_api_negative.cpp`; details in `docs/AUDIT_CHANGELOG.md`
+  2026-11-02.
+
 ## [4.6.2] - 2026-09-27
 
 A patch release for the OpenCL backend, GPU use from libbitcoin-direct

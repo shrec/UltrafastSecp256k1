@@ -637,6 +637,135 @@ static void test_backend_names() {
 
 /* ============================================================================ */
 
+/* ── noncanonical_coordinate_gate: SEC1 coordinates >= p at the host gate ──
+ *
+ * The CPU parser (point_from_compressed via FE::parse_bytes_strict) rejects
+ * x >= p (and y >= p) outright. The GPU host gate must agree, otherwise the
+ * gated GPU entry points accept x+p encodings of points the CPU rejects.
+ * Fixture: x = p+1 = 02 || FF..FF FE FF FF FC 30 is the non-canonical
+ * encoding of the on-curve point with x = 1 (8 is a square mod p because
+ * p = 7 mod 8); the canonical 02 || 00..01 encoding of the same point must
+ * stay accepted by the gate. */
+static void test_noncanonical_coordinate_gate(ufsecp_gpu_ctx* ctx) {
+    std::printf("[gpu_negative] Non-canonical coordinates (x >= p, y >= p)\n");
+
+    if (!ctx) {
+        std::printf("  (skipped -- no GPU context)\n");
+        return;
+    }
+
+    /* x = p+1, big-endian: FF x27, then FE FF FF FC 30 */
+    uint8_t p_plus_1_x33[33] = {0x02};
+    std::memset(p_plus_1_x33 + 1, 0xFF, 27);
+    p_plus_1_x33[28] = 0xFE;
+    p_plus_1_x33[29] = 0xFF;
+    p_plus_1_x33[30] = 0xFF;
+    p_plus_1_x33[31] = 0xFC;
+    p_plus_1_x33[32] = 0x30;
+
+    /* y = p, big-endian: FF x27, then FE FF FF FC 2F */
+    uint8_t p_y32[32];
+    std::memset(p_y32, 0xFF, 27);
+    p_y32[27] = 0xFE;
+    p_y32[28] = 0xFF;
+    p_y32[29] = 0xFF;
+    p_y32[30] = 0xFC;
+    p_y32[31] = 0x2F;
+
+    /* Canonical encoding of the same point: 02 || x = 1 */
+    uint8_t canon_x1_33[33] = {0x02};
+    canon_x1_33[32] = 0x01;
+
+    uint8_t scalar32[32] = {};
+    scalar32[31] = 0x02;
+    uint8_t neg0[1] = {0};
+    uint8_t proof64[64] = {};
+    uint8_t out1[1];
+    uint8_t out32[32];
+    uint8_t out20[20];
+
+    /* frost_verify_partial_batch: p+1 in D_i, then E_i, then Y_i */
+    out1[0] = 1;
+    auto fd = ufsecp_gpu_frost_verify_partial_batch(ctx, scalar32, p_plus_1_x33,
+                                                    canon_x1_33, canon_x1_33,
+                                                    scalar32, scalar32, neg0,
+                                                    neg0, 1, out1);
+    CHECK(fd == UFSECP_ERR_BAD_PUBKEY && all_zero(out1, 1),
+          "frost_verify_partial_batch D_i = p+1 -> BAD_PUBKEY, output zeroed");
+    out1[0] = 1;
+    auto fe = ufsecp_gpu_frost_verify_partial_batch(ctx, scalar32, canon_x1_33,
+                                                    p_plus_1_x33, canon_x1_33,
+                                                    scalar32, scalar32, neg0,
+                                                    neg0, 1, out1);
+    CHECK(fe == UFSECP_ERR_BAD_PUBKEY && all_zero(out1, 1),
+          "frost_verify_partial_batch E_i = p+1 -> BAD_PUBKEY, output zeroed");
+    out1[0] = 1;
+    auto fy = ufsecp_gpu_frost_verify_partial_batch(ctx, scalar32, canon_x1_33,
+                                                    canon_x1_33, p_plus_1_x33,
+                                                    scalar32, scalar32, neg0,
+                                                    neg0, 1, out1);
+    CHECK(fy == UFSECP_ERR_BAD_PUBKEY && all_zero(out1, 1),
+          "frost_verify_partial_batch Y_i = p+1 -> BAD_PUBKEY, output zeroed");
+
+    /* Canonical 02 || 00..01 of the same point must not be rejected by the gate */
+    out1[0] = 1;
+    auto fc = ufsecp_gpu_frost_verify_partial_batch(ctx, scalar32, canon_x1_33,
+                                                    canon_x1_33, canon_x1_33,
+                                                    scalar32, scalar32, neg0,
+                                                    neg0, 1, out1);
+    CHECK(fc != UFSECP_ERR_BAD_PUBKEY,
+          "frost_verify_partial_batch canonical 02||x=1 not rejected as BAD_PUBKEY");
+
+    /* ecdh_batch / hash160_pubkey_batch: p+1 peer key */
+    std::memset(out32, 0xA5, sizeof(out32));
+    auto ee = ufsecp_gpu_ecdh_batch(ctx, scalar32, p_plus_1_x33, 1, out32);
+    CHECK(ee == UFSECP_ERR_BAD_PUBKEY && all_zero(out32, sizeof(out32)),
+          "ecdh_batch p+1 peer pubkey -> BAD_PUBKEY, secret zeroed");
+    std::memset(out20, 0xA5, sizeof(out20));
+    auto eh = ufsecp_gpu_hash160_pubkey_batch(ctx, p_plus_1_x33, 1, out20);
+    CHECK(eh == UFSECP_ERR_BAD_PUBKEY && all_zero(out20, sizeof(out20)),
+          "hash160_pubkey_batch p+1 pubkey -> BAD_PUBKEY, hash zeroed");
+    std::memset(out32, 0xA5, sizeof(out32));
+    auto ec = ufsecp_gpu_ecdh_batch(ctx, scalar32, canon_x1_33, 1, out32);
+    CHECK(ec != UFSECP_ERR_BAD_PUBKEY,
+          "ecdh_batch canonical 02||x=1 not rejected as BAD_PUBKEY");
+
+    /* zk_knowledge_verify_batch: uncompressed key with x = p+1, then y = p */
+    uint8_t unc65[65] = {0x04};
+    std::memcpy(unc65 + 1, p_plus_1_x33 + 1, 32); /* x = p+1, y = 0 */
+    out1[0] = 1;
+    auto kx = ufsecp_gpu_zk_knowledge_verify_batch(ctx, proof64, unc65, scalar32,
+                                                   1, out1);
+    CHECK(kx == UFSECP_ERR_BAD_PUBKEY && all_zero(out1, 1),
+          "zk_knowledge_verify_batch x = p+1 -> BAD_PUBKEY, output zeroed");
+    std::memset(unc65, 0, sizeof(unc65));
+    unc65[0] = 0x04;
+    unc65[32] = 0x01;                            /* x = 1 */
+    std::memcpy(unc65 + 33, p_y32, 32);          /* y = p */
+    out1[0] = 1;
+    auto ky = ufsecp_gpu_zk_knowledge_verify_batch(ctx, proof64, unc65, scalar32,
+                                                   1, out1);
+    CHECK(ky == UFSECP_ERR_BAD_PUBKEY && all_zero(out1, 1),
+          "zk_knowledge_verify_batch y = p -> BAD_PUBKEY, output zeroed");
+
+    /* CPU parity: the CPU ABI rejects the same p+1 encoding */
+    ufsecp_ctx* cpu_ctx = nullptr;
+    if (ufsecp_ctx_create(&cpu_ctx) == UFSECP_OK && cpu_ctx) {
+        uint8_t psig36[36] = {};
+        uint8_t nonce_commits[73] = {};
+        uint8_t msg32[32] = {};
+        psig36[0] = 1;  /* signer id != 0 */
+        psig36[35] = 1; /* z_i = 1 (valid non-zero scalar) */
+        CHECK(ufsecp_frost_verify_partial(cpu_ctx, psig36, p_plus_1_x33,
+                                          nonce_commits, 1, msg32,
+                                          canon_x1_33) == UFSECP_ERR_BAD_PUBKEY,
+              "CPU ufsecp_frost_verify_partial rejects the p+1 encoding");
+        ufsecp_ctx_destroy(cpu_ctx);
+    } else {
+        CHECK(false, "cpu ctx for non-canonical coordinate fixture");
+    }
+}
+
 int test_gpu_host_api_negative_run() {
     g_pass = 0; g_fail = 0;
     std::printf("=== GPU Host API Negative Test ===\n\n");
@@ -666,6 +795,7 @@ int test_gpu_host_api_negative_run() {
     test_invalid_device();
       test_ecrecover_zero_and_invalid(ctx);
       test_extended_ops_zero_and_invalid(ctx);
+      test_noncanonical_coordinate_gate(ctx);
     test_unsupported_ops(ctx);
 
     if (ctx) ufsecp_gpu_ctx_destroy(ctx);
