@@ -1,5 +1,76 @@
 # Audit Changelog
 
+## 2026-11-02 - The nightly lane refreshes the residual CAAS evidence from its real verifiers, fail-closed (RR-BAS-01 promoted)
+
+**Gap.** Four blocking freshness artifacts that `ci/audit_sla_check.py` tracks had no
+automatic producer: `audit/ci-evidence` (CT / adversarial / fuzz snapshots),
+`docs/DETERMINISM_GOLDEN.json`, `docs/API_SECURITY_CONTRACTS.json` and
+`docs/ASSURANCE_CLAIMS.json`. The `INT-SHIM-PARITY` row of
+`docs/INTEGRATION_EVIDENCE_STATUS.json`, which the integration-evidence gate (G-13) ages,
+had none either. They were documented residuals of RR-BAS-01 and were refreshed by hand
+(`121e5325` is the template), so they crossed the 14/30-day SLOs whenever the chore lapsed:
+eight artifacts were blocking at once on 2026-11-01. Owner decision, 2026-11-02: "bring
+everything into one working cycle".
+
+**Change.** New `ci/refresh_residual_evidence.py` (stdlib only), one group per artifact, run
+by `.github/workflows/caas-evidence-refresh.yml`. A file is refreshed only by re-running its
+real verifier and is written only when that verifier passes:
+
+- `ct_evidence` runs `test_adversarial_protocol_standalone`,
+  `test_ecies_regression_standalone`, `test_regression_ct_ops_standalone`,
+  `test_fuzz_parsers` and `test_fuzz_address_bip32_ffi`. If every suite exits 0 and its own
+  summary shows 0 failed (and 0 crashes where it counts them) it writes five NEW
+  `audit/ci-evidence/<suite>_<YYYYMMDD>.txt` files, all or none; otherwise it writes none. It
+  never rewrites or re-dates an existing file.
+- `determinism_golden` regenerates through `ci/check_determinism_gate.py` and is accepted only
+  when `overall_pass` is true and the new content equals the old except `generated_at` and
+  `library`; otherwise the file is untouched.
+- `api_contracts` (`check_api_contracts.py`), `assurance_claims` (`validate_assurance.py`) and
+  `shim_parity` (`check_libsecp_shim_parity.py`) are stamped after a pass: `last_updated` +
+  `update_note`, `updated_at`, and the `INT-SHIM-PARITY` row's `last_verified` + `notes`. Each
+  stamp names the date, the HEAD short sha, the verifier command and its verdict wherever the
+  field has room for text. A stamp is a text edit of exactly those string values, so the file's
+  formatting survives, and it is refused unless a re-parse differs from the original in the
+  allowed fields alone.
+- `--plan` prints the due groups as JSON; `--dry-run` runs the verifiers and writes nothing;
+  `--force` overrides the age gate; `--min-age-days` (default 7, measured by
+  `audit_sla_check.py`'s own age function) sets it; `--build-dir` names the build holding the
+  binaries. A failed group writes nothing and makes the exit non-zero, and the other groups
+  still refresh.
+
+The workflow runs `--plan`, builds a second directory (`BUILD_TESTING=ON`,
+`SECP256K1_BUILD_FUZZ_TESTS=ON`, only the five targets) only when a group that needs the
+binaries is due, runs the script before the assurance report, the bundle and the KPI, and feeds
+its outcome into `GATE_VERDICT`. The new snapshots (untracked, so invisible to
+`git diff --quiet`) and the four JSON files are staged on the success path only and are in the
+diagnostic upload; the job timeout goes from 25 to 90 minutes. The plan, build and refresh steps
+are `continue-on-error` so one failed group cannot stop the rest of the lane, and a last step
+turns that failure into a red run. `docs/AUDIT_SLA.json` marks the four artifacts `auto`
+(`risk_coverage_report` stays residual) and `ci/check_evidence_refresh_coverage.py` verifies each
+against the lane's real commit list, unchanged. RR-BAS-01 records the promotion, the fail-closed
+rules, and that the owner-gated rows (GPU hardware, ROCm, Bitcoin Core suite, libbitcoin bridge)
+stay owner-gated: a GitHub runner cannot produce them and the lane never writes or stamps them.
+No evidence file is modified by this change; only the lane writes them, at run time.
+
+Scheduled runs execute the copy of the workflow on the default branch (`main`), which changes
+only when a version is cut, so the schedule picks this up at the next release. Until then run it
+from `dev` with `gh workflow run caas-evidence-refresh.yml --ref dev` (add
+`-f force_residual_refresh=true` to refresh artifacts younger than 7 days).
+
+**Test.** `check_refresh_residual_evidence_fixtures` in `ci/test_audit_scripts.py` (called from
+`main()` next to `check_evidence_refresh_coverage_fixtures` and registered in the high-value gate
+list) runs the real script against a throwaway tree of fake verifiers and fake suite
+executables, never the real evidence files, and fails when: a failing suite, a non-zero failed
+count, a non-zero crash count, a missing summary or a missing binary writes any
+`audit/ci-evidence` file; an old snapshot is rewritten or re-dated; a failing verifier stamps a
+JSON; a stamp changes a field outside its allowed set or reformats the file; a determinism
+regeneration with different content, a false `overall_pass`, listed issues or a missing golden is
+accepted; an artifact younger than `--min-age-days` is refreshed without `--force`; `--plan` or
+`--dry-run` writes anything, or `--plan` runs a verifier. It also pins the committed wiring: the
+four artifacts are `auto` with their commit paths staged on the success path only, the build is
+gated on the plan, the outcome feeds `GATE_VERDICT`, the paths are in the diagnostic upload and the
+timeout was raised.
+
 ## 2026-11-02 - Audit SLA can age a release snapshot as of `HEAD` (`AUDIT_SLA_AS_OF=head`); the 6-hourly freshness watch moves to `dev`
 
 **Gap.** GitHub runs scheduled workflows on the default branch, which is `main`.
