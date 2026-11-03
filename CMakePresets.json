@@ -184,6 +184,16 @@
       }
     },
     {
+      "name": "opencl-release",
+      "displayName": "OpenCL Release (Linux)",
+      "description": "CPU + OpenCL GPU optimized build, CUDA off. Builds and runs the opencl_* tests (opencl_selftest, opencl_audit) on the host OpenCL ICD.",
+      "inherits": "cpu-release",
+      "cacheVariables": {
+        "SECP256K1_BUILD_OPENCL": "ON",
+        "SECP256K1_BUILD_CUDA": "OFF"
+      }
+    },
+    {
       "name": "base-coin",
       "hidden": true,
       "inherits": "base",
@@ -464,6 +474,10 @@
     {
       "name": "cuda-audit-5060ti",
       "configurePreset": "cuda-release-5060ti"
+    },
+    {
+      "name": "opencl-release",
+      "configurePreset": "opencl-release"
     }
   ],
   "testPresets": [
@@ -523,6 +537,18 @@
       "filter": {
         "include": {
           "name": "^(gpu_abi_gate|gpu_ops_equivalence|gpu_host_api_negative|gpu_backend_matrix|unified_audit)$"
+        }
+      }
+    },
+    {
+      "name": "opencl-release",
+      "configurePreset": "opencl-release",
+      "output": {
+        "outputOnFailure": true
+      },
+      "filter": {
+        "include": {
+          "name": "^opencl_"
         }
       }
     }

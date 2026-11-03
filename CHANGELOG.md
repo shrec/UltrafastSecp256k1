@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **OpenCL and Metal: register-only hash160 (NF-2026-00033).** The CUDA form from
+  `d86d3bbf` (zeroxbee, VanityPlate) is ported to
+  `src/opencl/kernels/secp256k1_hash160.cl` and
+  `src/metal/shaders/secp256k1_hash160.h`. It has a registers-only SHA-256 for
+  33-byte keys and an unrolled RIPEMD-160 for 32-byte input. 65-byte keys still go
+  through the generic SHA-256, and function names and signatures are unchanged.
+
+  Two new OpenCL audit modules, `hash160_kat` and `hash160_gpu_cpu`, check the known
+  answers for `02||Gx` and `04||Gx||Gy` and compare GPU results with a CPU reference
+  on random 33/34/64/65-byte inputs. `opencl_hash160_ab_bench` times the old and
+  new forms in one run.
+
+  A new `opencl-release` CMake preset builds the OpenCL tests. On Linux, Metal is
+  only mirrored, not compiled: its compile check is the macOS CI job, and its speed
+  is unmeasured.
 - **CUDA: native carry chain restored on nvcc (NF-2026-00031).** `add_cc`,
   `sub_cc` and `muladd64` in `src/cuda/include/secp256k1.cuh` had used a
   compare-based carry (`sum < a`) on every build since `8af7320c`, including

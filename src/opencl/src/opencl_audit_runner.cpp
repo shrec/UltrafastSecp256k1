@@ -1616,6 +1616,337 @@ static int audit_ct_smoke_schnorr() {
 }
 
 // =============================================================================
+// Hash160 (SHA-256 -> RIPEMD-160): known answers + GPU-vs-CPU equivalence
+// =============================================================================
+// Covers src/opencl/kernels/secp256k1_hash160.cl: the registers-only 33-byte
+// SHA-256, the unrolled RIPEMD-160, and the length dispatch that sends every
+// other length (65-byte uncompressed keys) through the generic SHA-256.
+//
+// The CPU reference below is a plain table-driven SHA-256 / RIPEMD-160 written
+// independently of the kernel, so a transcription slip in the unrolled GPU code
+// cannot also be present in the reference.
+
+namespace hash160_ref {
+
+static inline uint32_t rotr(uint32_t x, unsigned n) { return (x >> n) | (x << (32u - n)); }
+static inline uint32_t rotl(uint32_t x, unsigned n) { return (x << n) | (x >> (32u - n)); }
+
+static const uint32_t SHA_K[64] = {
+    0x428a2f98U,0x71374491U,0xb5c0fbcfU,0xe9b5dba5U,0x3956c25bU,0x59f111f1U,0x923f82a4U,0xab1c5ed5U,
+    0xd807aa98U,0x12835b01U,0x243185beU,0x550c7dc3U,0x72be5d74U,0x80deb1feU,0x9bdc06a7U,0xc19bf174U,
+    0xe49b69c1U,0xefbe4786U,0x0fc19dc6U,0x240ca1ccU,0x2de92c6fU,0x4a7484aaU,0x5cb0a9dcU,0x76f988daU,
+    0x983e5152U,0xa831c66dU,0xb00327c8U,0xbf597fc7U,0xc6e00bf3U,0xd5a79147U,0x06ca6351U,0x14292967U,
+    0x27b70a85U,0x2e1b2138U,0x4d2c6dfcU,0x53380d13U,0x650a7354U,0x766a0abbU,0x81c2c92eU,0x92722c85U,
+    0xa2bfe8a1U,0xa81a664bU,0xc24b8b70U,0xc76c51a3U,0xd192e819U,0xd6990624U,0xf40e3585U,0x106aa070U,
+    0x19a4c116U,0x1e376c08U,0x2748774cU,0x34b0bcb5U,0x391c0cb3U,0x4ed8aa4aU,0x5b9cca4fU,0x682e6ff3U,
+    0x748f82eeU,0x78a5636fU,0x84c87814U,0x8cc70208U,0x90befffaU,0xa4506cebU,0xbef9a3f7U,0xc67178f2U
+};
+
+static void sha256(const uint8_t* data, size_t len, uint8_t out[32]) {
+    std::vector<uint8_t> msg(data, data + len);
+    msg.push_back(0x80);
+    while (msg.size() % 64 != 56) msg.push_back(0);
+    const uint64_t bits = static_cast<uint64_t>(len) * 8u;
+    for (int i = 7; i >= 0; --i) msg.push_back(static_cast<uint8_t>(bits >> (8 * i)));
+
+    uint32_t h[8] = {0x6a09e667U,0xbb67ae85U,0x3c6ef372U,0xa54ff53aU,
+                     0x510e527fU,0x9b05688cU,0x1f83d9abU,0x5be0cd19U};
+    for (size_t off = 0; off < msg.size(); off += 64) {
+        uint32_t w[64];
+        for (int i = 0; i < 16; ++i) {
+            w[i] = (uint32_t(msg[off + 4*i]) << 24) | (uint32_t(msg[off + 4*i + 1]) << 16) |
+                   (uint32_t(msg[off + 4*i + 2]) << 8) | uint32_t(msg[off + 4*i + 3]);
+        }
+        for (int i = 16; i < 64; ++i) {
+            const uint32_t s0 = rotr(w[i-15], 7) ^ rotr(w[i-15], 18) ^ (w[i-15] >> 3);
+            const uint32_t s1 = rotr(w[i-2], 17) ^ rotr(w[i-2], 19) ^ (w[i-2] >> 10);
+            w[i] = w[i-16] + s0 + w[i-7] + s1;
+        }
+        uint32_t v[8];
+        for (int i = 0; i < 8; ++i) v[i] = h[i];
+        for (int i = 0; i < 64; ++i) {
+            const uint32_t S1 = rotr(v[4], 6) ^ rotr(v[4], 11) ^ rotr(v[4], 25);
+            const uint32_t ch = (v[4] & v[5]) ^ (~v[4] & v[6]);
+            const uint32_t t1 = v[7] + S1 + ch + SHA_K[i] + w[i];
+            const uint32_t S0 = rotr(v[0], 2) ^ rotr(v[0], 13) ^ rotr(v[0], 22);
+            const uint32_t maj = (v[0] & v[1]) ^ (v[0] & v[2]) ^ (v[1] & v[2]);
+            v[7] = v[6]; v[6] = v[5]; v[5] = v[4]; v[4] = v[3] + t1;
+            v[3] = v[2]; v[2] = v[1]; v[1] = v[0]; v[0] = t1 + S0 + maj;
+        }
+        for (int i = 0; i < 8; ++i) h[i] += v[i];
+    }
+    for (int i = 0; i < 8; ++i) {
+        out[4*i] = uint8_t(h[i] >> 24); out[4*i+1] = uint8_t(h[i] >> 16);
+        out[4*i+2] = uint8_t(h[i] >> 8); out[4*i+3] = uint8_t(h[i]);
+    }
+}
+
+static const uint8_t RMD_RL[80] = {
+    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15, 7,4,13,1,10,6,15,3,12,0,9,5,2,14,11,8,
+    3,10,14,4,9,15,8,1,2,7,0,6,13,11,5,12, 1,9,11,10,0,8,12,4,13,3,7,15,14,5,6,2,
+    4,0,5,9,7,12,2,10,14,1,3,8,11,6,15,13 };
+static const uint8_t RMD_RR[80] = {
+    5,14,7,0,9,2,11,4,13,6,15,8,1,10,3,12, 6,11,3,7,0,13,5,10,14,15,8,12,4,9,1,2,
+    15,5,1,3,7,14,6,9,11,8,12,2,10,0,4,13, 8,6,4,1,3,11,15,0,5,12,2,13,9,7,10,14,
+    12,15,10,4,1,5,8,7,6,2,13,14,0,3,9,11 };
+static const uint8_t RMD_SL[80] = {
+    11,14,15,12,5,8,7,9,11,13,14,15,6,7,9,8, 7,6,8,13,11,9,7,15,7,12,15,9,11,7,13,12,
+    11,13,6,7,14,9,13,15,14,8,13,6,5,12,7,5, 11,12,14,15,14,15,9,8,9,14,5,6,8,6,5,12,
+    9,15,5,11,6,8,13,12,5,12,13,14,11,8,5,6 };
+static const uint8_t RMD_SR[80] = {
+    8,9,9,11,13,15,15,5,7,7,8,11,14,14,12,6, 9,13,15,7,12,8,9,11,7,7,12,7,6,15,13,11,
+    9,7,15,11,8,6,6,14,12,13,5,14,13,13,7,5, 15,5,8,11,14,14,6,14,6,9,12,9,12,5,15,8,
+    8,5,12,9,12,5,14,6,8,13,6,5,15,13,11,11 };
+static const uint32_t RMD_KL[5] = {0x00000000U,0x5A827999U,0x6ED9EBA1U,0x8F1BBCDCU,0xA953FD4EU};
+static const uint32_t RMD_KR[5] = {0x50A28BE6U,0x5C4DD124U,0x6D703EF3U,0x7A6D76E9U,0x00000000U};
+
+static uint32_t rmd_f(int j, uint32_t x, uint32_t y, uint32_t z) {
+    if (j < 16) return x ^ y ^ z;
+    if (j < 32) return (x & y) | (~x & z);
+    if (j < 48) return (x | ~y) ^ z;
+    if (j < 64) return (x & z) | (y & ~z);
+    return x ^ (y | ~z);
+}
+
+static void ripemd160(const uint8_t* data, size_t len, uint8_t out[20]) {
+    std::vector<uint8_t> msg(data, data + len);
+    msg.push_back(0x80);
+    while (msg.size() % 64 != 56) msg.push_back(0);
+    const uint64_t bits = static_cast<uint64_t>(len) * 8u;
+    for (int i = 0; i < 8; ++i) msg.push_back(static_cast<uint8_t>(bits >> (8 * i)));
+
+    uint32_t h[5] = {0x67452301U,0xEFCDAB89U,0x98BADCFEU,0x10325476U,0xC3D2E1F0U};
+    for (size_t off = 0; off < msg.size(); off += 64) {
+        uint32_t X[16];
+        for (int i = 0; i < 16; ++i) {
+            X[i] = uint32_t(msg[off + 4*i]) | (uint32_t(msg[off + 4*i + 1]) << 8) |
+                   (uint32_t(msg[off + 4*i + 2]) << 16) | (uint32_t(msg[off + 4*i + 3]) << 24);
+        }
+        uint32_t al = h[0], bl = h[1], cl = h[2], dl = h[3], el = h[4];
+        uint32_t ar = h[0], br = h[1], cr = h[2], dr = h[3], er = h[4];
+        for (int j = 0; j < 80; ++j) {
+            uint32_t t = rotl(al + rmd_f(j, bl, cl, dl) + X[RMD_RL[j]] + RMD_KL[j / 16], RMD_SL[j]) + el;
+            al = el; el = dl; dl = rotl(cl, 10); cl = bl; bl = t;
+            t = rotl(ar + rmd_f(79 - j, br, cr, dr) + X[RMD_RR[j]] + RMD_KR[j / 16], RMD_SR[j]) + er;
+            ar = er; er = dr; dr = rotl(cr, 10); cr = br; br = t;
+        }
+        const uint32_t t = h[1] + cl + dr;
+        h[1] = h[2] + dl + er;
+        h[2] = h[3] + el + ar;
+        h[3] = h[4] + al + br;
+        h[4] = h[0] + bl + cr;
+        h[0] = t;
+    }
+    for (int i = 0; i < 5; ++i) {
+        out[4*i] = uint8_t(h[i]); out[4*i+1] = uint8_t(h[i] >> 8);
+        out[4*i+2] = uint8_t(h[i] >> 16); out[4*i+3] = uint8_t(h[i] >> 24);
+    }
+}
+
+static void hash160(const uint8_t* data, size_t len, uint8_t out[20]) {
+    uint8_t sha[32];
+    sha256(data, len, sha);
+    ripemd160(sha, 32, out);
+}
+
+static std::string to_hex(const uint8_t* p, size_t n) {
+    static const char* d = "0123456789abcdef";
+    std::string s;
+    for (size_t i = 0; i < n; ++i) { s += d[p[i] >> 4]; s += d[p[i] & 15]; }
+    return s;
+}
+
+static std::vector<uint8_t> from_hex(const std::string& s) {
+    std::vector<uint8_t> v;
+    for (size_t i = 0; i + 1 < s.size(); i += 2) {
+        v.push_back(static_cast<uint8_t>(std::stoi(s.substr(i, 2), nullptr, 16)));
+    }
+    return v;
+}
+
+} // namespace hash160_ref
+
+// Compiles secp256k1_hash160.cl once and runs its hash160_batch kernel.
+struct Hash160CL {
+    cl_program program = nullptr;
+    cl_kernel  kernel  = nullptr;
+    bool tried = false;
+    bool valid = false;
+    bool missing_source = false;
+    std::string error;
+
+    bool init(const Context& ctx, const std::string& kernel_dir) {
+        if (tried) return valid;
+        tried = true;
+        cl_context context = (cl_context)ctx.native_context();
+        cl_command_queue queue = (cl_command_queue)ctx.native_queue();
+        cl_device_id device = nullptr;
+        cl_int err = clGetCommandQueueInfo(queue, CL_QUEUE_DEVICE, sizeof(device), &device, nullptr);
+        if (err != CL_SUCCESS) { error = "Cannot get device from queue"; return false; }
+
+        std::string src;
+        const std::vector<std::string> paths = {
+            kernel_dir + "/secp256k1_hash160.cl",
+            "kernels/secp256k1_hash160.cl",
+            "../kernels/secp256k1_hash160.cl",
+        };
+        for (const auto& p : paths) { src = load_file(p); if (!src.empty()) break; }
+        if (src.empty()) { missing_source = true; error = "Cannot find secp256k1_hash160.cl"; return false; }
+
+        const char* sp = src.c_str(); size_t sl = src.size();
+        program = clCreateProgramWithSource(context, 1, &sp, &sl, &err);
+        if (err != CL_SUCCESS) { error = "clCreateProgramWithSource failed"; return false; }
+        const std::string opts = "-cl-std=CL1.2 -I " + kernel_dir;
+        err = clBuildProgram(program, 1, &device, opts.c_str(), nullptr, nullptr);
+        if (err != CL_SUCCESS) {
+            size_t log_size = 0;
+            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+            std::string log(log_size + 1, '\0');
+            clGetProgramBuildInfo(program, device, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
+            error = "hash160 build failed: " + log;
+            return false;
+        }
+        kernel = clCreateKernel(program, "hash160_batch", &err);
+        if (err != CL_SUCCESS) { error = "hash160_batch kernel not found"; return false; }
+        valid = true;
+        return true;
+    }
+
+    // keys: count * stride bytes; out: count * 20 bytes.
+    bool run(const Context& ctx, const std::vector<uint8_t>& keys, uint32_t stride,
+             uint32_t count, std::vector<uint8_t>& out) {
+        cl_context context = (cl_context)ctx.native_context();
+        cl_command_queue queue = (cl_command_queue)ctx.native_queue();
+        cl_int err = CL_SUCCESS;
+        cl_mem d_in = clCreateBuffer(context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                     keys.size(), const_cast<uint8_t*>(keys.data()), &err);
+        if (err != CL_SUCCESS) { error = "input buffer failed"; return false; }
+        cl_mem d_out = clCreateBuffer(context, CL_MEM_WRITE_ONLY, size_t(count) * 20, nullptr, &err);
+        if (err != CL_SUCCESS) { clReleaseMemObject(d_in); error = "output buffer failed"; return false; }
+
+        clSetKernelArg(kernel, 0, sizeof(cl_mem), &d_in);
+        clSetKernelArg(kernel, 1, sizeof(cl_mem), &d_out);
+        clSetKernelArg(kernel, 2, sizeof(cl_uint), &stride);
+        clSetKernelArg(kernel, 3, sizeof(cl_uint), &count);
+        size_t gws = count;
+        err = clEnqueueNDRangeKernel(queue, kernel, 1, nullptr, &gws, nullptr, 0, nullptr, nullptr);
+        bool ok = (err == CL_SUCCESS);
+        if (ok) {
+            out.assign(size_t(count) * 20, 0);
+            ok = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, out.size(), out.data(),
+                                     0, nullptr, nullptr) == CL_SUCCESS;
+        }
+        if (!ok) error = "hash160_batch launch/read failed";
+        clReleaseMemObject(d_in);
+        clReleaseMemObject(d_out);
+        return ok;
+    }
+
+    ~Hash160CL() {
+        if (kernel)  clReleaseKernel(kernel);
+        if (program) clReleaseProgram(program);
+    }
+};
+static Hash160CL g_hash160;
+
+// Returns 0 when the kernel is ready, -1 when the source is not available
+// (reported as SKIP like the other kernel-backed modules), 1 on a build failure.
+static int ensure_hash160(const char* who) {
+    if (!g_ctx) { fprintf(stderr, "    SKIP %s: No OpenCL context\n", who); return -1; }
+    if (g_hash160.init(*g_ctx, g_kernel_dir)) return 0;
+    if (g_hash160.missing_source) {
+        fprintf(stderr, "    SKIP %s: %s\n", who, g_hash160.error.c_str());
+        return -1;
+    }
+    fprintf(stderr, "    %s: %s\n", who, g_hash160.error.c_str());
+    return 1;
+}
+
+// hash160(02||Gx) and hash160(04||Gx||Gy) known answers, checked on the CPU
+// reference first (so a wrong reference is not blamed on the GPU) and then on
+// the GPU kernel.
+static int audit_hash160_known_answers() {
+    const int ready = ensure_hash160("hash160_kat");
+    if (ready != 0) return ready;
+
+    const auto gx = hash160_ref::from_hex("79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798");
+    const auto gy = hash160_ref::from_hex("483ada7726a3c4655da4fbfc0e1108a8fd17b448a68554199c47d08ffb10d4b8");
+    std::vector<uint8_t> k33 = {0x02};
+    k33.insert(k33.end(), gx.begin(), gx.end());
+    std::vector<uint8_t> k65 = {0x04};
+    k65.insert(k65.end(), gx.begin(), gx.end());
+    k65.insert(k65.end(), gy.begin(), gy.end());
+    const std::string want33 = "751e76e8199196d454941c45d1b3a323f1433bd6";
+    const std::string want65 = "91b24bf9f5288532960ac687abb035127b1d28a5";
+
+    uint8_t cpu[20];
+    hash160_ref::hash160(k33.data(), k33.size(), cpu);
+    if (hash160_ref::to_hex(cpu, 20) != want33) { fprintf(stderr, "    CPU reference wrong for 33-byte G\n"); return 1; }
+    hash160_ref::hash160(k65.data(), k65.size(), cpu);
+    if (hash160_ref::to_hex(cpu, 20) != want65) { fprintf(stderr, "    CPU reference wrong for 65-byte G\n"); return 2; }
+
+    std::vector<uint8_t> out;
+    if (!g_hash160.run(*g_ctx, k33, 33, 1, out)) { fprintf(stderr, "    %s\n", g_hash160.error.c_str()); return 3; }
+    if (hash160_ref::to_hex(out.data(), 20) != want33) {
+        fprintf(stderr, "    GPU hash160(02||Gx) = %s, want %s\n",
+                hash160_ref::to_hex(out.data(), 20).c_str(), want33.c_str());
+        return 4;
+    }
+    if (!g_hash160.run(*g_ctx, k65, 65, 1, out)) { fprintf(stderr, "    %s\n", g_hash160.error.c_str()); return 5; }
+    if (hash160_ref::to_hex(out.data(), 20) != want65) {
+        fprintf(stderr, "    GPU hash160(04||Gx||Gy) = %s, want %s\n",
+                hash160_ref::to_hex(out.data(), 20).c_str(), want65.c_str());
+        return 6;
+    }
+    return 0;
+}
+
+// GPU vs CPU over random keys. 33 and 65 are the real key lengths; 34 and 64
+// are neighbours that must take the generic SHA-256 branch of the dispatch.
+// Keys are random bytes (hash160 is defined for any input), seeded
+// deterministically so a failure reproduces.
+static int audit_hash160_gpu_vs_cpu() {
+    const int ready = ensure_hash160("hash160_gpu_cpu");
+    if (ready != 0) return ready;
+
+    struct Case { uint32_t stride; uint32_t count; };
+    const Case cases[] = { {33, 300}, {65, 300}, {34, 64}, {64, 64} };
+    uint64_t state = 0x9E3779B97F4A7C15ULL;
+    auto next = [&state]() {
+        state ^= state << 13; state ^= state >> 7; state ^= state << 17;
+        return state;
+    };
+
+    int case_idx = 0;
+    for (const auto& cs : cases) {
+        ++case_idx;
+        std::vector<uint8_t> keys(size_t(cs.stride) * cs.count);
+        for (auto& b : keys) b = static_cast<uint8_t>(next() >> 24);
+        for (uint32_t i = 0; i < cs.count; ++i) {
+            // Make 33/65-byte keys look like real SEC1 keys (prefix byte).
+            if (cs.stride == 33) keys[size_t(i) * 33] = static_cast<uint8_t>(2 + (i & 1));
+            if (cs.stride == 65) keys[size_t(i) * 65] = 4;
+        }
+        std::vector<uint8_t> gpu;
+        if (!g_hash160.run(*g_ctx, keys, cs.stride, cs.count, gpu)) {
+            fprintf(stderr, "    stride %u: %s\n", cs.stride, g_hash160.error.c_str());
+            return 10 * case_idx;
+        }
+        for (uint32_t i = 0; i < cs.count; ++i) {
+            uint8_t cpu[20];
+            hash160_ref::hash160(&keys[size_t(i) * cs.stride], cs.stride, cpu);
+            if (std::memcmp(cpu, &gpu[size_t(i) * 20], 20) != 0) {
+                fprintf(stderr, "    stride %u key %u: GPU %s != CPU %s\n", cs.stride, i,
+                        hash160_ref::to_hex(&gpu[size_t(i) * 20], 20).c_str(),
+                        hash160_ref::to_hex(cpu, 20).c_str());
+                return 10 * case_idx + 1;
+            }
+        }
+    }
+    return 0;
+}
+
+// =============================================================================
 // Module & Section Registry
 // =============================================================================
 
@@ -1660,10 +1991,12 @@ static const OclAuditModule OCL_MODULES[] = {
 
     // Section 4: Differential
     { "diff_smul",         "OpenCL-host differential scalar mul",         "differential", audit_diff_scalar_mul, false },
+    { "hash160_gpu_cpu",   "hash160 GPU vs CPU (random 33/65-byte keys)", "differential", audit_hash160_gpu_vs_cpu, false },
 
     // Section 5: Standard Test Vectors
     { "rfc6979_determ",    "RFC-6979 ECDSA deterministic nonce",          "standard_vectors", audit_rfc6979_determinism, false },
     { "bip340_vectors",    "BIP-340 Schnorr known-key roundtrip",         "standard_vectors", audit_bip340_vectors, false },
+    { "hash160_kat",       "hash160 known answers (33-byte and 65-byte G)", "standard_vectors", audit_hash160_known_answers, false },
 
     // Section 6: Protocol Security
     { "ecdsa_multi_key",   "ECDSA multi-key (10 keys) sign+verify",      "protocol_security", audit_ecdsa_multi_key, false },

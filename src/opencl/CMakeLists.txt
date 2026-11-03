@@ -283,6 +283,22 @@ if(SECP256K1_BUILD_BENCH)
         target_compile_definitions(opencl_bch_scan_benchmark PRIVATE
             SECP256K1_OPENCL_KERNEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/kernels"
         )
+
+        # hash160 A/B harness (NF-2026-00033): times the previous loop/table
+        # hash160 kernel (embedded in the harness) against the production
+        # kernel in one run and checks they agree. Raw OpenCL, no library deps.
+        add_executable(opencl_hash160_ab_bench
+            benchmarks/hash160_ab_bench.cpp
+        )
+        target_link_libraries(opencl_hash160_ab_bench PRIVATE
+            ${OpenCL_LIBRARY}
+        )
+        target_include_directories(opencl_hash160_ab_bench PRIVATE
+            ${OpenCL_INCLUDE_DIR}
+        )
+        target_compile_definitions(opencl_hash160_ab_bench PRIVATE
+            SECP256K1_OPENCL_KERNEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/kernels"
+        )
     endif()
 endif()
 
