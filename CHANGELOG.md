@@ -168,6 +168,12 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   `docs/AUDIT_CHANGELOG.md` 2026-10-02.
 
 ### Changed
+- **Release: NuGet publishing uses nuget.org trusted publishing.** `pack-nuget`
+  in `release.yml` gets a one-hour API key from `NuGet/login` (GitHub OIDC,
+  `id-token: write` on that job only) instead of the stored `NUGET_TOKEN`, which
+  had expired (the push returned 403). Needs a nuget.org trusted-publishing policy
+  for `shrec/UltrafastSecp256k1`, workflow `release.yml`, plus a `NUGET_USER`
+  secret holding the nuget.org profile name.
 - **CPU Schnorr batch verify uses 128-bit BIP-340 randomizers and a 3n-point
   MSM.** `schnorr_batch_verify` now weights the batch with `a_0 = 1` and, for
   `i >= 1`, 128 odd bits of `SHA256(seed || i)` (seed binding and CSPRNG
