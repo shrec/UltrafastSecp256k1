@@ -223,7 +223,7 @@ includedir=${prefix}/include
 
 Name: secp256k1-fast
 Description: High-performance secp256k1 elliptic curve cryptography library
-Version: 4.6.2
+Version: 4.7.0
 Cflags: -I${includedir}
 Libs: -L${libdir} -lufsecp
 Libs.private: -lpthread

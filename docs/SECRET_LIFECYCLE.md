@@ -1,6 +1,6 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-09-24 | **Version**: 4.6.2
+**Last updated**: 2026-09-24 | **Version**: 4.7.0
 
 ### 2026-09-24 - raw Jacobian ECDH and erase-on-exit scratch
 

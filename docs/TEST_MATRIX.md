@@ -1050,7 +1050,7 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 
 ---
 
-*UltrafastSecp256k1 v4.6.2 -- Test Coverage Matrix*
+*UltrafastSecp256k1 v4.7.0 -- Test Coverage Matrix*
 
 
 ---

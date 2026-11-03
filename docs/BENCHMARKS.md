@@ -2006,5 +2006,5 @@ Benchmarks run: 2026-04-25
 
 ## Version
 
-UltrafastSecp256k1 v4.6.2
+UltrafastSecp256k1 v4.7.0
 Benchmarks updated: 2026-04-25

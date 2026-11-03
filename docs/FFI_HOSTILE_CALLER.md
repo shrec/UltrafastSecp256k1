@@ -1,6 +1,6 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-11-02 | **Version**: 4.6.2
+**Last updated**: 2026-11-02 | **Version**: 4.7.0
 
 ### 2026-11-02 - MuSig2 session blob and key_agg input: caller contract stated (doc-only, paired with `include/ufsecp/ufsecp.h`)
 

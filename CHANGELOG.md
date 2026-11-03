@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.7.0] - 2026-11-03
+
+A feature release with faster verification and new CPU and GPU paths. The C ABI
+is unchanged (`UFSECP_ABI_VERSION` stays 4).
+
+- **Faster verification:**
+  - Schnorr batch verify is faster at 64 signatures and up: it now uses 128-bit
+    randomizers and a 3n-point MSM. Canonical A/B in `docs/BENCHMARKS.md`.
+  - CUDA verifiers use a variable-time inverse.
+  - CUDA has a native carry chain again.
+  - GPU hash160 is register-only for 33-byte keys (CUDA, OpenCL, Metal) and
+    for 65-byte keys on CUDA.
+- **New lane-parallel field and verify layer** (`secp256k1/lanes.hpp`), with
+  AVX2, AVX-IFMA and AVX-512 IFMA backends and GLV. It is opt-in until it has
+  been measured on the target microarchitecture.
+- **A CPU feature view, a measurement kit and Intel SDE CI.**
+
 ### Added
 - **CUDA: registers-only `sha256_65` for 65-byte (uncompressed) keys in
   hash160.** `hash160_pubkey` sends 33-byte keys to `sha256_33` and 65-byte keys

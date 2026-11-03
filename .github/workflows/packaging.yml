@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to backfill (e.g. v4.6.2)'
+        description: 'Existing tag to backfill (e.g. v4.7.0)'
         required: true
 
 concurrency:

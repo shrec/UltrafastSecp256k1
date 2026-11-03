@@ -29,7 +29,7 @@ include(FetchContent)
 FetchContent_Declare(
   secp256k1_fast
   GIT_REPOSITORY https://github.com/shrec/UltrafastSecp256k1.git
-  GIT_TAG        v4.6.2
+  GIT_TAG        v4.7.0
 )
 
 # Disable components you don't need
