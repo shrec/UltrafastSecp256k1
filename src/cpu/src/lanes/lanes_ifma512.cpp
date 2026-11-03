@@ -12,10 +12,12 @@
 
 #include "field_ifma512x8.hpp"
 #include "lanes_kernels.hpp"
+#include "lanes_verify_kernels.hpp"
 #include "lanes_tables.hpp"
 
 namespace secp256k1::lanes::detail {
 
 constinit const LaneFieldKernels kLaneFieldKernelsIfma512 = field::make_lane_kernels<field::Ifma512x8>(LaneBackend::Ifma512x8);
+constinit const LaneVerifyKernels kLaneVerifyKernelsIfma512 = field::make_lane_verify_kernels<field::Ifma512x8>(LaneBackend::Ifma512x8);
 
 } // namespace secp256k1::lanes::detail

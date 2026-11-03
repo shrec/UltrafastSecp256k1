@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 482 modules (205 non-exploit + 277 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 483 modules (206 non-exploit + 277 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -87,6 +87,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_hash_accel.cpp` | SHA-256 acceleration tests | [OK] |
 | `test_cpu_features.cpp` (CTest: `cpu_features`) | CPU feature decode over synthetic CPUID/XGETBV tables (Intel client/server, AMD Zen 4/5, AVX-IFMA client, XCR0-disabled AVX), L2/L3 cache sizes, and the mask-down-only `UFSECP_CPU_DISABLE` override | [OK] |
 | `test_field_lanes.cpp` (CTest: `field_lanes`) | Lane-parallel field arithmetic (Avx2x4, AvxIfma256x4, Ifma256x4, Ifma512x8) against `fast::FieldElement`: every op on random, edge and limb-bound inputs plus 10^4-step mixed chains with distinct per-lane values; `--require=<backend>` for runs under Intel SDE; exits 77 when no lane backend is available | [OK] |
+| `audit/test_lanes_verify_differential.cpp` (CTest: `lanes_verify_differential`; unified module `lanes_verify_differential`, section differential, advisory=false) | Lane-parallel verification `ecdsa_verify_lanes` / `schnorr_verify_lanes` against `ecdsa_verify` / `schnorr_verify`, per entry, on every available lane backend: random valid, single-field corruptions of r/s/msg/pubkey, high-S, zero r/s, infinity key, u1 == 0, BIP-340 r >= p / x >= p / off-curve x, mixed partial-group batches of every size 1..2W+3, constructed R = O and tiny-scalar Q = +-jG lanes (every R = O lane must be flagged and re-verified), backend None and null arguments; plus the projective x-compare (incl. both sides of r + n < p) on constructed field values; `--require=<backend>` for Intel SDE; exits 77 without a lane backend | [OK] |
 | `test_exhaustive.cpp` | Exhaustive tests (small curves) | [OK] |
 | `test_v4_features.cpp` | v4 feature tests | [OK] |
 | `run_selftest.cpp` | Selftest runner (smoke/ci/stress) | [OK] |
@@ -108,14 +109,14 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 482 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 483 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 482 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 483 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test on CT generator and signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
 | `src/cuda/src/test_windows_macro_compat.cu` | CUDA/MSVC | `cuda_windows_macro_compat`: compile regression for Windows SDK `small` macro collisions in the public CUDA header |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 482 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 483 modules, 8 sections) |
 
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |

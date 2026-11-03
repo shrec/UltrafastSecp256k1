@@ -4079,6 +4079,7 @@ add_executable(unified_audit_runner
     test_carry_propagation.cpp
     test_u128_compat_parity.cpp
     test_fault_injection.cpp
+    test_lanes_verify_differential.cpp
     test_fiat_crypto_vectors.cpp
     test_cross_platform_kat.cpp
     test_debug_invariants.cpp
@@ -6483,6 +6484,20 @@ add_test(NAME fe52_compute_verify
 set_tests_properties(fe52_compute_verify PROPERTIES TIMEOUT 60
     LABELS "audit;differential;verify;fe52;perf")
 target_sources(unified_audit_runner PRIVATE test_fe52_compute_verify.cpp)
+
+# Lane-parallel ECDSA / BIP-340 verify differential (RM-2026-00009 part 2):
+# ecdsa_verify_lanes / schnorr_verify_lanes == ecdsa_verify / schnorr_verify on
+# every available lane backend. advisory=false (unified runner, section
+# differential). Exits 77 when no lane backend is available (CTest skip);
+# --require=<backend> makes absence a failure for runs under Intel SDE.
+add_executable(test_lanes_verify_differential_standalone
+    test_lanes_verify_differential.cpp)
+audit_target_defaults(test_lanes_verify_differential_standalone)
+target_compile_definitions(test_lanes_verify_differential_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME lanes_verify_differential
+    COMMAND test_lanes_verify_differential_standalone)
+set_tests_properties(lanes_verify_differential PROPERTIES TIMEOUT 600 SKIP_RETURN_CODE 77
+    LABELS "audit;differential;verify;lanes")
 
 # hash256_var batch structural/boundary KAT vs SHA256::hash256 CPU oracle.
 # advisory=false: CPU/GPU C ABI only (ufsecp_gpu.h), no shim dependency;

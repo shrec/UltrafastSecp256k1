@@ -802,6 +802,11 @@ int test_regression_shim_divergence_fixes_run(); // SDF-1..6: pubkey_parse NULL 
 int test_regression_frost_musig2_degenerate_run(); // FMD-1..4: FROST infinity group key + MuSig2 e=0 guard
 
 // ============================================================================
+// Forward declarations -- lane-parallel verify differential (RM-2026-00009)
+// ============================================================================
+int test_lanes_verify_differential_run(); // ecdsa/schnorr_verify_lanes == scalar verifiers, every lane backend
+
+// ============================================================================
 // Report section IDs -- 10 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -906,6 +911,10 @@ static const AuditModule ALL_MODULES[] = {
     { "fiat_crypto_link",  "Independent reference linkage (100%% parity)","differential",   test_fiat_crypto_linkage_run, true  /* advisory=true: requires __int128 (MSVC skips with code 77) */ },
     { "cross_platform_kat","Cross-platform KAT",                          "differential",   test_cross_platform_kat_run, false },
     { "fe52_compute_verify","FE52-compute verify: dual-mul==single-mul + ECDSA/Schnorr KAT","differential",   test_fe52_compute_verify_run, false },
+    // advisory=false: CPU C++ API only. Every available lane backend must match the
+    // scalar verifiers bit for bit; with no lane backend (non-x86, no AVX2) the
+    // module reports SKIP and returns 0 (the standalone binary exits 77).
+    { "lanes_verify_differential","Lane-parallel ECDSA/BIP-340 verify == scalar verify (every lane backend)","differential", test_lanes_verify_differential_run, false },
 
     // ===================================================================
     // Section 4: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)

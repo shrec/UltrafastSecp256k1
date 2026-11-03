@@ -1,5 +1,35 @@
 # Audit Changelog
 
+## 2026-11-03 - Lane-parallel ECDSA / BIP-340 verification over the lane field types, with scalar fallback (`audit/test_lanes_verify_differential.cpp`)
+
+**Change.** RM-2026-00009 part 2, on top of the lane field layer of `1b9ede64`. New
+`src/cpu/src/lanes/group_lanes.hpp`: per-lane Jacobian double, mixed add and general add
+(templated once over the lane field type, instantiated in each per-ISA TU), and a per-lane dual
+scalar multiplication R = u1*G + u2*Q with uniform control flow -- fixed-length regular
+signed-odd-digit recoding, one shared affine table of odd multiples of G, a per-lane affine table
+of odd multiples of Q made affine with one per-lane batch inversion, per-lane gathers and
+negation by mask; no GLV. The additions return the lanes whose Z3 is zero (equal or opposite
+operands, or an operand at infinity), so an exceptional lane is flagged, never used. New entry
+points `lanes::ecdsa_verify_lanes` / `lanes::schnorr_verify_lanes` (`secp256k1/lanes.hpp`) take
+`ECDSABatchEntry` / `SchnorrBatchEntry` arrays and an explicit `LaneBackend`. The scalar side
+(`lanes_verify.cpp`, generic flags) keeps the scalar verifiers' parse and policy, inverts s and
+normalises Q once per group, and hands any entry it cannot represent, and every flagged lane,
+to `ecdsa_verify` / `schnorr_verify`. ECDSA compares x projectively (X == r*Z^2, or
+(r+n)*Z^2 when r + n < p); BIP-340 needs one per-lane inversion for y parity. Verify paths only
+(CT-VERIFY: every input is public); no `ct::` or secret path changes, no batch-API integration,
+no bench rows.
+
+**Test.** `test_lanes_verify_differential` (module `lanes_verify_differential`, section
+`differential`, advisory=false; standalone CTest `lanes_verify_differential`, skip code 77)
+compares every entry against the scalar verifiers on every available lane backend: random valid
+(decided by the lane kernel), single-field corruptions of r/s/msg/pubkey, high-S, zero r/s,
+infinity key, u1 == 0, BIP-340 r >= p / x >= p / off-curve x, mixed batches of every size
+1..2W+3, constructed R = O lanes (all must be flagged) and tiny-scalar Q = +-jG lanes, backend
+None and null arguments, and unit-tests the projective x-compare on both sides of r + n < p.
+`--require=<backend>` makes a missing backend a failure (Intel SDE runs). Without a lane
+backend the unified module reports SKIP and returns 0 (a non-advisory 77 would count as a
+failure there).
+
 ## 2026-11-02 - Evidence chain: a CI-signed record is "unverified", not "tamper", where the HMAC secret is absent (`ci/evidence_governance.py`)
 
 **Gap.** The first successful nightly refresh push (`32cb0404`, run 41485761385) appended

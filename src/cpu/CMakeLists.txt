@@ -461,7 +461,11 @@ endif()
 # intrinsics (a compile probe, which subsumes check_cxx_compiler_flag; for
 # AVX-IFMA that is -mavxifma plus _mm256_madd52lo_avx_epu64). The ISA TUs are
 # kept out of unity builds so their flags never reach other sources.
-list(APPEND SECP256K1_SOURCES src/lanes/lanes_dispatch.cpp)
+#
+# lanes_verify.cpp (generic flags too) is the scalar side of lane-parallel
+# ECDSA / BIP-340 verification; it reaches the per-ISA verify kernels through
+# the same SECP256K1_LANES_HAVE_* macros as lanes_dispatch.cpp.
+list(APPEND SECP256K1_SOURCES src/lanes/lanes_dispatch.cpp src/lanes/lanes_verify.cpp)
 set(_SECP256K1_LANES_DEFS "")
 if(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     include(CheckCXXSourceCompiles)
@@ -542,7 +546,7 @@ int main() {
 else()
     message(STATUS "Secp256k1: lane field backends: none (not x86-64)")
 endif()
-set_source_files_properties(src/lanes/lanes_dispatch.cpp PROPERTIES
+set_source_files_properties(src/lanes/lanes_dispatch.cpp src/lanes/lanes_verify.cpp PROPERTIES
     COMPILE_DEFINITIONS "${_SECP256K1_LANES_DEFS}" SKIP_UNITY_BUILD_INCLUSION ON)
 
 # =============================================================================

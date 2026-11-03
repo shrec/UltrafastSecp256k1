@@ -33,13 +33,13 @@
     {
       "exists": true,
       "path": "docs/TEST_MATRIX.md",
-      "sha256": "093af1250dc05852265a3953fe4a27ca6cb3bc8b91b0f5d3e10e9a43d1b1915a",
-      "size": 91449
+      "sha256": "de779ee9ef68f7e767b6a0a8075e08c5f461ece29fc2d86db9e419b9bbbfcac5",
+      "size": 92267
     },
     {
       "exists": true,
       "path": "docs/CT_VERIFICATION.md",
-      "sha256": "a9f8b4fcdd58f6462ffdcb58b4fc69420a1bc32f2baee2a2a6fd51399d6a5c8d",
+      "sha256": "6b52462f08611eece511104ea0a3fafc68d76692376ede17345df01e38f04dd0",
       "size": 67569
     },
     {
@@ -156,7 +156,7 @@
           {
             "findings": [
               {
-                "message": "Audit test-quality findings: files=479, critical=0, high=0, medium=0, low=0",
+                "message": "Audit test-quality findings: files=480, critical=0, high=0, medium=0, low=0",
                 "severity": "INFO"
               },
               {
@@ -200,12 +200,8 @@
           {
             "findings": [
               {
-                "message": "5 files modified/deleted since graph build (2026-11-03T14:03:07)",
+                "message": "3 files modified/deleted since graph build (2026-11-03T14:59:33)",
                 "severity": "WARN"
-              },
-              {
-                "message": "MODIFIED: docs/AUDIT_COVERAGE.md",
-                "severity": "INFO"
               },
               {
                 "message": "MODIFIED: docs/INCIDENT_DRILL_LOG.json",
@@ -216,11 +212,7 @@
                 "severity": "INFO"
               },
               {
-                "message": "MODIFIED: docs/canonical_data.json",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: src/cpu/src/lanes/lanes_dispatch.cpp",
+                "message": "MODIFIED: src/cpu/src/lanes/lanes_verify.cpp",
                 "severity": "INFO"
               }
             ],
@@ -404,7 +396,7 @@
           {
             "findings": [
               {
-                "message": "5 changed files have matching docs",
+                "message": "1 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -644,7 +636,7 @@
                 "severity": "PASS"
               },
               {
-                "message": "1 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/lanes/lanes_dispatch.cpp']",
+                "message": "1 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/lanes/lanes_verify.cpp']",
                 "severity": "WARN"
               },
               {
@@ -652,7 +644,7 @@
                 "severity": "INFO"
               },
               {
-                "message": "Source graph \"files\" has 1860 rows (threshold: 200)",
+                "message": "Source graph \"files\" has 1865 rows (threshold: 200)",
                 "severity": "PASS"
               }
             ],
@@ -822,11 +814,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "e72ca1f7bbf3292080bd50bb3b4a7e545fb6e447",
-            "short": "e72ca1f7bb"
+            "sha": "04b516dd1bb0e89f9a7a11054ad5c4675ebd3642",
+            "short": "04b516dd1b"
           }
         },
-        "generated_at": "2026-11-03T14:17:27.589260+00:00",
+        "generated_at": "2026-11-03T15:12:34.956828+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -843,12 +835,12 @@
             },
             "flags_hash": "b08a96ecab2b5a95"
           },
-          "collected_at": "2026-11-03T14:17:27.589196+00:00",
+          "collected_at": "2026-11-03T15:12:34.956788+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "e72ca1f7bbf3292080bd50bb3b4a7e545fb6e447",
-            "short": "e72ca1f7bb"
+            "sha": "04b516dd1bb0e89f9a7a11054ad5c4675ebd3642",
+            "short": "04b516dd1b"
           },
           "platform": {
             "machine": "x86_64",
@@ -869,7 +861,7 @@
           },
           "version": "4.6.2"
         },
-        "run_id": "audit_gate-e72ca1f7bb-20261103T141727",
+        "run_id": "audit_gate-04b516dd1b-20261103T151234",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -975,7 +967,7 @@
               {
                 "check_id": "p2__audit_test_quality",
                 "severity": "info",
-                "title": "Audit test-quality findings: files=479, critical=0, high=0, medium=0, low=0"
+                "title": "Audit test-quality findings: files=480, critical=0, high=0, medium=0, low=0"
               },
               {
                 "check_id": "p2__audit_test_quality",
@@ -1024,12 +1016,7 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "5 files modified/deleted since graph build (2026-11-03T14:03:07)"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: docs/AUDIT_COVERAGE.md"
+                "title": "3 files modified/deleted since graph build (2026-11-03T14:59:33)"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -1044,12 +1031,7 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
-                "title": "MODIFIED: docs/canonical_data.json"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: src/cpu/src/lanes/lanes_dispatch.cpp"
+                "title": "MODIFIED: src/cpu/src/lanes/lanes_verify.cpp"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -1273,7 +1255,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "5 changed files have matching docs"
+                "title": "1 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1558,7 +1540,7 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "advisory:medium",
-                "title": "1 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/lanes/lanes_dispatch.cpp']"
+                "title": "1 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/lanes/lanes_verify.cpp']"
               },
               {
                 "check_id": "g-12__source_graph_quality",
@@ -1568,7 +1550,7 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "pass",
-                "title": "Source graph \"files\" has 1860 rows (threshold: 200)"
+                "title": "Source graph \"files\" has 1865 rows (threshold: 200)"
               }
             ],
             "name": "G-12: Source Graph Quality",
@@ -1759,12 +1741,12 @@
           }
         ],
         "summary": {
-          "advisory": 77,
+          "advisory": 75,
           "blocking": 0,
-          "info": 60,
+          "info": 58,
           "sections": 34,
           "skipped_sections": 0,
-          "total_findings": 136,
+          "total_findings": 134,
           "warnings": 17
         },
         "verdict": "PASS with advisory"
@@ -1772,8 +1754,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "24bb478af07cb2cc2f8116e22c835450323450e39167fdd23821241953139232",
-      "stdout_sha256": "f7bb199b1e10c27daf9af59036ab605f0e92b0c086abd5ca773fa42bfa8193d8"
+      "stderr_sha256": "62db25ba91b6635c573ca0bccfe63dc88acde748b4bbec35ac0b0e3172309bee",
+      "stdout_sha256": "a4619fb226cd2a295b99887ea66eea81a187fd556d11eb4fd95b021ecade48b6"
     },
     {
       "name": "audit_gap_report_strict",
@@ -2075,13 +2057,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-11-03T14:17:33.261194+00:00"
+        "timestamp": "2026-11-03T15:12:40.406893+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "f2f4857aa3b5c65aaf1dd4088c1d8bab8bf77ad47ac36c73c4bff6356827a31c"
+      "stdout_sha256": "eb7651245d9e0319be7354d14bde82f58f3cd0aa1c8e73203eed5475135c0779"
     },
     {
       "name": "supply_chain_gate",
@@ -2127,19 +2109,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-11-03T14:17:33.385020+00:00"
+        "timestamp": "2026-11-03T15:12:40.527169+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "64e2d8398b91fed6264733fa8e8347aa9648cbddf13cb1c919da0b43f32a22d5"
+      "stdout_sha256": "db94a5f346b48e31bf4f63eb27efb9fd1cf463d2e81c2a42249788bf73843e9f"
     }
   ],
-  "generated_at": "2026-11-03T14:17:33.403865+00:00",
+  "generated_at": "2026-11-03T15:12:40.545190+00:00",
   "git": {
     "branch": "dev",
-    "commit": "e72ca1f7bbf3292080bd50bb3b4a7e545fb6e447",
+    "commit": "04b516dd1bb0e89f9a7a11054ad5c4675ebd3642",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

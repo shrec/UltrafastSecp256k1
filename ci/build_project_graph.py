@@ -1827,6 +1827,8 @@ def populate_edges(cur: sqlite3.Cursor):
         'cpu_features': ['src/cpu/src/cpu_features.cpp'],
         # Lane-parallel field arithmetic: differential vs fast::FieldElement per backend
         'field_lanes': ['src/cpu/src/lanes/lanes_dispatch.cpp'],
+        # Lane ECDSA / BIP-340 verify: differential vs the scalar verifiers per backend
+        'lanes_verify_differential': ['src/cpu/src/lanes/lanes_verify.cpp'],
         'message_signing': ['src/cpu/src/message_signing.cpp'],
         'exploit_bip39_nfkd': ['src/cpu/src/unicode_nfkd.cpp', 'src/cpu/src/bip39.cpp'],
         # LTC-SP: cross-chain isolation + roundtrip (covers ltc_sp.cpp implementation)

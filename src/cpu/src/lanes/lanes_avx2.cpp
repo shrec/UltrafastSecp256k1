@@ -12,10 +12,12 @@
 
 #include "field_avx2x4.hpp"
 #include "lanes_kernels.hpp"
+#include "lanes_verify_kernels.hpp"
 #include "lanes_tables.hpp"
 
 namespace secp256k1::lanes::detail {
 
 constinit const LaneFieldKernels kLaneFieldKernelsAvx2 = field::make_lane_kernels<field::Avx2x4>(LaneBackend::Avx2x4);
+constinit const LaneVerifyKernels kLaneVerifyKernelsAvx2 = field::make_lane_verify_kernels<field::Avx2x4>(LaneBackend::Avx2x4);
 
 } // namespace secp256k1::lanes::detail

@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CPU: lane-parallel ECDSA and BIP-340 verification (`ecdsa_verify_lanes`,
+  `schnorr_verify_lanes` in `secp256k1/lanes.hpp`), RM-2026-00009 part 2.**
+  It adds per-lane Jacobian group ops and a dual multiplication
+  `u1*G + u2*Q` with uniform per-lane control flow: a shared G table and per-lane
+  affine Q tables. It is instantiated for every lane backend.
+
+  Parse and policy are those of `ecdsa_verify`/`schnorr_verify`. Any lane that hits
+  an exceptional case (P = ±Q, infinity) or cannot be prepared gets the scalar
+  verifier's verdict, so results always equal the scalar path bit for bit.
+
+  New audit module `lanes_verify_differential` (differential, advisory=false). On
+  the host it passed natively (AVX2) and under Intel SDE: `-spr` (IFMA 512/256)
+  and `-srf` (AVX-IFMA). The batch APIs do not use it yet, so nothing changes by
+  default.
 - **CPU-variant measurement kit (`tools/measure_cpu_variants.py`,
   `docs/MEASUREMENT_KIT.md`) and Intel SDE CI (`.github/workflows/sde-dispatch.yml`).**
   RM-2026-00010. The kit runs on Linux and Windows:

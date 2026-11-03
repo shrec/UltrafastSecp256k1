@@ -48,6 +48,8 @@
 namespace secp256k1 {
 
 struct CpuFeatures;
+struct ECDSABatchEntry;     // secp256k1/batch_verify.hpp
+struct SchnorrBatchEntry;   // secp256k1/batch_verify.hpp
 
 namespace lanes {
 
@@ -169,6 +171,55 @@ struct LaneFieldKernels {
 // masked CPU view); nullptr otherwise. Calling through a non-null result is
 // always safe on this CPU.
 const LaneFieldKernels* lane_field_kernels(LaneBackend b) noexcept;
+
+// ---- Lane-parallel signature verification ----------------------------------
+//
+// Verify independent signatures `lane_backend_width(backend)` at a time, one
+// per lane, and write each verdict to results[i]. The verdict is, bit for bit,
+// the one the scalar verifier returns for that entry:
+//
+//   ecdsa_verify_lanes   == ecdsa_verify(e.msg_hash, e.public_key, e.signature)
+//   schnorr_verify_lanes == schnorr_verify(e.pubkey_x.data(), e.message.data(), e.signature)
+//
+// Parse and policy are the scalar functions' own (ECDSA: infinity key, r == 0
+// or s == 0 rejected, high-S accepted; BIP-340: s == 0, r >= p, x >= p and
+// non-residue x rejected). An entry the lane path cannot represent (one of
+// those rejects, an off-curve ECDSA key, u1 == 0, e == 0) is decided by the
+// scalar verifier. Inside the lanes, R = u1*G + u2*Q is a per-lane dual scalar
+// multiplication (src/cpu/src/lanes/group_lanes.hpp); a lane whose group
+// operations hit an exceptional case (equal or opposite operands, infinity) is
+// flagged and re-verified with the scalar function. A trailing partial group
+// (n not a multiple of the width) runs with its unused lanes padded.
+//
+// `backend` is explicit. If it is None or not available on this CPU (see
+// lane_field_kernels), every entry goes through the scalar verifier.
+//
+// Returns true iff every entry verified; n == 0 returns true. Null `entries`
+// or `results` with n > 0 returns false (results, if non-null, all false).
+//
+// PUBLIC DATA ONLY: variable time (verification).
+struct LaneVerifyStats {
+    std::size_t lane_verified = 0;         // verdict taken from the lane kernel
+    std::size_t prep_fallback = 0;         // decided by the scalar verifier at prep
+    std::size_t exceptional_fallback = 0;  // flagged by the lane group ops, re-verified
+    std::size_t scalar_only = 0;           // backend unavailable: scalar verifier
+};
+
+bool ecdsa_verify_lanes(const ECDSABatchEntry* entries, std::size_t n, bool* results,
+                        LaneBackend backend, LaneVerifyStats* stats = nullptr) noexcept;
+
+bool schnorr_verify_lanes(const SchnorrBatchEntry* entries, std::size_t n, bool* results,
+                          LaneBackend backend, LaneVerifyStats* stats = nullptr) noexcept;
+
+namespace detail {
+// Test hook: the ECDSA projective x-compare of backend `b` on arbitrary field
+// values. For i < n, X/Z are 4x64 (any value < 2^256), r is 4x64 and < n:
+//   out[i] = X == r*Z^2 (mod p) || (r + n < p && X == (r+n)*Z^2 (mod p)).
+// The r + n < p decision is made exactly as in ecdsa_verify_lanes. Returns
+// false (out untouched) when `b` is not available.
+bool ecdsa_xcheck_lanes_for_test(LaneBackend b, const std::uint64_t* X, const std::uint64_t* Z,
+                                 const std::uint64_t* r, std::uint8_t* out, std::size_t n) noexcept;
+} // namespace detail
 
 } // namespace lanes
 } // namespace secp256k1

@@ -12,10 +12,12 @@
 
 #include "field_avx_ifma256x4.hpp"
 #include "lanes_kernels.hpp"
+#include "lanes_verify_kernels.hpp"
 #include "lanes_tables.hpp"
 
 namespace secp256k1::lanes::detail {
 
 constinit const LaneFieldKernels kLaneFieldKernelsAvxIfma = field::make_lane_kernels<field::AvxIfma256x4>(LaneBackend::AvxIfma256x4);
+constinit const LaneVerifyKernels kLaneVerifyKernelsAvxIfma = field::make_lane_verify_kernels<field::AvxIfma256x4>(LaneBackend::AvxIfma256x4);
 
 } // namespace secp256k1::lanes::detail
