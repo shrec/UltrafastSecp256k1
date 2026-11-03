@@ -86,6 +86,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_zk.cpp` | ZK proofs: knowledge, DLEQ, Bulletproof, batch (24 tests) | [OK] |
 | `test_hash_accel.cpp` | SHA-256 acceleration tests | [OK] |
 | `test_cpu_features.cpp` (CTest: `cpu_features`) | CPU feature decode over synthetic CPUID/XGETBV tables (Intel client/server, AMD Zen 4/5, AVX-IFMA client, XCR0-disabled AVX), L2/L3 cache sizes, and the mask-down-only `UFSECP_CPU_DISABLE` override | [OK] |
+| `test_field_lanes.cpp` (CTest: `field_lanes`) | Lane-parallel field arithmetic (Avx2x4, AvxIfma256x4, Ifma256x4, Ifma512x8) against `fast::FieldElement`: every op on random, edge and limb-bound inputs plus 10^4-step mixed chains with distinct per-lane values; `--require=<backend>` for runs under Intel SDE; exits 77 when no lane backend is available | [OK] |
 | `test_exhaustive.cpp` | Exhaustive tests (small curves) | [OK] |
 | `test_v4_features.cpp` | v4 feature tests | [OK] |
 | `run_selftest.cpp` | Selftest runner (smoke/ci/stress) | [OK] |

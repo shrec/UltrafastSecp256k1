@@ -8,6 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CPU: lane-parallel field arithmetic (`secp256k1/lanes.hpp`, `src/cpu/src/lanes/`),
+  the layer under the RM-2026-00009 lane verify path.** Four backends hold one
+  independent field element per SIMD lane:
+  - `Ifma512x8`: AVX-512 IFMA, radix 2^52;
+  - `Ifma256x4`: AVX512VL + IFMA on ymm;
+  - `AvxIfma256x4`: VEX AVX-IFMA;
+  - `Avx2x4`: radix 2^26.
+
+  Each backend lives in its own per-ISA translation unit and is built only when a
+  compile probe passes. Dispatch reads the masked `cpu_features()` view and picks
+  in that order. `UFSECP_LANES=off|avx2|avx_ifma|ifma256|ifma512` forces an
+  available backend, never an unavailable one, and `cpu_hwinfo` reports the
+  compiled, available and selected backends. Nothing calls this yet; the
+  verify integration comes next.
+
+  The `field_lanes` CTest checks every op against `fast::FieldElement`. On the host
+  it passed natively (AVX2), under Intel SDE `-spr` (IFMA 512/256) and under
+  `-srf`/`-arl` (AVX-IFMA). Verify (public-data) paths only; no `ct::` change.
 - **CPU: one cached, maskable x86-64 feature view (`secp256k1/cpu_features.hpp`)
   and the `cpu_hwinfo` self-report tool.** It decodes vendor, family/model/stepping,
   brand, AVX2/BMI1/BMI2/ADX/SHA-NI, AVX-512F/VL/IFMA, AVX-IFMA and AVX-VNNI, with
