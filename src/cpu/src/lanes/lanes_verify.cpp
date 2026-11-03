@@ -20,6 +20,7 @@
 #include "secp256k1/lanes.hpp"
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -338,6 +339,50 @@ bool schnorr_verify_lanes(const SchnorrBatchEntry* entries, std::size_t n, bool*
     if (stats) *stats = st;
     return all_true(results, n);
 }
+
+// ---- Batch-verify opt-in (see secp256k1/lanes.hpp) ---------------------------
+//
+// g_verify_override holds a LaneBackend value, or kNoOverride. It is a plain
+// enum with no data published alongside it, so acquire/release is sufficient.
+namespace {
+constexpr unsigned kNoOverride = 0xFFu;
+std::atomic<unsigned> g_verify_override{kNoOverride};
+std::atomic<std::uint64_t> g_batch_lane_dispatches{0};
+} // namespace
+
+bool set_lane_verify_backend(LaneBackend b) noexcept {
+    const unsigned v = static_cast<unsigned>(b);
+    if (v >= kLaneBackendCount) return false;
+    if (b != LaneBackend::None && lane_field_kernels(b) == nullptr) return false;   // never SIGILL
+    g_verify_override.store(v, std::memory_order_release);
+    return true;
+}
+
+void reset_lane_verify_backend() noexcept {
+    g_verify_override.store(kNoOverride, std::memory_order_release);
+}
+
+LaneBackend lane_verify_backend() noexcept {
+    const unsigned v = g_verify_override.load(std::memory_order_acquire);
+    if (v != kNoOverride) return static_cast<LaneBackend>(v);
+    // Opt-in only: the cached UFSECP_LANES resolution counts when it was an
+    // explicit, available request. Its Default pick is deliberately ignored
+    // until a measurement makes a lane backend the default for batch verify.
+    const LaneSelection& sel = lane_selection();
+    return (sel.reason == LaneSelectionReason::Forced) ? sel.backend : LaneBackend::None;
+}
+
+namespace detail {
+
+std::uint64_t batch_lane_dispatch_count() noexcept {
+    return g_batch_lane_dispatches.load(std::memory_order_relaxed);
+}
+
+void note_batch_lane_dispatch() noexcept {
+    g_batch_lane_dispatches.fetch_add(1, std::memory_order_relaxed);
+}
+
+} // namespace detail
 
 namespace detail {
 

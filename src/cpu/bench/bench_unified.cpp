@@ -86,6 +86,7 @@
 #include "secp256k1/benchmark_harness.hpp"
 #include "secp256k1/glv.hpp"
 #include "secp256k1/batch_verify.hpp"
+#include "secp256k1/lanes.hpp"
 #ifdef SECP256K1_BUILD_ETHEREUM
 #include "secp256k1/recovery.hpp"
 #include "secp256k1/coins/keccak256.hpp"
@@ -1592,6 +1593,87 @@ int main(int argc, char** argv) {
 
             printf("| %-44s | %8.2fx  |\n",
                    "  -> speedup vs individual", speedup);
+        }
+
+        printf("|                                              |            |\n");
+
+        // -- Lane-parallel verify rows (opt-in lane path, secp256k1/lanes.hpp) --
+        // ns per signature for a batch of 64: one row per lane backend available
+        // on this CPU (named with the backend), each beside the scalar row of the
+        // same shape and the same harness (bench_ns: 11 passes, IQR, warm-up):
+        //   ecdsa_batch_verify_*:  ecdsa_batch_verify(64 entries) with
+        //       set_lane_verify_backend(None) (scalar) or (backend);
+        //   schnorr_verify_*:      lanes::schnorr_verify_lanes(64 entries) with
+        //       None (64 scalar schnorr_verify calls) or (backend). A 64-entry
+        //       schnorr_batch_verify runs the randomized MSM, which the opt-in
+        //       leaves alone, so the BIP-340 rows time the lane verifier itself.
+        // The rows force the backend explicitly and then restore the UFSECP_LANES
+        // rule (reset_lane_verify_backend()), so every other row keeps the
+        // process's own selection. Throughput: not yet measured -- benchmark
+        // required on each microarchitecture (tools/measure_cpu_variants.py).
+        {
+            namespace lanes = secp256k1::lanes;
+            constexpr int LANE_N = 64;
+            constexpr int LANE_ITERS = 100;   // as the N=64 batch rows above
+            std::vector<ECDSABatchEntry> ecdsa_lane_batch(static_cast<std::size_t>(LANE_N));
+            std::vector<SchnorrBatchEntry> schnorr_lane_batch(static_cast<std::size_t>(LANE_N));
+            for (int j = 0; j < LANE_N; ++j) {
+                const auto sj = static_cast<std::size_t>(j);
+                ecdsa_lane_batch[sj].msg_hash   = msghashes[j % POOL];
+                ecdsa_lane_batch[sj].public_key = pubkeys[j % POOL];
+                ecdsa_lane_batch[sj].signature  = ecdsa_sigs[j % POOL];
+                schnorr_lane_batch[sj].pubkey_x  = schnorr_pubkeys_x[j % POOL];
+                schnorr_lane_batch[sj].message   = msghashes[j % POOL];
+                schnorr_lane_batch[sj].signature = schnorr_sigs[j % POOL];
+            }
+            std::array<bool, LANE_N> lane_res{};
+
+            auto ecdsa_lane_row = [&](lanes::LaneBackend b, const char* row_name) {
+                if (!lanes::set_lane_verify_backend(b)) return;
+                if (!ecdsa_batch_verify(ecdsa_lane_batch)) {
+                    printf("[!] %s FAILED correctness check\n", row_name);
+                }
+                const double batch_ns = bench_ns([&]() {
+                    bool ok = ecdsa_batch_verify(ecdsa_lane_batch);
+                    bench::DoNotOptimize(ok);
+                }, LANE_ITERS);
+                print_row(row_name, batch_ns / static_cast<double>(LANE_N));
+            };
+            auto schnorr_lane_row = [&](lanes::LaneBackend b, const char* row_name) {
+                if (!lanes::schnorr_verify_lanes(schnorr_lane_batch.data(), schnorr_lane_batch.size(),
+                                                 lane_res.data(), b)) {
+                    printf("[!] %s FAILED correctness check\n", row_name);
+                }
+                const double batch_ns = bench_ns([&]() {
+                    bool ok = lanes::schnorr_verify_lanes(schnorr_lane_batch.data(),
+                                                          schnorr_lane_batch.size(),
+                                                          lane_res.data(), b);
+                    bench::DoNotOptimize(ok);
+                }, LANE_ITERS);
+                print_row(row_name, batch_ns / static_cast<double>(LANE_N));
+            };
+
+            constexpr lanes::LaneBackend kLaneRowBackends[] = {
+                lanes::LaneBackend::Avx2x4, lanes::LaneBackend::AvxIfma256x4,
+                lanes::LaneBackend::Ifma256x4, lanes::LaneBackend::Ifma512x8};
+            const unsigned lane_avail = lanes::available_lane_backends();
+            char label[64];
+
+            ecdsa_lane_row(lanes::LaneBackend::None, "ecdsa_batch_verify_scalar /sig (N=64)");
+            for (const lanes::LaneBackend b : kLaneRowBackends) {
+                if ((lane_avail & lanes::lane_backend_bit(b)) == 0) continue;
+                snprintf(label, sizeof(label), "ecdsa_batch_verify_lanes[%s] /sig (N=64)",
+                         lanes::lane_backend_name(b));
+                ecdsa_lane_row(b, label);
+            }
+            schnorr_lane_row(lanes::LaneBackend::None, "schnorr_verify_scalar /sig (N=64)");
+            for (const lanes::LaneBackend b : kLaneRowBackends) {
+                if ((lane_avail & lanes::lane_backend_bit(b)) == 0) continue;
+                snprintf(label, sizeof(label), "schnorr_verify_lanes[%s] /sig (N=64)",
+                         lanes::lane_backend_name(b));
+                schnorr_lane_row(b, label);
+            }
+            lanes::reset_lane_verify_backend();
         }
     }
 

@@ -200,8 +200,20 @@
           {
             "findings": [
               {
-                "message": "3 files modified/deleted since graph build (2026-11-03T14:59:33)",
+                "message": "9 files modified/deleted since graph build (2026-11-03T15:15:53)",
                 "severity": "WARN"
+              },
+              {
+                "message": "MODIFIED: CHANGELOG.md",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/API_REFERENCE.md",
+                "severity": "INFO"
+              },
+              {
+                "message": "MODIFIED: docs/BENCHMARKS.md",
+                "severity": "INFO"
               },
               {
                 "message": "MODIFIED: docs/INCIDENT_DRILL_LOG.json",
@@ -209,10 +221,6 @@
               },
               {
                 "message": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json",
-                "severity": "INFO"
-              },
-              {
-                "message": "MODIFIED: src/cpu/src/lanes/lanes_verify.cpp",
                 "severity": "INFO"
               }
             ],
@@ -396,7 +404,7 @@
           {
             "findings": [
               {
-                "message": "1 changed files have matching docs",
+                "message": "9 changed files have matching docs",
                 "severity": "PASS"
               }
             ],
@@ -636,7 +644,7 @@
                 "severity": "PASS"
               },
               {
-                "message": "1 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/lanes/lanes_verify.cpp']",
+                "message": "3 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/batch_verify.cpp', 'src/cpu/bench/bench_unified.cpp', 'src/cpu/src/lanes/lanes_verify.cpp']",
                 "severity": "WARN"
               },
               {
@@ -814,11 +822,11 @@
           "value": {
             "dirty": true,
             "ref": "dev",
-            "sha": "04b516dd1bb0e89f9a7a11054ad5c4675ebd3642",
-            "short": "04b516dd1b"
+            "sha": "bc5aa9f47d7139f590f5070298059f3e7faf435d",
+            "short": "bc5aa9f47d"
           }
         },
-        "generated_at": "2026-11-03T15:12:34.956828+00:00",
+        "generated_at": "2026-11-03T15:42:36.216397+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
@@ -835,12 +843,12 @@
             },
             "flags_hash": "b08a96ecab2b5a95"
           },
-          "collected_at": "2026-11-03T15:12:34.956788+00:00",
+          "collected_at": "2026-11-03T15:42:36.216334+00:00",
           "git": {
             "dirty": true,
             "ref": "dev",
-            "sha": "04b516dd1bb0e89f9a7a11054ad5c4675ebd3642",
-            "short": "04b516dd1b"
+            "sha": "bc5aa9f47d7139f590f5070298059f3e7faf435d",
+            "short": "bc5aa9f47d"
           },
           "platform": {
             "machine": "x86_64",
@@ -861,7 +869,7 @@
           },
           "version": "4.6.2"
         },
-        "run_id": "audit_gate-04b516dd1b-20261103T151234",
+        "run_id": "audit_gate-bc5aa9f47d-20261103T154236",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -1016,7 +1024,22 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "advisory:medium",
-                "title": "3 files modified/deleted since graph build (2026-11-03T14:59:33)"
+                "title": "9 files modified/deleted since graph build (2026-11-03T15:15:53)"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: CHANGELOG.md"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/API_REFERENCE.md"
+              },
+              {
+                "check_id": "p6__graph_freshness",
+                "severity": "info",
+                "title": "MODIFIED: docs/BENCHMARKS.md"
               },
               {
                 "check_id": "p6__graph_freshness",
@@ -1027,11 +1050,6 @@
                 "check_id": "p6__graph_freshness",
                 "severity": "info",
                 "title": "MODIFIED: docs/SECURITY_AUTONOMY_KPI.json"
-              },
-              {
-                "check_id": "p6__graph_freshness",
-                "severity": "info",
-                "title": "MODIFIED: src/cpu/src/lanes/lanes_verify.cpp"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -1255,7 +1273,7 @@
               {
                 "check_id": "p10__doc-code_pairing",
                 "severity": "pass",
-                "title": "1 changed files have matching docs"
+                "title": "9 changed files have matching docs"
               }
             ],
             "name": "P10: Doc-Code Pairing",
@@ -1540,7 +1558,7 @@
               {
                 "check_id": "g-12__source_graph_quality",
                 "severity": "advisory:medium",
-                "title": "1 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/lanes/lanes_verify.cpp']"
+                "title": "3 src/cpu/*.cpp file(s) newer than source graph DB (rebuild recommended): ['src/cpu/src/batch_verify.cpp', 'src/cpu/bench/bench_unified.cpp', 'src/cpu/src/lanes/lanes_verify.cpp']"
               },
               {
                 "check_id": "g-12__source_graph_quality",
@@ -1741,12 +1759,12 @@
           }
         ],
         "summary": {
-          "advisory": 75,
+          "advisory": 77,
           "blocking": 0,
-          "info": 58,
+          "info": 60,
           "sections": 34,
           "skipped_sections": 0,
-          "total_findings": 134,
+          "total_findings": 136,
           "warnings": 17
         },
         "verdict": "PASS with advisory"
@@ -1754,8 +1772,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "62db25ba91b6635c573ca0bccfe63dc88acde748b4bbec35ac0b0e3172309bee",
-      "stdout_sha256": "a4619fb226cd2a295b99887ea66eea81a187fd556d11eb4fd95b021ecade48b6"
+      "stderr_sha256": "96e24aa4fe9627048f2237cb32aa99c8e5f1203a9f560e2b381521d7e1dbcc8d",
+      "stdout_sha256": "e2bcca48ef653d2e5030b510d2c87e787bfa733faaceba11c1fece0fea062636"
     },
     {
       "name": "audit_gap_report_strict",
@@ -2057,13 +2075,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-11-03T15:12:40.406893+00:00"
+        "timestamp": "2026-11-03T15:42:41.741881+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "eb7651245d9e0319be7354d14bde82f58f3cd0aa1c8e73203eed5475135c0779"
+      "stdout_sha256": "57c3a846266283db84f2eb35d209dfc0271670adf14ef71b31d242653cdbede0"
     },
     {
       "name": "supply_chain_gate",
@@ -2109,19 +2127,19 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-11-03T15:12:40.527169+00:00"
+        "timestamp": "2026-11-03T15:42:41.856173+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "db94a5f346b48e31bf4f63eb27efb9fd1cf463d2e81c2a42249788bf73843e9f"
+      "stdout_sha256": "cb6ee432ec4290e2bb3a9209ec7e0e51748cdb6fef363a71bc5807697d794a84"
     }
   ],
-  "generated_at": "2026-11-03T15:12:40.545190+00:00",
+  "generated_at": "2026-11-03T15:42:41.870850+00:00",
   "git": {
     "branch": "dev",
-    "commit": "04b516dd1bb0e89f9a7a11054ad5c4675ebd3642",
+    "commit": "bc5aa9f47d7139f590f5070298059f3e7faf435d",
     "dirty": true
   },
   "repo_root": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1",

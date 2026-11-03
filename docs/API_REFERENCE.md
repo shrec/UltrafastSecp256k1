@@ -2570,6 +2570,58 @@ The C++ engine also provides `secp256k1::schnorr_batch_verify_mt(entries, n, max
 the multi-threaded twin of `ecdsa_batch_verify_mt` (same chunked design, `0`=auto/`1`=serial,
 result identical to serial for any thread count).
 
+<a id="c-abi-batch-lanes"></a>
+#### Lane-parallel batch verification (opt-in)
+
+The engine can verify several signatures per SIMD instruction stream with
+`secp256k1::lanes::ecdsa_verify_lanes` / `schnorr_verify_lanes`
+(`secp256k1/lanes.hpp`; backends `avx2`, `avx_ifma`, `ifma256`, `ifma512`).
+They return, entry by entry, the verdict of `ecdsa_verify` / `schnorr_verify`.
+The batch APIs use them **only when a backend was chosen explicitly**. A lane
+variant becomes a default only after a `bench_unified` measurement on real
+hardware, so with no explicit choice every batch path runs the scalar code it
+ran before.
+
+The backend the batch APIs use is `secp256k1::lanes::lane_verify_backend()`:
+
+1. the override set by `secp256k1::lanes::set_lane_verify_backend(LaneBackend)`
+   (C++ only, for tests and benchmarks), if one is set. `LaneBackend::None`
+   forces the scalar path even when `UFSECP_LANES` is set. A backend that is
+   unavailable on this CPU, or out of range, is refused (`false`, override
+   unchanged). `reset_lane_verify_backend()` drops the override;
+2. otherwise the backend named by `UFSECP_LANES=avx2|avx_ifma|ifma256|ifma512`,
+   if it is available (`LaneSelectionReason::Forced`). `UFSECP_LANES=off`
+   gives the scalar path;
+3. otherwise none: the scalar path. The *default* pick of `lane_selection()`
+   (used by `cpu_hwinfo`) is not used for verification.
+
+Each batch call reads this once at entry (the `UFSECP_LANES` part is resolved
+once per process and cached), so a call never mixes paths. When a backend is
+selected:
+
+- **ECDSA** (`ecdsa_batch_verify`, `_mt`, `ecdsa_batch_identify_invalid`,
+  `ecdsa_batch_verify_opaque_rows` / `_columns`): the s-policy and r/s/infinity
+  prechecks run as before, then the signatures are verified in lane groups. A
+  batch of one entry stays scalar.
+- **BIP-340** (`schnorr_batch_verify`, `_mt`, `schnorr_batch_identify_invalid`,
+  `schnorr_batch_verify_bip340_rows` / `_columns`): batches of `n >= 28` keep
+  the randomized MSM. The lanes serve the individual path below that cutoff,
+  identify-invalid, and the per-row `out_results` pass of the row/column
+  APIs. The `SchnorrBatchCachedEntry` overloads always stay scalar.
+- Batch verdicts, invalid-index sets and per-row results are the same as with
+  the scalar path (`audit/test_lanes_verify_differential.cpp`, batch-integration
+  section). A GPU column hook, when installed, still runs first.
+
+C ABI calls that inherit the selection: `ufsecp_ecdsa_batch_verify`,
+`ufsecp_ecdsa_batch_verify_mt`, `ufsecp_ecdsa_batch_identify_invalid`,
+`ufsecp_schnorr_batch_verify`, `ufsecp_schnorr_batch_verify_mt` and
+`ufsecp_schnorr_batch_identify_invalid` (`src/cpu/src/impl/ufsecp_taproot.cpp`).
+The C ABI has no setter, so for these calls only `UFSECP_LANES` selects a
+backend. `ufsecp.h` is unchanged. The libbitcoin direct `*_opaque_*` /
+`*_bip340_*` entry points and the libsecp256k1 shim batch extension call the
+same engine functions and inherit the rule too. Public data only (verification);
+no `ct::` or secret path is involved.
+
 > **Standard integration surface (CPU):** for drop-in `libsecp256k1` compatibility, prefer the
 > shim batch extension in `compat/libsecp256k1_shim/include/secp256k1_batch.h`
 > (`secp256k1_ecdsa_verify_batch[_mt|_results]` / `secp256k1_schnorrsig_verify_batch[_mt|_results]`),

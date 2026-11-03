@@ -13,6 +13,8 @@
 #include "secp256k1/detail/csprng.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
 #include "secp256k1/detail/batch_pool.hpp"
+#include "secp256k1/lanes.hpp"
+#include <type_traits>
 #if defined(__SIZEOF_INT128__) && !defined(SECP256K1_PLATFORM_ESP32) && !defined(SECP256K1_PLATFORM_STM32) && !defined(__EMSCRIPTEN__)
 #include "secp256k1/field_52.hpp"
 #endif
@@ -239,11 +241,92 @@ bool parse_schnorr_bip340_entry(const std::uint8_t* msg32,
     return SchnorrSignature::parse_strict(sig64, out.signature);
 }
 
+// -- Lane-verify opt-in -------------------------------------------------------
+// Rule (secp256k1/lanes.hpp, "Batch-verify opt-in"): the batch APIs below use
+// the lane verifiers ONLY when a backend was chosen explicitly -- through
+// lanes::set_lane_verify_backend(), or UFSECP_LANES naming an available
+// backend (LaneSelectionReason::Forced). A lane variant becomes a default only
+// after a bench_unified measurement on real hardware (RM-2026-00010), so the
+// default pick of lane_selection() is NOT used here.
+//
+// Every public entry point reads the opt-in ONCE (batch_lane_backend(); its
+// UFSECP_LANES part is the cached lane_selection()) and passes that value
+// down, so one call never mixes paths, even across _mt worker chunks. With
+// LaneBackend::None every path runs exactly the scalar code it ran before.
+//
+// Equality. ecdsa_verify_lanes / schnorr_verify_lanes return, entry by entry,
+// the verdict of ecdsa_verify / schnorr_verify (lanes.hpp contract, enforced
+// by audit/test_lanes_verify_differential.cpp), so batch verdicts (an AND) and
+// invalid-index sets are the scalar path's. Work is fed in kLaneChunk blocks,
+// a multiple of every lane width (4 and 8), so only the last block of a call
+// can leave lanes unused.
+//
+// Public data only (CT-VERIFY): verification; no secret reaches the lanes.
+using lanes::LaneBackend;
+constexpr std::size_t kLaneChunk = 64;
+
+LaneBackend batch_lane_backend() noexcept {
+    return lanes::lane_verify_backend();
+}
+
+// AND of ecdsa_verify over entries[0, n), by lane groups. Stops after the first
+// block holding an invalid entry, like the scalar loops stop at the entry.
+bool ecdsa_all_valid_lanes(const ECDSABatchEntry* entries, std::size_t n,
+                           LaneBackend lane_backend) noexcept {
+    lanes::detail::note_batch_lane_dispatch();
+    bool res[kLaneChunk];
+    for (std::size_t off = 0; off < n; off += kLaneChunk) {
+        const std::size_t m = std::min(kLaneChunk, n - off);
+        if (!lanes::ecdsa_verify_lanes(entries + off, m, res, lane_backend)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// AND of schnorr_verify over entries[0, n), by lane groups.
+bool schnorr_all_valid_lanes(const SchnorrBatchEntry* entries, std::size_t n,
+                             LaneBackend lane_backend) noexcept {
+    lanes::detail::note_batch_lane_dispatch();
+    bool res[kLaneChunk];
+    for (std::size_t off = 0; off < n; off += kLaneChunk) {
+        const std::size_t m = std::min(kLaneChunk, n - off);
+        if (!lanes::schnorr_verify_lanes(entries + off, m, res, lane_backend)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Indices i (ascending) whose lane verdict is false -- the same set the scalar
+// identify-invalid loops produce, because the verdicts are equal.
+template <typename Entry, typename LaneFn>
+void identify_invalid_lanes(const Entry* entries, std::size_t n,
+                            std::vector<std::size_t>& invalid,
+                            LaneBackend lane_backend, LaneFn&& lane_fn) {
+    lanes::detail::note_batch_lane_dispatch();
+    invalid.clear();
+    invalid.reserve(n);
+    bool res[kLaneChunk];
+    for (std::size_t off = 0; off < n; off += kLaneChunk) {
+        const std::size_t m = std::min(kLaneChunk, n - off);
+        (void)lane_fn(entries + off, m, res, lane_backend, nullptr);
+        for (std::size_t j = 0; j < m; ++j) {
+            if (!res[j]) invalid.push_back(off + j);
+        }
+    }
+}
+
+// verify_lanes(entries, n, results, backend, stats) is ecdsa_verify_lanes or
+// schnorr_verify_lanes; its per-entry verdict must equal verify_one's on every
+// entry parse_entry accepts (each caller states why). It is used only when
+// lane_backend != None, for the per-row out_results pass.
 template <typename Entry, typename ParseEntry, typename VerifyBatch,
-          typename VerifyOne>
+          typename VerifyOne, typename VerifyLanes>
 bool verify_opaque_bounded(std::size_t count, std::uint8_t* out_results,
                            std::size_t max_threads, ParseEntry&& parse_entry,
-                           VerifyBatch&& verify_batch, VerifyOne&& verify_one) {
+                           VerifyBatch&& verify_batch, VerifyOne&& verify_one,
+                           LaneBackend lane_backend, VerifyLanes&& verify_lanes) {
     if (count == 0) {
         return true;
     }
@@ -271,6 +354,35 @@ bool verify_opaque_bounded(std::size_t count, std::uint8_t* out_results,
     }
 
     bool ok_all = true;
+    if (lane_backend != LaneBackend::None) {
+        // Per-row verdicts by lane groups: an unparsable row is 0 exactly as
+        // below; every parsed row gets the lane verdict (== verify_one's).
+        lanes::detail::note_batch_lane_dispatch();
+        static thread_local std::vector<Entry> block;
+        block.resize(kLaneChunk);
+        std::size_t row[kLaneChunk];
+        bool res[kLaneChunk];
+        for (std::size_t base = 0; base < count; base += kLaneChunk) {
+            const std::size_t m = std::min(kLaneChunk, count - base);
+            std::size_t k = 0;
+            for (std::size_t i = base; i < base + m; ++i) {
+                block[k] = Entry{};
+                if (parse_entry(i, block[k])) {
+                    row[k++] = i;
+                } else {
+                    if (out_results != nullptr) out_results[i] = 0u;
+                    ok_all = false;
+                }
+            }
+            (void)verify_lanes(block.data(), k, res, lane_backend, nullptr);
+            for (std::size_t j = 0; j < k; ++j) {
+                if (out_results != nullptr) out_results[row[j]] = res[j] ? 1u : 0u;
+                ok_all = ok_all && res[j];
+            }
+        }
+        return ok_all;
+    }
+
     for (std::size_t i = 0; i < count; ++i) {
         Entry one{};
         const bool ok = parse_entry(i, one) && verify_one(one);
@@ -394,7 +506,8 @@ template <typename Entry, typename VerifyOneFn, typename ResolvePubkeyFn,
 bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
                                VerifyOneFn&& verify_one,
                                ResolvePubkeyFn&& resolve_pubkey,
-                               PubkeyBytesFn&& pubkey_bytes) {
+                               PubkeyBytesFn&& pubkey_bytes,
+                               LaneBackend lane_backend) {
     if (n == 0) return false;
     if (n == 1) return verify_one(entries[0]);
 
@@ -405,6 +518,19 @@ bool schnorr_batch_verify_impl(const Entry* entries, std::size_t n,
     // the randomized MSM path becomes competitive enough to justify the extra
     // setup work.
     if (n <= kSchnorrBatchIndividualCutoff) {
+        // Lane opt-in (batch_lane_backend(), read once by the caller): the
+        // individual verdicts come from the lane verifier, equal to
+        // schnorr_verify entry by entry, so the AND is unchanged. Only
+        // SchnorrBatchEntry has x-only bytes for the lane verifier; the
+        // cached overload always passes None. The randomized MSM below is
+        // untouched by the opt-in.
+        if constexpr (std::is_same_v<Entry, SchnorrBatchEntry>) {
+            if (lane_backend != LaneBackend::None) {
+                return schnorr_all_valid_lanes(entries, n, lane_backend);
+            }
+        } else {
+            (void)lane_backend;
+        }
         for (std::size_t i = 0; i < n; ++i) {
             if (!verify_one(entries[i])) {
                 return false;
@@ -540,7 +666,12 @@ Scalar schnorr_batch_weight_for_test(const std::array<std::uint8_t, 32>& seed,
 // Rearranged: sum(a_i * s_i) * G - sum(a_i * e_i) * P_i - sum(a_i) * R_i = O
 // We verify: (sum(a_i * s_i)) * G + sum(-a_i * e_i * P_i) + sum(-a_i * R_i) = infinity
 
-bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
+// SchnorrBatchEntry batch with the lane opt-in passed in: the public overload,
+// the _mt chunks and the BIP-340 row/column paths call it with the value they
+// read once per call (batch_lane_backend()).
+static bool schnorr_batch_verify_entries(const SchnorrBatchEntry* entries,
+                                         std::size_t n,
+                                         LaneBackend lane_backend) {
     // B-6 / CA-010: per-call seeded hash map for O(1) dedup.
     // New seed each call prevents adversarial pubkey inputs from pre-computing
     // hash collisions that degrade lookup to O(n) worst-case.
@@ -590,7 +721,11 @@ bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
     };
 
     return schnorr_batch_verify_impl(entries, n, verify_one, resolve_pubkey,
-                                     pubkey_bytes);
+                                     pubkey_bytes, lane_backend);
+}
+
+bool schnorr_batch_verify(const SchnorrBatchEntry* entries, std::size_t n) {
+    return schnorr_batch_verify_entries(entries, n, batch_lane_backend());
 }
 
 bool schnorr_batch_verify(const std::vector<SchnorrBatchEntry>& entries) {
@@ -615,8 +750,11 @@ bool schnorr_batch_verify(const SchnorrBatchCachedEntry* entries, std::size_t n)
         return (entry.pubkey == nullptr) ? nullptr : &entry.pubkey->x_bytes;
     };
 
+    // Cached entries stay scalar whatever the lane opt-in: the verdict is
+    // defined on the caller's parsed SchnorrXonlyPubkey, while the lane
+    // verifier re-lifts x-only bytes.
     return schnorr_batch_verify_impl(entries, n, verify_one, resolve_pubkey,
-                                     pubkey_bytes);
+                                     pubkey_bytes, LaneBackend::None);
 }
 
 bool schnorr_batch_verify(const std::vector<SchnorrBatchCachedEntry>& entries) {
@@ -644,7 +782,8 @@ enum class EcdsaSPolicy {
 
 static bool ecdsa_batch_verify_impl(const ECDSABatchEntry* entries,
                                     std::size_t n,
-                                    EcdsaSPolicy s_policy) {
+                                    EcdsaSPolicy s_policy,
+                                    LaneBackend lane_backend) {
     if (n == 0) return false;
 
     // Pre-validate all entries before any further processing to enforce
@@ -675,6 +814,16 @@ static bool ecdsa_batch_verify_impl(const ECDSABatchEntry* entries,
         if (entries[i].public_key.is_infinity()) {
             return false;
         }
+    }
+
+    // Lane path (opt-in, see batch_lane_backend(); the caller read it once).
+    // The loop above already applied the s policy and the r/s/infinity
+    // rejects, so what remains is the AND of ecdsa_verify over the entries --
+    // which both scalar branches below compute and which the lane verifier
+    // returns entry by entry. A single entry gains nothing from lanes and
+    // stays on the scalar branch.
+    if (lane_backend != LaneBackend::None && n >= 2) {
+        return ecdsa_all_valid_lanes(entries, n, lane_backend);
     }
 
     // Small-n fast path: individual verifies cheaper than batch inversion overhead
@@ -792,7 +941,8 @@ static bool ecdsa_batch_verify_impl(const ECDSABatchEntry* entries,
 }
 
 bool ecdsa_batch_verify(const ECDSABatchEntry* entries, std::size_t n) {
-    return ecdsa_batch_verify_impl(entries, n, EcdsaSPolicy::RequireLowS);
+    return ecdsa_batch_verify_impl(entries, n, EcdsaSPolicy::RequireLowS,
+                                   batch_lane_backend());
 }
 
 bool ecdsa_batch_verify(const std::vector<ECDSABatchEntry>& entries) {
@@ -854,9 +1004,13 @@ bool ecdsa_batch_verify_mt(const ECDSABatchEntry* entries, std::size_t n,
         : std::clamp<std::size_t>(n / (static_cast<std::size_t>(n_threads) * 4),
                                   kStealFloor, std::size_t{4096});
 
+    // Lane opt-in read once for the whole call; every chunk uses that value.
+    const LaneBackend lane_backend = batch_lane_backend();
     return pool.run(n, steal, n_threads,
-                    [entries](std::size_t s, std::size_t e) {
-                        return ecdsa_batch_verify(entries + s, e - s);
+                    [entries, lane_backend](std::size_t s, std::size_t e) {
+                        return ecdsa_batch_verify_impl(entries + s, e - s,
+                                                       EcdsaSPolicy::RequireLowS,
+                                                       lane_backend);
                     });
 }
 
@@ -904,9 +1058,12 @@ bool schnorr_batch_verify_mt(const SchnorrBatchEntry* entries, std::size_t n,
         : std::clamp<std::size_t>(n / (static_cast<std::size_t>(n_threads) * 4),
                                   kStealFloor, std::size_t{4096});
 
+    // Lane opt-in read once for the whole call; every chunk uses that value.
+    const LaneBackend lane_backend = batch_lane_backend();
     return pool.run(n, steal, n_threads,
-                    [entries](std::size_t s, std::size_t e) {
-                        return schnorr_batch_verify(entries + s, e - s);
+                    [entries, lane_backend](std::size_t s, std::size_t e) {
+                        return schnorr_batch_verify_entries(entries + s, e - s,
+                                                            lane_backend);
                     });
 }
 
@@ -914,6 +1071,18 @@ bool schnorr_batch_verify_mt(const std::vector<SchnorrBatchEntry>& entries,
                              std::size_t max_threads) {
     return schnorr_batch_verify_mt(entries.data(), entries.size(), max_threads);
 }
+
+// Opaque rows / columns: the lane opt-in (batch_lane_backend()) is read once
+// per call and reaches both the chunked all-valid pass and the per-row
+// fallback that writes out_results. The GPU column hook, when installed and
+// accepting, still runs first and is unaffected.
+//
+// Per-row lane verdict == the scalar per-row verdict:
+//   ECDSA:   ecdsa_batch_verify_impl(&entry, 1, AcceptHighS) rejects r == 0,
+//            s == 0 and the infinity key, then returns ecdsa_verify; the lane
+//            verifier equals ecdsa_verify, which applies the same rejects and
+//            also accepts high-S.
+//   BIP-340: the scalar row verdict is schnorr_verify itself.
 
 bool ecdsa_batch_verify_opaque_rows(const std::uint8_t* rows, std::size_t stride,
                                     std::size_t count,
@@ -928,20 +1097,24 @@ bool ecdsa_batch_verify_opaque_rows(const std::uint8_t* rows, std::size_t stride
         return false;
     }
 
+    const LaneBackend lane_backend = batch_lane_backend();
     return verify_opaque_bounded<ECDSABatchEntry>(
         count, out_results, max_threads,
         [rows, stride](std::size_t i, ECDSABatchEntry& out) {
             const std::uint8_t* row = rows + i * stride;
             return parse_ecdsa_opaque_entry(row, row + 32, row + 65, out);
         },
-        [](const ECDSABatchEntry* entries, std::size_t n) {
+        [lane_backend](const ECDSABatchEntry* entries, std::size_t n) {
             return ecdsa_batch_verify_impl(entries, n,
-                                           EcdsaSPolicy::AcceptHighS);
+                                           EcdsaSPolicy::AcceptHighS,
+                                           lane_backend);
         },
         [](const ECDSABatchEntry& entry) {
             return ecdsa_batch_verify_impl(&entry, 1,
-                                           EcdsaSPolicy::AcceptHighS);
-        });
+                                           EcdsaSPolicy::AcceptHighS,
+                                           LaneBackend::None);
+        },
+        lane_backend, lanes::ecdsa_verify_lanes);
 }
 
 bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
@@ -971,6 +1144,7 @@ bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
         }
     }
 
+    const LaneBackend lane_backend = batch_lane_backend();
     return verify_opaque_bounded<ECDSABatchEntry>(
         count, out_results, max_threads,
         [digests32, pubkeys33, sigs64](std::size_t i, ECDSABatchEntry& out) {
@@ -978,14 +1152,17 @@ bool ecdsa_batch_verify_opaque_columns(const std::uint8_t* digests32,
                                             pubkeys33 + i * 33,
                                             sigs64 + i * 64, out);
         },
-        [](const ECDSABatchEntry* entries, std::size_t n) {
+        [lane_backend](const ECDSABatchEntry* entries, std::size_t n) {
             return ecdsa_batch_verify_impl(entries, n,
-                                           EcdsaSPolicy::AcceptHighS);
+                                           EcdsaSPolicy::AcceptHighS,
+                                           lane_backend);
         },
         [](const ECDSABatchEntry& entry) {
             return ecdsa_batch_verify_impl(&entry, 1,
-                                           EcdsaSPolicy::AcceptHighS);
-        });
+                                           EcdsaSPolicy::AcceptHighS,
+                                           LaneBackend::None);
+        },
+        lane_backend, lanes::ecdsa_verify_lanes);
 }
 
 bool schnorr_batch_verify_bip340_rows(const std::uint8_t* rows,
@@ -1002,18 +1179,20 @@ bool schnorr_batch_verify_bip340_rows(const std::uint8_t* rows,
         return false;
     }
 
+    const LaneBackend lane_backend = batch_lane_backend();
     return verify_opaque_bounded<SchnorrBatchEntry>(
         count, out_results, max_threads,
         [rows, stride](std::size_t i, SchnorrBatchEntry& out) {
             const std::uint8_t* row = rows + i * stride;
             return parse_schnorr_bip340_entry(row, row + 32, row + 64, out);
         },
-        [](const SchnorrBatchEntry* entries, std::size_t n) {
-            return schnorr_batch_verify(entries, n);
+        [lane_backend](const SchnorrBatchEntry* entries, std::size_t n) {
+            return schnorr_batch_verify_entries(entries, n, lane_backend);
         },
         [](const SchnorrBatchEntry& entry) {
             return schnorr_verify(entry.pubkey_x, entry.message, entry.signature);
-        });
+        },
+        lane_backend, lanes::schnorr_verify_lanes);
 }
 
 bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
@@ -1042,6 +1221,7 @@ bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
         }
     }
 
+    const LaneBackend lane_backend = batch_lane_backend();
     return verify_opaque_bounded<SchnorrBatchEntry>(
         count, out_results, max_threads,
         [digests32, xonly32, sigs64](std::size_t i, SchnorrBatchEntry& out) {
@@ -1049,19 +1229,30 @@ bool schnorr_batch_verify_bip340_columns(const std::uint8_t* digests32,
                                               xonly32 + i * 32,
                                               sigs64 + i * 64, out);
         },
-        [](const SchnorrBatchEntry* entries, std::size_t n) {
-            return schnorr_batch_verify(entries, n);
+        [lane_backend](const SchnorrBatchEntry* entries, std::size_t n) {
+            return schnorr_batch_verify_entries(entries, n, lane_backend);
         },
         [](const SchnorrBatchEntry& entry) {
             return schnorr_verify(entry.pubkey_x, entry.message, entry.signature);
-        });
+        },
+        lane_backend, lanes::schnorr_verify_lanes);
 }
 
 // -- Identify Invalid Signatures ----------------------------------------------
+// Lane opt-in: see batch_lane_backend(). With a backend chosen, the per-entry
+// verdicts come from the lane verifiers, which equal schnorr_verify /
+// ecdsa_verify entry by entry, so the invalid-index set is the same set, in
+// the same ascending order.
 
 void schnorr_batch_identify_invalid(
     const SchnorrBatchEntry* entries, std::size_t n,
     std::vector<std::size_t>& invalid_out) {
+    const LaneBackend lane_backend = batch_lane_backend();
+    if (lane_backend != LaneBackend::None) {
+        identify_invalid_lanes(entries, n, invalid_out, lane_backend,
+                               lanes::schnorr_verify_lanes);
+        return;
+    }
     schnorr_batch_identify_invalid_impl(
         entries, n, invalid_out, [](const SchnorrBatchEntry& entry) {
             return schnorr_verify(entry.pubkey_x, entry.message,
@@ -1076,6 +1267,9 @@ std::vector<std::size_t> schnorr_batch_identify_invalid(
     return invalid;
 }
 
+// Cached entries stay on the scalar path whatever the lane opt-in: their
+// verdict is defined on the caller's parsed SchnorrXonlyPubkey (point and
+// prebuilt tables), while the lane verifier re-lifts x-only bytes.
 void schnorr_batch_identify_invalid(
     const SchnorrBatchCachedEntry* entries, std::size_t n,
     std::vector<std::size_t>& invalid_out) {
@@ -1097,6 +1291,12 @@ std::vector<std::size_t> schnorr_batch_identify_invalid(
 void ecdsa_batch_identify_invalid(
     const ECDSABatchEntry* entries, std::size_t n,
     std::vector<std::size_t>& invalid_out) {
+    const LaneBackend lane_backend = batch_lane_backend();
+    if (lane_backend != LaneBackend::None) {
+        identify_invalid_lanes(entries, n, invalid_out, lane_backend,
+                               lanes::ecdsa_verify_lanes);
+        return;
+    }
     invalid_out.clear();
     invalid_out.reserve(n);
     for (std::size_t i = 0; i < n; ++i) {

@@ -211,7 +211,40 @@ bool ecdsa_verify_lanes(const ECDSABatchEntry* entries, std::size_t n, bool* res
 bool schnorr_verify_lanes(const SchnorrBatchEntry* entries, std::size_t n, bool* results,
                           LaneBackend backend, LaneVerifyStats* stats = nullptr) noexcept;
 
+// ---- Batch-verify opt-in -----------------------------------------------------
+//
+// The batch APIs of secp256k1/batch_verify.hpp (ecdsa_batch_verify and its _mt,
+// opaque row / column and identify-invalid twins; the BIP-340 sub-cutoff and
+// identify-invalid paths of schnorr_batch_verify) use the lane verifiers above
+// ONLY when a backend was chosen explicitly. A lane variant becomes a default
+// only after a bench_unified measurement on real hardware, so with no explicit
+// choice every batch path runs exactly the scalar code it ran before.
+//
+// lane_verify_backend() is the backend the batch APIs use:
+//   1. the override from set_lane_verify_backend(), if one is set;
+//   2. otherwise lane_selection().backend when UFSECP_LANES named an available
+//      backend (LaneSelectionReason::Forced; "off" forces None);
+//   3. otherwise None (the default pick of lane_selection() is NOT used here).
+// None means the scalar path. Each batch call reads it once at entry.
+//
+// set_lane_verify_backend(b) sets the override (for tests and benchmarks).
+// None forces the scalar path even when UFSECP_LANES is set. A backend that
+// is not available on this CPU (lane_field_kernels(b) == nullptr) or out of
+// range is refused: returns false and the override is unchanged.
+// reset_lane_verify_backend() drops the override (back to rule 2/3).
+// Both are thread-safe; a batch call already running keeps the value it read.
+bool set_lane_verify_backend(LaneBackend b) noexcept;
+void reset_lane_verify_backend() noexcept;
+LaneBackend lane_verify_backend() noexcept;
+
 namespace detail {
+// Test hook: how many times (process-wide, all threads) a batch API dispatched
+// to ecdsa_verify_lanes / schnorr_verify_lanes because lane_verify_backend()
+// was not None. A call that takes the lane path adds at least 1 (an _mt call
+// adds one per chunk); a call on the scalar path adds 0. Never decreases.
+std::uint64_t batch_lane_dispatch_count() noexcept;
+// Called by batch_verify.cpp each time it hands entries to the lane verifiers.
+void note_batch_lane_dispatch() noexcept;
 // Test hook: the ECDSA projective x-compare of backend `b` on arbitrary field
 // values. For i < n, X/Z are 4x64 (any value < 2^256), r is 4x64 and < n:
 //   out[i] = X == r*Z^2 (mod p) || (r + n < p && X == (r+n)*Z^2 (mod p)).

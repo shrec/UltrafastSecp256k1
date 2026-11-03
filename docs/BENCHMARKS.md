@@ -207,6 +207,42 @@ Selected full primitives from the rerun:
 
 No regressions vs 2026-03-24 baseline.
 
+### Lane-parallel verify rows in `bench_unified` `[rows only, not yet measured]`
+
+`bench_unified` (section `BATCH VERIFICATION (FAST)`) has rows for the
+lane-parallel verifiers of `secp256k1/lanes.hpp`. Each is in ns per signature
+for a batch of 64, uses the usual harness (11 passes, IQR, warm-up), and sits
+next to a scalar row of the same shape:
+
+| Row | What it times |
+|-----|---------------|
+| `ecdsa_batch_verify_scalar /sig (N=64)` | `ecdsa_batch_verify`, 64 entries, `set_lane_verify_backend(None)` |
+| `ecdsa_batch_verify_lanes[<backend>] /sig (N=64)` | the same call with that backend forced |
+| `schnorr_verify_scalar /sig (N=64)` | `lanes::schnorr_verify_lanes(…, None)` = 64 scalar `schnorr_verify` calls |
+| `schnorr_verify_lanes[<backend>] /sig (N=64)` | `lanes::schnorr_verify_lanes` with that backend |
+
+There is one `_lanes[...]` row per backend available on the machine (`avx2`,
+`avx_ifma`, `ifma256`, `ifma512`), so the set of rows depends on the CPU and
+build. A 64-entry `schnorr_batch_verify` runs the randomized MSM, which the lane
+opt-in does not touch, so the BIP-340 rows time the lane verifier directly. The
+rows force their backend and then call `reset_lane_verify_backend()`, so every
+other row keeps the process's own selection. The JSON row format is unchanged:
+`tools/measure_cpu_variants.py` reads the new rows like any other.
+
+The lane path in the batch APIs is **opt-in**. It runs only when
+`UFSECP_LANES` names an available backend or a program calls
+`set_lane_verify_backend` (see [API_REFERENCE.md](API_REFERENCE.md#c-abi-batch-lanes)).
+Under the measurement kit's `lanes_<backend>` variants (`UFSECP_LANES=<backend>`),
+the existing `ecdsa_batch_verify(N=…)` rows and the sub-cutoff
+`schnorr_batch_verify(N=4/16)` rows also take the lane path. The `default`
+variant is unchanged.
+
+No numbers are published for these rows. Making a lane backend the default
+for a microarchitecture needs a measured canonical JSON from
+`tools/measure_cpu_variants.py` on that hardware
+(`docs/bench_variants_<date>_<cpu>.json`), with non-overlapping ranges against
+`default`. Until then the default stays scalar.
+
 ### x86-64 Schnorr batch verify with 128-bit weights (2026-11-01) `[A/B, non-canonical conditions]`
 
 `schnorr_batch_verify` now uses the BIP-340 batch form with 128-bit randomizers

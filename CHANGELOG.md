@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CPU: batch verification can use the lane verifiers (opt-in), RM-2026-00009 part 3.**
+  This applies to ECDSA batch verify (plain, `_mt`, identify-invalid, opaque
+  rows/columns) and to BIP-340 batches below the MSM cutoff (28) and
+  identify-invalid. These paths use the lane verifiers only when a backend is
+  chosen explicitly: `UFSECP_LANES=<backend>`, or
+  `lanes::set_lane_verify_backend()`. Without that, every path runs the scalar
+  code it ran before. A lane default per microarchitecture needs a measured
+  canonical JSON from `tools/measure_cpu_variants.py` on that hardware.
+
+  The C ABI batch calls inherit the opt-in through `UFSECP_LANES`. `bench_unified`
+  gains `ecdsa_batch_verify_lanes` / `schnorr_verify_lanes` rows (batches of 64)
+  per available backend. The differential test now also covers the batch APIs,
+  and checks that lanes are never taken by default.
 - **CPU: lane-parallel ECDSA and BIP-340 verification (`ecdsa_verify_lanes`,
   `schnorr_verify_lanes` in `secp256k1/lanes.hpp`), RM-2026-00009 part 2.**
   It adds per-lane Jacobian group ops and a dual multiplication
