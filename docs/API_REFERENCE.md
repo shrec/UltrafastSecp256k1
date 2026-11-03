@@ -882,6 +882,75 @@ void point_dbl(const Point& p, Point& out);
 
 > [!] CT operations are ~5-7x slower than the fast variants. Use only for private key operations (signing, ECDH).
 
+### CPU Feature Detection and Dispatch
+
+`#include <secp256k1/cpu_features.hpp>` (namespace `secp256k1`). One cached,
+thread-safe view of the x86-64 CPU that every runtime dispatcher reads
+(`fast::has_bmi2_support`, `fast::has_adx_support`, `hash::detect_hash_tier`,
+`hash::sha_ni_available`, `hash::avx2_available`, `hash::avx512_available`).
+Non-x86 targets compile to an all-false view with `vendor == CpuVendor::Other`.
+This is a C++ API only; the C ABI (`include/ufsecp/ufsecp.h`) is unchanged.
+
+```cpp
+struct CpuFeatures {
+    CpuVendor vendor;                      // Intel / AMD / Other
+    uint32_t family, model, stepping;      // display family/model (extended fields folded in)
+    char brand[49];                        // CPUID 0x80000002..4, trimmed
+    bool avx2, bmi1, bmi2, adx, sha_ni;
+    bool avx512f, avx512vl, avx512ifma;    // CPUID.(7,0):EBX[16,31,21]
+    bool avx_ifma;                         // CPUID.(7,1):EAX[23] (VEX, no AVX-512 needed)
+    bool avx_vnni;                         // CPUID.(7,1):EAX[4]
+    uint32_t l2_cache_bytes, l3_cache_bytes; // Intel: leaf 4. AMD: leaf 0x8000001D (0 = unknown)
+};
+
+const CpuFeatures& cpu_features_raw();   // what the CPU + OS report
+const CpuFeatures& cpu_features();       // raw view minus the mask (use this to dispatch)
+void     set_cpu_disable_mask(uint32_t mask);  // API mask (cpu_mask::kAvx2 | kBmi2 | ...)
+uint32_t cpu_disable_mask();                   // effective mask (environment | API)
+
+// Pure decode over an injectable CPUID/XGETBV source (used by the unit test).
+CpuFeatures decode_cpu_features(const CpuidSource& src);
+```
+
+AVX / AVX-512 flags are true only when the OS saves that register state
+(XGETBV XCR0 bits 1-2 for AVX, plus 5-7 for AVX-512); a CPU that reports AVX2
+while the OS does not save YMM state decodes as AVX2 not usable.
+
+**Mask-down override (`UFSECP_CPU_DISABLE`).** A comma list of
+`avx2,bmi2,adx,sha_ni,avx512,ifma,avx_ifma` (case-insensitive; unknown names
+are ignored) turns those features off in `cpu_features()`. `avx2` also clears
+the vector flags layered on it, `avx512` clears `avx512f/vl/ifma`, `ifma`
+clears `avx512ifma`. The mask can only turn features off, never on: forcing a
+feature the CPU lacks would execute an unsupported instruction (SIGILL).
+`set_cpu_disable_mask()` is the same mask for tests and benchmarks; it adds to,
+and cannot lift, the environment mask. Dispatchers that cache their choice in a
+function-local static (the field mul path) see a mask only if it is set before
+their first call, so set `UFSECP_CPU_DISABLE` in the environment for those.
+A mask only moves a path to the portable implementation that non-x86 builds
+already use; it does not change any constant-time property.
+
+```bash
+UFSECP_CPU_DISABLE=adx,avx512 ./your_program
+```
+
+**`cpu_hwinfo`.** Built with the CPU library when tests are enabled
+(`cpu_hwinfo [--json]`). Prints vendor, family/model/stepping, brand, each
+feature flag raw and masked, the L2/L3 sizes and each dispatcher's choice.
+Text is one `key: value` line per fact:
+
+```
+cpu.vendor: Intel
+cpu.family: 6
+...
+feature.avx2: raw=1 masked=1
+cache.l2_bytes: <bytes>
+cache.l3_bytes: <bytes>
+dispatch.field_mul: bmi2_adx_asm | portable
+dispatch.hash_tier: SHA-NI | AVX2 | ... (as returned by hash_tier_name)
+```
+
+`--json` prints the same facts as one object (`features.<name>.raw/masked`).
+
 ---
 
 ## Address Generation API

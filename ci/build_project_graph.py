@@ -1823,6 +1823,8 @@ def populate_edges(cur: sqlite3.Cursor):
             'src/cpu/src/batch_verify.cpp',
         ],
         'hash_accel': ['src/cpu/src/hash_accel.cpp'],
+        # CPU feature decode: synthetic CPUID tables + mask-down override
+        'cpu_features': ['src/cpu/src/cpu_features.cpp'],
         'message_signing': ['src/cpu/src/message_signing.cpp'],
         'exploit_bip39_nfkd': ['src/cpu/src/unicode_nfkd.cpp', 'src/cpu/src/bip39.cpp'],
         # LTC-SP: cross-chain isolation + roundtrip (covers ltc_sp.cpp implementation)

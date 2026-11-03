@@ -364,6 +364,8 @@ static void print_usage() {
   #define BENCH_IS_X86 0
 #endif
 
+#include "secp256k1/cpu_features.hpp"
+
 #define STR_(x) #x
 #define STR(x)  STR_(x)
 
@@ -374,21 +376,13 @@ using namespace secp256k1;
 
 static void get_cpu_brand(char brand[49]) {
 #if BENCH_IS_X86
-    int regs[4];
-    __cpuid(regs, 0x80000000);
-    const auto max_ext = static_cast<unsigned>(regs[0]);
-    if (max_ext < 0x80000004u) {
+    // Single shared CPUID decode (secp256k1/cpu_features.hpp); brand is already trimmed.
+    const char* decoded = secp256k1::cpu_features_raw().brand;
+    if (decoded[0] == '\0') {
         (void)snprintf(brand, 49, "(unknown x86 CPU)");
         return;
     }
-    for (unsigned i = 0; i < 3; ++i) {
-        __cpuid(regs, 0x80000002u + i);
-        std::memcpy(brand + static_cast<std::size_t>(i) * 16, regs, 16);
-    }
-    brand[48] = '\0';
-    char* p = brand;
-    while (*p == ' ') ++p;
-    if (p != brand) std::memmove(brand, p, 49 - static_cast<std::size_t>(p - brand));
+    std::memcpy(brand, decoded, 49);
 #elif defined(__aarch64__)
     (void)snprintf(brand, 49, "AArch64");
 #elif defined(__riscv)

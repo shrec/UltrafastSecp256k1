@@ -50,6 +50,7 @@ set(SECP256K1_SOURCES
     src/bip144.cpp         # BIP-144 witness transaction serialization
     src/segwit.cpp         # BIP-141 segregated witness program ops
     src/hash_accel.cpp     # SHA-256 (SHA-NI) + RIPEMD-160 + Hash160
+    src/cpu_features.cpp   # CPUID/XGETBV decode: one cached, maskable CPU feature view
 )
 
 # =============================================================================
@@ -1480,6 +1481,18 @@ if(BUILD_TESTING)
     # MSan instrumentation that hides cpuid, etc.). The test still validates
     # all 679 scalar/ARM-SHA paths — only the SHA-NI cross-check is skipped.
     set_tests_properties(hash_accel PROPERTIES SKIP_RETURN_CODE 77)
+
+    # CPU feature decode: synthetic CPUID tables, cache sizes, mask-down override.
+    add_executable(test_cpu_features_standalone
+        tests/test_cpu_features.cpp
+    )
+    target_link_libraries(test_cpu_features_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_cpu_features_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME cpu_features COMMAND test_cpu_features_standalone)
+
+    # cpu_hwinfo: prints the CPU view and each dispatcher's choice (text / --json).
+    add_executable(cpu_hwinfo tools/cpu_hwinfo.cpp)
+    target_link_libraries(cpu_hwinfo PRIVATE ${SECP256K1_LIB_NAME})
 
     # Standalone 5x52 field test (requires __uint128_t; skip on MSVC)
     if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

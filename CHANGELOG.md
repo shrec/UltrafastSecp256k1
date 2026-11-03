@@ -8,6 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CPU: one cached, maskable x86-64 feature view (`secp256k1/cpu_features.hpp`)
+  and the `cpu_hwinfo` self-report tool.** It decodes vendor, family/model/stepping,
+  brand, AVX2/BMI1/BMI2/ADX/SHA-NI, AVX-512F/VL/IFMA, AVX-IFMA and AVX-VNNI, with
+  the XCR0 OS-state check, plus L2/L3 sizes (CPUID leaf 4 on Intel, 0x8000001D on
+  AMD). The BMI2/ADX field-mul and hash-tier dispatchers now read it, and decide
+  as before on an unmasked machine. `UFSECP_CPU_DISABLE=avx2,bmi2,adx,sha_ni,avx512,ifma,avx_ifma`
+  (or `set_cpu_disable_mask()`) can only turn features off. One behaviour change:
+  an AVX2/AVX-512 flag whose state the OS does not save now counts as unusable.
+  Covered by the `cpu_features` CTest (six synthetic CPUs including AMD Zen 4/5).
+  Groundwork for RM-2026-00010 / RM-2026-00009.
 - **CUDA: variable-time modular inverse `field_inv_var` / `scalar_inv_var`**
   (`src/cuda/include/modinv_var.cuh`). SafeGCD (Bernstein-Yang) port of the CPU
   `safegcd30` code, for **public data only**; it must not be used on secrets or
