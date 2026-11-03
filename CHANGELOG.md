@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CUDA: native carry chain restored on nvcc (NF-2026-00031).** `add_cc`,
+  `sub_cc` and `muladd64` in `src/cuda/include/secp256k1.cuh` had used a
+  compare-based carry (`sum < a`) on every build since `8af7320c`, including
+  nvcc. They now use the `unsigned __int128` form that nvcc lowers to a PTX
+  `add.cc`/`addc` chain, as at `552f86dd`, whenever the build is nvcc and the
+  host compiler has `__int128`. HIP/ROCm and MSVC hosts keep the portable form,
+  and `SECP256K1_CUDA_PORTABLE_CARRY=1` forces it. The two forms are
+  bit-identical. This affects scalar-order ops, `glv_decompose` and
+  `field_mul_small`; the PTX field core is unchanged.
+  `benchmarks/gpu/cuda/addcc_ab_bench.cu` times both forms in one binary and
+  checks they agree. Reported by zeroxbee (VanityPlate, Discussion #462).
+  The formal 5-run A/B is still pending.
+
+  Also fixed (NF-2026-00032): the CUDA 13 build of `bench_decompress_ab` and
+  `bench_raw_entry_ab`. They read `cudaDevAttrClockRate` instead of the removed
+  `cudaDeviceProp::clockRate`, and `bench_decompress_ab` passes 64-byte compact
+  signatures to the current `ecdsa_verify_batch_kernel`.
 - **CPU: lane-parallel field arithmetic (`secp256k1/lanes.hpp`, `src/cpu/src/lanes/`),
   the layer under the RM-2026-00009 lane verify path.** Four backends hold one
   independent field element per SIMD lane:

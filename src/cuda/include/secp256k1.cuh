@@ -238,7 +238,31 @@ __device__ __forceinline__ void mul64_portable(uint64_t a, uint64_t b, uint64_t&
 #endif
 }
 
-__device__ __forceinline__ uint64_t add_cc(uint64_t a, uint64_t b, uint64_t& carry) {
+// -- Carry-chain primitives: two selectable forms ----------------------------
+// Both forms are bit-identical; they differ only in the code the compiler sees.
+//
+//   native   (*_native)   : unsigned __int128 add/sub, the form 552f86dd used.
+//                           nvcc lowers it to a PTX add.cc/addc carry chain.
+//   portable (*_portable) : compare-based carry (a + b < a), needs no 128-bit
+//                           type. Required for HIP/ROCm and for host compilers
+//                           without __int128 (MSVC).
+//
+// add_cc/sub_cc/muladd64 dispatch on SECP256K1_CUDA_PORTABLE_CARRY.
+// Default: native on an nvcc build whose host compiler has __int128, portable
+// otherwise. Define SECP256K1_CUDA_PORTABLE_CARRY=1 to force the portable form
+// on nvcc (used by benchmarks/gpu/cuda/addcc_ab_bench.cu).
+#ifndef SECP256K1_CUDA_PORTABLE_CARRY
+  #if SECP256K1_USE_PTX && SECP256K1_CUDA_HAS_NATIVE_UINT128
+    #define SECP256K1_CUDA_PORTABLE_CARRY 0
+  #else
+    #define SECP256K1_CUDA_PORTABLE_CARRY 1
+  #endif
+#endif
+#if !SECP256K1_CUDA_PORTABLE_CARRY && !SECP256K1_CUDA_HAS_NATIVE_UINT128
+  #error "SECP256K1_CUDA_PORTABLE_CARRY=0 needs a compiler with unsigned __int128"
+#endif
+
+__device__ __forceinline__ uint64_t add_cc_portable(uint64_t a, uint64_t b, uint64_t& carry) {
     const uint64_t sum = a + b;
     const uint64_t carry0 = (sum < a) ? 1ULL : 0ULL;
     const uint64_t result = sum + carry;
@@ -247,7 +271,7 @@ __device__ __forceinline__ uint64_t add_cc(uint64_t a, uint64_t b, uint64_t& car
     return result;
 }
 
-__device__ __forceinline__ uint64_t sub_cc(uint64_t a, uint64_t b, uint64_t& borrow) {
+__device__ __forceinline__ uint64_t sub_cc_portable(uint64_t a, uint64_t b, uint64_t& borrow) {
     const uint64_t diff = a - b;
     const uint64_t borrow0 = (a < b) ? 1ULL : 0ULL;
     const uint64_t result = diff - borrow;
@@ -256,19 +280,62 @@ __device__ __forceinline__ uint64_t sub_cc(uint64_t a, uint64_t b, uint64_t& bor
     return result;
 }
 
-__device__ __forceinline__ uint64_t muladd64(uint64_t a, uint64_t b, uint64_t add, uint64_t& carry) {
+__device__ __forceinline__ uint64_t muladd64_portable(uint64_t a, uint64_t b, uint64_t add, uint64_t& carry) {
     uint64_t lo;
     uint64_t hi;
     uint64_t step_carry = 0;
     mul64_portable(a, b, lo, hi);
-    lo = add_cc(lo, add, step_carry);
+    lo = add_cc_portable(lo, add, step_carry);
     hi += step_carry;
     step_carry = 0;
-    lo = add_cc(lo, carry, step_carry);
+    lo = add_cc_portable(lo, carry, step_carry);
     hi += step_carry;
     carry = hi;
     return lo;
 }
+
+#if SECP256K1_CUDA_HAS_NATIVE_UINT128
+__device__ __forceinline__ uint64_t add_cc_native(uint64_t a, uint64_t b, uint64_t& carry) {
+    unsigned __int128 sum = (unsigned __int128)a + b + carry;
+    carry = (uint64_t)(sum >> 64);
+    return (uint64_t)sum;
+}
+
+__device__ __forceinline__ uint64_t sub_cc_native(uint64_t a, uint64_t b, uint64_t& borrow) {
+    unsigned __int128 diff = (unsigned __int128)a - b - borrow;
+    borrow = (uint64_t)((diff >> 127) & 1);
+    return (uint64_t)diff;
+}
+
+// a*b + add + carry fits in 128 bits: (2^64-1)^2 + 2*(2^64-1) = 2^128 - 1.
+__device__ __forceinline__ uint64_t muladd64_native(uint64_t a, uint64_t b, uint64_t add, uint64_t& carry) {
+    unsigned __int128 p = (unsigned __int128)a * b + add + carry;
+    carry = (uint64_t)(p >> 64);
+    return (uint64_t)p;
+}
+#endif
+
+#if SECP256K1_CUDA_PORTABLE_CARRY
+__device__ __forceinline__ uint64_t add_cc(uint64_t a, uint64_t b, uint64_t& carry) {
+    return add_cc_portable(a, b, carry);
+}
+__device__ __forceinline__ uint64_t sub_cc(uint64_t a, uint64_t b, uint64_t& borrow) {
+    return sub_cc_portable(a, b, borrow);
+}
+__device__ __forceinline__ uint64_t muladd64(uint64_t a, uint64_t b, uint64_t add, uint64_t& carry) {
+    return muladd64_portable(a, b, add, carry);
+}
+#else
+__device__ __forceinline__ uint64_t add_cc(uint64_t a, uint64_t b, uint64_t& carry) {
+    return add_cc_native(a, b, carry);
+}
+__device__ __forceinline__ uint64_t sub_cc(uint64_t a, uint64_t b, uint64_t& borrow) {
+    return sub_cc_native(a, b, borrow);
+}
+__device__ __forceinline__ uint64_t muladd64(uint64_t a, uint64_t b, uint64_t add, uint64_t& carry) {
+    return muladd64_native(a, b, add, carry);
+}
+#endif
 
 // Forward decls used by Montgomery helpers.
 __device__ inline void mul_256_512(const FieldElement* a, const FieldElement* b, uint64_t r[8]);

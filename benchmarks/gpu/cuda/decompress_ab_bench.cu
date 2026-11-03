@@ -19,11 +19,13 @@
 // These are NOT in any .cuh header, so we must declare them ourselves.
 namespace secp256k1 { namespace cuda {
 
+// Must match the definition in secp256k1.cu exactly (compact 64-byte sigs,
+// __restrict__ qualifiers) or the link fails with an undefined reference.
 __global__ void ecdsa_verify_batch_kernel(
-    const uint8_t* msg_hashes,
-    const JacobianPoint* public_keys,
-    const ECDSASignatureGPU* sigs,
-    bool* results, int count);
+    const uint8_t* __restrict__ msg_hashes,
+    const JacobianPoint* __restrict__ public_keys,
+    const uint8_t* __restrict__ sigs64,
+    bool* __restrict__ results, int count);
 
 __global__ void ecdsa_sign_batch_kernel(
     const uint8_t* msg_hashes,
@@ -64,20 +66,27 @@ __device__ inline bool gpu_decompress_33(const uint8_t pk33[33],
 }
 
 // === Path B kernel: decompress + verify in one shot ===
+// Signatures arrive as 64-byte compact (big-endian r||s), the same input
+// ecdsa_verify_batch_kernel in secp256k1.cu takes, so both paths parse
+// identically and only the pubkey handling differs.
 __global__ void ecdsa_verify_decompress_kernel(
     const uint8_t* msgs, const uint8_t* pubkeys33,
-    const ECDSASignatureGPU* sigs, bool* results, int count)
+    const uint8_t* sigs64, bool* results, int count)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= count) return;
     const uint8_t* pk = pubkeys33 + (size_t)i * 33;
     FieldElement px, py;
     if (!gpu_decompress_33(pk, &px, &py)) { results[i] = false; return; }
+    ECDSASignatureGPU sig;
+    if (!ecdsa_sig_parse_compact_strict(sigs64 + (size_t)i * 64, &sig)) {
+        results[i] = false; return;
+    }
     JacobianPoint pub;
     pub.x = px; pub.y = py;
     field_set_one(&pub.z);
     pub.infinity = false;
-    results[i] = ecdsa_verify(msgs + (size_t)i * 32, &pub, &sigs[i]);
+    results[i] = ecdsa_verify(msgs + (size_t)i * 32, &pub, &sig);
 }
 
 }} // namespace secp256k1::cuda
@@ -95,8 +104,11 @@ int main(int argc, char** argv) {
 
     int dev; cudaGetDevice(&dev);
     cudaDeviceProp prop; cudaGetDeviceProperties(&prop, dev);
+    // cudaDeviceProp::clockRate was removed in CUDA 13; query the attribute instead.
+    int clock_khz = 0;
+    cudaDeviceGetAttribute(&clock_khz, cudaDevAttrClockRate, dev);
     std::printf("GPU: %s | SM=%d | %d MHz | Batch=%d\n\n",
-                prop.name, prop.multiProcessorCount, prop.clockRate/1000, batch);
+                prop.name, prop.multiProcessorCount, clock_khz/1000, batch);
 
     // Generate test vectors
     std::mt19937_64 rng(0xDEC0DEC0);
@@ -138,6 +150,25 @@ int main(int argc, char** argv) {
     CUDA_CHECK(cudaMemcpy(h_pubs.data(), d_pubs,
         batch*sizeof(JacobianPoint), cudaMemcpyDeviceToHost));
 
+    // The verify kernels take 64-byte compact (big-endian r||s) signatures,
+    // not ECDSASignatureGPU structs; serialise the signed batch the same way
+    // src/cuda/src/bench_cuda.cu does.
+    std::vector<uint8_t> h_sigs64((size_t)batch * 64);
+    for (int i = 0; i < batch; i++) {
+        for (int limb = 0; limb < 4; limb++) {
+            const uint64_t rv = h_sigs[i].r.limbs[limb];
+            const uint64_t sv = h_sigs[i].s.limbs[limb];
+            for (int b = 0; b < 8; b++) {
+                h_sigs64[(size_t)i*64 + 31 - limb*8 - b] = (uint8_t)(rv >> (b*8));
+                h_sigs64[(size_t)i*64 + 63 - limb*8 - b] = (uint8_t)(sv >> (b*8));
+            }
+        }
+    }
+    uint8_t *d_sigs64;
+    CUDA_CHECK(cudaMalloc(&d_sigs64, (size_t)batch*64));
+    CUDA_CHECK(cudaMemcpy(d_sigs64, h_sigs64.data(), (size_t)batch*64,
+                          cudaMemcpyHostToDevice));
+
     // Convert Jacobian -> 33-byte compressed ON GPU (proper affine normalization)
     uint8_t *d_pk33;
     CUDA_CHECK(cudaMalloc(&d_pk33, batch*33));
@@ -157,7 +188,7 @@ int main(int argc, char** argv) {
     for (int pass = 0; pass < warmup + measure; pass++) {
         cudaEvent_t s, e; cudaEventCreate(&s); cudaEventCreate(&e);
         cudaEventRecord(s);
-        ecdsa_verify_batch_kernel<<<blocks,128>>>(d_msgs,d_pubs,d_sigs,d_res,batch);
+        ecdsa_verify_batch_kernel<<<blocks,128>>>(d_msgs,d_pubs,d_sigs64,d_res,batch);
         cudaEventRecord(e); cudaEventSynchronize(e);
         float ms; cudaEventElapsedTime(&ms, s, e);
         cudaEventDestroy(s); cudaEventDestroy(e);
@@ -182,7 +213,7 @@ int main(int argc, char** argv) {
     for (int pass = 0; pass < warmup + measure; pass++) {
         cudaEvent_t s, e; cudaEventCreate(&s); cudaEventCreate(&e);
         cudaEventRecord(s);
-        ecdsa_verify_decompress_kernel<<<blocks,128>>>(d_msgs,d_pk33,d_sigs,d_res,batch);
+        ecdsa_verify_decompress_kernel<<<blocks,128>>>(d_msgs,d_pk33,d_sigs64,d_res,batch);
         cudaEventRecord(e); cudaEventSynchronize(e);
         float ms; cudaEventElapsedTime(&ms, s, e);
         cudaEventDestroy(s); cudaEventDestroy(e);
@@ -221,6 +252,7 @@ int main(int argc, char** argv) {
     CUDA_CHECK(cudaFree(d_msgs));
     CUDA_CHECK(cudaMemset(d_sk, 0, batch*sizeof(Scalar)));
     CUDA_CHECK(cudaFree(d_sk)); CUDA_CHECK(cudaFree(d_sigs));
+    CUDA_CHECK(cudaFree(d_sigs64));
     CUDA_CHECK(cudaFree(d_ok)); CUDA_CHECK(cudaFree(d_pubs));
     CUDA_CHECK(cudaFree(d_pk33)); CUDA_CHECK(cudaFree(d_res));
     return 0;
