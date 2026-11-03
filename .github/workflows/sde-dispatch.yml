@@ -1,0 +1,207 @@
+# ===========================================================================
+# SDE Dispatch -- the CPU feature view, the dispatch tests and (when it
+# exists) the lane backends test, run on emulated Intel CPUs
+# ===========================================================================
+#
+# WHY THIS EXISTS
+# The runtime dispatchers (BMI2/ADX field multiply, hash tier, and the lane
+# backends chosen with UFSECP_LANES) pick their code path from CPUID. Which CPU
+# a hosted runner has is not under our control and varies between AMD and Intel
+# parts, so the path taken there is not reproducible. Intel SDE emulates a chosen
+# CPU, so the same binaries run as they would on:
+#   -tgl  Tiger Lake      AVX-512 including IFMA (11th-gen client, 512-bit IFMA)
+#   -spr  Sapphire Rapids AVX-512 including IFMA
+#   -srf  Sierra Forest   AVX-IFMA (VEX encoded, no AVX-512)
+#
+# WHAT IT PROVES
+# Correctness and dispatch only: cpu_hwinfo decodes the emulated CPU, the
+# dispatch tests pass on it, and test_field_lanes (when the tree has it) passes
+# natively, on every emulated CPU, and with each lane backend required. SDE is an
+# emulator, so nothing here says anything about speed. Speed is measured on real
+# hardware with tools/measure_cpu_variants.py (docs/MEASUREMENT_KIT.md), and a
+# variant becomes a default only from such a measurement.
+#
+# WHEN IT RUNS
+# On push to dev when src/cpu/** or the CMake files change, and by hand
+# (workflow_dispatch). It is not a pull_request check: emulation is slow, and the
+# path filter keeps it off unrelated pushes.
+# ===========================================================================
+
+name: SDE Dispatch
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'src/cpu/**'
+      - 'CMakeLists.txt'
+      - 'CMakePresets.json'
+      - 'cmake/**'
+      - 'tools/measure_cpu_variants.py'
+      - '.github/workflows/sde-dispatch.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sde-dispatch-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sde:
+    name: SDE / tgl spr srf
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      BUILD_DIR: out/cpu-release
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends g++-14 ninja-build python3 jq
+
+      # Installed before the build so a download problem fails the job early.
+      # The action puts the SDE directory in $SDE_PATH. Both inputs are passed
+      # explicitly: its action.yml marks them required and spells the default
+      # as `defaultValue`, which GitHub does not apply.
+      - name: Install Intel SDE
+        uses: petarpetrovt/setup-sde@6d2773bc0ef3005fd52e0ae0bb91782321793aec # v6.0
+        with:
+          environmentVariableName: SDE_PATH
+          sdeVersion: 10.13.1
+
+      - name: Check the SDE install
+        run: |
+          test -n "${SDE_PATH:-}" || { echo "::error::setup-sde did not set SDE_PATH"; exit 1; }
+          test -x "$SDE_PATH/sde64" || { echo "::error::no sde64 in $SDE_PATH"; exit 1; }
+          "$SDE_PATH/sde64" -version || true
+          # SDE traces its child with ptrace; the runner image restricts that by default.
+          echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope || true
+
+      - name: Kit self-test (no build, no CPU work)
+        run: python3 tools/measure_cpu_variants.py --self-test
+
+      - name: Configure (cpu-release preset)
+        run: |
+          # CMakePresets.json is the single source of truth for the config; compiler
+          # and march are environment overrides on top. x86-64-v3 keeps the baseline
+          # code valid on every emulated CPU below: the lane backends are chosen at
+          # run time from CPUID, which is what this workflow exercises. Bench and
+          # OpenMP are off: nothing here measures speed, and OpenMP threads only add
+          # emulation overhead.
+          cmake --preset cpu-release \
+            -DCMAKE_CXX_COMPILER=g++-14 \
+            -DSECP256K1_MARCH=x86-64-v3 \
+            -DSECP256K1_BUILD_BENCH=OFF \
+            -DSECP256K1_BUILD_EXAMPLES=OFF \
+            -DSECP256K1_ENABLE_OPENMP=OFF
+
+      - name: Build (cpu_hwinfo, test_cpu_features_standalone, test_field_lanes when present)
+        run: |
+          targets="cpu_hwinfo test_cpu_features_standalone"
+          # test_field_lanes arrives with the lane backends: build it only when this tree has it.
+          # Ninja lists a target as "name:" (the alias) or "dir/name:" (the output), so allow both.
+          if ninja -C "$BUILD_DIR" -t targets all | grep -Eq '^([^:]*/)?test_field_lanes:'; then
+            targets="$targets test_field_lanes"
+          else
+            echo "test_field_lanes is not in this tree: the lane steps are skipped"
+          fi
+          # shellcheck disable=SC2086  # $targets is a deliberate word list
+          cmake --build "$BUILD_DIR" -j"$(nproc)" --target $targets
+
+      # The binaries run in place (not copied): the build tree is where they find their libraries.
+      - name: Locate the binaries
+        run: |
+          for pair in CPU_HWINFO:cpu_hwinfo TEST_CPU_FEATURES:test_cpu_features_standalone TEST_FIELD_LANES:test_field_lanes; do
+            var="${pair%%:*}"
+            tool="${pair##*:}"
+            path="$(find "$PWD/$BUILD_DIR" -type f -name "$tool" -perm -u+x -print -quit)"
+            if [ -n "$path" ]; then
+              echo "$var=$path" >> "$GITHUB_ENV"
+              echo "$tool -> $path"
+            fi
+          done
+
+      - name: Native run (the runner's own CPU, informational)
+        run: |
+          : "${CPU_HWINFO:?cpu_hwinfo was not built}"
+          : "${TEST_CPU_FEATURES:?test_cpu_features_standalone was not built}"
+          "$CPU_HWINFO"
+          "$CPU_HWINFO" --json > hwinfo-native.json
+          "$TEST_CPU_FEATURES"
+          if [ -n "${TEST_FIELD_LANES:-}" ]; then
+            "$TEST_FIELD_LANES"
+          fi
+
+      - name: Run under Intel SDE (-tgl, -spr, -srf)
+        run: |
+          set +e   # run every chip and every test, then fail once at the end
+          : "${CPU_HWINFO:?cpu_hwinfo was not built}"
+          : "${TEST_CPU_FEATURES:?test_cpu_features_standalone was not built}"
+          SDE="$SDE_PATH/sde64"
+          failed=0
+          step() {
+            label="$1"
+            shift
+            if timeout 25m "$@"; then
+              echo "ok:     $label"
+            else
+              echo "::error::FAILED: $label"
+              failed=1
+            fi
+          }
+          # chip:flag  - the IFMA flag cpu_hwinfo must report as raw=true on that emulated CPU
+          for spec in tgl:avx512ifma spr:avx512ifma srf:avx_ifma; do
+            chip="${spec%%:*}"
+            want="${spec##*:}"
+            echo "::group::sde64 -$chip"
+            step "cpu_hwinfo under -$chip" "$SDE" "-$chip" -- "$CPU_HWINFO"
+            "$SDE" "-$chip" -- "$CPU_HWINFO" --json > "hwinfo-$chip.json" \
+              || { echo "::error::FAILED: cpu_hwinfo --json under -$chip"; failed=1; }
+            step "-$chip exposes $want" jq -e ".features.$want.raw" "hwinfo-$chip.json"
+            step "test_cpu_features_standalone under -$chip" "$SDE" "-$chip" -- "$TEST_CPU_FEATURES"
+            if [ -n "${TEST_FIELD_LANES:-}" ]; then
+              step "test_field_lanes under -$chip" "$SDE" "-$chip" -- "$TEST_FIELD_LANES"
+              case "$chip" in
+                spr)
+                  step "test_field_lanes --require=ifma512 under -spr" "$SDE" -spr -- "$TEST_FIELD_LANES" --require=ifma512
+                  step "test_field_lanes --require=ifma256 under -spr" "$SDE" -spr -- "$TEST_FIELD_LANES" --require=ifma256
+                  ;;
+                srf)
+                  # avx_ifma is built only when the compiler supports it; cpu_hwinfo lists what exists here.
+                  if python3 tools/measure_cpu_variants.py --print-lanes "hwinfo-$chip.json" | grep -qx avx_ifma; then
+                    step "test_field_lanes --require=avx_ifma under -srf" "$SDE" -srf -- "$TEST_FIELD_LANES" --require=avx_ifma
+                  else
+                    echo "the avx_ifma lane backend is not built here: --require=avx_ifma skipped"
+                  fi
+                  ;;
+              esac
+            fi
+            echo "::endgroup::"
+          done
+          exit "$failed"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## SDE Dispatch"
+            echo
+            echo "Correctness and dispatch only. SDE is an emulator: these runs say nothing about speed."
+            echo
+            echo "| CPU | brand | usable features | field mul | hash tier |"
+            echo "|---|---|---|---|---|"
+            for f in hwinfo-native.json hwinfo-tgl.json hwinfo-spr.json hwinfo-srf.json; do
+              [ -s "$f" ] || continue
+              jq -r --arg n "${f%.json}" '"| \($n | ltrimstr("hwinfo-")) | \(.brand) | \([.features | to_entries[] | select(.value.masked) | .key] | join(", ")) | \(.dispatch.field_mul) | \(.dispatch.hash_tier) |"' "$f"
+            done
+          } >> "$GITHUB_STEP_SUMMARY"

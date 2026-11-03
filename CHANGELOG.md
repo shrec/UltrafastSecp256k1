@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CPU-variant measurement kit (`tools/measure_cpu_variants.py`,
+  `docs/MEASUREMENT_KIT.md`) and Intel SDE CI (`.github/workflows/sde-dispatch.yml`).**
+  RM-2026-00010. The kit runs on Linux and Windows:
+  - builds `bench_unified` and `cpu_hwinfo` from a preset;
+  - discovers the CPU features and lane backends;
+  - runs every variant (default, `no_bmi2_adx`, `lanes_off`, each available lane
+    backend) for N rounds in rotating order, pinned to one core;
+  - writes one never-overwritten canonical JSON with CPU, microcode, OS, compiler,
+    binary sha256, per-round values and the repo's non-overlap verdict per op.
+
+  The SDE workflow runs `cpu_hwinfo`, `cpu_features` and `field_lanes` natively
+  and under SDE `-tgl`/`-spr`/`-srf`, using `petarpetrovt/setup-sde` pinned by
+  commit.
 - **OpenCL and Metal: register-only hash160 (NF-2026-00033).** The CUDA form from
   `d86d3bbf` (zeroxbee, VanityPlate) is ported to
   `src/opencl/kernels/secp256k1_hash160.cl` and
