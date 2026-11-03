@@ -645,6 +645,54 @@ number: `docs/benchmark_artifacts/cuda_hash160_unrolled_ab_2026-11-02_rtx5060ti.
 This is the hash kernel alone. `ufsecp_gpu_hash160_pubkey_batch` also copies
 inputs and outputs over PCIe, which this harness does not measure.
 
+### CUDA carry chain: native `__int128` `add_cc` on nvcc (2026-11-03)
+
+Commit `5cac5999` (NF-2026-00031, reported by zeroxbee / VanityPlate) makes
+`add_cc`, `sub_cc` and `muladd64` in `src/cuda/include/secp256k1.cuh` use the
+`unsigned __int128` form again on nvcc. nvcc lowers that form to a PTX
+`add.cc`/`addc` chain. Since `8af7320c` every build had used a compare-based
+carry. Both measurements are on an RTX 5060 Ti (sm_120, CUDA 13.2).
+
+**1. Code built on these primitives.** `benchmarks/gpu/cuda/addcc_ab_bench.cu`
+compiles the same kernels twice, once with each carry form, in one binary. Each
+run alternates the forms over 11 reps. There are five runs, and outputs are
+bit-identical. Source: `docs/benchmark_artifacts/cuda_addcc_harness_ab_2026-11-03_rtx5060ti.json`.
+
+| Kernel (harness) | Portable carry: ns/op median (min - max) | Native carry: ns/op median (min - max) | Median change | Ranges |
+|---|---:|---:|---:|---|
+| field_mul | 0.0531 (0.0515 - 0.0531) | 0.0388 (0.0380 - 0.0388) | -26.9% | no overlap, faster |
+| field add/sub chain | 0.0106 (0.0103 - 0.0106) | 0.0053 (0.0052 - 0.0053) | -50.0% | no overlap, faster |
+| generator scalar mult | 314.50 (307.13 - 314.78) | 218.18 (213.88 - 218.21) | -30.6% | no overlap, faster |
+| vanity (key step + pubkey + field ops) | 182.88 (177.69 - 182.91) | 126.73 (122.90 - 126.80) | -30.7% | no overlap, faster |
+
+These kernels are written over the carry primitives, as user kernels that call
+them are. They are not the library's tuned PTX field core.
+
+**2. The library's own paths.** `gpu_bench_unified --suite all --passes 11`
+was built at `5402d9e0` (before) and `5cac5999` (after), with five rounds in
+alternating order. The PTX field core never used `add_cc`, so most rows do not
+move. Rows that changed or that call the touched scalar ops are shown below.
+Every other row, including field mul/sqr/add/sub/inv and MSM, overlaps within
+±0.6%. Source: `docs/benchmark_artifacts/cuda_carry_chain_gpu_bench_unified_ab_2026-11-03_rtx5060ti.json`.
+
+| gpu_bench_unified row | Before: ns/op median (min - max) | After: ns/op median (min - max) | Median change | Ranges |
+|---|---:|---:|---:|---|
+| Scalar Arithmetic / scalar inv | 60.64 (60.63 - 60.65) | 60.29 (60.25 - 60.30) | -0.6% | no overlap, faster |
+| Point Operations / add (Jacobian) | 0.93 (0.93 - 0.94) | 0.94 (0.93 - 0.94) | +1.1% | overlap (noise) |
+| Point Operations / double | 0.74 (0.73 - 0.74) | 0.73 (0.73 - 0.74) | -1.4% | overlap (noise) |
+| Scalar Multiplication / k*G (generator) | 136.11 (136.03 - 136.22) | 136.08 (136.00 - 136.17) | -0.0% | overlap (noise) |
+| ECDSA / sign (RFC 6979) | 184.99 (184.84 - 185.01) | 185.48 (185.33 - 186.01) | +0.3% | no overlap, slower |
+| Schnorr/BIP-340 / sign | 217.88 (214.07 - 218.20) | 217.26 (212.86 - 217.69) | -0.3% | overlap (noise) |
+| CT Point Ops / ct::k*G (generator) | 95.67 (93.99 - 95.68) | 93.93 (93.43 - 95.57) | -1.8% | overlap (noise) |
+| CT Point Ops / ct::k*P (scalar mul) | 161.46 (157.84 - 161.76) | 158.33 (157.84 - 162.35) | -1.9% | overlap (noise) |
+| CT ECDSA / ct::ecdsa_sign | 175.87 (173.90 - 176.53) | 176.87 (176.63 - 177.52) | +0.6% | no overlap, slower |
+| CT Schnorr / ct::schnorr_sign | 211.03 (208.89 - 211.59) | 209.14 (208.52 - 209.48) | -0.9% | overlap (noise) |
+
+Net effect: code that builds on `add_cc`/`sub_cc`/`muladd64` gets the native
+chain back, and the library's own benchmark rows stay within ±1%. ECDSA sign
+is 0.3% slower and CT ECDSA sign 0.6% slower, both with non-overlapping ranges;
+scalar inverse is 0.6% faster.
+
 ### GPU Signature Operations `[archived / diagnostic — kernel-only, excl. PCIe DMA; verify against current bench before citing]`
 
 > As of early 2026, this is the only multi-backend (CUDA + OpenCL + Metal) secp256k1 library
@@ -817,6 +865,25 @@ is retained from this sweep.
 **Hardware:** NVIDIA RTX 5060 Ti (36 CUs, 2602 MHz)  
 **OpenCL:** 3.0 CUDA, Driver 580.126.09  
 **Build:** Clang 19, Release, -O3, PTX inline assembly  
+
+### OpenCL hash160: register-only SHA-256 and unrolled RIPEMD-160 (2026-11-03)
+
+Commit `39044386` (NF-2026-00033) ports the CUDA hash160 from `d86d3bbf`
+(zeroxbee, VanityPlate) to `src/opencl/kernels/secp256k1_hash160.cl`.
+`opencl_hash160_ab_bench` keeps the previous loop/table form inside the harness
+and times both forms in one run:
+- 2^20 device-resident keys, 20 kernel iterations, median over 11 reps;
+- five runs on an RTX 5060 Ti through the NVIDIA OpenCL ICD;
+- the old and new forms agree on every key.
+
+Source of every number: `docs/benchmark_artifacts/opencl_hash160_ab_2026-11-03_rtx5060ti.json`.
+The Metal port mirrors the same code. It has not been measured: no Apple GPU
+was available.
+
+| Input | Before: ns/hash median (min - max) | After: ns/hash median (min - max) | Median change | Ranges |
+|---|---:|---:|---:|---|
+| 33-byte compressed key | 0.9313 (0.9310 - 0.9322) | 0.3967 (0.3966 - 0.3968) | -57.4% | no overlap, faster |
+| 65-byte uncompressed key | 1.2656 (1.2515 - 1.3092) | 0.9752 (0.9630 - 1.0024) | -22.9% | no overlap, faster |
 
 ### OpenCL GPU C ABI Coverage (2026-04-11)
 
