@@ -8,7 +8,9 @@
 // It does everything that is not lane arithmetic -- parse and policy exactly as
 // ecdsa_verify / schnorr_verify, s^-1 by one batch inversion per group, the
 // affine pubkey by one batch normalisation per group, BIP-340 lift_x and
-// challenge -- and hands plain arrays to the per-ISA kernel
+// challenge, and the GLV split of both coefficients (glv_decompose: u = a +
+// b*lambda with |a|, |b| < 2^128, so the lanes run about half the doublings)
+// -- and hands plain arrays to the per-ISA kernel
 // (lanes_verify_kernels.hpp) through the table lanes_tables.hpp declares. Any
 // entry the kernel cannot decide (prep reject, exceptional lane) gets the
 // scalar verifier's verdict, so the result always equals the scalar one.
@@ -28,6 +30,7 @@
 #include "secp256k1/batch_verify.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/field.hpp"
+#include "secp256k1/glv.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/schnorr.hpp"
@@ -113,14 +116,42 @@ const LaneVerifyKernels* verify_kernels(LaneBackend b) noexcept {
 // Unused lanes of a partial group repeat lane 0 (valid inputs, result ignored).
 void pad_group(LaneVerifyGroup& g, unsigned used, unsigned width) noexcept {
     for (unsigned l = used; l < width; ++l) {
-        std::memcpy(g.u1 + 4 * l, g.u1, 32);
-        std::memcpy(g.u2 + 4 * l, g.u2, 32);
+        for (unsigned h = 0; h < 4; ++h) {
+            std::memcpy(g.k[h] + 2 * l, g.k[h], 16);
+            g.k_neg[h] = (g.k_neg[h] & ~(1u << l)) | ((g.k_neg[h] & 1u) << l);
+        }
         std::memcpy(g.qx + 4 * l, g.qx, 32);
         std::memcpy(g.qy + 4 * l, g.qy, 32);
         std::memcpy(g.r + 4 * l, g.r, 32);
         std::memcpy(g.rn + 4 * l, g.rn, 32);
         g.rn_ok |= (g.rn_ok & 1u) << l;
     }
+}
+
+// Lane `lane` of g <- the GLV halves of u1 (k0, k1) and u2 (k2, k3):
+// u = (k1_neg ? -k1 : k1) + (k2_neg ? -k2 : k2) * lambda (mod n), the same
+// decomposition the scalar verifier's GLV path uses (glv_decompose). Its
+// magnitudes are below 2^128 for every scalar (the lattice basis bound), which
+// is what the 2x64 slots hold; should one ever be wider, the lane is refused
+// (false, nothing written) and the caller asks the scalar verifier instead.
+bool put_glv(LaneVerifyGroup& g, unsigned lane, const Scalar& u1, const Scalar& u2) noexcept {
+    const fast::GLVDecomposition d[2] = {fast::glv_decompose(u1), fast::glv_decompose(u2)};
+    for (const fast::GLVDecomposition& x : d) {
+        const auto& a = x.k1.limbs();
+        const auto& b = x.k2.limbs();
+        if ((a[2] | a[3] | b[2] | b[3]) != 0) return false;
+    }
+    for (unsigned c = 0; c < 2; ++c) {
+        const auto& a = d[c].k1.limbs();
+        const auto& b = d[c].k2.limbs();
+        g.k[2 * c][2 * lane] = a[0];
+        g.k[2 * c][2 * lane + 1] = a[1];
+        g.k[2 * c + 1][2 * lane] = b[0];
+        g.k[2 * c + 1][2 * lane + 1] = b[1];
+        g.k_neg[2 * c] |= static_cast<unsigned>(d[c].k1_neg) << lane;
+        g.k_neg[2 * c + 1] |= static_cast<unsigned>(d[c].k2_neg) << lane;
+    }
+    return true;
 }
 
 bool on_curve(const FieldElement& x, const FieldElement& y) {
@@ -207,7 +238,9 @@ bool ecdsa_verify_lanes(const ECDSABatchEntry* entries, std::size_t n, bool* res
         }
         w[0] = inv;
 
-        // 3. Lane inputs: u1 = z*w, u2 = r*w, Q affine, r and r + n.
+        // 3. Lane inputs: the GLV halves of u1 = z*w and u2 = r*w, Q affine, r
+        //    and r + n. u1 == 0 (z == 0 mod n) needs no special case: its
+        //    halves are zero and the lanes compute R = u2*Q.
         LaneVerifyGroup g{};
         std::size_t lane_entry[kLaneVerifyMaxLanes];
         unsigned used = 0;
@@ -222,13 +255,11 @@ bool ecdsa_verify_lanes(const ECDSABatchEntry* entries, std::size_t n, bool* res
             const Scalar z = Scalar::from_bytes(e.msg_hash);
             const Scalar u1 = z * w[c];
             const Scalar u2 = e.signature.r * w[c];
-            if (u1.is_zero() || u2.is_zero()) {   // recoding needs [1, n-1]
+            if (!put_glv(g, used, u1, u2)) {
                 results[i] = ecdsa_scalar(e);
-                ++st.prep_fallback;
+                ++st.exceptional_fallback;
                 continue;
             }
-            put4(g.u1 + 4 * used, u1.limbs());
-            put4(g.u2 + 4 * used, u2.limbs());
             put4(g.qx + 4 * used, qx[c].limbs());
             put4(g.qy + 4 * used, qy[c].limbs());
             put4(g.r + 4 * used, e.signature.r.limbs());
@@ -304,16 +335,18 @@ bool schnorr_verify_lanes(const SchnorrBatchEntry* entries, std::size_t n, bool*
                 std::memcpy(buf + 32, e.pubkey_x.data(), 32);
                 std::memcpy(buf + 64, e.message.data(), 32);
                 const Scalar ev = Scalar::from_bytes(tagged_hash("BIP0340/challenge", buf, sizeof(buf)));
-                neg_e = ev.negate_var();   // e is public
-                prep_ok = !neg_e.is_zero();   // recoding needs [1, n-1]
+                neg_e = ev.negate_var();   // e is public; e == 0 only zeroes the Q halves
             }
             if (!prep_ok) {
                 results[i] = schnorr_scalar(e);
                 ++st.prep_fallback;
                 continue;
             }
-            put4(g.u1 + 4 * used, e.signature.s.limbs());
-            put4(g.u2 + 4 * used, neg_e.limbs());
+            if (!put_glv(g, used, e.signature.s, neg_e)) {   // u1 = s, u2 = -e
+                results[i] = schnorr_scalar(e);
+                ++st.exceptional_fallback;
+                continue;
+            }
             put4(g.qx + 4 * used, px.limbs());
             put4(g.qy + 4 * used, py.limbs());
             std::memcpy(g.r + 4 * used, rl, 32);

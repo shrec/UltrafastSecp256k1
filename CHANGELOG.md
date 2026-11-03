@@ -8,6 +8,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CPU: the lane verifiers' dual multiplication is GLV-split (RM-2026-00009).**
+  `u1*G + u2*Q` is now computed per lane as `a1*G + b1*phi(G) + a2*Q + b2*phi(Q)`.
+  The halves come from `glv_decompose`, are below 2^128, and carry their signs as
+  lane masks. This shortens the shared doubling chain from about 256 doublings to
+  about 128, the saving the scalar verifier already gets. The G table and the
+  per-lane Q tables gain a `beta*x` column for phi.
+
+  Recoding is signed fixed-window and allows zero digits, so `u1 == 0` no longer
+  needs a scalar fallback. Exceptional lanes still go to the scalar verifier, and
+  verdicts are unchanged. The differential test adds GLV boundary, negative-half,
+  zero-half and `u = 0 / n-1` cases. It passes natively and under Intel SDE `-spr`
+  and `-srf`.
+
+  The lane path stays opt-in. Throughput: not yet measured on IFMA hardware, the
+  benchmark is required there (`tools/measure_cpu_variants.py`).
 - **CPU: batch verification can use the lane verifiers (opt-in), RM-2026-00009 part 3.**
   This applies to ECDSA batch verify (plain, `_mt`, identify-invalid, opaque
   rows/columns) and to BIP-340 batches below the MSM cutoff (28) and

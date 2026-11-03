@@ -36,50 +36,75 @@
 //
 // ---- Dual scalar multiplication R = u1*G + u2*Q (lg_dual_mul) -----------------
 //
-// Control flow is identical in every lane and depends only on the window
-// widths: per-lane data changes table indices and negation masks, never
-// branches.
+// GLV: secp256k1 has the endomorphism phi(x, y) = (beta*x, y) = lambda*(x, y)
+// (beta^3 = 1 mod p, lambda^3 = 1 mod n; the constants of secp256k1/glv.hpp).
+// The scalar side (lanes_verify.cpp) splits each coefficient with the library's
+// glv_decompose:
 //
-//   * Recoding: fixed-length regular signed-window recoding (all digits odd,
-//     |d| <= 2^w - 1, every digit non-zero, see lg_recode). It needs an odd
-//     scalar; an even u is replaced by n - u (odd, n is odd) and the base point
-//     negated per lane: u*P = (n - u)*(-P). Every lane uses the same number of
-//     digits, ceil(257 / w), so the doubling schedule is uniform.
-//   * G: one shared affine table of the odd multiples G, 3G, ..., (2^wG - 1)G,
-//     built once per ISA translation unit on first use (lg_g_table), looked up
-//     per lane with a gather.
-//   * Q: a per-lane table of the odd multiples Q, 3Q, ..., (2^wQ - 1)Q, built in
-//     Jacobian form and made affine with ONE lane-parallel field inversion
-//     (Montgomery batch inversion over the table, per lane).
-//   * A lookup of a negative digit negates y by mask (fe_select).
-//   * Strauss interleaving: one accumulator, one doubling per bit, a mixed add
-//     at every G digit position and at every Q digit position. The first
-//     (top) digit initialises the accumulator instead of adding to O.
-//   * GLV is not used: it would halve the doublings but needs per-lane
-//     decomposition and two more tables per lane; it is left for a later card.
+//     u1 = a1 + b1*lambda,  u2 = a2 + b2*lambda  (mod n),  |a|, |b| < 2^128,
+//
+// and hands the kernel four magnitudes (2x64) and four sign masks per lane, so
+//
+//     R = a1*G + b1*phi(G) + a2*Q + b2*phi(Q)
+//
+// is four ~128-bit multiplications sharing ONE doubling chain of about 128
+// doublings instead of 256 -- the same saving dual_scalar_mul_gen_point gets
+// in the scalar verifier.
+//
+// Control flow is identical in every lane and depends only on the window
+// widths: per-lane data changes table indices, negation masks and select
+// masks, never branches.
+//
+//   * Recoding: fixed-length signed fixed-window recoding of each magnitude
+//     (lg_recode): digits d in [-(2^(w-1) - 1), 2^(w-1)], ZERO ALLOWED, so an
+//     even or zero half needs no correction. Every lane uses the same number
+//     of digits, ceil(129 / w), for every half (a magnitude below 2^128 always
+//     fits: the top digit is at most 2^(128 - w*(M-1)) <= 2^(w-1)), so the
+//     doubling schedule is uniform.
+//   * Signs: a lookup is negated (y by mask, fe_select) where the digit sign
+//     XOR the half's sign is negative.
+//   * G: one shared affine table of the multiples G, 2G, ..., 2^(wG-1) G and,
+//     sharing its y column, the x column of phi of each entry (beta*x), built
+//     once per ISA translation unit on first use (lg_g_table), looked up per
+//     lane with a gather.
+//   * Q: a per-lane table of the multiples Q, 2Q, ..., 2^(wQ-1) Q, built in
+//     Jacobian form (one doubling, then mixed additions of the affine Q), made
+//     affine with ONE lane-parallel field inversion (Montgomery batch
+//     inversion over the table, per lane), plus the phi(Q) x column at one
+//     field multiplication per entry (phi(Q) has the same y).
+//   * Strauss interleaving: one accumulator, one doubling per bit, and at
+//     each digit position a mixed add of the a1 (G), b1 (phi(G)), a2 (Q) and
+//     b2 (phi(Q)) digit. A zero digit computes the addition anyway and keeps
+//     the accumulator by select. A lane whose accumulator has not started
+//     (only zero digits so far) takes the looked-up point itself by select;
+//     the addition flags count only lanes that really added. A lane that
+//     never starts (every half zero, R = O) is flagged.
 //
 // ---- Window widths (LgWindows) ----------------------------------------------
 //
-// Per lane, the Q table costs 2^(wQ-1) table additions + 3 multiplications
-// each for the batch inversion + 3 for the affine conversion (about 19 field
-// mul/sqr per entry), and saves additions in the main loop (11 mul/sqr each,
-// ceil(257/wQ) of them):
+// Field-operation counts (multiplications + squarings), from the formulas
+// above; they justify the choice, they are not a measurement.
 //
-//     wQ = 4:   8 entries * 19 + 65 * 11 =  867
-//     wQ = 5:  16 entries * 19 + 52 * 11 =  876
-//     wQ = 6:  32 entries * 19 + 43 * 11 = 1081
+// Per lane, one Q table entry costs a mixed addition (11) + 3 for the batch
+// inversion + 4 for the affine conversion + 1 for beta*x: about 19. The main
+// loop adds 2 halves * ceil(129/wQ) digits at 11 each:
 //
-// so 4 and 5 are equal on operation count and 6 is worse. The lane width
-// decides between them: the per-lane table holds 2^(wQ-1) * 2 coordinates *
-// kLimbCount * kLanes * 8 bytes, which at wQ = 5 is 10 KiB for Ifma512x8 (5
-// limbs x 8 lanes) and Avx2x4 (10 limbs x 4 lanes) and 5 KiB for the 4-lane
-// radix-2^52 types -- small enough next to the G table to stay in a 32 KiB L1D,
-// and the shorter digit string (52 vs 65 additions) wins. A wider type (more
-// than 40 limb-lanes) would take wQ = 4 to keep that footprint.
+//     wQ = 4:   8 entries * 19 + 2 * 33 * 11 =  878
+//     wQ = 5:  16 entries * 19 + 2 * 26 * 11 =  876
+//     wQ = 6:  32 entries * 19 + 2 * 22 * 11 = 1092
 //
-// The shared G table is built once, so only its footprint matters: 2^(wG-1) *
-// 2 * kLimbCount * 8 bytes. wG = 8 for radix 2^52 (128 entries, 10 KiB, 33
-// additions) and wG = 7 for radix 2^26 (64 entries, 10 KiB, 37 additions).
+// so 4 and 5 are equal on operation count and 6 is worse; the footprint
+// decides. The per-lane tables hold 2^(wQ-1) entries * 3 columns (x, y,
+// beta*x) * kLimbCount * kLanes * 8 bytes. wQ = 5 for the 4-lane radix-2^52
+// types (20 limb-lanes: 7.5 KiB) and wQ = 4 for Ifma512x8 (5 limbs x 8 lanes)
+// and Avx2x4 (10 limbs x 4 lanes) (40 limb-lanes: 7.5 KiB at wQ = 4, twice
+// that at wQ = 5), so the Q tables stay at 7.5 KiB next to the G table.
+//
+// The shared G table is built once, so only its footprint matters: 2^(wG-1)
+// entries * 3 columns * kLimbCount * 8 bytes. wG = 8 for radix 2^52 (128
+// entries, 15 KiB, 2 * 17 additions) and wG = 7 for radix 2^26 (64 entries,
+// 15 KiB, 2 * 19 additions). Together with the Q tables that is 22.5 KiB, which
+// stays inside a 32 KiB L1D.
 // ============================================================================
 
 #ifndef SECP256K1_LANES_GROUP_LANES_HPP
@@ -246,14 +271,9 @@ static inline unsigned lg_add(LaneJac<F>& r, const LaneJac<F>& p, const LaneJac<
     return lg_zero_bits(z3);
 }
 
-// ---- Scalar recoding --------------------------------------------------------------
+// ---- Constants ----------------------------------------------------------------------
 
 namespace lg {
-// Group order n, 4x64 little endian.
-constexpr std::uint64_t kOrderN[4] = {
-    0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
-    0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL,
-};
 // Generator, affine, 4x64 little endian.
 constexpr std::uint64_t kGx[4] = {
     0x59F2815B16F81798ULL, 0x029BFCDB2DCE28D9ULL,
@@ -263,68 +283,57 @@ constexpr std::uint64_t kGy[4] = {
     0x9C47D08FFB10D4B8ULL, 0xFD17B448A6855419ULL,
     0x5DA4FBFC0E1108A8ULL, 0x483ADA7726A3C465ULL,
 };
+// beta, 4x64 little endian: phi(x, y) = (beta*x, y) = lambda*(x, y) for the
+// lambda that glv_decompose splits by (glv_constants::BETA / ::LAMBDA in
+// secp256k1/glv.hpp; that header is not included here, see field_common.hpp).
+constexpr std::uint64_t kBeta[4] = {
+    0xC1396C28719501EEULL, 0x9CF0497512F58995ULL,
+    0x6E64479EAC3434E9ULL, 0x7AE96A2B657C0710ULL,
+};
 } // namespace lg
 
-static inline bool lg_lt256(const std::uint64_t* a, const std::uint64_t* b) noexcept {
-    for (int i = 3; i >= 0; --i)
-        if (a[i] != b[i]) return a[i] < b[i];
-    return false;
+// ---- Scalar recoding --------------------------------------------------------------
+
+// Number of digits of a window-Wd recoding that holds any magnitude below
+// 2^128 (see lg_recode): Wd * M >= 129.
+constexpr unsigned lg_digits_128(unsigned wd) noexcept {
+    return (129u + wd - 1u) / wd;
 }
 
-// Regular signed odd-digit recoding (Joye-Tunstall) of a scalar u in [1, n-1],
-// 4x64 little endian, with window Wd and M digits (Wd * M >= 257):
+// Signed fixed-window recoding of a magnitude m < 2^128 (2x64 little endian)
+// with window Wd and M digits:
 //
-//   k = u if u is odd, else n - u (and negate = true: u*P = k*(-P));
-//   for j < M-1: d_j = (k mod 2^(Wd+1)) - 2^Wd   (odd, |d_j| <= 2^Wd - 1)
-//                k   = (k - d_j) / 2^Wd          (exact, and odd again)
-//   d_{M-1} = k                                   (odd, 1 <= k <= 2^Wd - 1)
+//   for j < M-1: v = m mod 2^Wd
+//                d_j = v            if v <= 2^(Wd-1)
+//                d_j = v - 2^Wd     otherwise           (|d_j| <= 2^(Wd-1))
+//                m   = (m - d_j) / 2^Wd                  (exact)
+//   d_{M-1} = m
 //
-// so k = sum d_j * 2^(Wd*j). k stays >= 1 and shrinks by 2^Wd per step up to
-// +1, so after M-1 steps it is below 2^(256 - Wd*(M-1)) + 2 <= 2^Wd.
-// Returns false if u is outside [1, n-1] or the final digit is not in range
-// (cannot happen for such u); the caller then treats the lane as exceptional.
+// so m = sum d_j * 2^(Wd*j). Digits may be zero or even: the tables hold every
+// multiple 1..2^(Wd-1), not only the odd ones. Each step leaves
+// m_j <= floor(m / 2^(Wd*j)) + 1 (the digits below j sum to less than half a
+// step in magnitude), so the top digit is at most 2^(128 - Wd*(M-1)) <= 2^(Wd-1)
+// when Wd * M >= 129. Returns false if the top digit is still out of range
+// (cannot happen for m < 2^128); the caller then treats the lane as exceptional.
 template <unsigned Wd, unsigned M>
-static inline bool lg_recode(const std::uint64_t* u, std::int32_t* d, bool& negate) noexcept {
-    static_assert(Wd >= 2 && Wd <= 16 && Wd * M >= 257, "window/length mismatch");
-    std::uint64_t k[4] = {u[0], u[1], u[2], u[3]};
-    if ((k[0] | k[1] | k[2] | k[3]) == 0 || !lg_lt256(k, lg::kOrderN)) return false;
-    negate = (k[0] & 1u) == 0;
-    if (negate) {
-        std::uint64_t borrow = 0;
-        for (int i = 0; i < 4; ++i) {
-            const std::uint64_t t1 = lg::kOrderN[i] - k[i];
-            const std::uint64_t b1 = (lg::kOrderN[i] < k[i]) ? 1u : 0u;
-            const std::uint64_t t2 = t1 - borrow;
-            const std::uint64_t b2 = (t1 < borrow) ? 1u : 0u;
-            k[i] = t2;
-            borrow = b1 | b2;
-        }
-    }
-    constexpr std::uint64_t kMask = (std::uint64_t{1} << (Wd + 1)) - 1u;
-    constexpr std::int64_t kHalf = std::int64_t{1} << Wd;
+static inline bool lg_recode(const std::uint64_t* m2, std::int32_t* d) noexcept {
+    static_assert(Wd >= 2 && Wd <= 16 && Wd * M >= 129, "window/length mismatch");
+    std::uint64_t k0 = m2[0], k1 = m2[1], k2 = 0;
+    constexpr std::uint64_t kMask = (std::uint64_t{1} << Wd) - 1u;
+    constexpr std::uint64_t kHalf = std::uint64_t{1} << (Wd - 1u);
     for (unsigned j = 0; j + 1 < M; ++j) {
-        const std::int64_t dj = static_cast<std::int64_t>(k[0] & kMask) - kHalf;
-        d[j] = static_cast<std::int32_t>(dj);
-        if (dj < 0) {
-            // k += -dj; k < n <= 2^256 - 2^128, so this cannot overflow 256 bits.
-            std::uint64_t add = static_cast<std::uint64_t>(-dj);
-            for (int i = 0; i < 4 && add != 0; ++i) {
-                const std::uint64_t t = k[i] + add;
-                add = (t < k[i]) ? 1u : 0u;
-                k[i] = t;
-            }
-        } else {
-            // dj <= k mod 2^(Wd+1) <= k[0]: no borrow.
-            k[0] -= static_cast<std::uint64_t>(dj);
-        }
-        k[0] = (k[0] >> Wd) | (k[1] << (64u - Wd));
-        k[1] = (k[1] >> Wd) | (k[2] << (64u - Wd));
-        k[2] = (k[2] >> Wd) | (k[3] << (64u - Wd));
-        k[3] = k[3] >> Wd;
+        const std::uint64_t v = k0 & kMask;
+        const bool carry = v > kHalf;
+        d[j] = carry ? static_cast<std::int32_t>(v) - static_cast<std::int32_t>(kMask + 1u)
+                     : static_cast<std::int32_t>(v);
+        // m = (m - d) / 2^Wd = floor(m / 2^Wd) + carry.
+        k0 = (k0 >> Wd) | (k1 << (64u - Wd));
+        k1 = (k1 >> Wd) | (k2 << (64u - Wd));
+        k2 = k2 >> Wd;
+        if (carry && ++k0 == 0 && ++k1 == 0) ++k2;
     }
-    if ((k[1] | k[2] | k[3]) != 0) return false;
-    if ((k[0] & 1u) == 0 || k[0] >= (std::uint64_t{1} << Wd)) return false;
-    d[M - 1] = static_cast<std::int32_t>(k[0]);
+    if ((k1 | k2) != 0 || k0 > kHalf) return false;
+    d[M - 1] = static_cast<std::int32_t>(k0);
     return true;
 }
 
@@ -333,12 +342,12 @@ static inline bool lg_recode(const std::uint64_t* u, std::int32_t* d, bool& nega
 // See "Window widths" in the header comment.
 template <class F>
 struct LgWindows {
-    static constexpr unsigned kWQ = (F::kLimbCount * F::kLanes <= 40u) ? 5u : 4u;
+    static constexpr unsigned kWQ = (F::kLimbCount * F::kLanes <= 20u) ? 5u : 4u;
     static constexpr unsigned kWG = (F::kLimbCount <= 5u) ? 8u : 7u;
-    static constexpr unsigned kEQ = 1u << (kWQ - 1u);   // per-lane Q table entries
-    static constexpr unsigned kEG = 1u << (kWG - 1u);   // shared G table entries
-    static constexpr unsigned kMQ = (257u + kWQ - 1u) / kWQ;
-    static constexpr unsigned kMG = (257u + kWG - 1u) / kWG;
+    static constexpr unsigned kEQ = 1u << (kWQ - 1u);   // per-lane Q table entries: Q .. kEQ*Q
+    static constexpr unsigned kEG = 1u << (kWG - 1u);   // shared G table entries: G .. kEG*G
+    static constexpr unsigned kMQ = lg_digits_128(kWQ);
+    static constexpr unsigned kMG = lg_digits_128(kWG);
     static constexpr int kTopQ = static_cast<int>(kWQ * (kMQ - 1u));
     static constexpr int kTopG = static_cast<int>(kWG * (kMG - 1u));
     static constexpr int kStart = (kTopQ > kTopG) ? kTopQ : kTopG;
@@ -352,60 +361,64 @@ static inline void lg_to_affine(LaneAff<F>& out, const LaneJac<F>& p, const F& z
     out.y = fe_mul(p.y, fe_mul(zi2, zi));
 }
 
-// Per-lane table of the odd multiples (2k+1)*p, k < E, affine. Entry k is the
-// object representation of one F at out_x + k*K*W (and out_y). Returns the
-// exceptional lanes (an addition hit Z3 == 0, or the product of all Z is 0 --
-// impossible for a finite on-curve p, since (2k+1)p != +-2p for k < E << n).
+// Per-lane table of the multiples (k+1)*p, k < E, affine, and the x of
+// phi((k+1)*p) = (beta*x, y). Entry k is the object representation of one F at
+// out_x + k*K*W (and out_y, out_xb). Returns the exceptional lanes (an addition
+// hit Z3 == 0, or the product of all Z is 0 -- impossible for a finite on-curve
+// p: entry k >= 2 is k*p + p, and k*p != +-p for 2 <= k < E << n).
 template <class F, unsigned E>
-static inline unsigned lg_odd_multiples(const LaneAff<F>& p, std::uint64_t* out_x,
-                                        std::uint64_t* out_y) noexcept {
+static inline unsigned lg_multiples(const LaneAff<F>& p, std::uint64_t* out_x, std::uint64_t* out_y,
+                                    std::uint64_t* out_xb) noexcept {
     constexpr unsigned K = LgLayout<F>::K, W = LgLayout<F>::W;
-    static_assert(E >= 2, "table needs at least p and 3p");
+    static_assert(E >= 2, "table needs at least p and 2p");
     LaneJac<F> t[E];
     F prefix[E];
     unsigned bad = 0;
     t[0].x = p.x;
     t[0].y = p.y;
     t[0].z = lg_one<F>();
-    LaneJac<F> d2;
-    lg_double(d2, t[0]);
-    bad |= lg_add_mixed(t[1], d2, p);
-    for (unsigned k = 2; k < E; ++k) bad |= lg_add(t[k], t[k - 1], d2);
+    lg_double(t[1], t[0]);
+    for (unsigned k = 2; k < E; ++k) bad |= lg_add_mixed(t[k], t[k - 1], p);
 
     // Montgomery batch inversion of t[0..E-1].z, per lane: one field inversion.
     prefix[0] = t[0].z;
     for (unsigned k = 1; k < E; ++k) prefix[k] = fe_mul(prefix[k - 1], t[k].z);
     bad |= lg_zero_bits(prefix[E - 1]);
+    const F beta = lg_broadcast<F>(lg::kBeta);
     F inv = fe_inverse(prefix[E - 1]);
-    for (unsigned k = E - 1; k > 0; --k) {
-        const F zi = fe_mul(inv, prefix[k - 1]);
-        inv = fe_mul(inv, t[k].z);
+    for (unsigned k = E; k-- > 0;) {
         LaneAff<F> a;
-        lg_to_affine(a, t[k], zi);
-        std::memcpy(out_x + static_cast<std::size_t>(k) * K * W, &a.x, sizeof(F));
-        std::memcpy(out_y + static_cast<std::size_t>(k) * K * W, &a.y, sizeof(F));
+        if (k > 0) {
+            const F zi = fe_mul(inv, prefix[k - 1]);
+            inv = fe_mul(inv, t[k].z);
+            lg_to_affine(a, t[k], zi);
+        } else {
+            lg_to_affine(a, t[0], inv);
+        }
+        const F xb = fe_mul(a.x, beta);
+        const std::size_t off = static_cast<std::size_t>(k) * K * W;
+        std::memcpy(out_x + off, &a.x, sizeof(F));
+        std::memcpy(out_y + off, &a.y, sizeof(F));
+        std::memcpy(out_xb + off, &xb, sizeof(F));
     }
-    LaneAff<F> a0;
-    lg_to_affine(a0, t[0], inv);
-    std::memcpy(out_x, &a0.x, sizeof(F));
-    std::memcpy(out_y, &a0.y, sizeof(F));
     return bad;
 }
 
-// The shared table of odd multiples of G: entry k = (2k+1)G, K internal limbs
-// per coordinate (weak normal).
+// The shared table of the multiples of G: entry k = (k+1)G, plus the x of
+// phi((k+1)G) (same y); K internal limbs per coordinate (weak normal).
 template <class F>
 struct LgGTable {
     static constexpr unsigned kEntries = LgWindows<F>::kEG;
     alignas(64) std::uint64_t x[kEntries * F::kLimbCount];
     alignas(64) std::uint64_t y[kEntries * F::kLimbCount];
+    alignas(64) std::uint64_t xb[kEntries * F::kLimbCount];
 };
 
 // Built once. Every lane computes the same chain (G broadcast), so the Jacobian
 // multiples are read from lane 0; the affine conversion then runs lane
 // parallel, entry s*W + l in lane l, with one field inversion for the table.
-// Exceptional flags are not needed: the odd multiples (2k+1)G, k < 128, never
-// equal +-2G or each other (G has order n).
+// Exceptional flags are not needed: entry k >= 2 is kG + G, and kG != +-G for
+// 2 <= k < 128 (G has order n).
 template <class F>
 static LgGTable<F> lg_build_g_table() noexcept {
     constexpr unsigned K = LgLayout<F>::K, W = LgLayout<F>::W;
@@ -417,6 +430,7 @@ static LgGTable<F> lg_build_g_table() noexcept {
     LaneAff<F> g;
     g.x = lg_broadcast<F>(lg::kGx);
     g.y = lg_broadcast<F>(lg::kGy);
+    const F beta = lg_broadcast<F>(lg::kBeta);
 
     alignas(64) std::uint64_t jx[E * K];
     alignas(64) std::uint64_t jy[E * K];
@@ -425,11 +439,9 @@ static LgGTable<F> lg_build_g_table() noexcept {
     cur.x = g.x;
     cur.y = g.y;
     cur.z = lg_one<F>();
-    LaneJac<F> d2;
-    lg_double(d2, cur);
     for (unsigned k = 0; k < E; ++k) {
-        if (k == 1) (void)lg_add_mixed(cur, d2, g);
-        else if (k > 1) (void)lg_add(cur, cur, d2);
+        if (k == 1) lg_double(cur, cur);
+        else if (k > 1) (void)lg_add_mixed(cur, cur, g);
         lg_lane_limbs(cur.x, 0, jx + k * K);
         lg_lane_limbs(cur.y, 0, jy + k * K);
         lg_lane_limbs(cur.z, 0, jz + k * K);
@@ -454,11 +466,13 @@ static LgGTable<F> lg_build_g_table() noexcept {
         p.z = zs[s];
         LaneAff<F> a;
         lg_to_affine(a, p, zi);
+        const F xb = fe_normalize(fe_mul(a.x, beta));
         a.x = fe_normalize(a.x);
         a.y = fe_normalize(a.y);
         for (unsigned l = 0; l < W; ++l) {
             lg_lane_limbs(a.x, l, out.x + (s * W + l) * K);
             lg_lane_limbs(a.y, l, out.y + (s * W + l) * K);
+            lg_lane_limbs(xb, l, out.xb + (s * W + l) * K);
         }
     }
     return out;
@@ -474,66 +488,84 @@ static const LgGTable<F>& lg_g_table() noexcept {
 
 // ---- Dual scalar multiplication ------------------------------------------------------
 
-// Table index and negation mask of digit column j: lane l uses entry
-// (|d| - 1) / 2, negated when the digit sign and the lane's base negation differ.
+// Digit column j of one half: lane l uses table entry |d| - 1 (entry 0 for a
+// zero digit, whose addition is discarded). Returns the lanes with a non-zero
+// digit; `neg` gets the lanes whose lookup is negated (digit sign XOR the
+// half's sign).
 template <class F, unsigned M>
-static inline unsigned lg_digit_column(const std::int32_t (*digits)[M], unsigned j, unsigned base_neg,
-                                       unsigned* idx) noexcept {
-    unsigned neg = 0;
+static inline unsigned lg_digit_column(const std::int32_t (*digits)[M], unsigned j, unsigned half_neg,
+                                       unsigned* idx, unsigned& neg) noexcept {
+    unsigned nz = 0;
+    neg = 0;
     for (unsigned l = 0; l < F::kLanes; ++l) {
         const std::int32_t dv = digits[l][j];
         const std::uint32_t mag = static_cast<std::uint32_t>(dv < 0 ? -dv : dv);
-        idx[l] = (mag - 1u) >> 1;
-        neg |= (static_cast<unsigned>(dv < 0) ^ ((base_neg >> l) & 1u)) << l;
+        idx[l] = (mag == 0u) ? 0u : mag - 1u;
+        nz |= static_cast<unsigned>(mag != 0u) << l;
+        neg |= (static_cast<unsigned>(dv < 0) ^ ((half_neg >> l) & 1u)) << l;
     }
-    return neg;
+    return nz;
 }
 
-// Accumulate an affine point: the first one initialises A (Z = 1).
+// Accumulate the affine point t in the lanes of nz. A started lane adds t
+// (mixed addition), a lane that has not started takes t itself (Z = 1), every
+// other lane keeps acc -- by select, so control flow does not depend on lane
+// data. Returns the exceptional lanes: started lanes of nz whose addition hit
+// Z3 == 0 (a discarded addition never flags).
 template <class F>
-static inline unsigned lg_accumulate(LaneJac<F>& acc, bool& started, const LaneAff<F>& t,
+static inline unsigned lg_accumulate(LaneJac<F>& acc, unsigned& started, const LaneAff<F>& t, unsigned nz,
                                      const F& one) noexcept {
-    if (!started) {
-        acc.x = t.x;
-        acc.y = t.y;
-        acc.z = one;
-        started = true;
-        return 0;
+    const unsigned add = started & nz;
+    const unsigned init = ~started & nz & lg_all_lanes<F>();
+    unsigned exc = 0;
+    if (started != 0) {   // a group-wide value: identical in every lane
+        LaneJac<F> sum;
+        exc = lg_add_mixed(sum, acc, t) & add;
+        const auto ma = F::mask_from_bits(add);
+        acc.x = fe_select(ma, sum.x, acc.x);
+        acc.y = fe_select(ma, sum.y, acc.y);
+        acc.z = fe_select(ma, sum.z, acc.z);
     }
-    return lg_add_mixed(acc, acc, t);
+    const auto mi = F::mask_from_bits(init);
+    acc.x = fe_select(mi, t.x, acc.x);
+    acc.y = fe_select(mi, t.y, acc.y);
+    acc.z = fe_select(mi, one, acc.z);
+    started |= nz;
+    return exc;
 }
 
-// R_l = u1_l * G + u2_l * Q_l for every lane l.
-//   u1, u2: 4x64 little-endian scalars per lane (u1 + 4*l), in [1, n-1];
+// R_l = u1_l * G + u2_l * Q_l for every lane l, through the GLV halves
+//   u1 = s0*m0 + s1*m1*lambda,  u2 = s2*m2 + s3*m3*lambda  (mod n):
+//   mag[h]: magnitude m_h of lane l at mag[h] + 2*l, 2x64 little endian, < 2^128;
+//   neg[h]: bit l set where s_h = -1 in lane l;
 //   qx, qy: 4x64 affine Q per lane, on the curve (any value < 2^256 is a valid
 //           field input; the caller checked the curve equation).
-// Returns the exceptional lanes: a scalar outside [1, n-1], any addition that
-// hit Z3 == 0 (equal / opposite operands, or R == O). R is a correct finite
-// point in every other lane.
+// Any half may be zero. Returns the exceptional lanes: a magnitude the
+// recoding cannot hold (never for m < 2^128), any addition that hit Z3 == 0
+// (equal / opposite operands, or an intermediate O), R == O. R is a correct
+// finite point in every other lane.
 template <class F>
-static inline unsigned lg_dual_mul(LaneJac<F>& R, const std::uint64_t* u1, const std::uint64_t* u2,
+static inline unsigned lg_dual_mul(LaneJac<F>& R, const std::uint64_t* const* mag, const unsigned* neg,
                                    const std::uint64_t* qx, const std::uint64_t* qy) noexcept {
     using Win = LgWindows<F>;
     constexpr unsigned K = LgLayout<F>::K, W = LgLayout<F>::W;
     const LgGTable<F>& gtab = lg_g_table<F>();
 
-    unsigned bad = 0, neg_g = 0, neg_q = 0;
-    std::int32_t dg[W][Win::kMG];
-    std::int32_t dq[W][Win::kMQ];
+    // Digits: halves 0, 1 (on G, phi(G)) with wG; halves 2, 3 (on Q, phi(Q)) with wQ.
+    unsigned bad = 0;
+    std::int32_t dg[2][W][Win::kMG];
+    std::int32_t dq[2][W][Win::kMQ];
     for (unsigned l = 0; l < W; ++l) {
-        bool ng = false, nq = false;
-        if (!lg_recode<Win::kWG, Win::kMG>(u1 + 4u * l, dg[l], ng)) {
-            bad |= 1u << l;
-            ng = false;
-            for (unsigned j = 0; j < Win::kMG; ++j) dg[l][j] = 1;
+        for (unsigned h = 0; h < 2; ++h) {
+            if (!lg_recode<Win::kWG, Win::kMG>(mag[h] + 2u * l, dg[h][l])) {
+                bad |= 1u << l;
+                for (unsigned j = 0; j < Win::kMG; ++j) dg[h][l][j] = 0;
+            }
+            if (!lg_recode<Win::kWQ, Win::kMQ>(mag[2 + h] + 2u * l, dq[h][l])) {
+                bad |= 1u << l;
+                for (unsigned j = 0; j < Win::kMQ; ++j) dq[h][l][j] = 0;
+            }
         }
-        if (!lg_recode<Win::kWQ, Win::kMQ>(u2 + 4u * l, dq[l], nq)) {
-            bad |= 1u << l;
-            nq = false;
-            for (unsigned j = 0; j < Win::kMQ; ++j) dq[l][j] = 1;
-        }
-        neg_g |= static_cast<unsigned>(ng) << l;
-        neg_q |= static_cast<unsigned>(nq) << l;
     }
 
     LaneAff<F> q;
@@ -541,37 +573,49 @@ static inline unsigned lg_dual_mul(LaneJac<F>& R, const std::uint64_t* u1, const
     fe_load(q.y, qy);
     alignas(64) std::uint64_t qtx[Win::kEQ * K * W];
     alignas(64) std::uint64_t qty[Win::kEQ * K * W];
-    bad |= lg_odd_multiples<F, Win::kEQ>(q, qtx, qty);
+    alignas(64) std::uint64_t qtxb[Win::kEQ * K * W];
+    bad |= lg_multiples<F, Win::kEQ>(q, qtx, qty, qtxb);
 
     const F one = lg_one<F>();
-    LaneJac<F> acc{};
-    bool started = false;
+    LaneJac<F> acc;   // any valid field values until a lane starts
+    acc.x = one;
+    acc.y = one;
+    acc.z = one;
+    unsigned started = 0;
     unsigned idx[W];
     for (int b = Win::kStart; b >= 0; --b) {
-        if (started) lg_double(acc, acc);
+        if (b != Win::kStart) lg_double(acc, acc);   // never exceptional; unstarted lanes are overwritten
         if (b % static_cast<int>(Win::kWG) == 0) {
             const unsigned j = static_cast<unsigned>(b) / Win::kWG;
             if (j < Win::kMG) {
-                const unsigned neg = lg_digit_column<F, Win::kMG>(dg, j, neg_g, idx);
-                LaneAff<F> t;
-                t.x = lg_gather_shared<F>(gtab.x, idx);
-                t.y = lg_gather_shared<F>(gtab.y, idx);
-                t.y = fe_select(F::mask_from_bits(neg), fe_negate(t.y), t.y);
-                bad |= lg_accumulate(acc, started, t, one);
+                for (unsigned h = 0; h < 2; ++h) {
+                    unsigned ng = 0;
+                    const unsigned nz = lg_digit_column<F, Win::kMG>(dg[h], j, neg[h], idx, ng);
+                    LaneAff<F> t;
+                    t.x = lg_gather_shared<F>(h == 0 ? gtab.x : gtab.xb, idx);
+                    t.y = lg_gather_shared<F>(gtab.y, idx);
+                    t.y = fe_select(F::mask_from_bits(ng), fe_negate(t.y), t.y);
+                    bad |= lg_accumulate(acc, started, t, nz, one);
+                }
             }
         }
         if (b % static_cast<int>(Win::kWQ) == 0) {
             const unsigned j = static_cast<unsigned>(b) / Win::kWQ;
             if (j < Win::kMQ) {
-                const unsigned neg = lg_digit_column<F, Win::kMQ>(dq, j, neg_q, idx);
-                LaneAff<F> t;
-                t.x = lg_gather_lanes<F>(qtx, idx);
-                t.y = lg_gather_lanes<F>(qty, idx);
-                t.y = fe_select(F::mask_from_bits(neg), fe_negate(t.y), t.y);
-                bad |= lg_accumulate(acc, started, t, one);
+                for (unsigned h = 0; h < 2; ++h) {
+                    unsigned ng = 0;
+                    const unsigned nz = lg_digit_column<F, Win::kMQ>(dq[h], j, neg[2 + h], idx, ng);
+                    LaneAff<F> t;
+                    t.x = lg_gather_lanes<F>(h == 0 ? qtx : qtxb, idx);
+                    t.y = lg_gather_lanes<F>(qty, idx);
+                    t.y = fe_select(F::mask_from_bits(ng), fe_negate(t.y), t.y);
+                    bad |= lg_accumulate(acc, started, t, nz, one);
+                }
             }
         }
     }
+    // A lane that never started has every half zero: R = O, nothing to compare.
+    bad |= ~started & lg_all_lanes<F>();
     // Belt and braces: a zero Z can only come from a flagged addition.
     bad |= lg_zero_bits(acc.z);
     R = acc;

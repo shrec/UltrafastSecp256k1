@@ -24,12 +24,18 @@ namespace secp256k1::lanes::detail {
 
 constexpr unsigned kLaneVerifyMaxLanes = 8;
 
-// One group of up to `lanes` signatures. Lane l's values are at [4*l, 4*l+4),
-// 4x64 little endian. Every lane the kernel computes must hold valid inputs;
-// the caller fills unused lanes with a copy of a used one.
+// One group of up to `lanes` signatures. Lane l's 256-bit values are at
+// [4*l, 4*l+4), 4x64 little endian; its GLV halves at [2*l, 2*l+2), 2x64.
+// Every lane the kernel computes must hold valid inputs; the caller fills
+// unused lanes with a copy of a used one.
+//
+// The coefficients arrive GLV-split (glv_decompose, scalar side):
+//   u1 = k0 + k1*lambda  (G coefficient),  u2 = k2 + k3*lambda  (Q coefficient),
+// each k_h a magnitude below 2^128 in k[h], negative in lane l where bit l of
+// k_neg[h] is set. Any half may be zero (u1 == 0 included).
 struct LaneVerifyGroup {
-    alignas(64) std::uint64_t u1[4 * kLaneVerifyMaxLanes];  // G coefficient, [1, n-1]
-    alignas(64) std::uint64_t u2[4 * kLaneVerifyMaxLanes];  // Q coefficient, [1, n-1]
+    alignas(64) std::uint64_t k[4][2 * kLaneVerifyMaxLanes];
+    unsigned k_neg[4];
     alignas(64) std::uint64_t qx[4 * kLaneVerifyMaxLanes];  // affine Q, on the curve
     alignas(64) std::uint64_t qy[4 * kLaneVerifyMaxLanes];
     // ECDSA: r (< n) and, where rn_ok bit l is set, r + n (< p).

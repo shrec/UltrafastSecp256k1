@@ -1,5 +1,27 @@
 # Audit Changelog
 
+## 2026-11-03 - Lane verify dual multiplication is GLV-split (`audit/test_lanes_verify_differential.cpp`)
+
+**Change.** `lg_dual_mul` (`src/cpu/src/lanes/group_lanes.hpp`) now computes
+R = a1*G + b1*phi(G) + a2*Q + b2*phi(Q). The scalar side (`lanes_verify.cpp`) splits u1 and u2
+with the library's `glv_decompose` (|a|, |b| < 2^128, signs as lane masks), so the shared
+doubling chain is about 128 doublings instead of 256. A lane whose halves do not fit 2x64 is
+refused before any write and goes to the scalar verifier. Recoding is now signed fixed-window
+with zero digits allowed, over the multiples 1..2^(w-1) of each point. phi is beta*x (one
+multiply per table entry). Zero digits and lanes that have not started yet are handled by
+select, so control flow stays uniform. A lane where every half is zero (R = O) is flagged.
+Because zero halves are now legal, the old u1 == 0 / e == 0 prep fallback is gone: u1 == 0
+computes R = u2*Q in the lanes. Verify paths only (CT-VERIFY); no `ct::` or secret path
+changes. Verdicts are unchanged, entry by entry.
+
+**Test.** `test_lanes_verify_differential` adds a GLV edge set. It builds valid ECDSA signatures
+for chosen (u1, u2): 0, 1, n-1, +-lambda, multiples of lambda, 2^127, 2^128-1, and the widest
+halves `glv_decompose` gives over a random sample. Each has an invalid twin, and there are
+BIP-340 entries with edge s. The test asserts that the set reaches negative, zero and 128-bit
+halves on both the G and the Q side, and that the lanes decide every case. Host results:
+`ctest --preset cpu-release` 444/444. The differential passes natively (avx2), under Intel SDE
+`-spr` (ifma512, ifma256, avx2) and under `-srf` (avx_ifma, avx2).
+
 ## 2026-11-03 - Lane-parallel ECDSA / BIP-340 verification over the lane field types, with scalar fallback (`audit/test_lanes_verify_differential.cpp`)
 
 **Change.** RM-2026-00009 part 2, on top of the lane field layer of `1b9ede64`. New

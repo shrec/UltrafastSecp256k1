@@ -17,6 +17,14 @@
 //   * constructed exceptional lanes: R = u1*G + u2*Q = O, and tiny u1/u2 with
 //     Q a small multiple of G, which force equal/opposite operands inside the
 //     lane additions -- every R = O lane must be flagged and re-verified;
+//   * GLV split (the lanes compute u = a + b*lambda per half, glv_decompose):
+//     VALID ECDSA signatures built for chosen (u1, u2) -- u = 0 (u1 only), 1,
+//     2, n-1, n-2, lambda, -lambda, small multiples of lambda (a zero a half),
+//     small u (a zero b half), 2^127, 2^128 - 1 and their lambda multiples, and
+//     the largest |a| and |b| glv_decompose returns over a random sample, with
+//     both signs -- every one decided by the lane kernel, and BIP-340 entries
+//     whose s is such a scalar; the halves must cover negative, zero and
+//     near-2^128 values on both the G and the Q side;
 //   * backend None (scalar path) and null arguments.
 //
 // Batch integration (secp256k1/batch_verify.hpp, lane path opt-in): with each
@@ -61,6 +69,7 @@
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/field.hpp"
+#include "secp256k1/glv.hpp"
 #include "secp256k1/lanes.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/scalar.hpp"
@@ -384,6 +393,183 @@ void test_schnorr(LaneBackend b, Rng& rng) {
         for (unsigned i = 0; i < n; ++i) mix.push_back(pool[rng.u64() % pool.size()]);
         compare_batch("schnorr mixed batch", mix, b, schnorr_lane, schnorr_ref, nullptr);
     }
+}
+
+// ---- GLV split ----------------------------------------------------------------------
+//
+// The lanes split each coefficient with glv_decompose, u = a + b*lambda, and
+// recode the four ~128-bit halves on their own (sign by mask, zero digits
+// allowed, a lane starts at its first non-zero digit). These cases put the
+// halves at the corners of that scheme.
+
+namespace glv = secp256k1::fast;
+
+Scalar glv_lambda() { return Scalar::from_bytes(glv::glv_constants::LAMBDA); }
+
+// hi * 2^64 + lo.
+Scalar scalar_u128(std::uint64_t hi, std::uint64_t lo) {
+    Bytes32 b{};
+    for (int j = 0; j < 8; ++j) {
+        b[16 + j] = static_cast<std::uint8_t>(hi >> (56 - 8 * j));
+        b[24 + j] = static_cast<std::uint8_t>(lo >> (56 - 8 * j));
+    }
+    return Scalar::from_bytes(b);
+}
+
+// One GLV half: magnitude (hi, lo), sign, and whether it fits 128 bits.
+struct Half {
+    std::uint64_t hi = 0, lo = 0;
+    bool neg = false;
+    bool fits128 = true;
+};
+
+Half glv_half(const Scalar& k, bool neg) {
+    const auto& l = k.limbs();
+    Half h;
+    h.hi = l[1];
+    h.lo = l[0];
+    h.neg = neg;
+    h.fits128 = (l[2] | l[3]) == 0;
+    return h;
+}
+
+unsigned half_bits(const Half& h) {   // portable bit length (no builtins)
+    unsigned n = 0;
+    for (std::uint64_t v = h.hi; v != 0; v >>= 1) ++n;
+    if (n != 0) return 64 + n;
+    for (std::uint64_t v = h.lo; v != 0; v >>= 1) ++n;
+    return n;
+}
+
+bool half_less(const Half& a, const Half& b) { return a.hi != b.hi ? a.hi < b.hi : a.lo < b.lo; }
+
+// What the lanes receive for one side (G: u1, Q: u2): halves a (0), b (1).
+struct HalfCoverage {
+    int neg[2] = {0, 0};
+    int zero[2] = {0, 0};
+    unsigned max_bits[2] = {0, 0};
+    void add(const Scalar& u) {
+        const glv::GLVDecomposition d = glv::glv_decompose(u);
+        const Half h[2] = {glv_half(d.k1, d.k1_neg), glv_half(d.k2, d.k2_neg)};
+        for (int i = 0; i < 2; ++i) {
+            const unsigned bits = half_bits(h[i]);
+            neg[i] += (h[i].neg && bits != 0) ? 1 : 0;
+            zero[i] += (bits == 0) ? 1 : 0;
+            if (bits > max_bits[i]) max_bits[i] = bits;
+        }
+    }
+};
+
+// Constructed corners plus the largest |a| and |b| (each sign) that
+// glv_decompose returns over a random sample, i.e. the bound it reaches.
+// fits_all: every sampled half fits the lanes' 2x64 slots.
+std::vector<Scalar> glv_edge_scalars(Rng& rng, bool& fits_all) {
+    const Scalar lam = glv_lambda();
+    const Scalar one = scalar_u64(1);
+    const Scalar m128 = scalar_u128(~std::uint64_t{0}, ~std::uint64_t{0});   // 2^128 - 1
+    const Scalar p127 = scalar_u128(std::uint64_t{1} << 63, 0);              // 2^127
+    std::vector<Scalar> v = {
+        Scalar::zero(), one, scalar_u64(2), one.negate_var(), scalar_u64(2).negate_var(),   // 0, 1, 2, n-1, n-2
+        lam, lam.negate_var(), lam + one, lam * scalar_u64(5), (lam * scalar_u64(5)).negate_var(),
+        lam * scalar_u64(0xFFFF), scalar_u64(12345), scalar_u64(12345).negate_var(),
+        p127, p127.negate_var(), m128, m128.negate_var(), m128 + one,
+        m128 * lam, (m128 * lam).negate_var(), p127 * lam, m128 + m128 * lam,
+        p127 + (p127 * lam).negate_var(), (m128 + p127 * lam).negate_var(),
+    };
+    Scalar best[2][2];
+    Half best_h[2][2];
+    fits_all = true;
+    for (int i = 0; i < 4096; ++i) {
+        const Scalar u = rng.scalar();
+        const glv::GLVDecomposition d = glv::glv_decompose(u);
+        const Half h[2] = {glv_half(d.k1, d.k1_neg), glv_half(d.k2, d.k2_neg)};
+        for (int k = 0; k < 2; ++k) {
+            fits_all = fits_all && h[k].fits128;
+            const int s = h[k].neg ? 1 : 0;
+            if (half_less(best_h[k][s], h[k])) {
+                best_h[k][s] = h[k];
+                best[k][s] = u;
+            }
+        }
+    }
+    for (int k = 0; k < 2; ++k)
+        for (int s = 0; s < 2; ++s)
+            if (half_bits(best_h[k][s]) != 0) v.push_back(best[k][s]);
+    return v;
+}
+
+// A VALID ECDSA entry whose lane coefficients are exactly u1 = z/s and
+// u2 = r/s: Q = d*G, R = (u1 + u2*d)*G, r = x(R) mod n, s = r/u2, z = u1*s.
+// False when no such signature exists (u2 == 0, R == O or r == 0).
+bool ecdsa_with_u(const Scalar& u1, const Scalar& u2, const Scalar& d, ECDSABatchEntry& e) {
+    if (u2.is_zero()) return false;
+    const Scalar k = u1 + u2 * d;
+    if (k.is_zero()) return false;
+    const Scalar r = Scalar::from_bytes(x_bytes(gen_mul(k)));
+    if (r.is_zero()) return false;
+    const Scalar s = r * u2.inverse();
+    e = ECDSABatchEntry{};
+    e.public_key = gen_mul(d);
+    e.signature = ECDSASignature{r, s};
+    e.msg_hash = (u1 * s).to_bytes();
+    return true;
+}
+
+void test_glv_split(LaneBackend b, Rng& rng) {
+    const char* name = lanes::lane_backend_name(b);
+    bool fits = true;
+    const std::vector<Scalar> edge = glv_edge_scalars(rng, fits);
+    check(fits, "glv_decompose halves fit 128 bits (the lane slots)", name, 0);
+
+    // ECDSA: each edge scalar as u1 and as u2 against random partners, plus
+    // edge x edge pairs. All valid, all decided by the lane kernel.
+    std::vector<ECDSABatchEntry> valid;
+    HalfCoverage cov_g, cov_q;
+    auto add = [&](const Scalar& u1, const Scalar& u2) {
+        ECDSABatchEntry e;
+        if (!ecdsa_with_u(u1, u2, rng.scalar(), e)) return;
+        valid.push_back(e);
+        cov_g.add(u1);
+        cov_q.add(u2);
+    };
+    for (const Scalar& u : edge) {
+        add(u, rng.scalar());
+        add(rng.scalar(), u);
+    }
+    for (std::size_t i = 0; i < edge.size(); i += 3)
+        for (std::size_t j = 1; j < edge.size(); j += 4) add(edge[i], edge[j]);
+    LaneVerifyStats st;
+    compare_batch("ecdsa GLV edge (u1, u2), valid", valid, b, ecdsa_lane, ecdsa_ref, &st);
+    check(st.lane_verified == valid.size(), "ecdsa GLV edge cases decided by lanes", name, st.lane_verified);
+    for (std::size_t h = 0; h < 2; ++h) {
+        check(cov_g.neg[h] > 0 && cov_q.neg[h] > 0, "GLV edge set: negative halves on G and Q side", name, h);
+        check(cov_g.zero[h] > 0 && cov_q.zero[h] > 0, "GLV edge set: zero halves on G and Q side", name, h);
+        check(cov_g.max_bits[h] >= 127 && cov_q.max_bits[h] >= 127, "GLV edge set: halves near 2^128", name, h);
+    }
+
+    // The same halves on invalid twins (r + 1): rejected exactly as the scalar verifier does.
+    std::vector<ECDSABatchEntry> twins = valid;
+    for (ECDSABatchEntry& e : twins) e.signature.r = e.signature.r + scalar_u64(1);
+    compare_batch("ecdsa GLV edge (u1, u2), r + 1", twins, b, ecdsa_lane, ecdsa_ref, nullptr);
+
+    // BIP-340 with s (the G coefficient) at the edges; r is an unrelated x, so
+    // these are rejections, still decided by the lanes.
+    std::vector<SchnorrBatchEntry> sch;
+    for (const Scalar& u : edge) {
+        if (u.is_zero()) continue;   // s == 0 is a prep reject, covered by the corruptions
+        const auto kp = secp256k1::ct::schnorr_keypair_create(rng.scalar());
+        SchnorrBatchEntry e{};
+        e.pubkey_x = kp.px;
+        e.message = rng.bytes32();
+        e.signature.r = x_bytes(gen_mul(rng.scalar()));
+        e.signature.s = u;
+        sch.push_back(e);
+    }
+    compare_batch("schnorr GLV edge s", sch, b, schnorr_lane, schnorr_ref, &st);
+    check(st.lane_verified == sch.size(), "schnorr GLV edge cases decided by lanes", name, st.lane_verified);
+    std::printf("    [%s] GLV edge set: %zu ecdsa valid + twins, %zu schnorr; max half bits G %u/%u, Q %u/%u\n",
+                name, valid.size(), sch.size(), cov_g.max_bits[0], cov_g.max_bits[1], cov_q.max_bits[0],
+                cov_q.max_bits[1]);
 }
 
 // ---- Projective x-compare ------------------------------------------------------------
@@ -864,6 +1050,7 @@ int run_lanes_verify_differential(unsigned required_mask) {
         test_xcheck(b, rng);
         test_ecdsa(b, rng);
         test_schnorr(b, rng);
+        test_glv_split(b, rng);
         test_batch_integration(b, rng);
         std::printf("    [%s] width %u: %s\n", lanes::lane_backend_name(b), lanes::lane_backend_width(b),
                     g_failures == before ? "PASS" : "FAIL");

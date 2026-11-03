@@ -44,10 +44,17 @@ static unsigned lv_ecdsa_xcheck(const std::uint64_t* X, const std::uint64_t* Z, 
     return lv_xcheck_bits(x, z, r, rn, rn_ok);
 }
 
+// R = u1*G + u2*Q from the group's GLV halves (see LaneVerifyGroup).
+template <class F>
+static inline unsigned lv_dual_mul(LaneJac<F>& R, const detail::LaneVerifyGroup& in) noexcept {
+    const std::uint64_t* const mag[4] = {in.k[0], in.k[1], in.k[2], in.k[3]};
+    return lg_dual_mul<F>(R, mag, in.k_neg, in.qx, in.qy);
+}
+
 template <class F>
 static void lv_ecdsa_group(const detail::LaneVerifyGroup& in, detail::LaneVerifyResult& out) {
     LaneJac<F> R;
-    const unsigned flagged = lg_dual_mul<F>(R, in.u1, in.u2, in.qx, in.qy);
+    const unsigned flagged = lv_dual_mul<F>(R, in);
     const unsigned ok = lv_xcheck_bits(R.x, R.z, in.r, in.rn, in.rn_ok);
     out.flagged = flagged;
     out.ok = ok & ~flagged & lg_all_lanes<F>();
@@ -57,7 +64,7 @@ template <class F>
 static void lv_schnorr_group(const detail::LaneVerifyGroup& in, detail::LaneVerifyResult& out) {
     constexpr unsigned W = F::kLanes;
     LaneJac<F> R;
-    const unsigned flagged = lg_dual_mul<F>(R, in.u1, in.u2, in.qx, in.qy);
+    const unsigned flagged = lv_dual_mul<F>(R, in);
     // Affine R: one lane-parallel inversion (0 -> 0 on flagged lanes; unused).
     const F zi = fe_inverse(R.z);
     LaneAff<F> a;
