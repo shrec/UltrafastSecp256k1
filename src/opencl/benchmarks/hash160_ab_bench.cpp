@@ -344,9 +344,10 @@ static double median(std::vector<double> v) {
 }
 
 int main(int argc, char** argv) {
-    std::string kernel_dir = "kernels";
 #ifdef SECP256K1_OPENCL_KERNEL_DIR
-    kernel_dir = SECP256K1_OPENCL_KERNEL_DIR;
+    std::string kernel_dir = SECP256K1_OPENCL_KERNEL_DIR;
+#else
+    std::string kernel_dir = "kernels";
 #endif
     uint32_t keys = 1u << 20;
     int iters = 20;
