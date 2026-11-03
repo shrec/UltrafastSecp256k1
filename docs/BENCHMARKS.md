@@ -243,6 +243,51 @@ for a microarchitecture needs a measured canonical JSON from
 (`docs/bench_variants_<date>_<cpu>.json`), with non-overlapping ranges against
 `default`. Until then the default stays scalar.
 
+### x86-64 Schnorr batch verify with 128-bit weights: canonical rerun (2026-11-03) `[A/B, canonical conditions]`
+
+The canonical rerun the 2026-11-01 section below asks for. Base `14e803b2`
+(`8cd38bdb^`) and changed `8cd38bdb`, each built in its own worktree with the
+`cpu-release` preset (GCC 14.2.0), run the full `bench_unified --json`
+alternately (base,new then new,base), five whole-binary runs each, with
+`taskset -c 0`, the `performance` governor and turbo off
+(`intel_pstate/no_turbo=1`) on an i5-14400F. A row is called faster only if the
+ranges do not overlap. Source of every number, with per-run values and binary
+hashes:
+`docs/benchmark_artifacts/schnorr_batch_short_weights_canonical_ab_2026-11-03_i5-14400f.json`.
+
+| Row | Before: us median (min - max) | After: us median (min - max) | Median change | Ranges |
+|-----|------------------------------:|-----------------------------:|--------------:|--------|
+| `schnorr_batch_verify(N=4)` | 138.3 (137.6 - 250.3) | 138.8 (137.8 - 139.7) | +0.4% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=4)` | 140.6 (140.3 - 261.6) | 142.3 (141.2 - 142.8) | +1.2% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=16)` | 549.6 (548.9 - 553.4) | 554.8 (551.6 - 1027.4) | +0.9% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=16)` | 561.5 (561.2 - 562.4) | 565.7 (564.8 - 566.3) | +0.8% | no overlap, slower |
+| `schnorr_batch_verify(N=64)` | 2088.8 (2085.9 - 2101.5) | 1785.6 (1780.7 - 1808.6) | -14.5% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=64)` | 1843.4 (1832.9 - 1849.3) | 1533.4 (1529.6 - 1544.8) | -16.8% | no overlap, faster |
+| `schnorr_batch_verify(N=128)` | 3388.3 (3380.1 - 3398.4) | 2797.0 (2780.9 - 2811.4) | -17.5% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=128)` | 3125.7 (3122.7 - 3149.0) | 2529.1 (2523.5 - 2538.2) | -19.1% | no overlap, faster |
+| `schnorr_batch_verify(N=192)` | 4605.4 (4602.1 - 4631.5) | 3767.0 (3762.9 - 3785.6) | -18.2% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=192)` | 4352.9 (4317.8 - 4371.4) | 3514.6 (3506.6 - 3665.7) | -19.3% | no overlap, faster |
+
+Every batch row at N = 64 and above is faster with non-overlapping ranges, by
+14.5% to 19.3% at the median; this settles the magnitude the two 2026-11-01
+A/Bs could not. N = 4 and N = 16 are below both cutoffs and verify per
+signature in both binaries; their single wide ranges come from one disturbed
+run each (250.3, 261.6, 1027.4).
+
+Rows the commit does not touch moved too. Of 120 Ultra rows above 1 us outside
+the Schnorr batch rows, the median `new / base` ratio is 1.003 (range 0.981 -
+1.020), and 34 rows in the artifact are "slower" with non-overlapping ranges by
+0.2% to 2.0% (`ecdsa_verify` +1.1%, `dual_scalar_mul_gen_point` +1.3%,
+`schnorr_verify` +0.9% to +1.1%, `cached,N=16` above). The commit changes only
+`pippenger.cpp`, `pippenger.hpp` and `batch_verify.cpp`, and the 27 libsecp256k1
+rows in the same runs have a median ratio of 1.000, so the shift belongs to the
+rebuilt Ultra library rather than to the machine. A code-layout change is the
+likely cause; that is not proven here. Each shift is below the 3% this page
+accepts as run-to-run noise for a baseline. The `-> per-sig amortized (N=…)`
+rows are left out of the artifact: bench_unified prints that name under both
+`schnorr_batch_verify` and `ecdsa_batch_verify` in the same section, so the
+parsed value is the ECDSA one.
+
 ### x86-64 Schnorr batch verify with 128-bit weights (2026-11-01) `[A/B, non-canonical conditions]`
 
 `schnorr_batch_verify` now uses the BIP-340 batch form with 128-bit randomizers
