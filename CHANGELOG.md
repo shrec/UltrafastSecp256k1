@@ -8,6 +8,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **CUDA: registers-only `sha256_65` for 65-byte (uncompressed) keys in
+  hash160.** `hash160_pubkey` sends 33-byte keys to `sha256_33` and 65-byte keys
+  to `sha256_65`, and keeps the generic SHA-256 for every other length. Names,
+  signatures, register count and stack frame are unchanged.
+
+  Kernel-only A/B on an RTX 5060 Ti: 65-byte keys are faster with
+  non-overlapping ranges, and 33-byte keys are unchanged
+  (`docs/BENCHMARKS.md`,
+  `docs/benchmark_artifacts/cuda_hash160_65_kernel_ab_2026-11-03_rtx5060ti.json`).
+  `gpu_audit_runner` checks 65-byte keys with all 256 last-byte values against the
+  generic SHA-256. The OpenCL `hash160_gpu_cpu` audit runs the same sweep against
+  its CPU reference. New harness: `benchmarks/gpu/cuda/hash160_ab_bench.cu`.
+
+  The OpenCL port of the same change slowed the 33-byte path in the same kernel,
+  so OpenCL and Metal keep the generic SHA-256 for 65-byte keys until per-length
+  kernels exist (NF-2026-00037). Evidence:
+  `docs/benchmark_artifacts/opencl_hash160_sha256_65_ab_2026-11-03_rtx5060ti.json`.
 - **CPU: the lane verifiers' dual multiplication is GLV-split (RM-2026-00009).**
   `u1*G + u2*Q` is now computed per lane as `a1*G + b1*phi(G) + a2*Q + b2*phi(Q)`.
   The halves come from `glv_decompose`, are below 2^128, and carry their signs as

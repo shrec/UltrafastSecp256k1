@@ -1902,9 +1902,10 @@ static int audit_hash160_known_answers() {
 }
 
 // GPU vs CPU over random keys. 33 and 65 are the real key lengths; 34 and 64
-// are neighbours that must take the generic SHA-256 branch of the dispatch.
-// Keys are random bytes (hash160 is defined for any input), seeded
-// deterministically so a failure reproduces.
+// are neighbours that must take the generic SHA-256 branch of the dispatch. A
+// final sweep hashes 65-byte keys with every last byte value 0x00..0xff (the
+// only input of the second SHA-256 block). Keys are random bytes (hash160 is
+// defined for any input), seeded deterministically so a failure reproduces.
 static int audit_hash160_gpu_vs_cpu() {
     const int ready = ensure_hash160("hash160_gpu_cpu");
     if (ready != 0) return ready;
@@ -1940,6 +1941,39 @@ static int audit_hash160_gpu_vs_cpu() {
                         hash160_ref::to_hex(&gpu[size_t(i) * 20], 20).c_str(),
                         hash160_ref::to_hex(cpu, 20).c_str());
                 return 10 * case_idx + 1;
+            }
+        }
+    }
+
+    // 65-byte keys with every possible last byte (0x00..0xff). The last byte is
+    // the only input of the second SHA-256 block of a 65-byte message, so this
+    // exercises that block's word w[0] and its 0x80 padding for all 256 values.
+    // The first 64 bytes are one fixed random prefix, so the 256 keys differ only
+    // in the last byte.
+    {
+        const uint32_t count = 256;
+        std::vector<uint8_t> prefix(64);
+        for (auto& b : prefix) b = static_cast<uint8_t>(next() >> 24);
+        std::vector<uint8_t> keys(size_t(65) * count);
+        for (uint32_t i = 0; i < count; ++i) {
+            uint8_t* k = &keys[size_t(i) * 65];
+            k[0] = 4;
+            std::memcpy(k + 1, prefix.data() + 1, 63);
+            k[64] = static_cast<uint8_t>(i);
+        }
+        std::vector<uint8_t> gpu;
+        if (!g_hash160.run(*g_ctx, keys, 65, count, gpu)) {
+            fprintf(stderr, "    65-byte last-byte sweep: %s\n", g_hash160.error.c_str());
+            return 100;
+        }
+        for (uint32_t i = 0; i < count; ++i) {
+            uint8_t cpu[20];
+            hash160_ref::hash160(&keys[size_t(i) * 65], 65, cpu);
+            if (std::memcmp(cpu, &gpu[size_t(i) * 20], 20) != 0) {
+                fprintf(stderr, "    65-byte last byte 0x%02x: GPU %s != CPU %s\n", i,
+                        hash160_ref::to_hex(&gpu[size_t(i) * 20], 20).c_str(),
+                        hash160_ref::to_hex(cpu, 20).c_str());
+                return 101;
             }
         }
     }

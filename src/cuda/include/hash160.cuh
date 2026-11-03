@@ -13,12 +13,17 @@
 //   - ripemd160_32(): RIPEMD-160 of exactly 32 bytes, fully unrolled with
 //     literal word indices, shifts and constants (no r/s tables, no runtime-
 //     indexed arrays, no per-step branches).
-//   - hash160_pubkey() takes the fast SHA-256 for 33-byte keys and the generic
-//     sha256() for any other length (65-byte uncompressed keys).
+//   - sha256_65(): SHA-256 of exactly 65 bytes (uncompressed pubkey), two
+//     compression blocks built straight from the key bytes into registers
+//     (block 2 = byte 64 + padding + 520-bit length), rounds fully unrolled.
+//   - hash160_pubkey() takes sha256_33() for 33-byte keys, sha256_65() for
+//     65-byte keys, and the generic sha256() for any other length.
 //
 // ptxas -v on sm_120 for a kernel calling hash160_pubkey with a runtime
 // length: 480 -> 128 bytes stack. Kernel-only A/B on RTX 5060 Ti:
-// docs/benchmark_artifacts/cuda_hash160_unrolled_ab_2026-11-02_rtx5060ti.json.
+// docs/benchmark_artifacts/cuda_hash160_unrolled_ab_2026-11-02_rtx5060ti.json;
+// sha256_65 (56 registers, 128 bytes stack, both unchanged):
+// docs/benchmark_artifacts/cuda_hash160_65_kernel_ab_2026-11-03_rtx5060ti.json.
 // ============================================================================
 
 namespace secp256k1 {
@@ -193,6 +198,111 @@ __device__ __forceinline__ void sha256_33(const uint8_t data[33], uint8_t out[32
     out[20]=(uint8_t)(f>>24); out[21]=(uint8_t)(f>>16); out[22]=(uint8_t)(f>>8); out[23]=(uint8_t)f;
     out[24]=(uint8_t)(g>>24); out[25]=(uint8_t)(g>>16); out[26]=(uint8_t)(g>>8); out[27]=(uint8_t)g;
     out[28]=(uint8_t)(h>>24); out[29]=(uint8_t)(h>>16); out[30]=(uint8_t)(h>>8); out[31]=(uint8_t)h;
+}
+
+// ----------------------------------------------------------------------------
+// One SHA-256 compression over a 16-word block held in registers.
+// Fully unrolled with literal round indices; w[] is a rolling 16-word window,
+// so after inlining both st[] and w[] live in registers (no local memory).
+// ----------------------------------------------------------------------------
+__device__ __forceinline__ void sha256_block_regs(uint32_t st[8], uint32_t w[16]) {
+    uint32_t a=st[0], b=st[1], c=st[2], d=st[3];
+    uint32_t e=st[4], f=st[5], g=st[6], h=st[7];
+
+#define S256_RND(i) do { \
+    uint32_t S1 = rotr32(e,6)^rotr32(e,11)^rotr32(e,25); \
+    uint32_t ch = (e&f)^(~e&g); \
+    uint32_t t1 = h + S1 + ch + sha256_K[i] + w[(i)&15]; \
+    uint32_t S0 = rotr32(a,2)^rotr32(a,13)^rotr32(a,22); \
+    uint32_t maj = (a&b)^(a&c)^(b&c); \
+    h=g; g=f; f=e; e=d+t1; d=c; c=b; b=a; a=t1+S0+maj; \
+} while(0)
+
+#define S256_EXP(i) do { \
+    uint32_t wi15 = w[((i)-15)&15]; \
+    uint32_t wi2  = w[((i)- 2)&15]; \
+    uint32_t s0 = rotr32(wi15,7)^rotr32(wi15,18)^(wi15>>3); \
+    uint32_t s1 = rotr32(wi2,17)^rotr32(wi2,19)^(wi2>>10); \
+    w[(i)&15] = w[(i)&15] + s0 + w[((i)-7)&15] + s1; \
+} while(0)
+
+#define S256_ER(i) S256_EXP(i); S256_RND(i)
+
+    S256_RND(0);  S256_RND(1);  S256_RND(2);  S256_RND(3);
+    S256_RND(4);  S256_RND(5);  S256_RND(6);  S256_RND(7);
+    S256_RND(8);  S256_RND(9);  S256_RND(10); S256_RND(11);
+    S256_RND(12); S256_RND(13); S256_RND(14); S256_RND(15);
+
+    S256_ER(16); S256_ER(17); S256_ER(18); S256_ER(19);
+    S256_ER(20); S256_ER(21); S256_ER(22); S256_ER(23);
+    S256_ER(24); S256_ER(25); S256_ER(26); S256_ER(27);
+    S256_ER(28); S256_ER(29); S256_ER(30); S256_ER(31);
+    S256_ER(32); S256_ER(33); S256_ER(34); S256_ER(35);
+    S256_ER(36); S256_ER(37); S256_ER(38); S256_ER(39);
+    S256_ER(40); S256_ER(41); S256_ER(42); S256_ER(43);
+    S256_ER(44); S256_ER(45); S256_ER(46); S256_ER(47);
+    S256_ER(48); S256_ER(49); S256_ER(50); S256_ER(51);
+    S256_ER(52); S256_ER(53); S256_ER(54); S256_ER(55);
+    S256_ER(56); S256_ER(57); S256_ER(58); S256_ER(59);
+    S256_ER(60); S256_ER(61); S256_ER(62); S256_ER(63);
+#undef S256_RND
+#undef S256_EXP
+#undef S256_ER
+
+    st[0]+=a; st[1]+=b; st[2]+=c; st[3]+=d;
+    st[4]+=e; st[5]+=f; st[6]+=g; st[7]+=h;
+}
+
+// ----------------------------------------------------------------------------
+// Optimised SHA-256 for exactly 65 bytes (uncompressed secp256k1 pubkey).
+//
+// The 65-byte message is two 512-bit blocks:
+//   block 1: bytes 0-63 of the input (16 big-endian words)
+//   block 2: byte 64, 0x80 padding, zeros, then the 64-bit length
+//            (65 * 8 = 520 = 0x208, big-endian) in w[14..15]
+// Both blocks are built directly in registers; there is no byte buffer.
+// ----------------------------------------------------------------------------
+__device__ __forceinline__ void sha256_65(const uint8_t data[65], uint8_t out[32]) {
+    uint32_t st[8] = {0x6a09e667U,0xbb67ae85U,0x3c6ef372U,0xa54ff53aU,
+                      0x510e527fU,0x9b05688cU,0x1f83d9abU,0x5be0cd19U};
+    uint32_t w[16];
+
+    // Block 1: input bytes 0..63
+    w[0]  = ((uint32_t)data[0] <<24)|((uint32_t)data[1] <<16)|((uint32_t)data[2] <<8)|data[3];
+    w[1]  = ((uint32_t)data[4] <<24)|((uint32_t)data[5] <<16)|((uint32_t)data[6] <<8)|data[7];
+    w[2]  = ((uint32_t)data[8] <<24)|((uint32_t)data[9] <<16)|((uint32_t)data[10]<<8)|data[11];
+    w[3]  = ((uint32_t)data[12]<<24)|((uint32_t)data[13]<<16)|((uint32_t)data[14]<<8)|data[15];
+    w[4]  = ((uint32_t)data[16]<<24)|((uint32_t)data[17]<<16)|((uint32_t)data[18]<<8)|data[19];
+    w[5]  = ((uint32_t)data[20]<<24)|((uint32_t)data[21]<<16)|((uint32_t)data[22]<<8)|data[23];
+    w[6]  = ((uint32_t)data[24]<<24)|((uint32_t)data[25]<<16)|((uint32_t)data[26]<<8)|data[27];
+    w[7]  = ((uint32_t)data[28]<<24)|((uint32_t)data[29]<<16)|((uint32_t)data[30]<<8)|data[31];
+    w[8]  = ((uint32_t)data[32]<<24)|((uint32_t)data[33]<<16)|((uint32_t)data[34]<<8)|data[35];
+    w[9]  = ((uint32_t)data[36]<<24)|((uint32_t)data[37]<<16)|((uint32_t)data[38]<<8)|data[39];
+    w[10] = ((uint32_t)data[40]<<24)|((uint32_t)data[41]<<16)|((uint32_t)data[42]<<8)|data[43];
+    w[11] = ((uint32_t)data[44]<<24)|((uint32_t)data[45]<<16)|((uint32_t)data[46]<<8)|data[47];
+    w[12] = ((uint32_t)data[48]<<24)|((uint32_t)data[49]<<16)|((uint32_t)data[50]<<8)|data[51];
+    w[13] = ((uint32_t)data[52]<<24)|((uint32_t)data[53]<<16)|((uint32_t)data[54]<<8)|data[55];
+    w[14] = ((uint32_t)data[56]<<24)|((uint32_t)data[57]<<16)|((uint32_t)data[58]<<8)|data[59];
+    w[15] = ((uint32_t)data[60]<<24)|((uint32_t)data[61]<<16)|((uint32_t)data[62]<<8)|data[63];
+    sha256_block_regs(st, w);
+
+    // Block 2: byte 64, 0x80 padding, zeros, 520-bit length
+    w[0]  = ((uint32_t)data[64]<<24)|0x00800000U;
+    w[1]  = 0U; w[2]  = 0U; w[3]  = 0U; w[4]  = 0U; w[5]  = 0U; w[6] = 0U;
+    w[7]  = 0U; w[8]  = 0U; w[9]  = 0U; w[10] = 0U; w[11] = 0U; w[12] = 0U;
+    w[13] = 0U;
+    w[14] = 0U;       // length high word
+    w[15] = 520U;     // length low word: 65 * 8 bits
+    sha256_block_regs(st, w);
+
+    // Store big-endian output (8 uint32 -> 32 bytes)
+    #pragma unroll
+    for (int i = 0; i < 8; ++i) {
+        out[4*i+0] = (uint8_t)(st[i]>>24);
+        out[4*i+1] = (uint8_t)(st[i]>>16);
+        out[4*i+2] = (uint8_t)(st[i]>>8);
+        out[4*i+3] = (uint8_t)st[i];
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -434,14 +544,15 @@ __device__ __forceinline__ void ripemd160_32(const uint8_t data[32], uint8_t out
 
 // ----------------------------------------------------------------------------
 // hash160_pubkey: pubkey -> SHA-256 -> RIPEMD-160 -> 20 bytes.
-// 33-byte (compressed) keys take sha256_33(); any other length (65-byte
-// uncompressed keys) takes the generic sha256().
+// 33-byte (compressed) keys take sha256_33(); 65-byte (uncompressed) keys take
+// sha256_65(); any other length takes the generic sha256().
 // ----------------------------------------------------------------------------
 __device__ __forceinline__ void hash160_pubkey(const uint8_t* pubkey,
                                                size_t pubkey_len,
                                                uint8_t out[20]) {
     uint8_t sha[32];
     if (pubkey_len == 33) sha256_33(pubkey, sha);
+    else if (pubkey_len == 65) sha256_65(pubkey, sha);
     else sha256(pubkey, pubkey_len, sha);
     ripemd160_32(sha, out);
 }

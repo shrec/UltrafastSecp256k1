@@ -1483,10 +1483,51 @@ __global__ void audit_hash160_kernel(int* result) {
     *result = 0;
 }
 
+// 65-byte keys with every possible last byte (0x00..0xff). The last byte is the
+// only input of the second SHA-256 block of a 65-byte message, so this
+// exercises that block's w[0] and its 0x80 padding for all 256 values. The
+// registers-only sha256_65 / hash160_pubkey dispatch is compared against the
+// generic length-looping sha256() (an independent code path, checked against
+// the known answers above) for the same bytes. The first 64 bytes are one fixed
+// pseudo-random prefix, so the 256 keys differ only in the last byte.
+__global__ void audit_hash160_65_lastbyte_kernel(int* result) {
+    uint8_t key[65];
+    uint32_t s = 0x9E3779B9u;
+    for (int i = 0; i < 64; i++) {
+        s = s * 1664525u + 1013904223u;
+        key[i] = (uint8_t)(s >> 24);
+    }
+    key[0] = 0x04;
+    for (int v = 0; v < 256; v++) {
+        key[64] = (uint8_t)v;
+
+        uint8_t sha_fast[32], sha_ref[32];
+        sha256_65(key, sha_fast);
+        sha256(key, 65, sha_ref);
+        for (int i = 0; i < 32; i++) {
+            if (sha_fast[i] != sha_ref[i]) { *result = 6; return; }
+        }
+
+        uint8_t h_fast[20], h_ref[20];
+        hash160_pubkey(key, 65, h_fast);
+        ripemd160_32(sha_ref, h_ref);
+        for (int i = 0; i < 20; i++) {
+            if (h_fast[i] != h_ref[i]) { *result = 7; return; }
+        }
+    }
+    *result = 0;
+}
+
 static int audit_hash160_consistency() {
     int* d_r; int h_r = -1;
     CUDA_CHECK(cudaMalloc(&d_r, sizeof(int)));
     audit_hash160_kernel<<<1,1>>>(d_r);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(&h_r, d_r, sizeof(int), cudaMemcpyDeviceToHost));
+    if (h_r != 0) { cudaFree(d_r); return h_r; }
+
+    h_r = -1;
+    audit_hash160_65_lastbyte_kernel<<<1,1>>>(d_r);
     CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaMemcpy(&h_r, d_r, sizeof(int), cudaMemcpyDeviceToHost));
     cudaFree(d_r);

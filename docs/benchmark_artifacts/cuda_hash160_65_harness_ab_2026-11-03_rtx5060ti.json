@@ -1,0 +1,51 @@
+{
+  "report_type": "ab_cuda-hash160-65",
+  "generated_by": "ab_driver.py (scratch driver; every number parsed from tool output, none typed by hand)",
+  "date": "2026-11-03T18:25:01.205600+00:00",
+  "host": "dev machine (i5-14400F + RTX 5060 Ti)",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "rounds": 5,
+  "order": "single binary, both forms inside each run",
+  "verdict_rule": "improvement iff new_max < base_min; regression iff new_min > base_max; else inconclusive",
+  "what_changed": "sha256_65: registers-only two-block SHA-256 for 65-byte keys in src/cuda/include/hash160.cuh (card gpu-hash160-sha256-65-regs); old = generic length-looping sha256() + ripemd160_32, new = hash160_pubkey dispatch to sha256_65",
+  "harness": "benchmarks/gpu/cuda/hash160_ab_bench.cu, defaults keys=1048576 iters=20 reps=11, cudaEvent timing, both forms in each run, outputs compared on every key plus the 04||Gx||Gy KAT",
+  "build": "nvcc 13.2 -O3 -std=c++17 -gencode arch=compute_120,code=sm_120",
+  "gpu": "NVIDIA GeForce RTX 5060 Ti",
+  "binary": {
+    "path": "hash160_ab_bench (benchmarks/gpu/cuda/hash160_ab_bench.cu, built as in its header)",
+    "sha256": "d22dc89c3f35536788e7e8710b72f7aec66d89ea5527674b1e51c146796a1863"
+  },
+  "ops": {
+    "hash160 len=65": {
+      "old": {
+        "rounds": [
+          0.6234,
+          0.6229,
+          0.6236,
+          0.6238,
+          0.6237
+        ],
+        "median": 0.6236,
+        "min": 0.6229,
+        "max": 0.6238,
+        "spread_pct": 0.1443232841565125
+      },
+      "new": {
+        "rounds": [
+          0.5478,
+          0.5473,
+          0.5479,
+          0.5474,
+          0.5479
+        ],
+        "median": 0.5478,
+        "min": 0.5473,
+        "max": 0.5479,
+        "spread_pct": 0.109529025191684
+      },
+      "verdict": "improvement",
+      "new_over_old_median": 0.8784477228992943
+    }
+  },
+  "last_run_stdout": "device: NVIDIA GeForce RTX 5060 Ti\nkeys=1048576 iters=20 reps=11 (median over reps; ns/hash is cudaEvent time / (keys*iters))\nlen=65  old=0.6237 ns/hash  new=0.5479 ns/hash  old/new=1.138  agree=yes  kat=yes\n  old min..max: 0.6228..0.6243   new min..max: 0.5472..0.5487\nRESULT: old and new agree on every key\n"
+}

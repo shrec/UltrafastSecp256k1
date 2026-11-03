@@ -690,6 +690,35 @@ number: `docs/benchmark_artifacts/cuda_hash160_unrolled_ab_2026-11-02_rtx5060ti.
 This is the hash kernel alone. `ufsecp_gpu_hash160_pubkey_batch` also copies
 inputs and outputs over PCIe, which this harness does not measure.
 
+### CUDA hash160: registers-only two-block `sha256_65` for 65-byte keys (2026-11-03)
+
+`hash160_pubkey` now sends 65-byte keys to `sha256_65`. It builds both
+compression blocks straight from the key bytes in registers: block 2 is byte 64,
+the padding and the 520-bit length. 33-byte and other lengths are unchanged.
+
+The section above uses the same kernel-only harness (its source is embedded in
+the artifact): base is the header at `fd79ffab`, new is the changed header. Five
+alternating runs each on the RTX 5060 Ti. Outputs are bit-identical. `ptxas -v`
+reports 56 registers and a 128-byte stack in both. Source of every number:
+`docs/benchmark_artifacts/cuda_hash160_65_kernel_ab_2026-11-03_rtx5060ti.json`.
+
+| Input | Before: ns/hash median (min - max) | After: ns/hash median (min - max) | Median change | Ranges |
+|-------|-----------------------------------:|----------------------------------:|--------------:|--------|
+| 33-byte compressed key | 0.3259 (0.3257 - 0.3259) | 0.3238 (0.3237 - 0.3239) | -0.6% | no overlap (code unchanged for this length) |
+| 65-byte uncompressed key | 0.6191 (0.6113 - 0.6197) | 0.5360 (0.5352 - 0.5364) | -13.4% | no overlap, faster |
+
+The new `benchmarks/gpu/cuda/hash160_ab_bench.cu` times the previous generic
+path and the shipped dispatch for 65-byte keys in one binary. It also checks
+the `04||Gx||Gy` known answer and that the two paths agree on every key. Its
+five runs agree with the table:
+`docs/benchmark_artifacts/cuda_hash160_65_harness_ab_2026-11-03_rtx5060ti.json`.
+
+The same change was tried in OpenCL and is **not shipped**. In one kernel, the
+65-byte form gets faster but the 33-byte form gets slower with non-overlapping
+ranges, so the OpenCL kernel and the Metal mirror keep the generic SHA-256 for
+65-byte keys. Evidence:
+`docs/benchmark_artifacts/opencl_hash160_sha256_65_ab_2026-11-03_rtx5060ti.json`.
+
 ### CUDA carry chain: native `__int128` `add_cc` on nvcc (2026-11-03)
 
 Commit `5cac5999` (NF-2026-00031, reported by zeroxbee / VanityPlate) makes
