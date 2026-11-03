@@ -335,16 +335,16 @@ void test_ecdsa(LaneBackend b, Rng& rng) {
     check(st.exceptional_fallback == inf.size(), "every R = O lane flagged", name, st.exceptional_fallback);
 
     // Tiny scalars with Q = +-j*G: equal / opposite operands inside the lanes.
-    std::vector<ECDSABatchEntry> small;
+    std::vector<ECDSABatchEntry> tiny;
     const std::uint64_t ks[] = {1, 2, 3, 5, 7, 31, 32, 33};
     const std::int64_t js[] = {1, 2, 3, -1, -2, -3, -5, -31, -32, -33, 17};
     for (std::uint64_t k : ks)
         for (std::int64_t j : js) {
             const Scalar jj = (j > 0) ? scalar_u64(static_cast<std::uint64_t>(j))
                                       : scalar_u64(static_cast<std::uint64_t>(-j)).negate_var();
-            small.push_back(ecdsa_small(k, jj));
+            tiny.push_back(ecdsa_small(k, jj));
         }
-    compare_batch("ecdsa tiny scalars / Q = +-jG", small, b, ecdsa_lane, ecdsa_ref, &st);
+    compare_batch("ecdsa tiny scalars / Q = +-jG", tiny, b, ecdsa_lane, ecdsa_ref, &st);
     check(st.exceptional_fallback > 0, "tiny-scalar set hits exceptional lanes", name, st.exceptional_fallback);
     std::printf("    [%s] ecdsa tiny-scalar set: %zu lane, %zu exceptional, %zu prep\n", name,
                 st.lane_verified, st.exceptional_fallback, st.prep_fallback);
@@ -353,7 +353,7 @@ void test_ecdsa(LaneBackend b, Rng& rng) {
     std::vector<ECDSABatchEntry> pool = valid;
     pool.insert(pool.end(), bad.begin(), bad.end());
     pool.insert(pool.end(), inf.begin(), inf.end());
-    pool.insert(pool.end(), small.begin(), small.end());
+    pool.insert(pool.end(), tiny.begin(), tiny.end());
     for (unsigned n = 1; n <= 2 * W + 3; ++n) {
         std::vector<ECDSABatchEntry> mix;
         for (unsigned i = 0; i < n; ++i) mix.push_back(pool[rng.u64() % pool.size()]);
