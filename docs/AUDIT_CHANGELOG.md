@@ -1,5 +1,15 @@
 # Audit Changelog
 
+## 2026-11-04 - OpenCL: the CT BIP-340 signer rejects a zero private key (`ct_schnorr_sign_impl`, module `fuzz_schnorr_zero`)
+
+`ct_schnorr_sign_impl` (`src/opencl/kernels/secp256k1_ct_sign.cl`) signed with `d = 0` and
+returned success. The CPU signer rejects that key, and so did the OpenCL ECDSA signer. Once the
+CT drop-in built and the CT GLV split was fixed, the audit module `fuzz_schnorr_zero` ran and
+failed (`error=1`). `ct_scalar_is_zero(priv)` is now one more CT mask in the signer's single final
+verdict, next to `k' == 0`, `s == 0` and `R.x == 0`. Checked on the host GPU with a pyopencl
+harness checked against a pure-Python BIP-340 verifier: `d = 0` returns 0, and 15 other keys
+(including 1, 2 and n-1) produce valid signatures. Metal is unchanged.
+
 ## 2026-11-04 - OpenCL and Metal: the CT generator / scalar multiplication uses a real constant-time GLV split (`ct_glv_decompose_impl`, `ct_glv_decompose`)
 
 **Root cause (NF-2026-00039).** `ct_glv_decompose_impl` (`src/opencl/kernels/secp256k1_ct_scalar.cl`)
