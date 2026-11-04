@@ -3402,6 +3402,158 @@ static const OclSectionInfo OCL_SECTIONS[] = {
 };
 static constexpr int NUM_OCL_SECTIONS = sizeof(OCL_SECTIONS) / sizeof(OCL_SECTIONS[0]);
 
+// -----------------------------------------------------------------------------
+// Differential: Bitcoin Cash 2019 Schnorr verify (bch_schnorr_verify_batch in
+// secp256k1_extended.cl) against reference verdicts. This runner does not link
+// the CPU library, so the vectors below were produced by an independent
+// big-integer implementation of the 2019-05-15 rule (r < p, 0 < s < n,
+// e = SHA256(r || P33 || m) mod n, R = sG - eP, QR(R.y), x(R) == r); the
+// CPU-library differential of the same kernel family runs in
+// audit/test_gpu_ops_equivalence.cpp (GPU C ABI vs ufsecp_bch_schnorr_verify).
+// -----------------------------------------------------------------------------
+struct BchSchnorrVector {
+    const char* msg;   // 32 bytes hex
+    const char* pub;   // 33 bytes hex (SEC1 compressed)
+    const char* sig;   // 64 bytes hex (r || s)
+    int expect;
+    const char* what;
+};
+
+static const BchSchnorrVector kBchSchnorrVectors[] = {
+    { "ccc1329c4a8d92ae564aaf0ec29cb3b09ec6f3d0b11882a5c090c0be1c97b4ef",
+      "023bae2f783016305af851e2fc380411a0011844aacc2ccb05ae7c5b923ae63861",
+      "011c698d779ca7638135594453cb372e46539dd2e2e4ebdce16bc165249d5a141a2bcd4169ded3c7f03579eeab2aa72474cf9b44756ec6d778ec4742912141ef",
+      1, "valid" },
+    { "1764417eb5a44bcd111b9b9931fa56515531012aa3f25d98f17d9d2e786036d8",
+      "02300435ead4410cfa9a0f324260b25aa85c22a5f72c93f5a670195cf4e987ce1a",
+      "68a74db705741608f0c0571253faa11fd32f8333ac72106834202c0ee11c5d6dce243c1a05d912b8defa402c6ae20c16cf8c64a28a5f2024002a2c93320fb739",
+      1, "valid" },
+    { "cebc57fe1092e50cf3826fa759351d06dfbe7cb7d9b8bd89a76fc82b56a5d399",
+      "038890b8420622a81abc12fbb843617fdc9424527566df7819c4a2b2640e306c0e",
+      "c48a0d8bb60b017ad29be1f245d7f6ea53648017e894d16d2883934bfcca19a198977bde18f729f71c75d0fdf990baeb095416e87b459b565286b1709bca3e06",
+      1, "valid" },
+    { "998ae27efde972312bc328c3fbd78247cbf268fd46fb0eec763b22a19b351ffd",
+      "0345e164768cbd6e146dafd445aa150c14ff24993c8341bd34643ca69681625a60",
+      "66bd3befebc5ef8961bd4d02672eea76c542da93e529cda89a6ef05653423b5ca0634ada4eea3a34664f8119d55de15274654839558b35b7b2f7622baa56b526",
+      1, "valid" },
+    { "ccc1329c4a8d92ae564aaf0ec29cb3b09ec6f3d0b11882a5c090c0be1c97b4ef",
+      "023bae2f783016305af851e2fc380411a0011844aacc2ccb05ae7c5b923ae63861",
+      "011c698d779ca7638135594453cb372e46539dd2e2e4ebdce16bc165249d5a1439547bf624d8f55653cc71e7e31d42205175caa39dfaccf7f7939cd02f2a5897",
+      0, "R negated (non-residue y)" },
+    { "1764417eb5a44bcd111b9b9931fa56515531012aa3f25d98f17d9d2e786036d8",
+      "02300435ead4410cfa9a0f324260b25aa85c22a5f72c93f5a670195cf4e987ce1a",
+      "69a74db705741608f0c0571253faa11fd32f8333ac72106834202c0ee11c5d6dce243c1a05d912b8defa402c6ae20c16cf8c64a28a5f2024002a2c93320fb739",
+      0, "r bit flipped" },
+    { "1764417eb5a44bcd111b9b9931fa56515531012aa3f25d98f17d9d2e786036d8",
+      "02300435ead4410cfa9a0f324260b25aa85c22a5f72c93f5a670195cf4e987ce1a",
+      "68a74db705741608f0c0571253faa11fd32f8333ac72106834202c0ee11c5d6dfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141",
+      0, "s = n" },
+    { "1764417eb5a44bcd111b9b9931fa56515531012aa3f25d98f17d9d2e786036d8",
+      "02300435ead4410cfa9a0f324260b25aa85c22a5f72c93f5a670195cf4e987ce1a",
+      "68a74db705741608f0c0571253faa11fd32f8333ac72106834202c0ee11c5d6d0000000000000000000000000000000000000000000000000000000000000000",
+      0, "s = 0" },
+    { "cebc57fe1092e50cf3826fa759351d06dfbe7cb7d9b8bd89a76fc82b56a5d399",
+      "038890b8420622a81abc12fbb843617fdc9424527566df7819c4a2b2640e306c0e",
+      "fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f98977bde18f729f71c75d0fdf990baeb095416e87b459b565286b1709bca3e06",
+      0, "r = p" },
+    { "cebc57fe1092e50cf3826fa759351d06dfbe7cb7d9b8bd89a76fc82b56a5d399",
+      "058890b8420622a81abc12fbb843617fdc9424527566df7819c4a2b2640e306c0e",
+      "c48a0d8bb60b017ad29be1f245d7f6ea53648017e894d16d2883934bfcca19a198977bde18f729f71c75d0fdf990baeb095416e87b459b565286b1709bca3e06",
+      0, "pubkey prefix 0x05" },
+    { "cebc57fe1092e50cf3826fa759351d06dfbe7cb7d9b8bd89a76fc82b56a5d399",
+      "03fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f",
+      "c48a0d8bb60b017ad29be1f245d7f6ea53648017e894d16d2883934bfcca19a198977bde18f729f71c75d0fdf990baeb095416e87b459b565286b1709bca3e06",
+      0, "pubkey x = p" },
+    { "198ae27efde972312bc328c3fbd78247cbf268fd46fb0eec763b22a19b351ffd",
+      "0345e164768cbd6e146dafd445aa150c14ff24993c8341bd34643ca69681625a60",
+      "66bd3befebc5ef8961bd4d02672eea76c542da93e529cda89a6ef05653423b5ca0634ada4eea3a34664f8119d55de15274654839558b35b7b2f7622baa56b526",
+      0, "message bit flipped" },
+    { "998ae27efde972312bc328c3fbd78247cbf268fd46fb0eec763b22a19b351ffd",
+      "0245e164768cbd6e146dafd445aa150c14ff24993c8341bd34643ca69681625a60",
+      "66bd3befebc5ef8961bd4d02672eea76c542da93e529cda89a6ef05653423b5ca0634ada4eea3a34664f8119d55de15274654839558b35b7b2f7622baa56b526",
+      0, "pubkey -P" },
+    { "998ae27efde972312bc328c3fbd78247cbf268fd46fb0eec763b22a19b351ffd",
+      "0345e164768cbd6e146dafd445aa150c14ff24993c8341bd34643ca69681625a60",
+      "66bd3befebc5ef8961bd4d02672eea76c542da93e529cda89a6ef05653423b5ca0634ada4eea3a34664f8119d55de15274654839558b35b7b2f7622baa56b527",
+      0, "s bit flipped" },
+};
+
+static bool bch_hex_decode(const char* hex, uint8_t* out, size_t n) {
+    auto nib = [](char c) -> int {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
+    };
+    if (std::strlen(hex) != n * 2) return false;
+    for (size_t i = 0; i < n; ++i) {
+        const int hi = nib(hex[2 * i]), lo = nib(hex[2 * i + 1]);
+        if (hi < 0 || lo < 0) return false;
+        out[i] = static_cast<uint8_t>((hi << 4) | lo);
+    }
+    return true;
+}
+
+static int audit_bch_schnorr_verify_diff() {
+    if (!g_ext.valid) return -1;
+    cl_int err = CL_SUCCESS;
+    cl_kernel k = clCreateKernel(g_ext.program, "bch_schnorr_verify_batch", &err);
+    if (err != CL_SUCCESS || !k) return 1;
+
+    constexpr size_t n = sizeof(kBchSchnorrVectors) / sizeof(kBchSchnorrVectors[0]);
+    std::vector<uint8_t> msgs(n * 32), pubs(n * 33), sigs(n * 64);
+    for (size_t i = 0; i < n; ++i) {
+        if (!bch_hex_decode(kBchSchnorrVectors[i].msg, msgs.data() + i * 32, 32) ||
+            !bch_hex_decode(kBchSchnorrVectors[i].pub, pubs.data() + i * 33, 33) ||
+            !bch_hex_decode(kBchSchnorrVectors[i].sig, sigs.data() + i * 64, 64)) {
+            clReleaseKernel(k);
+            return 2;
+        }
+    }
+
+    cl_mem d_m = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                msgs.size(), msgs.data(), &err);
+    cl_mem d_p = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                pubs.size(), pubs.data(), &err);
+    cl_mem d_s = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                sigs.size(), sigs.data(), &err);
+    cl_mem d_r = clCreateBuffer(g_ext.context, CL_MEM_WRITE_ONLY, n * sizeof(int), nullptr, &err);
+    int rc = 0;
+    if (!d_m || !d_p || !d_s || !d_r) rc = 3;
+
+    std::vector<int> res(n, -7);
+    if (rc == 0) {
+        cl_uint count = static_cast<cl_uint>(n);
+        clSetKernelArg(k, 0, sizeof(cl_mem), &d_m);
+        clSetKernelArg(k, 1, sizeof(cl_mem), &d_p);
+        clSetKernelArg(k, 2, sizeof(cl_mem), &d_s);
+        clSetKernelArg(k, 3, sizeof(cl_mem), &d_r);
+        clSetKernelArg(k, 4, sizeof(cl_uint), &count);
+        size_t global = n;
+        if (clEnqueueNDRangeKernel(g_ext.queue, k, 1, nullptr, &global, nullptr, 0, nullptr, nullptr)
+                != CL_SUCCESS) rc = 4;
+        if (rc == 0 && clFinish(g_ext.queue) != CL_SUCCESS) rc = 5;
+        if (rc == 0 && clEnqueueReadBuffer(g_ext.queue, d_r, CL_TRUE, 0, n * sizeof(int),
+                                           res.data(), 0, nullptr, nullptr) != CL_SUCCESS) rc = 6;
+    }
+    if (d_m) clReleaseMemObject(d_m);
+    if (d_p) clReleaseMemObject(d_p);
+    if (d_s) clReleaseMemObject(d_s);
+    if (d_r) clReleaseMemObject(d_r);
+    clReleaseKernel(k);
+    if (rc != 0) return rc;
+
+    for (size_t i = 0; i < n; ++i) {
+        const int got = res[i] ? 1 : 0;
+        if (got != kBchSchnorrVectors[i].expect) {
+            std::fprintf(stderr, "bch_schnorr_diff[%zu] (%s): GPU=%d expected=%d\n",
+                         i, kBchSchnorrVectors[i].what, res[i], kBchSchnorrVectors[i].expect);
+            return 10 + static_cast<int>(i);
+        }
+    }
+    return 0;
+}
+
 static const OclAuditModule OCL_MODULES[] = {
     // Section 1: Mathematical Invariants
     { "selftest_core",     "OpenCL Selftest (23+ kernel tests)",          "math_invariants", audit_selftest_core, false },
@@ -3432,6 +3584,7 @@ static const OclAuditModule OCL_MODULES[] = {
     // Section 4: Differential
     { "diff_smul",         "OpenCL-host differential scalar mul",         "differential", audit_diff_scalar_mul, false },
     { "hash160_gpu_cpu",   "hash160 GPU vs CPU (random 33/65-byte keys)", "differential", audit_hash160_gpu_vs_cpu, false },
+    { "bch_schnorr_diff",  "BCH 2019 Schnorr verify vs reference verdicts (valid + invalid classes)", "differential", audit_bch_schnorr_verify_diff, false },
 
     // Section 5: Standard Test Vectors
     { "rfc6979_determ",    "RFC-6979 ECDSA deterministic nonce",          "standard_vectors", audit_rfc6979_determinism, false },

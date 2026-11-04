@@ -244,6 +244,13 @@ extern __global__ void schnorr_verify_batch_kernel(
     const SchnorrSignatureGPU* __restrict__ sigs,
     bool*          __restrict__ results,
     int count);
+/* Bitcoin Cash 2019 Schnorr verify (src/cuda/include/bch_schnorr.cuh). */
+extern __global__ void bch_schnorr_verify_batch_kernel(
+    const uint8_t* __restrict__ msgs32,
+    const uint8_t* __restrict__ pubkeys33,
+    const uint8_t* __restrict__ sigs64,
+    uint8_t*       __restrict__ results,
+    int count);
 extern __global__ void ecdsa_verify_collect_kernel(
     const uint8_t* __restrict__ msg_hashes,
     const JacobianPoint* __restrict__ public_keys,
@@ -1593,6 +1600,56 @@ public:
 
         clear_error();
         return GpuError::Ok;
+    }
+
+    /* Bitcoin Cash 2019 Schnorr (NOT BIP-340) batch verify, one thread per
+     * signature. PUBLIC data: buffers come from the scratch arena and are not
+     * erased between calls. Key decompression, the 97-byte challenge hash and
+     * the r/s range checks all run in the kernel. */
+    GpuError bch_schnorr_verify_batch(
+        const uint8_t* msgs32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msgs32 || !pubkeys33 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        if (count > static_cast<size_t>(std::numeric_limits<int>::max()))
+            return set_error(GpuError::BadInput, "bch_schnorr_verify count too large");
+
+        uint8_t *d_msgs = nullptr, *d_pubs = nullptr, *d_sigs = nullptr, *d_res = nullptr;
+        GpuError ret = GpuError::Ok;
+        const int n_int   = static_cast<int>(count);
+        const int threads = 128;
+        const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public data: reused, no erase
+
+        if (lease.alloc(&d_msgs, count * 32) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bch_schnorr d_msgs"); goto bch_cleanup; }
+        if (lease.alloc(&d_pubs, count * 33) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bch_schnorr d_pubs"); goto bch_cleanup; }
+        if (lease.alloc(&d_sigs, count * 64) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bch_schnorr d_sigs"); goto bch_cleanup; }
+        if (lease.alloc(&d_res, count) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bch_schnorr d_res"); goto bch_cleanup; }
+        if (cudaMemcpy(d_msgs, msgs32, count * 32, cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr upload msgs"); goto bch_cleanup; }
+        if (cudaMemcpy(d_pubs, pubkeys33, count * 33, cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr upload pubs"); goto bch_cleanup; }
+        if (cudaMemcpy(d_sigs, sigs64, count * 64, cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr upload sigs"); goto bch_cleanup; }
+        bch_schnorr_verify_batch_kernel<<<blocks, threads>>>(
+            d_msgs, d_pubs, d_sigs, d_res, n_int);
+        if (cudaGetLastError() != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr kernel launch"); goto bch_cleanup; }
+        if (cudaDeviceSynchronize() != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr kernel sync"); goto bch_cleanup; }
+        if (cudaMemcpy(out_results, d_res, count, cudaMemcpyDeviceToHost) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr download"); goto bch_cleanup; }
+        clear_error();
+bch_cleanup:
+        return ret;
     }
 
     // Engine-owned, memory-aware chunk size (rows). Bounds a chunk by half of free

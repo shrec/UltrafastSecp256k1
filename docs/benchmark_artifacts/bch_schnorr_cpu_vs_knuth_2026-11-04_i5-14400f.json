@@ -1,0 +1,964 @@
+{
+ "generated_by": "bench_bch_schnorr --json",
+ "schema": "ufsecp.bch_schnorr_bench.v1",
+ "issue": "https://github.com/shrec/UltrafastSecp256k1/issues/466",
+ "date_utc": "2026-11-04T23:30:09Z",
+ "argv": "out/cpu-release/benchmarks/bch/bench_bch_schnorr --json /tmp/claude-1000/-home-shrek-Secp256k1-Secp256K1fast-libs-UltrafastSecp256k1/87e5fd68-2d08-49f0-99ca-ab7fe8c43fd2/scratchpad/bch_harness_pinned_1.json",
+ "note": null,
+ "ufsecp": {
+  "version": "4.7.0",
+  "c_abi_version_string": "4.7.0",
+  "git_describe_at_configure": "v4.7.0-89-g0fa76f6b81f8-dirty",
+  "git_commit_at_configure": "0fa76f6b81f811de41e0932c3ed63e17fbb4c17d"
+ },
+ "machine": {
+  "cpu": "Intel(R) Core(TM) i5-14400F",
+  "os": "Linux 6.8.0-147-generic x86_64",
+  "arch": "x86_64",
+  "cpu_affinity": "2",
+  "pinned_by_harness": false,
+  "turbo": "disabled",
+  "turbo_source": "/sys/devices/system/cpu/intel_pstate/no_turbo = 1",
+  "governor": "performance",
+  "governor_of_cpu": "2",
+  "process_threads_after_run": "1"
+ },
+ "build": {
+  "compiler": "GCC 14.2.0",
+  "cmake_compiler": "GNU 14.2.0",
+  "system": "Linux 6.8.0-147-generic x86_64",
+  "config": "Release",
+  "flags": "CMAKE_CXX_FLAGS=[] CMAKE_CXX_FLAGS_RELEASE=[-O3 -DNDEBUG] project_march=[-march=native] SECP256K1_MARCH= SECP256K1_USE_ASM=ON SECP256K1_USE_LTO=ON SECP256K1_BUILD_PIPPENGER=ON",
+  "ndebug": true,
+  "optimized": "yes"
+ },
+ "lanes": {
+  "compiled": "avx2,avx_ifma,ifma256,ifma512",
+  "available": "avx2",
+  "selected": "avx2",
+  "requested": "avx2",
+  "reason": "default pick (UFSECP_LANES unset)",
+  "verify_backend": "off",
+  "verify_backend_note": "lanes::lane_verify_backend(): the backend verification calls get (off unless UFSECP_LANES forces one); 'selected' is the field-kernel default pick",
+  "env_UFSECP_LANES": null,
+  "env_UFSECP_CPU_DISABLE": null
+ },
+ "reference": {
+  "present": true,
+  "pinned_commit": "d1b9a8ac50cce15843c6925374709e2391e7aba4",
+  "git_commit_at_configure": "d1b9a8ac50cce15843c6925374709e2391e7aba4",
+  "matches_pin": "yes",
+  "include_dir": "/tmp/claude-1000/-home-shrek-Secp256k1-Secp256K1fast-libs-UltrafastSecp256k1/87e5fd68-2d08-49f0-99ca-ab7fe8c43fd2/scratchpad/ext/kth/src/secp256k1/include",
+  "header": "secp256k1_schnorr.h",
+  "library": "/tmp/claude-1000/-home-shrek-Secp256k1-Secp256K1fast-libs-UltrafastSecp256k1/87e5fd68-2d08-49f0-99ca-ab7fe8c43fd2/scratchpad/ext/kth-secp-build/lib/libsecp256k1.a"
+ },
+ "method": {
+  "timer": "RDTSCP",
+  "harness": "bench::Harness (src/cpu/include/secp256k1/benchmark_harness.hpp), as bench_unified",
+  "statistic": "per pass: mean ns over calls_per_pass calls; across passes: IQR outlier removal, then median; min/max are of the kept passes",
+  "passes": 11,
+  "pass_target_ms": 50.0,
+  "warmup_calls": "one pass worth",
+  "freq_warmup_ms": 3000,
+  "caller_threads": 1,
+  "ns_per_sig": "ns per call / N"
+ },
+ "cross_check": {
+  "passed": true,
+  "rule": "before timing, every implementation accepts every valid set and rejects the same set with signature N/2 corrupted (s := s + 1 mod n)",
+  "sizes": [
+   1,
+   2,
+   8,
+   32,
+   128,
+   512,
+   2048
+  ],
+  "implementations": [
+   "ufsecp single",
+   "ufsecp batch",
+   "ufsecp C ABI batch",
+   "ref single",
+   "ref batch"
+  ]
+ },
+ "rows": [
+  {
+   "impl": "ufsecp single",
+   "lib": "ufsecp",
+   "api": "single",
+   "n": 1,
+   "status": "ok",
+   "calls_per_pass": 1211,
+   "warmup_calls": 1211,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 41302.6,
+    "min": 41272.6,
+    "max": 41377.6,
+    "mean": 41304.0,
+    "stddev": 28.4
+   },
+   "ns_per_sig": {
+    "median": 41302.599,
+    "min": 41272.568,
+    "max": 41377.559
+   },
+   "sigs_per_sec_median": 24211.6
+  },
+  {
+   "impl": "ufsecp batch",
+   "lib": "ufsecp",
+   "api": "batch",
+   "n": 1,
+   "status": "ok",
+   "calls_per_pass": 1211,
+   "warmup_calls": 1211,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 41307.5,
+    "min": 41282.4,
+    "max": 41458.5,
+    "mean": 41328.7,
+    "stddev": 53.0
+   },
+   "ns_per_sig": {
+    "median": 41307.472,
+    "min": 41282.359,
+    "max": 41458.466
+   },
+   "sigs_per_sec_median": 24208.7
+  },
+  {
+   "impl": "ufsecp C ABI batch",
+   "lib": "ufsecp",
+   "api": "c_abi_batch",
+   "n": 1,
+   "status": "ok",
+   "calls_per_pass": 1209,
+   "warmup_calls": 1209,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 41386.6,
+    "min": 41365.0,
+    "max": 41408.9,
+    "mean": 41382.3,
+    "stddev": 14.0
+   },
+   "ns_per_sig": {
+    "median": 41386.626,
+    "min": 41365.038,
+    "max": 41408.937
+   },
+   "sigs_per_sec_median": 24162.4
+  },
+  {
+   "impl": "ref single",
+   "lib": "ref",
+   "api": "single",
+   "n": 1,
+   "status": "ok",
+   "calls_per_pass": 1181,
+   "warmup_calls": 1181,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 42342.3,
+    "min": 42286.5,
+    "max": 42470.1,
+    "mean": 42347.4,
+    "stddev": 52.7
+   },
+   "ns_per_sig": {
+    "median": 42342.254,
+    "min": 42286.532,
+    "max": 42470.055
+   },
+   "sigs_per_sec_median": 23617.1
+  },
+  {
+   "impl": "ref batch",
+   "lib": "ref",
+   "api": "batch",
+   "n": 1,
+   "status": "ok",
+   "calls_per_pass": 1182,
+   "warmup_calls": 1182,
+   "passes": 11,
+   "passes_kept": 9,
+   "passes_trimmed": 2,
+   "ns_per_call": {
+    "median": 42312.2,
+    "min": 42286.0,
+    "max": 42323.1,
+    "mean": 42308.6,
+    "stddev": 11.6
+   },
+   "ns_per_sig": {
+    "median": 42312.176,
+    "min": 42286.047,
+    "max": 42323.057
+   },
+   "sigs_per_sec_median": 23633.9
+  },
+  {
+   "impl": "ufsecp single",
+   "lib": "ufsecp",
+   "api": "single",
+   "n": 2,
+   "status": "ok",
+   "calls_per_pass": 601,
+   "warmup_calls": 601,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 82944.0,
+    "min": 82856.7,
+    "max": 83068.2,
+    "mean": 82960.5,
+    "stddev": 61.8
+   },
+   "ns_per_sig": {
+    "median": 41472.008,
+    "min": 41428.338,
+    "max": 41534.118
+   },
+   "sigs_per_sec_median": 24112.6
+  },
+  {
+   "impl": "ufsecp batch",
+   "lib": "ufsecp",
+   "api": "batch",
+   "n": 2,
+   "status": "ok",
+   "calls_per_pass": 605,
+   "warmup_calls": 605,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 82764.6,
+    "min": 82730.3,
+    "max": 82879.5,
+    "mean": 82781.7,
+    "stddev": 45.5
+   },
+   "ns_per_sig": {
+    "median": 41382.322,
+    "min": 41365.16,
+    "max": 41439.732
+   },
+   "sigs_per_sec_median": 24164.9
+  },
+  {
+   "impl": "ufsecp C ABI batch",
+   "lib": "ufsecp",
+   "api": "c_abi_batch",
+   "n": 2,
+   "status": "ok",
+   "calls_per_pass": 604,
+   "warmup_calls": 604,
+   "passes": 11,
+   "passes_kept": 9,
+   "passes_trimmed": 2,
+   "ns_per_call": {
+    "median": 82887.5,
+    "min": 82857.6,
+    "max": 83205.7,
+    "mean": 82918.3,
+    "stddev": 103.1
+   },
+   "ns_per_sig": {
+    "median": 41443.734,
+    "min": 41428.818,
+    "max": 41602.845
+   },
+   "sigs_per_sec_median": 24129.1
+  },
+  {
+   "impl": "ref single",
+   "lib": "ref",
+   "api": "single",
+   "n": 2,
+   "status": "ok",
+   "calls_per_pass": 592,
+   "warmup_calls": 592,
+   "passes": 11,
+   "passes_kept": 9,
+   "passes_trimmed": 2,
+   "ns_per_call": {
+    "median": 84469.3,
+    "min": 84421.1,
+    "max": 84508.9,
+    "mean": 84462.4,
+    "stddev": 24.2
+   },
+   "ns_per_sig": {
+    "median": 42234.651,
+    "min": 42210.564,
+    "max": 42254.475
+   },
+   "sigs_per_sec_median": 23677.2
+  },
+  {
+   "impl": "ref batch",
+   "lib": "ref",
+   "api": "batch",
+   "n": 2,
+   "status": "ok",
+   "calls_per_pass": 542,
+   "warmup_calls": 542,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 92267.0,
+    "min": 92157.6,
+    "max": 92384.7,
+    "mean": 92256.4,
+    "stddev": 69.4
+   },
+   "ns_per_sig": {
+    "median": 46133.523,
+    "min": 46078.793,
+    "max": 46192.364
+   },
+   "sigs_per_sec_median": 21676.2
+  },
+  {
+   "impl": "ufsecp single",
+   "lib": "ufsecp",
+   "api": "single",
+   "n": 8,
+   "status": "ok",
+   "calls_per_pass": 151,
+   "warmup_calls": 151,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 331045.7,
+    "min": 330928.1,
+    "max": 331419.6,
+    "mean": 331062.2,
+    "stddev": 137.8
+   },
+   "ns_per_sig": {
+    "median": 41380.715,
+    "min": 41366.009,
+    "max": 41427.451
+   },
+   "sigs_per_sec_median": 24165.8
+  },
+  {
+   "impl": "ufsecp batch",
+   "lib": "ufsecp",
+   "api": "batch",
+   "n": 8,
+   "status": "ok",
+   "calls_per_pass": 152,
+   "warmup_calls": 152,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 329229.1,
+    "min": 328966.8,
+    "max": 329769.5,
+    "mean": 329238.9,
+    "stddev": 224.8
+   },
+   "ns_per_sig": {
+    "median": 41153.641,
+    "min": 41120.845,
+    "max": 41221.183
+   },
+   "sigs_per_sec_median": 24299.2
+  },
+  {
+   "impl": "ufsecp C ABI batch",
+   "lib": "ufsecp",
+   "api": "c_abi_batch",
+   "n": 8,
+   "status": "ok",
+   "calls_per_pass": 152,
+   "warmup_calls": 152,
+   "passes": 11,
+   "passes_kept": 7,
+   "passes_trimmed": 4,
+   "ns_per_call": {
+    "median": 329375.5,
+    "min": 329356.6,
+    "max": 329398.0,
+    "mean": 329375.8,
+    "stddev": 14.5
+   },
+   "ns_per_sig": {
+    "median": 41171.935,
+    "min": 41169.576,
+    "max": 41174.752
+   },
+   "sigs_per_sec_median": 24288.4
+  },
+  {
+   "impl": "ref single",
+   "lib": "ref",
+   "api": "single",
+   "n": 8,
+   "status": "ok",
+   "calls_per_pass": 148,
+   "warmup_calls": 148,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 338322.0,
+    "min": 337762.6,
+    "max": 339142.6,
+    "mean": 338279.2,
+    "stddev": 386.9
+   },
+   "ns_per_sig": {
+    "median": 42290.251,
+    "min": 42220.325,
+    "max": 42392.83
+   },
+   "sigs_per_sec_median": 23646.1
+  },
+  {
+   "impl": "ref batch",
+   "lib": "ref",
+   "api": "batch",
+   "n": 8,
+   "status": "ok",
+   "calls_per_pass": 162,
+   "warmup_calls": 162,
+   "passes": 11,
+   "passes_kept": 9,
+   "passes_trimmed": 2,
+   "ns_per_call": {
+    "median": 310374.1,
+    "min": 310187.9,
+    "max": 310703.1,
+    "mean": 310403.2,
+    "stddev": 146.1
+   },
+   "ns_per_sig": {
+    "median": 38796.757,
+    "min": 38773.489,
+    "max": 38837.888
+   },
+   "sigs_per_sec_median": 25775.4
+  },
+  {
+   "impl": "ufsecp single",
+   "lib": "ufsecp",
+   "api": "single",
+   "n": 32,
+   "status": "ok",
+   "calls_per_pass": 38,
+   "warmup_calls": 38,
+   "passes": 11,
+   "passes_kept": 9,
+   "passes_trimmed": 2,
+   "ns_per_call": {
+    "median": 1338772.8,
+    "min": 1337648.2,
+    "max": 1339269.1,
+    "mean": 1338476.2,
+    "stddev": 596.2
+   },
+   "ns_per_sig": {
+    "median": 41836.651,
+    "min": 41801.505,
+    "max": 41852.158
+   },
+   "sigs_per_sec_median": 23902.5
+  },
+  {
+   "impl": "ufsecp batch",
+   "lib": "ufsecp",
+   "api": "batch",
+   "n": 32,
+   "status": "ok",
+   "calls_per_pass": 39,
+   "warmup_calls": 39,
+   "passes": 11,
+   "passes_kept": 9,
+   "passes_trimmed": 2,
+   "ns_per_call": {
+    "median": 1294562.0,
+    "min": 1293991.5,
+    "max": 1295036.2,
+    "mean": 1294502.9,
+    "stddev": 293.1
+   },
+   "ns_per_sig": {
+    "median": 40455.064,
+    "min": 40437.233,
+    "max": 40469.882
+   },
+   "sigs_per_sec_median": 24718.8
+  },
+  {
+   "impl": "ufsecp C ABI batch",
+   "lib": "ufsecp",
+   "api": "c_abi_batch",
+   "n": 32,
+   "status": "ok",
+   "calls_per_pass": 39,
+   "warmup_calls": 39,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 1289869.6,
+    "min": 1287512.7,
+    "max": 1291587.6,
+    "mean": 1289889.6,
+    "stddev": 1110.3
+   },
+   "ns_per_sig": {
+    "median": 40308.426,
+    "min": 40234.773,
+    "max": 40362.112
+   },
+   "sigs_per_sec_median": 24808.7
+  },
+  {
+   "impl": "ref single",
+   "lib": "ref",
+   "api": "single",
+   "n": 32,
+   "status": "ok",
+   "calls_per_pass": 37,
+   "warmup_calls": 37,
+   "passes": 11,
+   "passes_kept": 9,
+   "passes_trimmed": 2,
+   "ns_per_call": {
+    "median": 1377154.3,
+    "min": 1374651.9,
+    "max": 1378907.0,
+    "mean": 1376874.1,
+    "stddev": 1387.0
+   },
+   "ns_per_sig": {
+    "median": 43036.072,
+    "min": 42957.873,
+    "max": 43090.844
+   },
+   "sigs_per_sec_median": 23236.3
+  },
+  {
+   "impl": "ref batch",
+   "lib": "ref",
+   "api": "batch",
+   "n": 32,
+   "status": "ok",
+   "calls_per_pass": 40,
+   "warmup_calls": 40,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 1245089.5,
+    "min": 1240480.2,
+    "max": 1252898.8,
+    "mean": 1245880.5,
+    "stddev": 3261.8
+   },
+   "ns_per_sig": {
+    "median": 38909.048,
+    "min": 38765.007,
+    "max": 39153.087
+   },
+   "sigs_per_sec_median": 25701.0
+  },
+  {
+   "impl": "ufsecp single",
+   "lib": "ufsecp",
+   "api": "single",
+   "n": 128,
+   "status": "ok",
+   "calls_per_pass": 9,
+   "warmup_calls": 9,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 5541767.6,
+    "min": 5526510.6,
+    "max": 5574332.5,
+    "mean": 5546235.3,
+    "stddev": 12956.1
+   },
+   "ns_per_sig": {
+    "median": 43295.059,
+    "min": 43175.864,
+    "max": 43549.473
+   },
+   "sigs_per_sec_median": 23097.3
+  },
+  {
+   "impl": "ufsecp batch",
+   "lib": "ufsecp",
+   "api": "batch",
+   "n": 128,
+   "status": "ok",
+   "calls_per_pass": 14,
+   "warmup_calls": 14,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 3743567.8,
+    "min": 3736973.0,
+    "max": 3753977.4,
+    "mean": 3744174.7,
+    "stddev": 4897.9
+   },
+   "ns_per_sig": {
+    "median": 29246.623,
+    "min": 29195.101,
+    "max": 29327.948
+   },
+   "sigs_per_sec_median": 34192.0
+  },
+  {
+   "impl": "ufsecp C ABI batch",
+   "lib": "ufsecp",
+   "api": "c_abi_batch",
+   "n": 128,
+   "status": "ok",
+   "calls_per_pass": 14,
+   "warmup_calls": 14,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 3738503.9,
+    "min": 3734863.4,
+    "max": 3742315.8,
+    "mean": 3738749.0,
+    "stddev": 2196.6
+   },
+   "ns_per_sig": {
+    "median": 29207.062,
+    "min": 29178.62,
+    "max": 29236.842
+   },
+   "sigs_per_sec_median": 34238.3
+  },
+  {
+   "impl": "ref single",
+   "lib": "ref",
+   "api": "single",
+   "n": 128,
+   "status": "ok",
+   "calls_per_pass": 9,
+   "warmup_calls": 9,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 5679535.1,
+    "min": 5674062.9,
+    "max": 5686787.4,
+    "mean": 5679938.6,
+    "stddev": 4155.8
+   },
+   "ns_per_sig": {
+    "median": 44371.368,
+    "min": 44328.617,
+    "max": 44428.027
+   },
+   "sigs_per_sec_median": 22537.1
+  },
+  {
+   "impl": "ref batch",
+   "lib": "ref",
+   "api": "batch",
+   "n": 128,
+   "status": "ok",
+   "calls_per_pass": 12,
+   "warmup_calls": 12,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 4456767.3,
+    "min": 4438973.6,
+    "max": 4463609.0,
+    "mean": 4453288.2,
+    "stddev": 8122.9
+   },
+   "ns_per_sig": {
+    "median": 34818.494,
+    "min": 34679.481,
+    "max": 34871.945
+   },
+   "sigs_per_sec_median": 28720.4
+  },
+  {
+   "impl": "ufsecp single",
+   "lib": "ufsecp",
+   "api": "single",
+   "n": 512,
+   "status": "ok",
+   "calls_per_pass": 3,
+   "warmup_calls": 3,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 22397820.9,
+    "min": 22348400.6,
+    "max": 22538864.4,
+    "mean": 22402387.4,
+    "stddev": 53960.5
+   },
+   "ns_per_sig": {
+    "median": 43745.744,
+    "min": 43649.22,
+    "max": 44021.22
+   },
+   "sigs_per_sec_median": 22859.4
+  },
+  {
+   "impl": "ufsecp batch",
+   "lib": "ufsecp",
+   "api": "batch",
+   "n": 512,
+   "status": "ok",
+   "calls_per_pass": 4,
+   "warmup_calls": 4,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 12745857.1,
+    "min": 12728888.1,
+    "max": 12771247.2,
+    "mean": 12746519.1,
+    "stddev": 12271.3
+   },
+   "ns_per_sig": {
+    "median": 24894.252,
+    "min": 24861.109,
+    "max": 24943.842
+   },
+   "sigs_per_sec_median": 40169.9
+  },
+  {
+   "impl": "ufsecp C ABI batch",
+   "lib": "ufsecp",
+   "api": "c_abi_batch",
+   "n": 512,
+   "status": "ok",
+   "calls_per_pass": 4,
+   "warmup_calls": 4,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 12762417.2,
+    "min": 12743700.3,
+    "max": 13042265.5,
+    "mean": 12810191.7,
+    "stddev": 94731.2
+   },
+   "ns_per_sig": {
+    "median": 24926.596,
+    "min": 24890.04,
+    "max": 25473.175
+   },
+   "sigs_per_sec_median": 40117.8
+  },
+  {
+   "impl": "ref single",
+   "lib": "ref",
+   "api": "single",
+   "n": 512,
+   "status": "ok",
+   "calls_per_pass": 2,
+   "warmup_calls": 2,
+   "passes": 11,
+   "passes_kept": 9,
+   "passes_trimmed": 2,
+   "ns_per_call": {
+    "median": 22919133.4,
+    "min": 22892588.1,
+    "max": 23007383.6,
+    "mean": 22929552.5,
+    "stddev": 34663.2
+   },
+   "ns_per_sig": {
+    "median": 44763.932,
+    "min": 44712.086,
+    "max": 44936.296
+   },
+   "sigs_per_sec_median": 22339.4
+  },
+  {
+   "impl": "ref batch",
+   "lib": "ref",
+   "api": "batch",
+   "n": 512,
+   "status": "ok",
+   "calls_per_pass": 4,
+   "warmup_calls": 4,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 15476991.8,
+    "min": 15410598.3,
+    "max": 15795394.8,
+    "mean": 15511497.3,
+    "stddev": 120261.6
+   },
+   "ns_per_sig": {
+    "median": 30228.5,
+    "min": 30098.825,
+    "max": 30850.38
+   },
+   "sigs_per_sec_median": 33081.4
+  },
+  {
+   "impl": "ufsecp single",
+   "lib": "ufsecp",
+   "api": "single",
+   "n": 2048,
+   "status": "ok",
+   "calls_per_pass": 1,
+   "warmup_calls": 1,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 89663559.7,
+    "min": 89513078.5,
+    "max": 90729667.1,
+    "mean": 89911153.6,
+    "stddev": 416272.4
+   },
+   "ns_per_sig": {
+    "median": 43781.035,
+    "min": 43707.558,
+    "max": 44301.595
+   },
+   "sigs_per_sec_median": 22840.9
+  },
+  {
+   "impl": "ufsecp batch",
+   "lib": "ufsecp",
+   "api": "batch",
+   "n": 2048,
+   "status": "ok",
+   "calls_per_pass": 2,
+   "warmup_calls": 2,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 46009184.2,
+    "min": 45980543.8,
+    "max": 46166603.0,
+    "mean": 46040076.4,
+    "stddev": 62173.0
+   },
+   "ns_per_sig": {
+    "median": 22465.422,
+    "min": 22451.437,
+    "max": 22542.287
+   },
+   "sigs_per_sec_median": 44512.9
+  },
+  {
+   "impl": "ufsecp C ABI batch",
+   "lib": "ufsecp",
+   "api": "c_abi_batch",
+   "n": 2048,
+   "status": "ok",
+   "calls_per_pass": 2,
+   "warmup_calls": 2,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 46058897.0,
+    "min": 45993250.7,
+    "max": 46125212.8,
+    "mean": 46058921.8,
+    "stddev": 35842.2
+   },
+   "ns_per_sig": {
+    "median": 22489.696,
+    "min": 22457.642,
+    "max": 22522.077
+   },
+   "sigs_per_sec_median": 44464.8
+  },
+  {
+   "impl": "ref single",
+   "lib": "ref",
+   "api": "single",
+   "n": 2048,
+   "status": "ok",
+   "calls_per_pass": 1,
+   "warmup_calls": 1,
+   "passes": 11,
+   "passes_kept": 11,
+   "passes_trimmed": 0,
+   "ns_per_call": {
+    "median": 91963533.9,
+    "min": 91713541.7,
+    "max": 92416010.5,
+    "mean": 92030296.1,
+    "stddev": 247504.2
+   },
+   "ns_per_sig": {
+    "median": 44904.069,
+    "min": 44782.003,
+    "max": 45125.005
+   },
+   "sigs_per_sec_median": 22269.7
+  },
+  {
+   "impl": "ref batch",
+   "lib": "ref",
+   "api": "batch",
+   "n": 2048,
+   "status": "ok",
+   "calls_per_pass": 1,
+   "warmup_calls": 1,
+   "passes": 11,
+   "passes_kept": 10,
+   "passes_trimmed": 1,
+   "ns_per_call": {
+    "median": 55962841.4,
+    "min": 55824596.7,
+    "max": 56143426.4,
+    "mean": 55966771.1,
+    "stddev": 95288.9
+   },
+   "ns_per_sig": {
+    "median": 27325.606,
+    "min": 27258.104,
+    "max": 27413.782
+   },
+   "sigs_per_sec_median": 36595.7
+  }
+ ],
+ "_artifact_note": "bench_bch_schnorr --json verbatim; taskset -c 2, intel_pstate no_turbo=1, performance governor; reference = k-nuth/kth d1b9a8ac libsecp256k1 (default flags)"
+}

@@ -2267,6 +2267,108 @@ __kernel void ecdsa_verify_compressed(
     results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
 }
 
+/* ---------------------------------------------------------------------------
+ * Bitcoin Cash 2019 Schnorr verification (NOT BIP-340)
+ *   https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/
+ * CPU reference: secp256k1::bch_schnorr_verify. Per item:
+ *   fail if r >= p, s >= n or s == 0, or the 33-byte key does not decompress;
+ *   e = SHA256(r || pubkey33 || msg32) mod n  (97 bytes = two blocks);
+ *   R = s*G - e*P (GLV Shamir); fail if R = O, if R.y is not a quadratic
+ *   residue (tested on Y*Z: y = (Y*Z)/Z^4), or if X != r*Z^2.
+ * No field inversion. VARIABLE TIME -- PUBLIC DATA ONLY (CT-VERIFY).
+ * Mirrored line for line in src/metal/shaders/secp256k1_kernels.metal.
+ * ------------------------------------------------------------------------- */
+static inline int bch_field_eq_var_impl(const FieldElement* a, const FieldElement* b) {
+    uchar ab[32], bb[32];
+    field_to_bytes_impl(a, ab);
+    field_to_bytes_impl(b, bb);
+    uint diff = 0;
+    for (int i = 0; i < 32; i++) diff |= (uint)(ab[i] ^ bb[i]);
+    return diff == 0 ? 1 : 0;
+}
+
+static inline int bch_schnorr_verify_impl(__global const uchar* sig64,
+                                          __global const uchar* msg32,
+                                          __global const uchar* pub33) {
+    // r < p; r as a canonical field element for the projective x check.
+    if (!lbtc_be32_lt_field_p(sig64)) return 0;
+    FieldElement r_fe;
+    for (int limb = 0; limb < 4; ++limb) {
+        ulong v = 0;
+        const int base = (3 - limb) * 8;
+        for (int j = 0; j < 8; ++j) v = (v << 8) | (ulong)sig64[base + j];
+        r_fe.limbs[limb] = v;
+    }
+
+    // 0 < s < n.
+    Scalar s;
+    if (!lbtc_parse_compact_scalar(sig64 + 32, &s)) return 0;
+
+    // Canonical compressed key (prefix 02/03, x < p, on the curve); Z = 1.
+    JacobianPoint P;
+    if (!lbtc_point_from_compressed(pub33, &P)) return 0;
+
+    // e = SHA256(r || pubkey33 || msg32) mod n. Bit length 776 = 0x0308.
+    SHA256Ctx hctx;
+    sha256_init(&hctx);
+    uchar block[64];
+    for (int i = 0; i < 32; i++) block[i]      = sig64[i];
+    for (int i = 0; i < 32; i++) block[32 + i] = pub33[i];
+    sha256_compress(&hctx, block);
+    block[0] = pub33[32];
+    for (int i = 0; i < 32; i++) block[1 + i] = msg32[i];
+    block[33] = 0x80;
+    for (int i = 34; i < 62; i++) block[i] = 0;
+    block[62] = 0x03;
+    block[63] = 0x08;
+    sha256_compress(&hctx, block);
+    uchar e_hash[32];
+    for (int i = 0; i < 8; i++) {
+        e_hash[i * 4]     = (uchar)(hctx.h[i] >> 24);
+        e_hash[i * 4 + 1] = (uchar)(hctx.h[i] >> 16);
+        e_hash[i * 4 + 2] = (uchar)(hctx.h[i] >> 8);
+        e_hash[i * 4 + 3] = (uchar)(hctx.h[i]);
+    }
+    Scalar e, neg_e;
+    scalar_from_bytes_impl(e_hash, &e);
+    scalar_negate_impl(&e, &neg_e);
+
+    // R = s*G - e*P.
+    AffinePoint G; get_generator(&G);
+    AffinePoint p_aff; p_aff.x = P.x; p_aff.y = P.y;
+    JacobianPoint R;
+    shamir_double_mul_glv_impl(&G, &s, &p_aff, &neg_e, &R);
+    if (point_is_infinity(&R)) return 0;
+
+    // R.y quadratic residue: sqrt(Y*Z)^2 == Y*Z (Y != 0 for a finite point).
+    FieldElement yz, root, sq;
+    field_mul_impl(&yz, &R.y, &R.z);
+    field_sqrt_impl(&yz, &root);
+    field_sqr_impl(&sq, &root);
+    if (!bch_field_eq_var_impl(&sq, &yz)) return 0;
+
+    // x(R) == r  <=>  X == r*Z^2.
+    FieldElement zz, rzz;
+    field_sqr_impl(&zz, &R.z);
+    field_mul_impl(&rzz, &r_fe, &zz);
+    return bch_field_eq_var_impl(&rzz, &R.x);
+}
+
+/* One work-item per signature; results[i] = 1 valid / 0 invalid. */
+__kernel void bch_schnorr_verify_batch(
+    __global const uchar* msgs32,
+    __global const uchar* pubkeys33,
+    __global const uchar* sigs64,
+    __global int* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    const ulong i = (ulong)gid;
+    results[gid] = bch_schnorr_verify_impl(sigs64 + i * 64, msgs32 + i * 32,
+                                           pubkeys33 + i * 33);
+}
+
 __kernel void ecdsa_verify_lbtc_rows(
     __global const uchar* rows,
     const ulong stride,

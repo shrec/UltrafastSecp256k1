@@ -52,7 +52,28 @@ only gains functions (`UFSECP_ABI_VERSION` stays 4).
     Every implementation is cross-checked before timing. CI builds and runs it
     on each benchmark platform. `docs/BCH_SCHNORR_BATCH_BENCH.md` gives the
     reproduction steps for #466.
-  - Throughput: not yet measured — benchmark required.
+  - Measured on an i5-14400F, one pinned core, turbo off, against the pinned
+    reference with default flags
+    (`docs/benchmark_artifacts/bch_schnorr_cpu_vs_knuth_2026-11-04_i5-14400f.json`):
+    - single verify is 2-3% faster;
+    - batch is 1.19-1.22x faster from N = 128 to 2048;
+    - batch is 3-6% slower at N = 8 and 32, where the reference's Strauss wins.
+- **GPU: BCH 2019 Schnorr batch verification (#466).**
+  `ufsecp_gpu_bch_schnorr_verify_batch` returns one result per item, with the
+  NULL, count and fail-closed contract of `ufsecp_gpu_schnorr_verify_batch`.
+  - Kernels for CUDA (`src/cuda/include/bch_schnorr.cuh`), OpenCL and Metal:
+    one thread per signature, two-block SHA-256 challenge, GLV Shamir, residue
+    test on Y*Z and projective x check. Metal is code-complete but not
+    runtime-verified on Linux.
+  - Every item is checked against `ufsecp_bch_schnorr_verify` on valid and
+    invalid inputs: `audit/test_gpu_ops_equivalence.cpp`, plus new
+    `gpu_audit_runner` and `opencl_audit_runner` modules.
+  - `bench_gpu_abi_batch` gains op `bch_schnorr_verify`, and `gpu_bench_unified`
+    a kernel-only row. Both are result-checked.
+  - On an RTX 5060 Ti at 65536 signatures, CUDA runs at 148 ns/sig kernel-only
+    and 159 ns/sig end to end through the C ABI. OpenCL runs at 182 ns/sig end
+    to end. Evidence:
+    `docs/benchmark_artifacts/bch_schnorr_gpu_verify_2026-11-04_rtx5060ti.json`.
 - **Benchmarks: result-checked GPU verify, ecrecover and hash160 rows, and
   like-for-like CPU recovery rows.** CUDA `gpu_bench_unified` times ECDSA verify,
   BIP-340 verify (x-only), ecrecover, and hash160 of 33- and 65-byte keys. Its

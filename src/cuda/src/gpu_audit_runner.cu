@@ -27,6 +27,7 @@
 #include "batch_inversion.cuh"
 #include "ecdsa.cuh"
 #include "schnorr.cuh"
+#include "bch_schnorr.cuh"
 #include "recovery.cuh"
 #include "msm.cuh"
 #include "hash160.cuh"
@@ -43,6 +44,9 @@
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
 #include "secp256k1/recovery.hpp"
+#include "secp256k1/bch_schnorr.hpp"
+#include "secp256k1/sha256.hpp"
+#include <array>
 #endif
 
 #include <cuda_runtime.h>
@@ -718,6 +722,137 @@ static int audit_cpu_gpu_differential_ecdsa() {
     std::memcpy(msg_arr.data(), msg_hash, 32);
     secp256k1::ECDSASignature cpu_sig{cpu_r, cpu_s};
     return secp256k1::ecdsa_verify(msg_arr, cpu_pk, cpu_sig) ? 0 : 1;
+}
+
+// ----------------------------------------------------------------------------
+// Differential: Bitcoin Cash 2019 Schnorr verify (bch_schnorr.cuh) against the
+// CPU reference secp256k1::bch_schnorr_verify. Valid signatures are built on
+// the CPU from random test scalars (public test vectors, not production
+// signing): R = k*G, e = SHA256(r || P33 || m), s = e*x +/- k, and the CPU
+// verifier picks the sign whose R has a quadratic-residue y; the other sign is
+// kept as the "R negated" invalid case. Every item's GPU verdict must equal
+// the CPU verdict, and the CPU verdict must equal the built-in expectation.
+// ----------------------------------------------------------------------------
+__global__ void audit_bch_schnorr_verify_kernel(
+    const uint8_t* msgs, const uint8_t* pubs, const uint8_t* sigs,
+    uint8_t* results, int count)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < count) {
+        const size_t k = static_cast<size_t>(i);
+        results[i] = bch_schnorr_verify_device(sigs + k * 64, msgs + k * 32, pubs + k * 33) ? 1 : 0;
+    }
+}
+
+static int audit_cpu_gpu_differential_bch_schnorr() {
+    namespace cpu = secp256k1::fast;
+    static const uint8_t P_BE[32] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,0xFF,0xFF,0xFC,0x2F};
+    static const uint8_t N_BE[32] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6,0xAF,0x48,0xA0,0x3B,0xBF,0xD2,0x5E,0x8C,0xD0,0x36,0x41,0x41};
+
+    std::mt19937_64 rng(0xBC2019ULL);
+    auto rand32 = [&](uint8_t out[32]) {
+        for (int w = 0; w < 4; ++w) {
+            const uint64_t v = rng();
+            for (int b = 0; b < 8; ++b) out[w * 8 + b] = static_cast<uint8_t>(v >> (8 * b));
+        }
+        out[0] &= 0x7F;   // < n
+        out[31] |= 1;     // != 0
+    };
+
+    std::vector<uint8_t> msgs, pubs, sigs, expect;
+    auto push = [&](const uint8_t* m, const uint8_t* p, const uint8_t* s, uint8_t exp) {
+        msgs.insert(msgs.end(), m, m + 32);
+        pubs.insert(pubs.end(), p, p + 33);
+        sigs.insert(sigs.end(), s, s + 64);
+        expect.push_back(exp);
+    };
+
+    constexpr int kKeys = 32;
+    for (int t = 0; t < kKeys; ++t) {
+        std::array<uint8_t, 32> xa{}, ka{}, ea{};
+        uint8_t m[32];
+        rand32(xa.data()); rand32(ka.data()); rand32(m);
+        const auto x  = cpu::Scalar::from_bytes(xa);
+        const auto kk = cpu::Scalar::from_bytes(ka);
+        const auto P33 = cpu::Point::generator().scalar_mul(x).to_compressed();
+        const auto R33 = cpu::Point::generator().scalar_mul(kk).to_compressed();
+
+        uint8_t chal[97];
+        std::memcpy(chal, R33.data() + 1, 32);
+        std::memcpy(chal + 32, P33.data(), 33);
+        std::memcpy(chal + 65, m, 32);
+        const auto eh = secp256k1::SHA256::hash(chal, sizeof(chal));
+        std::memcpy(ea.data(), eh.data(), 32);
+        const auto ex = cpu::Scalar::from_bytes(ea) * x;
+        const auto s_pos = (ex + kk).to_bytes();
+        const auto s_neg = (ex - kk).to_bytes();
+
+        uint8_t sp[64], sn[64];
+        std::memcpy(sp, R33.data() + 1, 32); std::memcpy(sp + 32, s_pos.data(), 32);
+        std::memcpy(sn, R33.data() + 1, 32); std::memcpy(sn + 32, s_neg.data(), 32);
+        const bool okp = secp256k1::bch_schnorr_verify(sp, m, P33.data());
+        const bool okn = secp256k1::bch_schnorr_verify(sn, m, P33.data());
+        if (okp == okn) {
+            std::fprintf(stderr, "bch_schnorr_diff: CPU accepted %s sign candidate (t=%d)\n",
+                         okp ? "both" : "neither", t);
+            return 1;
+        }
+        const uint8_t* good = okp ? sp : sn;
+        push(m, P33.data(), good, 1);
+        push(m, P33.data(), okp ? sn : sp, 0);                      // R negated: non-residue y
+
+        uint8_t bad[64]; uint8_t mb[32]; uint8_t pb[33];
+        std::memcpy(bad, good, 64); bad[t % 32] ^= 0x01;             // r corrupted
+        push(m, P33.data(), bad, 0);
+        std::memcpy(bad, good, 64); bad[32 + (t % 32)] ^= 0x01;      // s corrupted
+        push(m, P33.data(), bad, 0);
+        std::memcpy(mb, m, 32); mb[t % 32] ^= 0x80;                  // message corrupted
+        push(mb, P33.data(), good, 0);
+        std::memcpy(pb, P33.data(), 33); pb[1 + (t % 32)] ^= 0x02;   // key x corrupted
+        push(m, pb, good, 0);
+        switch (t % 6) {
+        case 0: std::memcpy(bad, good, 64); std::memcpy(bad, P_BE, 32);      push(m, P33.data(), bad, 0); break; // r = p
+        case 1: std::memcpy(bad, good, 64); std::memcpy(bad + 32, N_BE, 32); push(m, P33.data(), bad, 0); break; // s = n
+        case 2: std::memcpy(bad, good, 64); std::memset(bad + 32, 0, 32);    push(m, P33.data(), bad, 0); break; // s = 0
+        case 3: std::memcpy(pb, P33.data(), 33); pb[0] = 0x05;               push(m, pb, good, 0);        break; // bad prefix
+        case 4: std::memcpy(pb, P33.data(), 33); std::memcpy(pb + 1, P_BE, 32); push(m, pb, good, 0);     break; // x = p
+        default: std::memcpy(pb, P33.data(), 33); pb[0] ^= 0x01;             push(m, pb, good, 0);        break; // -P
+        }
+    }
+
+    const int n = static_cast<int>(expect.size());
+    uint8_t *d_m = nullptr, *d_p = nullptr, *d_s = nullptr, *d_r = nullptr;
+    std::vector<uint8_t> h_r(static_cast<size_t>(n), 0xEE);
+    CUDA_CHECK(cudaMalloc(&d_m, msgs.size()));
+    CUDA_CHECK(cudaMalloc(&d_p, pubs.size()));
+    CUDA_CHECK(cudaMalloc(&d_s, sigs.size()));
+    CUDA_CHECK(cudaMalloc(&d_r, static_cast<size_t>(n)));
+    CUDA_CHECK(cudaMemcpy(d_m, msgs.data(), msgs.size(), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_p, pubs.data(), pubs.size(), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_s, sigs.data(), sigs.size(), cudaMemcpyHostToDevice));
+    audit_bch_schnorr_verify_kernel<<<(n + 63) / 64, 64>>>(d_m, d_p, d_s, d_r, n);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(h_r.data(), d_r, static_cast<size_t>(n), cudaMemcpyDeviceToHost));
+    cudaFree(d_m); cudaFree(d_p); cudaFree(d_s); cudaFree(d_r);
+
+    int mismatches = 0;
+    for (int i = 0; i < n; ++i) {
+        const size_t k = static_cast<size_t>(i);
+        const uint8_t cpu_ok = secp256k1::bch_schnorr_verify(
+            sigs.data() + k * 64, msgs.data() + k * 32, pubs.data() + k * 33) ? 1 : 0;
+        if (h_r[k] != cpu_ok || cpu_ok != expect[k]) {
+            if (mismatches < 8)
+                std::fprintf(stderr, "bch_schnorr_diff[%d]: GPU=%d CPU=%d expected=%d\n",
+                             i, h_r[k], cpu_ok, expect[k]);
+            ++mismatches;
+        }
+    }
+    return mismatches == 0 ? 0 : 1;
 }
 #endif  // !SECP256K1_CUDA_LIMBS_32
 
@@ -2740,6 +2875,7 @@ static const GpuAuditModule GPU_MODULES[] = {
 #if !SECP256K1_CUDA_LIMBS_32
     { "diff_ecdsa",        "CPU-GPU differential ECDSA sign+verify",     "differential", audit_cpu_gpu_differential_ecdsa, false },
     { "ecrecover_cpu_diff", "ecrecover GPU vs CPU bytes (64 keys x 4 recids + crafted)", "differential", audit_ecrecover_cpu_differential, false },
+    { "bch_schnorr_diff",  "BCH 2019 Schnorr verify GPU vs CPU (valid + invalid classes)", "differential", audit_cpu_gpu_differential_bch_schnorr, false },
 #endif
 #endif
 

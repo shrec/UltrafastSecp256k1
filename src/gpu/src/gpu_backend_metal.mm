@@ -845,6 +845,75 @@ public:
         return GpuError::Ok;
     }
 
+    /* Bitcoin Cash 2019 Schnorr (NOT BIP-340) batch verify. PUBLIC data.
+     * Same buffer/dispatch/fail-closed shape as schnorr_verify_batch above.
+     * Code-complete; NOT runtime-verified (Metal is not built on Linux). */
+    GpuError bch_schnorr_verify_batch(
+        const uint8_t* msgs32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msgs32 || !pubkeys33 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        if (count > static_cast<size_t>(0xFFFFFFFEu))
+            return set_error(GpuError::BadInput, "bch_schnorr_verify count too large");
+
+        std::memset(out_results, 0, count);
+
+        auto err = ensure_library();
+        if (err != GpuError::Ok) return err;
+
+        /* bch_schnorr_verify_batch kernel signature, in [[buffer(N)]] order:
+         *   0 msgs32 (N×32)  1 pubkeys33 (N×33)  2 sigs64 (N×64)
+         *   3 results (N×uint32) 4 count */
+        auto buf_msgs  = runtime_->alloc_buffer_shared(count * 32);
+        auto buf_pubs  = runtime_->alloc_buffer_shared(count * 33);
+        auto buf_sigs  = runtime_->alloc_buffer_shared(count * 64);
+        auto buf_res   = runtime_->alloc_buffer_shared(count * sizeof(uint32_t));
+        auto buf_count = runtime_->alloc_buffer_shared(sizeof(uint32_t));
+
+        if (!buf_msgs.valid() || !buf_pubs.valid() || !buf_sigs.valid() ||
+            !buf_res.valid() || !buf_count.valid())
+            return set_error(GpuError::Memory,
+                             "Metal: bch_schnorr_verify_batch buffer allocation failed");
+
+        std::memcpy(buf_msgs.contents(), msgs32, count * 32);
+        std::memcpy(buf_pubs.contents(), pubkeys33, count * 33);
+        std::memcpy(buf_sigs.contents(), sigs64, count * 64);
+        uint32_t n32 = (uint32_t)count;
+        std::memcpy(buf_count.contents(), &n32, sizeof(n32));
+
+        auto pipe = runtime_->make_pipeline("bch_schnorr_verify_batch");
+        if (!pipe.valid())
+            return set_error(GpuError::Launch,
+                             "Metal: bch_schnorr_verify_batch kernel missing from loaded library");
+
+        constexpr uint32_t kUnwritten = 0xFFFFFFFFu;
+        auto* res_seed = static_cast<uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i) res_seed[i] = kUnwritten;
+
+        if (!runtime_->dispatch_sync_checked(pipe, (uint32_t)count, 64u,
+                                 {&buf_msgs, &buf_pubs, &buf_sigs, &buf_res, &buf_count})) {
+            std::memset(out_results, 0, count);
+            return set_error(GpuError::Launch,
+                             "Metal: bch_schnorr_verify_batch dispatch failed (GPU command-buffer error)");
+        }
+
+        const auto* res = static_cast<const uint32_t*>(buf_res.contents());
+        for (size_t i = 0; i < count; ++i)
+            if (res[i] == kUnwritten)
+                return set_error(GpuError::Launch,
+                                 "Metal: bch_schnorr_verify_batch dispatch left results "
+                                 "unwritten (command-buffer failure)");
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = res[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
     GpuError ecdsa_verify_lbtc_columns(
         const uint8_t* digests32, const uint8_t* pubkeys33,
         const uint8_t* sigs64, size_t count,

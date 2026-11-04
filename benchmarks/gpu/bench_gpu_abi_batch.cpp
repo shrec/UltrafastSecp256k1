@@ -6,7 +6,7 @@
  * scratch reuse) and result download -- not just kernel time.
  *
  * Ops      : ecdsa_verify, schnorr_verify (BIP-340), hash160, generator_mul,
- *            ecdh
+ *            ecdh, bch_schnorr_verify (Bitcoin Cash 2019 Schnorr)
  * Batches  : 1, 16, 256, 4096, 65536 (override with --sizes)
  * Backends : every available CUDA / OpenCL backend (select with --backend)
  *
@@ -45,7 +45,7 @@ struct Options {
     std::string backend = "all";
     std::vector<size_t> sizes = {1, 16, 256, 4096, 65536};
     std::vector<std::string> ops = {"ecdsa_verify", "schnorr_verify", "hash160",
-                                    "generator_mul", "ecdh"};
+                                    "generator_mul", "ecdh", "bch_schnorr_verify"};
     int passes = 11;
     int warmup = 2;
     std::string json_path;
@@ -132,6 +132,7 @@ void fill_deterministic(uint8_t* buf, size_t len, uint32_t seed) {
 struct Fixture {
     size_t n = 0;
     std::vector<uint8_t> msgs, sks, pubs, xonly, ecdsa_sigs, schnorr_sigs;
+    std::vector<uint8_t> bch_sigs;                /* BCH 2019 Schnorr r || s */
     std::vector<uint8_t> peer_pubs;
     std::vector<uint8_t> ref_hash160, ref_ecdh;   /* CPU reference outputs */
 };
@@ -141,6 +142,39 @@ bool make_valid_secret(uint8_t sk[32], uint32_t seed) {
     sk[0] &= 0x7F;                               /* below the group order */
     sk[31] = static_cast<uint8_t>(sk[31] | 1u);  /* never zero */
     return true;
+}
+
+/* Bitcoin Cash 2019 Schnorr signature from public ufsecp_* primitives (the ABI
+ * has no BCH signer): R = k*G, e = SHA256(r || P33 || m) mod n, s = e*x + k or
+ * e*x - k, whichever ufsecp_bch_schnorr_verify accepts (exactly one: the R or
+ * -R whose y is a quadratic residue). Bench fixture only. */
+bool make_bch_sig(ufsecp_ctx* cpu, const uint8_t sk[32], const uint8_t msg[32],
+                  const uint8_t pub33[33], uint32_t nonce_seed, uint8_t sig_out[64]) {
+    uint8_t k[32];
+    make_valid_secret(k, 0xBC000000u + nonce_seed);
+    uint8_t R33[33];
+    if (ufsecp_pubkey_create(cpu, k, R33) != UFSECP_OK) return false;
+    uint8_t chal[97];
+    std::memcpy(chal, R33 + 1, 32);
+    std::memcpy(chal + 32, pub33, 33);
+    std::memcpy(chal + 65, msg, 32);
+    uint8_t e[32];
+    if (ufsecp_sha256(chal, sizeof(chal), e) != UFSECP_OK) return false;
+    uint8_t ex[32];
+    std::memcpy(ex, sk, 32);
+    if (ufsecp_seckey_tweak_mul(cpu, ex, e) != UFSECP_OK) return false;
+    for (int c = 0; c < 2; ++c) {
+        uint8_t kk[32];
+        std::memcpy(kk, k, 32);
+        if (c == 1 && ufsecp_seckey_negate(cpu, kk) != UFSECP_OK) return false;
+        uint8_t s[32];
+        std::memcpy(s, ex, 32);
+        if (ufsecp_seckey_tweak_add(cpu, s, kk) != UFSECP_OK) return false;
+        std::memcpy(sig_out, R33 + 1, 32);
+        std::memcpy(sig_out + 32, s, 32);
+        if (ufsecp_bch_schnorr_verify(cpu, msg, sig_out, pub33) == UFSECP_OK) return true;
+    }
+    return false;
 }
 
 bool build_fixture(ufsecp_ctx* cpu, size_t n, const Options& o, Fixture& f) {
@@ -154,6 +188,7 @@ bool build_fixture(ufsecp_ctx* cpu, size_t n, const Options& o, Fixture& f) {
     f.xonly.resize(n * 32);
     f.ecdsa_sigs.resize(n * 64);
     f.schnorr_sigs.resize(n * 64);
+    f.bch_sigs.resize(n * 64);
     f.peer_pubs.resize(n * 33);
     f.ref_hash160.resize(n * 20);
     f.ref_ecdh.resize(n * 32);
@@ -174,6 +209,10 @@ bool build_fixture(ufsecp_ctx* cpu, size_t n, const Options& o, Fixture& f) {
             if (ufsecp_schnorr_sign(cpu, msg, sk, aux, f.schnorr_sigs.data() + i * 64) != UFSECP_OK)
                 return false;
         }
+        if (want("bch_schnorr_verify") &&
+            !make_bch_sig(cpu, sk, msg, f.pubs.data() + i * 33, 3 * s + 4,
+                          f.bch_sigs.data() + i * 64))
+            return false;
         if (want("hash160") &&
             ufsecp_hash160(f.pubs.data() + i * 33, 33, f.ref_hash160.data() + i * 20) != UFSECP_OK)
             return false;
@@ -216,6 +255,14 @@ CallResult run_once(ufsecp_gpu_ctx* g, const std::string& op, const Fixture& f, 
         out.assign(n, 0xEE);
         r.err = ufsecp_gpu_schnorr_verify_batch(g, f.msgs.data(), f.xonly.data(),
                                                 f.schnorr_sigs.data(), n, out.data());
+        if (r.err == UFSECP_OK)
+            for (size_t i = 0; i < n; ++i) if (out[i] != 1) ++r.bad;
+    } else if (op == "bch_schnorr_verify") {
+        /* Every fixture row was accepted by ufsecp_bch_schnorr_verify at build
+         * time, so the CPU reference verdict is 1 for every row. */
+        out.assign(n, 0xEE);
+        r.err = ufsecp_gpu_bch_schnorr_verify_batch(g, f.msgs.data(), f.pubs.data(),
+                                                    f.bch_sigs.data(), n, out.data());
         if (r.err == UFSECP_OK)
             for (size_t i = 0; i < n; ++i) if (out[i] != 1) ++r.bad;
     } else if (op == "hash160") {
@@ -331,7 +378,7 @@ int main(int argc, char** argv) {
     if (!parse_args(argc, argv, o)) return 2;
 
     static const char* const kKnownOps[] = {"ecdsa_verify", "schnorr_verify", "hash160",
-                                            "generator_mul", "ecdh"};
+                                            "generator_mul", "ecdh", "bch_schnorr_verify"};
     for (const auto& op : o.ops) {
         bool known = false;
         for (const char* k : kKnownOps) known = known || (op == k);

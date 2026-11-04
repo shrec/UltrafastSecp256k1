@@ -59,6 +59,8 @@
 #include "secp256k1/address.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/sign.hpp"
+#include "secp256k1/bch_schnorr.hpp"
+#include "secp256k1/sha256.hpp"
 
 #include <cuda_runtime.h>
 #include <array>
@@ -1170,6 +1172,12 @@ extern __global__ void schnorr_verify_batch_kernel(
     const SchnorrSignatureGPU* __restrict__ sigs,
     bool*          __restrict__ results,
     int count);
+extern __global__ void bch_schnorr_verify_batch_kernel(
+    const uint8_t* __restrict__ msgs32,
+    const uint8_t* __restrict__ pubkeys33,
+    const uint8_t* __restrict__ sigs64,
+    uint8_t*       __restrict__ results,
+    int count);
 #if SECP256K1_GPU_HAS_ECRECOVER
 extern __global__ void ecdsa_recover_batch_kernel(
     const uint8_t* __restrict__ msg_hashes,
@@ -1223,6 +1231,7 @@ struct VerifyInputs {
     std::vector<uint8_t> ecdsa_sig64;    // n x 64 compact r||s, low-S
     std::vector<uint8_t> xonly32;        // n x 32 BIP-340 x-only pubkeys
     std::vector<uint8_t> schnorr_sig64;  // n x 64 BIP-340 r||s
+    std::vector<uint8_t> bch_sig64;      // n x 64 BCH 2019 Schnorr r||s (key = pub33)
     std::vector<uint8_t> rec_sig64;      // n x 64 recoverable compact r||s
     std::vector<int>     recids;         // n recovery ids
     std::vector<uint8_t> h160_33;        // n x 20 CPU hash160(pub33)
@@ -1243,6 +1252,7 @@ static bool build_verify_inputs(int n, VerifyInputs& in) {
     in.ecdsa_sig64.resize(un * 64);
     in.xonly32.resize(un * 32);
     in.schnorr_sig64.resize(un * 64);
+    in.bch_sig64.resize(un * 64);
     in.rec_sig64.resize(un * 64);
     in.recids.resize(un);
     in.h160_33.resize(un * 20);
@@ -1288,6 +1298,34 @@ static bool build_verify_inputs(int n, VerifyInputs& in) {
         std::memcpy(&in.ecdsa_sig64[i * 64], e64.data(), 64);
         std::memcpy(&in.xonly32[i * 32], kp.px.data(), 32);
         std::memcpy(&in.schnorr_sig64[i * 64], s64.data(), 64);
+
+        // Bitcoin Cash 2019 Schnorr (benchmark key and nonce, never real
+        // secrets): R = k*G, e = SHA256(r || P33 || m) mod n, s = e*x +/- k,
+        // whichever sign the CPU verifier accepts (the R or -R whose y is a
+        // quadratic residue).
+        {
+            std::array<uint8_t, 32> kb{}, ea{};
+            secp256k1::fast::Scalar k;
+            do { fill32(kb); } while (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(kb, k));
+            const auto R33 = secp256k1::ct::generator_mul(k).to_compressed();
+            uint8_t chal[97];
+            std::memcpy(chal, R33.data() + 1, 32);
+            std::memcpy(chal + 32, c33.data(), 33);
+            std::memcpy(chal + 65, msg.data(), 32);
+            const auto eh = secp256k1::SHA256::hash(chal, sizeof(chal));
+            std::memcpy(ea.data(), eh.data(), 32);
+            const auto ex = secp256k1::fast::Scalar::from_bytes(ea) * sk;
+            uint8_t* dst = &in.bch_sig64[i * 64];
+            bool bch_ok = false;
+            for (int c = 0; c < 2 && !bch_ok; ++c) {
+                const auto sb = ((c == 0) ? (ex + k) : (ex - k)).to_bytes();
+                std::memcpy(dst, R33.data() + 1, 32);
+                std::memcpy(dst + 32, sb.data(), 32);
+                bch_ok = secp256k1::bch_schnorr_verify(dst, msg.data(), c33.data());
+            }
+            kb.fill(0);
+            if (!bch_ok) return false;
+        }
         std::memcpy(&in.rec_sig64[i * 64], r64.data(), 64);
         in.recids[i] = rsig.recid;
         std::memcpy(&in.h160_33[i * 20], h33.data(), 20);
@@ -1417,6 +1455,49 @@ static BenchResult bench_schnorr_verify_impl(const BenchConfig& cfg, const Verif
     }
 
     cudaFree(d_pks); cudaFree(d_msg); cudaFree(d_sigs); cudaFree(d_res);
+    return finish_checked(result, bad, first_bad, N);
+}
+
+// Bitcoin Cash 2019 Schnorr verify, kernel only (no transfers in the timed
+// region). Compare with bench_gpu_abi_batch's bch_schnorr_verify op (ABI call
+// including transfers) for the transfer overhead. Every input was accepted by
+// the CPU secp256k1::bch_schnorr_verify, so every GPU verdict must be 1.
+// Throughput: not yet measured -- benchmark required.
+static BenchResult bench_bch_schnorr_verify_impl(const BenchConfig& cfg, const VerifyInputs& in) {
+    if (!in.ok) return invalid_result("BCH Schnorr", "BCH Schnorr verify", in.n);
+    const int N = in.n;
+    const size_t un = static_cast<size_t>(N);
+
+    uint8_t *d_msg = nullptr, *d_pub33 = nullptr, *d_sig = nullptr, *d_res = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_msg, un * 32));
+    CUDA_CHECK(cudaMalloc(&d_pub33, un * 33));
+    CUDA_CHECK(cudaMalloc(&d_sig, un * 64));
+    CUDA_CHECK(cudaMalloc(&d_res, un));
+    CUDA_CHECK(cudaMemcpy(d_msg, in.msgs.data(), un * 32, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_pub33, in.pub33.data(), un * 33, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_sig, in.bch_sig64.data(), un * 64, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(d_res, 0, un));
+
+    const int blocks = (N + kVerifyThreads - 1) / kVerifyThreads;
+    BenchConfig v_cfg = cfg;
+    v_cfg.batch_size = N;
+    auto result = run_bench("BCH Schnorr", "BCH Schnorr verify", v_cfg, [&]() {
+        bch_schnorr_verify_batch_kernel<<<blocks, kVerifyThreads>>>(d_msg, d_pub33, d_sig, d_res, N);
+    });
+
+    std::vector<uint8_t> h_res(un, 0);
+    const bool ran = device_ok("BCH Schnorr verify");
+    if (ran)
+        CUDA_CHECK(cudaMemcpy(h_res.data(), d_res, un, cudaMemcpyDeviceToHost));
+    int bad = 0, first_bad = -1;
+    for (int i = 0; i < N; ++i) {
+        if (!ran || h_res[static_cast<size_t>(i)] != 1) {
+            if (first_bad < 0) first_bad = i;
+            ++bad;
+        }
+    }
+
+    cudaFree(d_msg); cudaFree(d_pub33); cudaFree(d_sig); cudaFree(d_res);
     return finish_checked(result, bad, first_bad, N);
 }
 
@@ -1854,6 +1935,7 @@ int main(int argc, char** argv) {
 #if !SECP256K1_CUDA_LIMBS_32
         emit(bench_ecdsa_verify_impl(cfg, vin));
         emit(bench_schnorr_verify_impl(cfg, vin));
+        emit(bench_bch_schnorr_verify_impl(cfg, vin));
 #if SECP256K1_GPU_HAS_ECRECOVER
         emit(bench_ecrecover_impl(cfg, vin));
 #else

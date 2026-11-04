@@ -568,6 +568,109 @@ kernel void ecdsa_verify_batch_compressed(
     results[tid] = ecdsa_verify(msg, AffinePoint{pub.x, pub.y}, r_sig, s_sig) ? 1u : 0u;
 }
 
+// -----------------------------------------------------------------------------
+// Bitcoin Cash 2019 Schnorr verification (NOT BIP-340)
+//   https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/
+// Line-for-line mirror of bch_schnorr_verify_impl in
+// src/opencl/kernels/secp256k1_extended.cl (CPU reference:
+// secp256k1::bch_schnorr_verify). Per item: fail if r >= p, s >= n or s == 0,
+// or the key does not decompress; e = SHA256(r || pubkey33 || msg32) mod n;
+// R = s*G - e*P (GLV dual mul); fail if R = O, if Y*Z is not a quadratic
+// residue, or if X != r*Z^2. No field inversion. VARIABLE TIME -- PUBLIC DATA.
+// NOT runtime-verified: Metal is not compiled on Linux CI hosts.
+// -----------------------------------------------------------------------------
+inline bool bch_field_eq_var(thread const FieldElement &a, thread const FieldElement &b) {
+    uchar ab[32], bb[32];
+    field_to_bytes(a, ab);
+    field_to_bytes(b, bb);
+    uint diff = 0;
+    for (int i = 0; i < 32; i++) diff |= uint(ab[i] ^ bb[i]);
+    return diff == 0;
+}
+
+inline bool bch_schnorr_verify_metal(device const uchar* sig64,
+                                     device const uchar* msg32,
+                                     device const uchar* pub33) {
+    // r < p; r as a canonical field element for the projective x check.
+    if (!lbtc_be32_lt_field_p(sig64)) return false;
+    FieldElement r_fe;
+    for (int i = 0; i < 8; i++) {
+        r_fe.limbs[7 - i] = (uint(sig64[i * 4]) << 24) | (uint(sig64[i * 4 + 1]) << 16) |
+                            (uint(sig64[i * 4 + 2]) << 8) | uint(sig64[i * 4 + 3]);
+    }
+
+    // 0 < s < n.
+    Scalar256 s;
+    for (int i = 0; i < 8; i++) {
+        s.limbs[7 - i] = (uint(sig64[32 + i * 4]) << 24) | (uint(sig64[32 + i * 4 + 1]) << 16) |
+                         (uint(sig64[32 + i * 4 + 2]) << 8) | uint(sig64[32 + i * 4 + 3]);
+    }
+    if (scalar256_is_zero(s)) return false;
+    Scalar256 order_n;
+    for (int i = 0; i < 8; i++) order_n.limbs[i] = SECP256K1_N[i];
+    if (scalar256_ge(s, order_n)) return false;
+
+    // Canonical compressed key (prefix 02/03, x < p, on the curve); Z = 1.
+    JacobianPoint P;
+    if (!lbtc_point_from_compressed(pub33, P)) return false;
+
+    // e = SHA256(r || pubkey33 || msg32) mod n. Bit length 776 = 0x0308.
+    SHA256Ctx hctx;
+    sha256_init(hctx);
+    uchar block[64];
+    for (int i = 0; i < 32; i++) block[i]      = sig64[i];
+    for (int i = 0; i < 32; i++) block[32 + i] = pub33[i];
+    sha256_compress(hctx, block);
+    block[0] = pub33[32];
+    for (int i = 0; i < 32; i++) block[1 + i] = msg32[i];
+    block[33] = 0x80;
+    for (int i = 34; i < 62; i++) block[i] = 0;
+    block[62] = 0x03;
+    block[63] = 0x08;
+    sha256_compress(hctx, block);
+    uchar e_hash[32];
+    for (int i = 0; i < 8; i++) {
+        e_hash[i * 4]     = uchar(hctx.h[i] >> 24);
+        e_hash[i * 4 + 1] = uchar(hctx.h[i] >> 16);
+        e_hash[i * 4 + 2] = uchar(hctx.h[i] >> 8);
+        e_hash[i * 4 + 3] = uchar(hctx.h[i]);
+    }
+    Scalar256 e = scalar_from_bytes(e_hash);
+    Scalar256 neg_e = scalar_negate(e);
+
+    // R = s*G - e*P.
+    AffinePoint G = generator_affine();
+    AffinePoint p_aff = AffinePoint{P.x, P.y};
+    JacobianPoint R = dual_scalar_mul_glv(G, s, p_aff, neg_e);
+    if (R.infinity != 0) return false;
+
+    // R.y quadratic residue: sqrt(Y*Z)^2 == Y*Z (Y != 0 for a finite point).
+    FieldElement yz = field_mul(R.y, R.z);
+    FieldElement root = field_sqrt(yz);
+    FieldElement sq = field_sqr(root);
+    if (!bch_field_eq_var(sq, yz)) return false;
+
+    // x(R) == r  <=>  X == r*Z^2.
+    FieldElement zz = field_sqr(R.z);
+    FieldElement rzz = field_mul(r_fe, zz);
+    return bch_field_eq_var(rzz, R.x);
+}
+
+// One thread per signature; results[i] = 1 valid / 0 invalid.
+kernel void bch_schnorr_verify_batch(
+    device const uchar *msgs32         [[buffer(0)]],   // N × 32
+    device const uchar *pubkeys33      [[buffer(1)]],   // N × 33 (SEC1 compressed)
+    device const uchar *sigs64         [[buffer(2)]],   // N × 64 (r ∥ s)
+    device uint *results               [[buffer(3)]],   // N × 1
+    constant uint &count               [[buffer(4)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    const ulong i = ulong(tid);
+    results[tid] = bch_schnorr_verify_metal(sigs64 + i * 64, msgs32 + i * 32,
+                                            pubkeys33 + i * 33) ? 1u : 0u;
+}
+
 kernel void ecdsa_verify_lbtc_rows(
     device const uchar *rows           [[buffer(0)]],
     constant ulong &stride             [[buffer(1)]],

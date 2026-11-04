@@ -1063,6 +1063,7 @@ public:
         if (ext_sighash_descriptor_)   { clReleaseKernel(ext_sighash_descriptor_);   ext_sighash_descriptor_   = nullptr; }
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
+        if (ext_bch_schnorr_verify_) { clReleaseKernel(ext_bch_schnorr_verify_); ext_bch_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
         if (ext_ecdsa_snark_compressed_)      { clReleaseKernel(ext_ecdsa_snark_compressed_);      ext_ecdsa_snark_compressed_      = nullptr; }
         if (ext_ecdh_scalar_mul_compressed_) { clReleaseKernel(ext_ecdh_scalar_mul_compressed_); ext_ecdh_scalar_mul_compressed_ = nullptr; }
@@ -1334,6 +1335,67 @@ public:
         clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0,
                             sizeof(int) * count, h_res.data(), 0, nullptr, nullptr);
 
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = h_res[i] ? 1 : 0;
+
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* Bitcoin Cash 2019 Schnorr (NOT BIP-340) batch verify. PUBLIC data:
+     * grow-only per-backend scratch, no erase. The kernel decompresses the
+     * key, hashes the 97-byte challenge and range-checks r and s itself. */
+    GpuError bch_schnorr_verify_batch(
+        const uint8_t* msgs32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msgs32 || !pubkeys33 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        if (count > static_cast<size_t>(0xFFFFFFFFu))
+            return set_error(GpuError::BadInput, "bch_schnorr_verify count too large");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_bch_schnorr_verify_)
+            return set_error(GpuError::Launch, "bch_schnorr_verify_batch kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_msgs = nullptr, d_pubs = nullptr, d_sigs = nullptr, d_res = nullptr;
+        if (lease.upload(&d_msgs, msgs32, 32 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bch_schnorr msg buffer alloc");
+        if (lease.upload(&d_pubs, pubkeys33, 33 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bch_schnorr pub buffer alloc");
+        if (lease.upload(&d_sigs, sigs64, 64 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bch_schnorr sig buffer alloc");
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bch_schnorr result buffer alloc");
+
+        cl_uint cl_count = static_cast<cl_uint>(count);
+        clSetKernelArg(ext_bch_schnorr_verify_, 0, sizeof(cl_mem), &d_msgs);
+        clSetKernelArg(ext_bch_schnorr_verify_, 1, sizeof(cl_mem), &d_pubs);
+        clSetKernelArg(ext_bch_schnorr_verify_, 2, sizeof(cl_mem), &d_sigs);
+        clSetKernelArg(ext_bch_schnorr_verify_, 3, sizeof(cl_mem), &d_res);
+        clSetKernelArg(ext_bch_schnorr_verify_, 4, sizeof(cl_uint), &cl_count);
+
+        size_t global = count;
+        cl_int clerr = clEnqueueNDRangeKernel(queue, ext_bch_schnorr_verify_, 1, nullptr,
+                                              &global, nullptr, 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS)
+            return set_error(GpuError::Launch, "bch_schnorr_verify kernel launch failed");
+        if (clFinish(queue) != CL_SUCCESS)
+            return set_error(GpuError::Launch, "bch_schnorr_verify kernel finish failed");
+
+        std::vector<int> h_res(count);
+        clerr = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0,
+                                    sizeof(int) * count, h_res.data(), 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS)
+            return set_error(GpuError::Launch, "bch_schnorr_verify result read failed");
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
 
@@ -3902,6 +3964,7 @@ private:
      * backend/context -- correctness over concurrency for this op. */
     std::mutex sighash_dispatch_mtx_;
     cl_kernel  ext_schnorr_verify_         = nullptr;
+    cl_kernel  ext_bch_schnorr_verify_     = nullptr;  // BCH 2019 Schnorr (public)
     cl_kernel  ext_ecrecover_       = nullptr;
     cl_kernel  ext_ecdsa_snark_            = nullptr;
     cl_kernel  ext_ecdsa_snark_compressed_      = nullptr;
@@ -4161,6 +4224,7 @@ private:
         // (each handle is nullptr until created) make one shared cleanup safe
         // regardless of which clCreateKernel failed — no double-release.
         auto release_all_extended = [&]() {
+            if (ext_bch_schnorr_verify_)   { clReleaseKernel(ext_bch_schnorr_verify_);   ext_bch_schnorr_verify_   = nullptr; }
             if (ext_sighash_descriptor_)   { clReleaseKernel(ext_sighash_descriptor_);   ext_sighash_descriptor_   = nullptr; }
             if (ext_merkle_pair_)          { clReleaseKernel(ext_merkle_pair_);          ext_merkle_pair_          = nullptr; }
             if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
@@ -4211,6 +4275,10 @@ private:
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "ecdsa_verify_lbtc_collect kernel not found"); }
         ext_schnorr_lbtc_collect_ = clCreateKernel(ext_program_, "schnorr_verify_lbtc_collect", &err);
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "schnorr_verify_lbtc_collect kernel not found"); }
+
+        // Bitcoin Cash 2019 Schnorr verify (NOT BIP-340), PUBLIC data.
+        ext_bch_schnorr_verify_ = clCreateKernel(ext_program_, "bch_schnorr_verify_batch", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "bch_schnorr_verify_batch kernel not found"); }
 
         return GpuError::Ok;
     }

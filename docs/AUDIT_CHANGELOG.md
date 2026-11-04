@@ -1,5 +1,27 @@
 # Audit Changelog
 
+## 2026-11-04 - GPU BCH 2019 Schnorr batch verify: GPU-vs-CPU differential modules (issue #466)
+
+**Surface.** `ufsecp_gpu_bch_schnorr_verify_batch` runs on CUDA, OpenCL and
+Metal. Every input is public, so the kernels are variable-time.
+
+**Guards.**
+- `audit/test_gpu_ops_equivalence.cpp` compares every item with
+  `ufsecp_bch_schnorr_verify`, for random valid signatures and for each
+  invalid class: each field corrupted, r >= p, r off the curve, R negated (the
+  Jacobi check fails), s >= n, s = 0, bad and non-canonical keys, and mixed
+  batches.
+- `audit/test_gpu_host_api_negative.cpp` and `audit/test_gpu_abi_gate.cpp`
+  cover the NULL and count cases.
+- New modules in `gpu_audit_runner` (CUDA) and `opencl_audit_runner`: BCH
+  verify, GPU against CPU, on valid and invalid classes.
+
+**Host run, RTX 5060 Ti.**
+- CUDA: `gpu_ops_equivalence` 495/495, `gpu_audit_runner` 49/49, GPU ctest 21/21.
+- OpenCL: `gpu_ops_equivalence` 495/495, `opencl_audit_runner` 46/46,
+  `--kernel-dir` = source tree.
+- Metal is code-complete but not runtime-verified on Linux.
+
 ## 2026-11-04 - BCH 2019 Schnorr batch verification: forgery and differential modules (issue #466)
 
 **Surface.** A new verifier, `src/cpu/src/bch_schnorr.cpp`, covers single and

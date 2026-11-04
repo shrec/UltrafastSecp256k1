@@ -86,6 +86,8 @@ static void test_null_pointers() {
           "ecdsa_verify_batch(NULL ctx) = ERR_NULL_ARG");
     CHECK(ufsecp_gpu_schnorr_verify_batch(nullptr, buf, buf, buf, 1, buf) == UFSECP_ERR_NULL_ARG,
           "schnorr_verify_batch(NULL ctx) = ERR_NULL_ARG");
+    CHECK(ufsecp_gpu_bch_schnorr_verify_batch(nullptr, buf, buf, buf, 1, buf) == UFSECP_ERR_NULL_ARG,
+          "bch_schnorr_verify_batch(NULL ctx) = ERR_NULL_ARG");
     CHECK(ufsecp_gpu_ecdh_batch(nullptr, buf, buf, 1, buf) == UFSECP_ERR_NULL_ARG,
           "ecdh_batch(NULL ctx) = ERR_NULL_ARG");
     CHECK(ufsecp_gpu_hash160_pubkey_batch(nullptr, buf, 1, buf) == UFSECP_ERR_NULL_ARG,
@@ -138,6 +140,10 @@ static void test_count_zero(ufsecp_gpu_ctx* ctx) {
     CHECK(e3 == UFSECP_OK || e3 == UFSECP_ERR_GPU_UNSUPPORTED,
           "schnorr_verify_batch(count=0) = OK or UNSUPPORTED");
 
+    /* The ABI answers count == 0 before reaching the backend: always OK. */
+    auto e3b = ufsecp_gpu_bch_schnorr_verify_batch(ctx, nullptr, nullptr, nullptr, 0, nullptr);
+    CHECK(e3b == UFSECP_OK, "bch_schnorr_verify_batch(count=0, NULL buffers) = OK");
+
     auto e4 = ufsecp_gpu_ecdh_batch(ctx, nullptr, nullptr, 0, nullptr);
     CHECK(e4 == UFSECP_OK || e4 == UFSECP_ERR_GPU_UNSUPPORTED,
           "ecdh_batch(count=0) = OK or UNSUPPORTED");
@@ -176,6 +182,15 @@ static void test_null_buffers_nonzero_count(ufsecp_gpu_ctx* ctx) {
 
     auto e4 = ufsecp_gpu_schnorr_verify_batch(ctx, buf, nullptr, buf, 1, buf);
     CHECK(e4 != UFSECP_OK, "schnorr_verify_batch(NULL pks, count=1) fails");
+
+    auto e4b = ufsecp_gpu_bch_schnorr_verify_batch(ctx, buf, nullptr, buf, 1, buf);
+    CHECK(e4b == UFSECP_ERR_NULL_ARG, "bch_schnorr_verify_batch(NULL pubkeys, count=1) = ERR_NULL_ARG");
+    auto e4c = ufsecp_gpu_bch_schnorr_verify_batch(ctx, nullptr, buf, buf, 1, buf);
+    CHECK(e4c == UFSECP_ERR_NULL_ARG, "bch_schnorr_verify_batch(NULL msgs, count=1) = ERR_NULL_ARG");
+    auto e4d = ufsecp_gpu_bch_schnorr_verify_batch(ctx, buf, buf, nullptr, 1, buf);
+    CHECK(e4d == UFSECP_ERR_NULL_ARG, "bch_schnorr_verify_batch(NULL sigs, count=1) = ERR_NULL_ARG");
+    auto e4e = ufsecp_gpu_bch_schnorr_verify_batch(ctx, buf, buf, buf, 1, nullptr);
+    CHECK(e4e == UFSECP_ERR_NULL_ARG, "bch_schnorr_verify_batch(NULL out, count=1) = ERR_NULL_ARG");
 
     auto e5 = ufsecp_gpu_ecdh_batch(ctx, nullptr, buf, 1, buf);
     CHECK(e5 != UFSECP_OK, "ecdh_batch(NULL privkeys, count=1) fails");
@@ -265,6 +280,18 @@ static void test_invalid_content_core_ops(ufsecp_gpu_ctx* ctx) {
               || (e3 == UFSECP_OK && out_result[0] == 0),
           "schnorr_verify_batch invalid signature: UNSUPPORTED, ERR_BAD_INPUT, or marks result 0");
     schnorr_sig64[0] ^= 0x80;
+
+    /* BCH 2019 Schnorr: an invalid (prefix 0x05) key is reported per item. */
+    out_result[0] = 1;
+    auto e3b = ufsecp_gpu_bch_schnorr_verify_batch(ctx, msg32, invalid_pub33, schnorr_sig64,
+                                                   1, out_result);
+    if (e3b != UFSECP_OK) {
+        CHECK(out_result[0] == 0,
+              "bch_schnorr_verify_batch non-OK return clears out_results");
+    }
+    CHECK(gpu_runtime_unusable(e3b) || host_rejected_input(e3b)
+              || (e3b == UFSECP_OK && out_result[0] == 0),
+          "bch_schnorr_verify_batch invalid pubkey: UNSUPPORTED, ERR_BAD_INPUT, or marks result 0");
 
     std::memset(out_secret32, 0xA5, sizeof(out_secret32));
     auto e4 = ufsecp_gpu_ecdh_batch(ctx, seckey32, invalid_pub33, 1, out_secret32);

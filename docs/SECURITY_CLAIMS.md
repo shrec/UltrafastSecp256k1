@@ -2,6 +2,24 @@
 
 **UltrafastSecp256k1 v4.7.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-11-04 - BCH 2019 Schnorr batch verification on the GPU (issue #466)
+
+`ufsecp_gpu_bch_schnorr_verify_batch` (`include/ufsecp/ufsecp_gpu.h`) runs the
+same BCH 2019 rule as `ufsecp_bch_schnorr_verify`, one thread per signature, on
+CUDA (`src/cuda/include/bch_schnorr.cuh`), OpenCL
+(`src/opencl/kernels/secp256k1_extended.cl`) and Metal
+(`src/metal/shaders/secp256k1_kernels.metal`, code-complete but not
+runtime-verified on Linux). Every input is public, so the kernels are
+variable-time by design. No key, nonce or other secret reaches the GPU on this
+path, so there is no device buffer to erase.
+
+**Claim:** `out_results[i] == 1` exactly when `ufsecp_bch_schnorr_verify`
+accepts item i, and the call fails closed under the same rules as
+`ufsecp_gpu_schnorr_verify_batch` (`docs/FFI_HOSTILE_CALLER.md` I.5d).
+Validation: `audit/test_gpu_ops_equivalence.cpp` (GPU against CPU per item, for
+valid signatures and every invalid class) and the GPU audit runners'
+differential modules.
+
 ### 2026-11-04 - BCH 2019 Schnorr verification in the C ABI (issue #466)
 
 Three verify-only functions join the stable ABI: `ufsecp_bch_schnorr_verify`,

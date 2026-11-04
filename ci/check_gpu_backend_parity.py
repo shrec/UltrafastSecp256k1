@@ -179,6 +179,7 @@ ABI_SYMBOL_FOR_OP = {
     "ecdsa_verify_batch": "ufsecp_gpu_ecdsa_verify_batch",
     "ecdsa_verify_lbtc_rows": ["ufsecp_gpu_ecdsa_verify_opaque_rows", "ufsecp_gpu_ecdsa_verify_lbtc_rows"],
     "schnorr_verify_batch": "ufsecp_gpu_schnorr_verify_batch",
+    "bch_schnorr_verify_batch": "ufsecp_gpu_bch_schnorr_verify_batch",
     "ecdsa_verify_lbtc_columns": "ufsecp_gpu_ecdsa_verify_lbtc_columns",
     "schnorr_verify_lbtc_columns": "ufsecp_gpu_schnorr_verify_lbtc_columns",
     "ecdsa_verify_collect": "ufsecp_gpu_ecdsa_verify_collect",

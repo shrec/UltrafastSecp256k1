@@ -1,17 +1,17 @@
 # ABI Negative-Test Manifest
 
-Generated: 2026-11-04T21:32:36.041012+00:00
+Generated: 2026-11-04T22:06:59.526292+00:00
 
 Machine-generated hostile-caller coverage manifest for the public `ufsecp_*` ABI.
 
 ## Summary
 
-- Exported functions scanned: 209
+- Exported functions scanned: 210
 - Blocking functions: 0
-- Null rejection evidence: 209
-- Zero-edge evidence: 202
-- Invalid-content evidence: 207
-- Success-smoke evidence: 209
+- Null rejection evidence: 210
+- Zero-edge evidence: 203
+- Invalid-content evidence: 208
+- Success-smoke evidence: 210
 
 ## Blocking Functions
 

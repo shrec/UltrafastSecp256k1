@@ -492,6 +492,37 @@ ufsecp_error_t ufsecp_gpu_schnorr_verify_batch(
     } UFSECP_GPU_CATCH
 }
 
+/* Bitcoin Cash 2019 Schnorr batch verify (NOT BIP-340). Public-data,
+ * variable-time kernels. Same NULL / count / fail-closed contract as
+ * ufsecp_gpu_schnorr_verify_batch; a non-canonical SEC1 key (prefix not
+ * 02/03 or x >= p) is masked invalid per item after a successful dispatch,
+ * matching ufsecp_bch_schnorr_verify, which rejects it with BAD_PUBKEY. */
+ufsecp_error_t ufsecp_gpu_bch_schnorr_verify_batch(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* msgs32,
+    const uint8_t* pubkeys33,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results)
+{
+    if (SECP256K1_UNLIKELY(!ctx)) return UFSECP_ERR_NULL_ARG;
+    if (count == 0) return UFSECP_OK;
+    if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
+    if (!clear_output_bytes(out_results, count, 1)) return UFSECP_ERR_BAD_INPUT;
+    if (SECP256K1_UNLIKELY(!msgs32 || !pubkeys33 || !sigs64 || !out_results)) {
+        return UFSECP_ERR_NULL_ARG;
+    }
+    try {
+    return verify_then_mask(
+        [&] {
+            return ctx->backend->bch_schnorr_verify_batch(
+                msgs32, pubkeys33, sigs64, count, out_results);
+        },
+        [&] { mask_noncanonical_compressed(pubkeys33, 33, count, out_results); },
+        out_results, count);
+    } UFSECP_GPU_CATCH
+}
+
 /* libbitcoin ECDSA/Schnorr column (Structure-of-Arrays) verify. Public-data.
  * Completeness mirror of the *_verify_lbtc_rows / *_verify_batch ABI wrappers.
  * NOTE: the libbitcoin direct entrypoint does NOT call these C ABI functions —

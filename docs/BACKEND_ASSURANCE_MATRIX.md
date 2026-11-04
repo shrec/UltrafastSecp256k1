@@ -666,6 +666,23 @@ A kernel being present internally does not imply a public API exists for it.
 | `ufsecp_gpu_zk_ecdsa_snark_witness_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_zk_schnorr_snark_witness_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_bip352_scan_batch_multispend` ² | Y | - | Y | Y | Y |
+| `ufsecp_gpu_bch_schnorr_verify_batch` ³ | Y | - | Y | Y | Y ³ |
+
+³ **Bitcoin Cash 2019 Schnorr batch verify (issue #466), NOT BIP-340.** CPU
+reference: `ufsecp_bch_schnorr_verify` / `secp256k1::bch_schnorr_verify`. One
+thread per signature, variable-time on public data: SEC1 decompression, the
+97-byte SHA-256 challenge (two blocks), GLV Shamir `s*G - e*P`, a quadratic-residue
+test on `Y*Z` and the projective `X == r*Z^2` check -- no field inversion.
+Kernels: CUDA `bch_schnorr_verify_batch_kernel` (`src/cuda/include/bch_schnorr.cuh`),
+OpenCL `bch_schnorr_verify_batch` (`secp256k1_extended.cl`), Metal
+`bch_schnorr_verify_batch` (`secp256k1_kernels.metal`, a line-for-line mirror of
+OpenCL). Non-canonical keys (x >= p) are masked invalid per item by the C ABI.
+Evidence: `audit/test_gpu_ops_equivalence.cpp` (GPU vs CPU per item, valid and
+every invalid class, mixed batch), `gpu_audit_runner` / `opencl_audit_runner`
+module `bch_schnorr_diff`. **Metal is code-complete but NOT runtime-verified**:
+Metal is not compiled on the Linux hosts. Throughput: not yet measured --
+benchmark required (`bench_gpu_abi_batch --ops bch_schnorr_verify` for end-to-end,
+`gpu_bench_unified` row "BCH Schnorr verify" for kernel-only).
 
 ¹ Several GPU public API functions accept private or secret key material:
 `ufsecp_gpu_ecdh_batch`, `ufsecp_gpu_bip352_scan_batch(_multispend)`,

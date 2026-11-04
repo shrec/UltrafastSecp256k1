@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-11-04T21:46:12.624386+00:00",
-  "commit": "2377c3e98360781437cacd7c84727cdf5daf1d56",
+  "timestamp": "2026-11-04T23:34:24.384708+00:00",
+  "commit": "7b7763b6fdd3b572589fbf36ec2bda79796d076c",
   "overall_pass": true,
   "drills_total": 3,
   "drills_passed": 3,
-  "drill_response_time_seconds": 2.09,
+  "drill_response_time_seconds": 2.06,
   "injections": [
     {
       "drill": "key_compromise",
@@ -36,7 +36,7 @@
       "injected_fault": "known-weak / out-of-range private keys (zero, n, n+1, all-ones)",
       "detection_gate": "ufsecp pubkey() ABI boundary (strict scalar parse)",
       "detected": true,
-      "elapsed_seconds": 1.99,
+      "elapsed_seconds": 1.97,
       "weak_keys_tested": 4,
       "results": [
         {
@@ -75,7 +75,7 @@
       "injected_fault": "CMakeLists.txt with no cmake_minimum_required (unpinned toolchain)",
       "detection_gate": "supply_chain_gate.check_build_input_pinning",
       "detected": true,
-      "elapsed_seconds": 0.08,
+      "elapsed_seconds": 0.07,
       "issues": []
     }
   ]

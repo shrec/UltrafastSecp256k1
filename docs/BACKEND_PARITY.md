@@ -47,6 +47,7 @@ Y = implemented + tested in audit runner, K = kernel/shader exists (not in audit
 | BIP-340 midstate optimization | Y | Y | Y | Y | Precomputed SHA-256 midstates |
 | Batch ECDSA verify | Y | Y | Y | Y | Exposed through `ufsecp_gpu_ecdsa_verify_batch` |
 | Batch Schnorr verify | Y | Y | Y | Y | Exposed through `ufsecp_gpu_schnorr_verify_batch` |
+| Batch BCH 2019 Schnorr verify (NOT BIP-340) | Y | Y | Y | K | Exposed through `ufsecp_gpu_bch_schnorr_verify_batch`; audit module `bch_schnorr_diff` (CUDA vs CPU library, OpenCL vs reference vectors). Metal shader is code-complete but not runtime-verified (not compiled on Linux). Throughput: not yet measured |
 | Batch ECDSA recovery (`ecrecover_batch`) | Y (host loop) | Y | Y | Y | Stable GPU ABI parity closed across all 3 GPU backends |
 | **Hashing** | | | | | |
 | SHA-256 | Y | Y | Y | Y | |
