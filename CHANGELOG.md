@@ -181,6 +181,21 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   `docs/AUDIT_CHANGELOG.md` 2026-10-02.
 
 ### Changed
+- **GPU C ABI batch calls reuse their device buffers (CUDA, OpenCL).** The
+  `ufsecp_gpu_*` batch calls allocated and freed their device buffers on every
+  call. Each backend now keeps grow-only device scratch, behind a mutex, and
+  reuses it from call to call. Slots that held private keys are zeroed when the
+  call ends (Rule 10). Results are unchanged. `gpu_ops_equivalence` calls every
+  batch op three times on one context (5, then 64, then 3 rows, each with a
+  tampered verify row), so data left over from an earlier call cannot pass.
+  New harness `benchmarks/gpu/bench_gpu_abi_batch.cpp` times whole C ABI calls
+  and checks every result against the CPU library.
+
+  One A/B run on an RTX 5060 Ti, 11 passes per row: hash160 is faster at every
+  batch size on both backends (batch 1: CUDA 52.5 to 11.3 µs/call, OpenCL 57.6
+  to 19.6 µs/call). generator_mul is faster at every size on both, and ecdh at
+  most sizes. OpenCL verify is faster at every size; CUDA verify rows overlap.
+  `docs/benchmark_artifacts/gpu_abi_batch_scratch_ab_2026-11-04_rtx5060ti.json`.
 - **Release: NuGet publishing uses nuget.org trusted publishing.** `pack-nuget`
   in `release.yml` gets a one-hour API key from `NuGet/login` (GitHub OIDC,
   `id-token: write` on that job only) instead of the stored `NUGET_TOKEN`, which

@@ -469,6 +469,213 @@ static void test_msm_large_n_equiv(ufsecp_gpu_ctx* ctx) {
     ufsecp_ctx_destroy(cpu_ctx);
 }
 
+/* ============================================================================
+ * 9. Grow / shrink reuse of the backends' device scratch
+ * ============================================================================
+ * The CUDA and OpenCL backends keep grow-only device scratch buffers and reuse
+ * them from one call to the next. Every batch op is called three times on the
+ * same context: a small batch, a larger one (the scratch grows) and a smaller
+ * one again (the larger buffers are reused). Each call uses rows the previous
+ * call did not, and each verify call carries one tampered row, so a result
+ * that leaked from a previous call's data cannot match the CPU reference. */
+static constexpr size_t kGsSizes[3] = {5, 64, 3};
+static constexpr size_t kGsPool = 5 + 64 + 3;
+
+struct GrowShrinkPool {
+    std::vector<uint8_t> msgs, sks, pubs, xonly, ecdsa_sigs, schnorr_sigs;
+    std::vector<uint8_t> rec_sigs, peer_pubs;
+    std::vector<int>     recids;
+};
+
+static bool gs_build_pool(ufsecp_ctx* cpu, GrowShrinkPool& p) {
+    p.msgs.resize(kGsPool * 32);
+    p.sks.resize(kGsPool * 32);
+    p.pubs.resize(kGsPool * 33);
+    p.xonly.resize(kGsPool * 32);
+    p.ecdsa_sigs.resize(kGsPool * 64);
+    p.schnorr_sigs.resize(kGsPool * 64);
+    p.rec_sigs.resize(kGsPool * 64);
+    p.peer_pubs.resize(kGsPool * 33);
+    p.recids.resize(kGsPool);
+    for (size_t i = 0; i < kGsPool; ++i) {
+        uint8_t* sk  = p.sks.data() + i * 32;
+        uint8_t* msg = p.msgs.data() + i * 32;
+        fill_deterministic(sk, 32, static_cast<uint8_t>(3 * i + 1));
+        sk[0] &= 0x7F;                               /* < group order */
+        sk[31] = static_cast<uint8_t>(sk[31] | 1u);  /* non-zero */
+        fill_deterministic(msg, 32, static_cast<uint8_t>(3 * i + 2));
+        uint8_t peer_sk[32];
+        fill_deterministic(peer_sk, 32, static_cast<uint8_t>(3 * i + 3));
+        peer_sk[0] &= 0x7F;
+        peer_sk[31] = static_cast<uint8_t>(peer_sk[31] | 1u);
+        uint8_t aux[32] = {};
+        if (ufsecp_pubkey_create(cpu, sk, p.pubs.data() + i * 33) != UFSECP_OK) return false;
+        if (ufsecp_pubkey_xonly(cpu, sk, p.xonly.data() + i * 32) != UFSECP_OK) return false;
+        if (ufsecp_pubkey_create(cpu, peer_sk, p.peer_pubs.data() + i * 33) != UFSECP_OK) return false;
+        if (ufsecp_ecdsa_sign(cpu, msg, sk, p.ecdsa_sigs.data() + i * 64) != UFSECP_OK) return false;
+        if (ufsecp_schnorr_sign(cpu, msg, sk, aux, p.schnorr_sigs.data() + i * 64) != UFSECP_OK) return false;
+        if (ufsecp_ecdsa_sign_recoverable(cpu, msg, sk, p.rec_sigs.data() + i * 64,
+                                          &p.recids[i]) != UFSECP_OK) return false;
+    }
+    return true;
+}
+
+static void test_batch_grow_shrink(ufsecp_gpu_ctx* ctx, const char* backend) {
+    std::printf("[gpu_equiv] grow/shrink scratch reuse (%s)\n", backend);
+
+    ufsecp_ctx* cpu = nullptr;
+    CHECK_OK(ufsecp_ctx_create(&cpu), "CPU ctx_create succeeds");
+    if (!cpu) return;
+    GrowShrinkPool p;
+    const bool built = gs_build_pool(cpu, p);
+    CHECK(built, "grow/shrink: CPU fixtures built");
+    if (!built) { ufsecp_ctx_destroy(cpu); return; }
+
+    enum { kGen, kEcdsa, kSchnorr, kEcdh, kHash160, kEcrecover, kOps };
+    static const char* const kOpName[kOps] = {
+        "generator_mul_batch", "ecdsa_verify_batch", "schnorr_verify_batch",
+        "ecdh_batch", "hash160_pubkey_batch", "ecrecover_batch"};
+    bool unsupported[kOps] = {};
+    char msg[192];
+
+    /* Returns true when the op ran; records a SKIP once per op otherwise. */
+    auto ran = [&](int op, ufsecp_error_t e, size_t n) {
+        if (e == UFSECP_ERR_GPU_UNSUPPORTED) {
+            if (!unsupported[op]) {
+                std::snprintf(msg, sizeof(msg), "%s grow/shrink: %s unsupported",
+                              backend, kOpName[op]);
+                SKIP(msg);
+            }
+            unsupported[op] = true;
+            return false;
+        }
+        std::snprintf(msg, sizeof(msg), "%s %s n=%zu succeeds", backend, kOpName[op], n);
+        CHECK(e == UFSECP_OK, msg);
+        return e == UFSECP_OK;
+    };
+
+    size_t off = 0;
+    for (size_t round = 0; round < 3; ++round) {
+        const size_t n   = kGsSizes[round];
+        const size_t bad = (round + 1) % n;   /* tampered verify row */
+
+        /* generator_mul_batch: k*G must equal the CPU pubkeys of THIS call. */
+        if (!unsupported[kGen]) {
+            std::vector<uint8_t> out(n * 33, 0xEE);
+            auto e = ufsecp_gpu_generator_mul_batch(ctx, p.sks.data() + off * 32, n, out.data());
+            if (ran(kGen, e, n)) {
+                std::snprintf(msg, sizeof(msg), "%s generator_mul n=%zu GPU == CPU", backend, n);
+                CHECK(std::memcmp(out.data(), p.pubs.data() + off * 33, n * 33) == 0, msg);
+            }
+        }
+
+        /* ecdsa_verify_batch with one tampered message. */
+        if (!unsupported[kEcdsa]) {
+            std::vector<uint8_t> m(p.msgs.begin() + off * 32, p.msgs.begin() + (off + n) * 32);
+            m[bad * 32] ^= 0x01;
+            std::vector<uint8_t> res(n, 0xEE);
+            auto e = ufsecp_gpu_ecdsa_verify_batch(ctx, m.data(), p.pubs.data() + off * 33,
+                                                   p.ecdsa_sigs.data() + off * 64, n, res.data());
+            if (ran(kEcdsa, e, n)) {
+                size_t mismatch = 0;
+                for (size_t i = 0; i < n; ++i) {
+                    const uint8_t cpu_ok = ufsecp_ecdsa_verify(cpu, m.data() + i * 32,
+                        p.ecdsa_sigs.data() + (off + i) * 64,
+                        p.pubs.data() + (off + i) * 33) == UFSECP_OK ? 1 : 0;
+                    if (res[i] != cpu_ok) ++mismatch;
+                }
+                std::snprintf(msg, sizeof(msg), "%s ecdsa_verify n=%zu GPU == CPU per row", backend, n);
+                CHECK(mismatch == 0, msg);
+                std::snprintf(msg, sizeof(msg), "%s ecdsa_verify n=%zu tampered row rejected", backend, n);
+                CHECK(res[bad] == 0, msg);
+            }
+        }
+
+        /* schnorr_verify_batch with one tampered message. */
+        if (!unsupported[kSchnorr]) {
+            std::vector<uint8_t> m(p.msgs.begin() + off * 32, p.msgs.begin() + (off + n) * 32);
+            m[bad * 32] ^= 0x01;
+            std::vector<uint8_t> res(n, 0xEE);
+            auto e = ufsecp_gpu_schnorr_verify_batch(ctx, m.data(), p.xonly.data() + off * 32,
+                                                     p.schnorr_sigs.data() + off * 64, n, res.data());
+            if (ran(kSchnorr, e, n)) {
+                size_t mismatch = 0;
+                for (size_t i = 0; i < n; ++i) {
+                    const uint8_t cpu_ok = ufsecp_schnorr_verify(cpu, m.data() + i * 32,
+                        p.schnorr_sigs.data() + (off + i) * 64,
+                        p.xonly.data() + (off + i) * 32) == UFSECP_OK ? 1 : 0;
+                    if (res[i] != cpu_ok) ++mismatch;
+                }
+                std::snprintf(msg, sizeof(msg), "%s schnorr_verify n=%zu GPU == CPU per row", backend, n);
+                CHECK(mismatch == 0, msg);
+                std::snprintf(msg, sizeof(msg), "%s schnorr_verify n=%zu tampered row rejected", backend, n);
+                CHECK(res[bad] == 0, msg);
+            }
+        }
+
+        /* ecdh_batch: secret slots are zeroed after every call; the next call
+         * must still compute its own secrets exactly. */
+        if (!unsupported[kEcdh]) {
+            std::vector<uint8_t> out(n * 32, 0xEE);
+            auto e = ufsecp_gpu_ecdh_batch(ctx, p.sks.data() + off * 32,
+                                           p.peer_pubs.data() + off * 33, n, out.data());
+            if (ran(kEcdh, e, n)) {
+                size_t mismatch = 0;
+                for (size_t i = 0; i < n; ++i) {
+                    uint8_t ref[32];
+                    if (ufsecp_ecdh(cpu, p.sks.data() + (off + i) * 32,
+                                    p.peer_pubs.data() + (off + i) * 33, ref) != UFSECP_OK ||
+                        std::memcmp(out.data() + i * 32, ref, 32) != 0)
+                        ++mismatch;
+                }
+                std::snprintf(msg, sizeof(msg), "%s ecdh n=%zu GPU == CPU", backend, n);
+                CHECK(mismatch == 0, msg);
+            }
+        }
+
+        /* hash160_pubkey_batch */
+        if (!unsupported[kHash160]) {
+            std::vector<uint8_t> out(n * 20, 0xEE);
+            auto e = ufsecp_gpu_hash160_pubkey_batch(ctx, p.pubs.data() + off * 33, n, out.data());
+            if (ran(kHash160, e, n)) {
+                size_t mismatch = 0;
+                for (size_t i = 0; i < n; ++i) {
+                    uint8_t ref[20];
+                    if (ufsecp_hash160(p.pubs.data() + (off + i) * 33, 33, ref) != UFSECP_OK ||
+                        std::memcmp(out.data() + i * 20, ref, 20) != 0)
+                        ++mismatch;
+                }
+                std::snprintf(msg, sizeof(msg), "%s hash160 n=%zu GPU == CPU", backend, n);
+                CHECK(mismatch == 0, msg);
+            }
+        }
+
+        /* ecrecover_batch: every recovered key must be THIS call's signer. */
+        if (!unsupported[kEcrecover]) {
+            std::vector<uint8_t> out(n * 33, 0xEE);
+            std::vector<uint8_t> valid(n, 0xEE);
+            auto e = ufsecp_gpu_ecrecover_batch(ctx, p.msgs.data() + off * 32,
+                                                p.rec_sigs.data() + off * 64,
+                                                p.recids.data() + off, n,
+                                                out.data(), valid.data());
+            if (ran(kEcrecover, e, n)) {
+                size_t mismatch = 0;
+                for (size_t i = 0; i < n; ++i)
+                    if (valid[i] != 1 ||
+                        std::memcmp(out.data() + i * 33, p.pubs.data() + (off + i) * 33, 33) != 0)
+                        ++mismatch;
+                std::snprintf(msg, sizeof(msg), "%s ecrecover n=%zu recovers this call's signers",
+                              backend, n);
+                CHECK(mismatch == 0, msg);
+            }
+        }
+
+        off += n;
+    }
+
+    ufsecp_ctx_destroy(cpu);
+}
+
 /* ============================================================================ */
 
 int main() {
@@ -510,6 +717,21 @@ int main() {
     test_msm_large_n_equiv(ctx);
 
     ufsecp_gpu_ctx_destroy(ctx);
+
+    /* Grow/shrink scratch-reuse check on EVERY available backend (not only the
+     * first): CUDA and OpenCL each keep their own grow-only device scratch. */
+    for (uint32_t i = 0; i < n; ++i) {
+        if (!ufsecp_gpu_is_available(ids[i])) continue;
+        ufsecp_gpu_ctx* gctx = nullptr;
+        if (ufsecp_gpu_ctx_create(&gctx, ids[i], 0) != UFSECP_OK || !gctx) {
+            std::printf("  FAIL: could not create GPU context for %s\n",
+                        ufsecp_gpu_backend_name(ids[i]));
+            ++g_fail;
+            continue;
+        }
+        test_batch_grow_shrink(gctx, ufsecp_gpu_backend_name(ids[i]));
+        ufsecp_gpu_ctx_destroy(gctx);
+    }
 
     std::printf("\n=== Results: %d passed, %d failed, %d skipped ===\n",
                 g_pass, g_fail, g_skip);
