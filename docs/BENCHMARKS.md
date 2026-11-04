@@ -243,6 +243,60 @@ for a microarchitecture needs a measured canonical JSON from
 (`docs/bench_variants_<date>_<cpu>.json`), with non-overlapping ranges against
 `default`. Until then the default stays scalar.
 
+### 4.6.2 vs 4.7.0: full bench_unified and CUDA verify (2026-11-04)
+
+Old is the v4.6.2 tag (`80b08d5a`). New is dev with this release's CPU changes. Each was built in its own tree with the same preset.
+
+CPU setup: `cpu-release` (GCC 14.2.0), the same libsecp256k1 source (`_research_repos/secp256k1` `f9a944f`), i5-14400F, `performance` governor, turbo off (`intel_pstate/no_turbo=1`), `taskset -c 0`.
+
+The 4.6.2 side is the median of five whole-binary runs. The 4.7.0 side is one run of the fixed build (`3bd40175`); `bench_unified` already takes an 11-pass IQR median inside each run. A row counts as changed only when the 4.7.0 value is more than 3% from the 4.6.2 median and outside the 4.6.2 min-max range.
+
+Sources: `docs/benchmark_artifacts/bench_unified_2026-11-04_dev-4.7.0-fixed_i5-14400f.json` (4.7.0) and `docs/benchmark_artifacts/cpu_v462_vs_4.7.0-prefix_ab_2026-11-04_i5-14400f.json` (per-run 4.6.2 values, alternated with the pre-fix dev build).
+
+**CPU rows faster in 4.7.0:**
+
+| Row | 4.6.2: us median (min - max) | 4.7.0: us | Change |
+|-----|-----------------------------:|----------:|-------:|
+| `schnorr_batch_verify(cached,N=192)` | 4345.8 (4329.4 - 4370.6) | 3518.6 | -19.0% |
+| `schnorr_batch_verify(cached,N=128)` | 3127.2 (3125.5 - 3175.9) | 2537.1 | -18.9% |
+| `schnorr_batch_verify(N=192)` | 4590.3 (4586.4 - 4621.4) | 3769.3 | -17.9% |
+| `schnorr_batch_verify(N=128)` | 3388.6 (3384.7 - 3399.9) | 2823.2 | -16.7% |
+| `schnorr_batch_verify(cached,N=64)` | 1844.8 (1836.6 - 1849.9) | 1544.6 | -16.3% |
+| `schnorr_batch_verify(N=64)` | 2092.9 (2092.5 - 2095.3) | 1799.4 | -14.0% |
+
+All other Ultra rows are within 3% of 4.6.2 or inside its range, with one exception: `SHA-256 (32B input)`, 72.4 -> 104.2 ns. The SHA-256 functions and their SHA-NI dispatch are the same size in both binaries, and no library row that hashes (BIP-143/341 sighash, tagged hashes) moved by more than 3%. That row is tracked as NF-2026-00040 and not counted as a library regression.
+
+CT signing, verify, ecrecover and the Ultra ConnectBlock rows did not change. The libsecp256k1 ConnectBlock `Mixed` row read 128.8 -> 151.6 ms in the single 4.7.0 run. That code is identical in both builds, so this is run noise.
+
+**CPU regression found and fixed in this cycle.** Before `3bd40175` the lane ISA translation units sat in the LTO unit, and GCC stopped inlining hot CT helpers. The 5-round A/B of 4.6.2 against that build shows it with non-overlapping ranges:
+
+| Row | 4.6.2: ns median | 4.7.0 before fix: ns median | 4.7.0 fixed: ns |
+|-----|-----------------:|----------------------------:|----------------:|
+| `ct::point_add_complete (11M+6S)` | 354.5 | 468.1 | 353.2 |
+| `ct::point_add_mixed_complete (7M+5S)` | 261.0 | 336.6 | 262.1 |
+| `ct::point_add_mixed_unified (7M+5S)` | 252.5 | 305.5 | 253.7 |
+
+The bisect that located it ran `bench_unified --quick`, one run per commit: `docs/benchmark_artifacts/cpu_lane_lto_bisect_quick_2026-11-04_i5-14400f.json`.
+
+**CUDA verify (RTX 5060 Ti, CUDA 13.2).** `secp256k1_cuda_bench`, one run per release. Source: `docs/benchmark_artifacts/cuda_bench_v462_vs_4.7.0_2026-11-04_rtx5060ti.json`.
+
+| Row | 4.6.2: ns/op | 4.7.0: ns/op | Change |
+|-----|-------------:|-------------:|-------:|
+| ECDSA Verify | 243.8 | 157.1 | -35.6% |
+| Schnorr Verify | 168.9 | 146.7 | -13.1% |
+| FROST Partial Verify | 691.0 | 670.9 | -2.9% |
+| ECDSA Sign | 178.8 | 179.1 | +0.2% |
+| Schnorr Sign | 223.5 | 222.6 | -0.4% |
+
+`gpu_bench_unified --suite all` ran 5 alternating rounds over its field, point, scalar-mul, sign and MSM rows. No median moved by more than 1.1%. It has no verify rows. Source: `docs/benchmark_artifacts/gpu_bench_unified_v462_vs_4.7.0_ab_2026-11-04_rtx5060ti.json`.
+
+**Not measured:**
+- OpenCL verify: the verify kernels reject valid signatures on NVIDIA OpenCL (NF-2026-00039).
+- Metal: no macOS host.
+- The CPU lane backends on IFMA hardware.
+
+In the same 4.7.0 run on this CPU, the AVX2 lane rows are slower than the scalar rows: ECDSA 52.3 vs 35.6 us/sig, BIP-340 62.2 vs 37.2 us/sig at N = 64. The lane path therefore stays opt-in.
+
 ### x86-64 Schnorr batch verify with 128-bit weights: canonical rerun (2026-11-03) `[A/B, canonical conditions]`
 
 The canonical rerun the 2026-11-01 section below asks for. Base `14e803b2`

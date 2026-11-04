@@ -214,6 +214,21 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   `docs/BENCHMARKS.md`). The GPU audit runner's hash160 check now also asserts
   the known hash160 of the compressed and uncompressed generator. OpenCL and
   Metal are unchanged.
+- **OpenCL verify paths use a variable-time SafeGCD inverse.** Port of the CUDA
+  `modinv_var` to OpenCL C (`modinv30_var_impl`, `field_inv_var_impl` in
+  `secp256k1_field.cl`, `scalar_inv_var_impl` in `secp256k1_extended.cl`, inside
+  the scan-only embed files). `ecdsa_verify_impl`, `schnorr_verify_impl`, the
+  GLV Shamir table inversion, `ecdsa_recover_impl`, `lbtc_commitment_verify`,
+  the ECDSA SNARK witness and FROST partial verification invert public values
+  with it. Signing, ECDH, key generation, provers and every `secp256k1_ct_*.cl`
+  file keep the Fermat / CT inverses. The kernel-closure audit module enforces
+  that rule by source scan, with live positive and negative controls. On the
+  GPU, `inv_var_fermat` matches the Fermat inverses on edge values and 16384
+  random inputs per modulus, and the ZK knowledge / DLEQ roundtrips (which use
+  the Shamir helper) pass. Throughput: not yet measured. The OpenCL
+  ECDSA/Schnorr verify kernels reject valid signatures on NVIDIA OpenCL, a
+  fault that predates this change (NF-2026-00039), so a verify benchmark would
+  only time the rejection path. Metal is unchanged.
 
 ### Fixed
 - **GPU C ABI rejects non-canonical point coordinates.** The shared host-side
@@ -231,6 +246,33 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   forgery. Reported by Gleb Lizunov (@hokvo). Regression assertions in
   `audit/test_gpu_host_api_negative.cpp`; details in `docs/AUDIT_CHANGELOG.md`
   2026-11-02.
+- **CPU: the lane ISA translation units are kept out of LTO.** With
+  `lanes_avx2.cpp`, `lanes_avx_ifma.cpp`, `lanes_ifma256.cpp` and
+  `lanes_ifma512.cpp` in the same GCC LTO unit as the library (from `a2d93fa0`
+  on), GCC 14 stopped inlining hot CT helpers such as `ct::scalar_window`,
+  `comb_lookup` and `FieldElement::operator-=`, and `ct::point_add_complete` /
+  `ct::point_add_mixed_complete` ran about 30% slower than in 4.6.2. These four
+  files now build with `-fno-lto` (GCC/Clang). They are reached only through
+  their constant kernel tables and define no weak symbols, so no inlining is
+  lost and no ISA code leaks into generic paths. With the fix the full
+  `bench_unified` run is within 3% of 4.6.2 on every row except the faster
+  Schnorr batch rows and one SHA-256 microbench row (NF-2026-00040):
+  `docs/BENCHMARKS.md`,
+  `docs/benchmark_artifacts/bench_unified_2026-11-04_dev-4.7.0-fixed_i5-14400f.json`,
+  `docs/benchmark_artifacts/cpu_lane_lto_bisect_quick_2026-11-04_i5-14400f.json`.
+- **OpenCL: the CT drop-in builds, every kernel file ships with the binaries,
+  and `bench_opencl` checks its results.** `secp256k1_ct_extended.cl` did not
+  compile (`scalar_is_zero_impl` was defined nowhere, `ct_schnorr_pubkey_impl`
+  was used before its definition, a `__global` pointer reached a private-pointer
+  parameter), so `opencl_audit_runner` skipped every module built on it. The CT
+  signer's zero checks now use CT masks. The build copied six hand-picked kernel
+  files, and `opencl_benchmark` run from the build dir skipped its signature
+  rows. It now copies every `kernels/*.cl` file, reads back every result and
+  marks a row `INVALID` when one fails. With those modules running, the ZK
+  knowledge and DLEQ roundtrips and the CT mask/cmov smoke tests pass on NVIDIA
+  OpenCL. The ECDSA/Schnorr sign+verify roundtrips fail there, with or without
+  this release's OpenCL changes; that fault predates them and is tracked as
+  NF-2026-00039.
 
 ## [4.6.2] - 2026-09-27
 

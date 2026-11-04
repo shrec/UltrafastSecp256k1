@@ -1,0 +1,7748 @@
+{
+ "report_type": "ab_cpu-unified",
+ "generated_by": "ab_driver.py (scratch driver; every number parsed from tool output, none typed by hand)",
+ "date": "2026-11-04T09:37:42.006476+00:00",
+ "host": "parking",
+ "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+ "rounds": 5,
+ "order": "alternating per round (base,new / new,base)",
+ "verdict_rule": "improvement iff new_max < base_min; regression iff new_min > base_max; else inconclusive",
+ "what_changed": "v4.6.2 release (80b08d5a) vs dev 022e06d3 (4.7.0 staged): every CPU change between the two releases",
+ "base_commit": "80b08d5a (v4.6.2)",
+ "new_commit": "022e06d3 (dev, 4.7.0 staged; d84eb5f4 changes OpenCL only)",
+ "build": "cpu-release preset in each tree (GCC 14.2), same LIBSECP_SRC_DIR (_research_repos/secp256k1 f9a944f)",
+ "conditions": {
+  "scaling_governor": "performance",
+  "intel_pstate_no_turbo": "1",
+  "pinning": "taskset -c 0 (bench_unified also pins core 0)",
+  "passes": "bench_unified default (11, IQR)"
+ },
+ "bench_invocation": "taskset -c 0 bench_unified --json <file>",
+ "binaries": {
+  "base": {
+   "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/out/wt-v4.6.2/out/cpu-release/src/cpu/bench_unified",
+   "sha256": "42afaf3c34e2da72a770a89795bfd1e37b45bd86630253bac670b9700e19b440"
+  },
+  "new": {
+   "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/out/cpu-release/src/cpu/bench_unified",
+   "sha256": "732550da26d5a1d7391ed80145008d0fe6016e6648675afdebcff896de524b19"
+  }
+ },
+ "json_headers": {
+  "base": {
+   "metadata": {
+    "generated_by": "bench_unified --json",
+    "date": "2026-11-04",
+    "cpu": "Intel(R) Core(TM) i5-14400F",
+    "compiler": "GCC 14.2.0",
+    "arch": "x86-64",
+    "timer": "RDTSCP",
+    "tsc_ghz": 2.496,
+    "passes": 11,
+    "warmup": 500,
+    "pool_size": 64,
+    "turbo": "disabled",
+    "run_mode": "full"
+   }
+  },
+  "new": {
+   "metadata": {
+    "generated_by": "bench_unified --json",
+    "date": "2026-11-04",
+    "cpu": "Intel(R) Core(TM) i5-14400F",
+    "compiler": "GCC 14.2.0",
+    "arch": "x86-64",
+    "timer": "RDTSCP",
+    "tsc_ghz": 2.496,
+    "passes": 11,
+    "warmup": 500,
+    "pool_size": 64,
+    "turbo": "disabled",
+    "run_mode": "full"
+   }
+  }
+ },
+ "ops": {
+  "FIELD ARITHMETIC (Ultra) / field_mul": {
+   "base": {
+    "rounds": [
+     20.45,
+     20.41,
+     20.45,
+     20.78,
+     29.98
+    ],
+    "median": 20.45,
+    "min": 20.41,
+    "max": 29.98,
+    "spread_pct": 46.79706601466993
+   },
+   "new": {
+    "rounds": [
+     20.22,
+     24.33,
+     20.47,
+     20.44,
+     20.4
+    ],
+    "median": 20.44,
+    "min": 20.22,
+    "max": 24.33,
+    "spread_pct": 20.107632093933457
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9995110024449879
+  },
+  "FIELD ARITHMETIC (Ultra) / field_sqr": {
+   "base": {
+    "rounds": [
+     18.99,
+     19.0,
+     19.04,
+     19.11,
+     27.37
+    ],
+    "median": 19.04,
+    "min": 18.99,
+    "max": 27.37,
+    "spread_pct": 44.01260504201682
+   },
+   "new": {
+    "rounds": [
+     18.93,
+     21.88,
+     18.89,
+     18.95,
+     18.89
+    ],
+    "median": 18.93,
+    "min": 18.89,
+    "max": 21.88,
+    "spread_pct": 15.795034337031161
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9942226890756303
+  },
+  "FIELD ARITHMETIC (Ultra) / field_inv": {
+   "base": {
+    "rounds": [
+     1507.74,
+     1500.98,
+     1501.85,
+     1510.93,
+     1831.97
+    ],
+    "median": 1507.74,
+    "min": 1500.98,
+    "max": 1831.97,
+    "spread_pct": 21.952723944446657
+   },
+   "new": {
+    "rounds": [
+     1531.55,
+     1732.17,
+     1512.53,
+     1518.11,
+     1552.5
+    ],
+    "median": 1531.55,
+    "min": 1512.53,
+    "max": 1732.17,
+    "spread_pct": 14.34102706408541
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0157918474007455
+  },
+  "FIELD ARITHMETIC (Ultra) / field_add": {
+   "base": {
+    "rounds": [
+     7.3,
+     7.22,
+     7.22,
+     7.65,
+     12.56
+    ],
+    "median": 7.3,
+    "min": 7.22,
+    "max": 12.56,
+    "spread_pct": 73.15068493150686
+   },
+   "new": {
+    "rounds": [
+     9.63,
+     10.32,
+     9.62,
+     9.62,
+     9.76
+    ],
+    "median": 9.63,
+    "min": 9.62,
+    "max": 10.32,
+    "spread_pct": 7.26895119418485
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.319178082191781
+  },
+  "FIELD ARITHMETIC (Ultra) / field_sub": {
+   "base": {
+    "rounds": [
+     7.63,
+     7.63,
+     7.66,
+     8.16,
+     13.2
+    ],
+    "median": 7.66,
+    "min": 7.63,
+    "max": 13.2,
+    "spread_pct": 72.7154046997389
+   },
+   "new": {
+    "rounds": [
+     7.75,
+     10.12,
+     7.64,
+     7.64,
+     7.63
+    ],
+    "median": 7.64,
+    "min": 7.63,
+    "max": 10.12,
+    "spread_pct": 32.59162303664921
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9973890339425587
+  },
+  "FIELD ARITHMETIC (Ultra) / field_negate": {
+   "base": {
+    "rounds": [
+     10.49,
+     10.53,
+     10.53,
+     10.58,
+     12.54
+    ],
+    "median": 10.53,
+    "min": 10.49,
+    "max": 12.54,
+    "spread_pct": 19.46818613485279
+   },
+   "new": {
+    "rounds": [
+     10.52,
+     12.0,
+     10.54,
+     10.47,
+     10.53
+    ],
+    "median": 10.53,
+    "min": 10.47,
+    "max": 12.0,
+    "spread_pct": 14.529914529914526
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "FIELD ARITHMETIC (Ultra) / field_from_bytes (32B)": {
+   "base": {
+    "rounds": [
+     5.11,
+     5.11,
+     5.12,
+     5.11,
+     7.55
+    ],
+    "median": 5.11,
+    "min": 5.11,
+    "max": 7.55,
+    "spread_pct": 47.74951076320938
+   },
+   "new": {
+    "rounds": [
+     5.13,
+     5.51,
+     5.11,
+     5.12,
+     5.12
+    ],
+    "median": 5.12,
+    "min": 5.11,
+    "max": 5.51,
+    "spread_pct": 7.812499999999989
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0019569471624266
+  },
+  "SCALAR ARITHMETIC (Ultra) / scalar_mul": {
+   "base": {
+    "rounds": [
+     48.2,
+     48.27,
+     48.34,
+     48.41,
+     62.48
+    ],
+    "median": 48.34,
+    "min": 48.2,
+    "max": 62.48,
+    "spread_pct": 29.54075299958625
+   },
+   "new": {
+    "rounds": [
+     48.15,
+     48.2,
+     48.11,
+     48.1,
+     48.22
+    ],
+    "median": 48.15,
+    "min": 48.1,
+    "max": 48.22,
+    "spread_pct": 0.24922118380061772
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9960695076541166
+  },
+  "SCALAR ARITHMETIC (Ultra) / scalar_inv": {
+   "base": {
+    "rounds": [
+     1555.96,
+     1566.77,
+     1571.99,
+     1579.16,
+     1884.71
+    ],
+    "median": 1571.99,
+    "min": 1555.96,
+    "max": 1884.71,
+    "spread_pct": 20.912982907015948
+   },
+   "new": {
+    "rounds": [
+     1553.08,
+     1549.26,
+     1534.77,
+     1548.07,
+     1537.57
+    ],
+    "median": 1548.07,
+    "min": 1534.77,
+    "max": 1553.08,
+    "spread_pct": 1.182763053350297
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9847836182164008
+  },
+  "SCALAR ARITHMETIC (Ultra) / scalar_add": {
+   "base": {
+    "rounds": [
+     9.36,
+     9.55,
+     9.25,
+     9.49,
+     17.27
+    ],
+    "median": 9.49,
+    "min": 9.25,
+    "max": 17.27,
+    "spread_pct": 84.5100105374078
+   },
+   "new": {
+    "rounds": [
+     9.3,
+     9.22,
+     9.46,
+     9.44,
+     9.49
+    ],
+    "median": 9.44,
+    "min": 9.22,
+    "max": 9.49,
+    "spread_pct": 2.8601694915254194
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9947312961011591
+  },
+  "SCALAR ARITHMETIC (Ultra) / scalar_negate": {
+   "base": {
+    "rounds": [
+     10.47,
+     10.56,
+     10.54,
+     10.56,
+     12.49
+    ],
+    "median": 10.56,
+    "min": 10.47,
+    "max": 12.49,
+    "spread_pct": 19.128787878787872
+   },
+   "new": {
+    "rounds": [
+     10.52,
+     10.52,
+     10.55,
+     10.49,
+     10.56
+    ],
+    "median": 10.52,
+    "min": 10.49,
+    "max": 10.56,
+    "spread_pct": 0.6653992395437289
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9962121212121211
+  },
+  "SCALAR ARITHMETIC (Ultra) / scalar_from_bytes (32B)": {
+   "base": {
+    "rounds": [
+     8.73,
+     8.77,
+     8.66,
+     8.89,
+     10.55
+    ],
+    "median": 8.77,
+    "min": 8.66,
+    "max": 10.55,
+    "spread_pct": 21.550741163055882
+   },
+   "new": {
+    "rounds": [
+     9.31,
+     9.26,
+     9.43,
+     9.28,
+     9.47
+    ],
+    "median": 9.31,
+    "min": 9.26,
+    "max": 9.47,
+    "spread_pct": 2.25563909774437
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0615735461801596
+  },
+  "POINT ARITHMETIC (Ultra) / pubkey_create (k*G)": {
+   "base": {
+    "rounds": [
+     8871.9,
+     8853.38,
+     8857.53,
+     8899.1,
+     11518.76
+    ],
+    "median": 8871.9,
+    "min": 8853.38,
+    "max": 11518.76,
+    "spread_pct": 30.042944577824382
+   },
+   "new": {
+    "rounds": [
+     8864.89,
+     11126.07,
+     9115.09,
+     8833.15,
+     8860.57
+    ],
+    "median": 8864.89,
+    "min": 8833.15,
+    "max": 11126.07,
+    "spread_pct": 25.865182760304982
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9992098648542026
+  },
+  "POINT ARITHMETIC (Ultra) / scalar_mul (k*P)": {
+   "base": {
+    "rounds": [
+     31075.32,
+     31120.3,
+     31172.83,
+     31015.84,
+     30977.85
+    ],
+    "median": 31075.32,
+    "min": 30977.85,
+    "max": 31172.83,
+    "spread_pct": 0.6274432572214967
+   },
+   "new": {
+    "rounds": [
+     31082.7,
+     41194.57,
+     30977.52,
+     30953.61,
+     30953.36
+    ],
+    "median": 30977.52,
+    "min": 30953.36,
+    "max": 41194.57,
+    "spread_pct": 33.06013522063741
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9968528079517766
+  },
+  "POINT ARITHMETIC (Ultra) / scalar_mul_with_plan": {
+   "base": {
+    "rounds": [
+     29299.37,
+     29276.63,
+     29188.35,
+     29333.54,
+     29147.89
+    ],
+    "median": 29276.63,
+    "min": 29147.89,
+    "max": 29333.54,
+    "spread_pct": 0.6341235312944197
+   },
+   "new": {
+    "rounds": [
+     29205.34,
+     33523.47,
+     29239.95,
+     29184.69,
+     29117.23
+    ],
+    "median": 29205.34,
+    "min": 29117.23,
+    "max": 33523.47,
+    "spread_pct": 15.087103933732674
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9975649519770547
+  },
+  "POINT ARITHMETIC (Ultra) / dual_mul (a*G + b*P)": {
+   "base": {
+    "rounds": [
+     34242.67,
+     34071.34,
+     34044.88,
+     34139.53,
+     33930.89
+    ],
+    "median": 34071.34,
+    "min": 33930.89,
+    "max": 34242.67,
+    "spread_pct": 0.9150799469583493
+   },
+   "new": {
+    "rounds": [
+     34468.08,
+     42958.32,
+     34193.77,
+     34277.89,
+     34318.81
+    ],
+    "median": 34318.81,
+    "min": 34193.77,
+    "max": 42958.32,
+    "spread_pct": 25.538618617603593
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0072632893217583
+  },
+  "POINT ARITHMETIC (Ultra) / point_add (affine+affine)": {
+   "base": {
+    "rounds": [
+     1761.46,
+     1765.05,
+     1762.32,
+     1756.55,
+     1757.27
+    ],
+    "median": 1761.46,
+    "min": 1756.55,
+    "max": 1765.05,
+    "spread_pct": 0.4825542447742214
+   },
+   "new": {
+    "rounds": [
+     1778.6,
+     1772.54,
+     1775.3,
+     1775.33,
+     1777.5
+    ],
+    "median": 1775.33,
+    "min": 1772.54,
+    "max": 1778.6,
+    "spread_pct": 0.3413449893822526
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0078741498529629
+  },
+  "POINT ARITHMETIC (Ultra) / point_add (J+A mixed)": {
+   "base": {
+    "rounds": [
+     224.33,
+     225.15,
+     225.11,
+     225.28,
+     224.49
+    ],
+    "median": 225.11,
+    "min": 224.33,
+    "max": 225.28,
+    "spread_pct": 0.4220159033361417
+   },
+   "new": {
+    "rounds": [
+     221.41,
+     221.66,
+     221.77,
+     223.53,
+     222.22
+    ],
+    "median": 221.77,
+    "min": 221.41,
+    "max": 223.53,
+    "spread_pct": 0.9559453487847791
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9851628092932344
+  },
+  "POINT ARITHMETIC (Ultra) / point_dbl": {
+   "base": {
+    "rounds": [
+     111.46,
+     111.67,
+     111.32,
+     112.15,
+     110.37
+    ],
+    "median": 111.46,
+    "min": 110.37,
+    "max": 112.15,
+    "spread_pct": 1.5969854656378981
+   },
+   "new": {
+    "rounds": [
+     111.4,
+     111.91,
+     111.3,
+     111.96,
+     111.79
+    ],
+    "median": 111.79,
+    "min": 111.3,
+    "max": 111.96,
+    "spread_pct": 0.590392700599335
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0029607033913512
+  },
+  "POINT ARITHMETIC (Ultra) / normalize (J->affine)": {
+   "base": {
+    "rounds": [
+     4.42,
+     4.42,
+     4.51,
+     4.42,
+     4.42
+    ],
+    "median": 4.42,
+    "min": 4.42,
+    "max": 4.51,
+    "spread_pct": 2.036199095022621
+   },
+   "new": {
+    "rounds": [
+     4.43,
+     4.42,
+     4.42,
+     4.42,
+     4.42
+    ],
+    "median": 4.42,
+    "min": 4.42,
+    "max": 4.43,
+    "spread_pct": 0.2262443438913979
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "POINT ARITHMETIC (Ultra) / batch_normalize /pt (N=64)": {
+   "base": {
+    "rounds": [
+     14.73,
+     14.72,
+     14.83,
+     14.72,
+     14.83
+    ],
+    "median": 14.73,
+    "min": 14.72,
+    "max": 14.83,
+    "spread_pct": 0.7467752885268121
+   },
+   "new": {
+    "rounds": [
+     14.84,
+     14.82,
+     14.83,
+     14.83,
+     14.78
+    ],
+    "median": 14.83,
+    "min": 14.78,
+    "max": 14.84,
+    "spread_pct": 0.4045853000674342
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0067888662593347
+  },
+  "POINT ARITHMETIC (Ultra) / next_inplace (+=G)": {
+   "base": {
+    "rounds": [
+     245.09,
+     245.03,
+     245.78,
+     245.2,
+     244.49
+    ],
+    "median": 245.09,
+    "min": 244.49,
+    "max": 245.78,
+    "spread_pct": 0.5263372638622514
+   },
+   "new": {
+    "rounds": [
+     245.48,
+     245.87,
+     244.77,
+     254.54,
+     244.82
+    ],
+    "median": 245.48,
+    "min": 244.77,
+    "max": 254.54,
+    "spread_pct": 3.979957634023131
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0015912521930719
+  },
+  "POINT ARITHMETIC (Ultra) / KPlan::from_scalar(w=4)": {
+   "base": {
+    "rounds": [
+     1050.18,
+     1046.17,
+     1065.71,
+     1049.77,
+     1247.3
+    ],
+    "median": 1050.18,
+    "min": 1046.17,
+    "max": 1247.3,
+    "spread_pct": 19.151954902969003
+   },
+   "new": {
+    "rounds": [
+     1046.32,
+     1044.47,
+     1044.1,
+     1044.43,
+     1044.2
+    ],
+    "median": 1044.43,
+    "min": 1044.1,
+    "max": 1046.32,
+    "spread_pct": 0.21255613109543264
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9945247481384144
+  },
+  "POINT SERIALIZATION (Ultra) / to_compressed (33B)": {
+   "base": {
+    "rounds": [
+     12.43,
+     12.43,
+     12.43,
+     12.43,
+     12.43
+    ],
+    "median": 12.43,
+    "min": 12.43,
+    "max": 12.43,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     12.43,
+     12.43,
+     12.43,
+     12.43,
+     12.43
+    ],
+    "median": 12.43,
+    "min": 12.43,
+    "max": 12.43,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "POINT SERIALIZATION (Ultra) / to_uncompressed (65B)": {
+   "base": {
+    "rounds": [
+     13.23,
+     13.23,
+     13.23,
+     13.24,
+     13.24
+    ],
+    "median": 13.23,
+    "min": 13.23,
+    "max": 13.24,
+    "spread_pct": 0.07558578987150254
+   },
+   "new": {
+    "rounds": [
+     13.23,
+     13.23,
+     13.23,
+     13.23,
+     13.23
+    ],
+    "median": 13.23,
+    "min": 13.23,
+    "max": 13.23,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "POINT SERIALIZATION (Ultra) / x_only_bytes (32B)": {
+   "base": {
+    "rounds": [
+     5.61,
+     5.62,
+     5.62,
+     5.62,
+     5.62
+    ],
+    "median": 5.62,
+    "min": 5.61,
+    "max": 5.62,
+    "spread_pct": 0.17793594306049443
+   },
+   "new": {
+    "rounds": [
+     5.62,
+     5.62,
+     5.62,
+     5.62,
+     5.62
+    ],
+    "median": 5.62,
+    "min": 5.62,
+    "max": 5.62,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "POINT SERIALIZATION (Ultra) / x_bytes_and_parity": {
+   "base": {
+    "rounds": [
+     7.66,
+     7.63,
+     7.66,
+     7.64,
+     7.65
+    ],
+    "median": 7.65,
+    "min": 7.63,
+    "max": 7.66,
+    "spread_pct": 0.39215686274510125
+   },
+   "new": {
+    "rounds": [
+     7.65,
+     7.63,
+     8.02,
+     7.63,
+     8.02
+    ],
+    "median": 7.65,
+    "min": 7.63,
+    "max": 8.02,
+    "spread_pct": 5.098039215686271
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "POINT SERIALIZATION (Ultra) / has_even_y": {
+   "base": {
+    "rounds": [
+     3.21,
+     3.21,
+     3.21,
+     3.21,
+     3.21
+    ],
+    "median": 3.21,
+    "min": 3.21,
+    "max": 3.21,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     3.21,
+     3.21,
+     3.21,
+     3.21,
+     3.21
+    ],
+    "median": 3.21,
+    "min": 3.21,
+    "max": 3.21,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "POINT SERIALIZATION (Ultra) / batch_to_compressed /pt (N=64)": {
+   "base": {
+    "rounds": [
+     3.77,
+     3.77,
+     3.78,
+     3.78,
+     3.76
+    ],
+    "median": 3.77,
+    "min": 3.76,
+    "max": 3.78,
+    "spread_pct": 0.5305039787798413
+   },
+   "new": {
+    "rounds": [
+     3.78,
+     3.78,
+     3.76,
+     3.78,
+     3.75
+    ],
+    "median": 3.78,
+    "min": 3.75,
+    "max": 3.78,
+    "spread_pct": 0.7936507936507886
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0026525198938991
+  },
+  "POINT SERIALIZATION (Ultra) / batch_x_only_bytes /pt (N=64)": {
+   "base": {
+    "rounds": [
+     3.16,
+     3.18,
+     3.17,
+     3.17,
+     3.16
+    ],
+    "median": 3.17,
+    "min": 3.16,
+    "max": 3.18,
+    "spread_pct": 0.6309148264984233
+   },
+   "new": {
+    "rounds": [
+     3.17,
+     3.17,
+     3.16,
+     3.15,
+     3.16
+    ],
+    "median": 3.16,
+    "min": 3.15,
+    "max": 3.17,
+    "spread_pct": 0.6329113924050638
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9968454258675079
+  },
+  "ECDSA -- Ultra FAST / ecdsa_sign": {
+   "base": {
+    "rounds": [
+     19484.08,
+     19456.8,
+     19435.19,
+     19491.84,
+     19410.32
+    ],
+    "median": 19456.8,
+    "min": 19410.32,
+    "max": 19491.84,
+    "spread_pct": 0.41897948275153385
+   },
+   "new": {
+    "rounds": [
+     19447.28,
+     19432.14,
+     19353.45,
+     19469.36,
+     19462.77
+    ],
+    "median": 19447.28,
+    "min": 19353.45,
+    "max": 19469.36,
+    "spread_pct": 0.5960216544421629
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9995107109082686
+  },
+  "ECDSA -- Ultra FAST / ecdsa_sign_verified": {
+   "base": {
+    "rounds": [
+     71120.62,
+     70811.46,
+     70923.55,
+     70714.4,
+     70573.31
+    ],
+    "median": 70811.46,
+    "min": 70573.31,
+    "max": 71120.62,
+    "spread_pct": 0.7729116162835755
+   },
+   "new": {
+    "rounds": [
+     71024.32,
+     71326.67,
+     70867.49,
+     71021.53,
+     70931.27
+    ],
+    "median": 71021.53,
+    "min": 70867.49,
+    "max": 71326.67,
+    "spread_pct": 0.6465363390509794
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0029666102068788
+  },
+  "ECDSA -- Ultra FAST / ecdsa_verify": {
+   "base": {
+    "rounds": [
+     36826.35,
+     36790.72,
+     36717.8,
+     36672.62,
+     36694.08
+    ],
+    "median": 36717.8,
+    "min": 36672.62,
+    "max": 36826.35,
+    "spread_pct": 0.4186797683956988
+   },
+   "new": {
+    "rounds": [
+     37104.22,
+     37155.4,
+     37079.94,
+     36974.5,
+     37156.79
+    ],
+    "median": 37104.22,
+    "min": 36974.5,
+    "max": 37156.79,
+    "spread_pct": 0.4912918261049575
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0105240510052345
+  },
+  "ECDSA -- Ultra FAST / ecdsa_verify (cached EcdsaPublicKey)": {
+   "base": {
+    "rounds": [
+     35411.6,
+     35328.07,
+     35700.62,
+     35391.43,
+     35435.58
+    ],
+    "median": 35411.6,
+    "min": 35328.07,
+    "max": 35700.62,
+    "spread_pct": 1.0520563883021465
+   },
+   "new": {
+    "rounds": [
+     35497.79,
+     35481.35,
+     35486.69,
+     35499.58,
+     35623.3
+    ],
+    "median": 35497.79,
+    "min": 35481.35,
+    "max": 35623.3,
+    "spread_pct": 0.3998840491196899
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0024339481977658
+  },
+  "SCHNORR / BIP-340 -- Ultra FAST / schnorr_keypair_create": {
+   "base": {
+    "rounds": [
+     14716.52,
+     14675.84,
+     14680.58,
+     14667.87,
+     14701.97
+    ],
+    "median": 14680.58,
+    "min": 14667.87,
+    "max": 14716.52,
+    "spread_pct": 0.3313901766823902
+   },
+   "new": {
+    "rounds": [
+     14643.05,
+     14597.81,
+     14613.57,
+     14605.91,
+     14586.86
+    ],
+    "median": 14605.91,
+    "min": 14586.86,
+    "max": 14643.05,
+    "spread_pct": 0.38470728629711326
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9949136886962232
+  },
+  "SCHNORR / BIP-340 -- Ultra FAST / schnorr_sign": {
+   "base": {
+    "rounds": [
+     15280.25,
+     15244.73,
+     15274.43,
+     15507.8,
+     15321.98
+    ],
+    "median": 15280.25,
+    "min": 15244.73,
+    "max": 15507.8,
+    "spread_pct": 1.7216341355671516
+   },
+   "new": {
+    "rounds": [
+     15233.43,
+     15274.78,
+     15156.39,
+     15259.88,
+     15242.59
+    ],
+    "median": 15242.59,
+    "min": 15156.39,
+    "max": 15274.78,
+    "spread_pct": 0.7767052712170388
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9975353806384057
+  },
+  "SCHNORR / BIP-340 -- Ultra FAST / schnorr_sign_verified": {
+   "base": {
+    "rounds": [
+     53855.72,
+     53978.32,
+     54127.4,
+     53901.15,
+     53891.1
+    ],
+    "median": 53901.15,
+    "min": 53855.72,
+    "max": 54127.4,
+    "spread_pct": 0.5040337729343443
+   },
+   "new": {
+    "rounds": [
+     54132.6,
+     54349.58,
+     53941.66,
+     54026.07,
+     54057.01
+    ],
+    "median": 54057.01,
+    "min": 53941.66,
+    "max": 54349.58,
+    "spread_pct": 0.7546107341120019
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0028915895115411
+  },
+  "SCHNORR / BIP-340 -- Ultra FAST / schnorr_verify (cached xonly)": {
+   "base": {
+    "rounds": [
+     36767.15,
+     36700.66,
+     36763.22,
+     36787.45,
+     36744.57
+    ],
+    "median": 36763.22,
+    "min": 36700.66,
+    "max": 36787.45,
+    "spread_pct": 0.23607834134222624
+   },
+   "new": {
+    "rounds": [
+     37006.36,
+     37287.2,
+     37006.29,
+     37066.71,
+     37058.44
+    ],
+    "median": 37058.44,
+    "min": 37006.29,
+    "max": 37287.2,
+    "spread_pct": 0.7580189560056931
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0080303085529505
+  },
+  "SCHNORR / BIP-340 -- Ultra FAST / schnorr_verify (raw bytes)": {
+   "base": {
+    "rounds": [
+     37125.49,
+     37108.79,
+     37185.29,
+     37137.86,
+     37306.73
+    ],
+    "median": 37137.86,
+    "min": 37108.79,
+    "max": 37306.73,
+    "spread_pct": 0.5329870918787522
+   },
+   "new": {
+    "rounds": [
+     37491.37,
+     37737.95,
+     37400.79,
+     37545.79,
+     37608.34
+    ],
+    "median": 37545.79,
+    "min": 37400.79,
+    "max": 37737.95,
+    "spread_pct": 0.8979968193504417
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0109842085677527
+  },
+  "SCHNORR / BIP-340 -- Ultra FAST / schnorr_verify (cold: parse+verify)": {
+   "base": {
+    "rounds": [
+     37405.69,
+     37178.21,
+     37287.68,
+     37107.7,
+     37199.67
+    ],
+    "median": 37199.67,
+    "min": 37107.7,
+    "max": 37405.69,
+    "spread_pct": 0.8010554932342283
+   },
+   "new": {
+    "rounds": [
+     37417.49,
+     37332.82,
+     37237.82,
+     37320.58,
+     37302.69
+    ],
+    "median": 37320.58,
+    "min": 37237.82,
+    "max": 37417.49,
+    "spread_pct": 0.4814233862389016
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.00325029765049
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / Scalar::from_bytes (32B->scalar)": {
+   "base": {
+    "rounds": [
+     8.73,
+     8.73,
+     8.74,
+     8.79,
+     8.67
+    ],
+    "median": 8.73,
+    "min": 8.67,
+    "max": 8.79,
+    "spread_pct": 1.374570446735386
+   },
+   "new": {
+    "rounds": [
+     9.28,
+     9.31,
+     9.31,
+     9.34,
+     9.33
+    ],
+    "median": 9.31,
+    "min": 9.28,
+    "max": 9.34,
+    "spread_pct": 0.6444683136412512
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0664375715922108
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / Scalar::inverse (safegcd)": {
+   "base": {
+    "rounds": [
+     1603.98,
+     1600.86,
+     1582.37,
+     1587.95,
+     1590.05
+    ],
+    "median": 1590.05,
+    "min": 1582.37,
+    "max": 1603.98,
+    "spread_pct": 1.3590767585925052
+   },
+   "new": {
+    "rounds": [
+     1584.99,
+     1576.17,
+     1584.14,
+     1572.22,
+     1582.9
+    ],
+    "median": 1582.9,
+    "min": 1572.22,
+    "max": 1584.99,
+    "spread_pct": 0.8067471097352948
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9955032860601869
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / Scalar::mul": {
+   "base": {
+    "rounds": [
+     40.94,
+     41.03,
+     41.03,
+     41.17,
+     41.08
+    ],
+    "median": 41.03,
+    "min": 40.94,
+    "max": 41.17,
+    "spread_pct": 0.5605654399220179
+   },
+   "new": {
+    "rounds": [
+     40.73,
+     40.82,
+     40.61,
+     41.18,
+     40.71
+    ],
+    "median": 40.73,
+    "min": 40.61,
+    "max": 41.18,
+    "spread_pct": 1.3994598575988222
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9926882768705824
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / Scalar::negate": {
+   "base": {
+    "rounds": [
+     10.47,
+     10.49,
+     10.51,
+     10.52,
+     10.56
+    ],
+    "median": 10.51,
+    "min": 10.47,
+    "max": 10.56,
+    "spread_pct": 0.8563273073263546
+   },
+   "new": {
+    "rounds": [
+     10.55,
+     10.5,
+     10.54,
+     10.48,
+     10.49
+    ],
+    "median": 10.5,
+    "min": 10.48,
+    "max": 10.55,
+    "spread_pct": 0.6666666666666694
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9990485252140818
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / glv_decompose": {
+   "base": {
+    "rounds": [
+     98.46,
+     98.32,
+     97.72,
+     98.55,
+     98.58
+    ],
+    "median": 98.46,
+    "min": 97.72,
+    "max": 98.58,
+    "spread_pct": 0.8734511476741819
+   },
+   "new": {
+    "rounds": [
+     97.94,
+     98.42,
+     97.83,
+     97.79,
+     98.41
+    ],
+    "median": 97.94,
+    "min": 97.79,
+    "max": 98.42,
+    "spread_pct": 0.6432509699816168
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9947186674791794
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / Point::dbl (jac52_double)": {
+   "base": {
+    "rounds": [
+     115.56,
+     110.5,
+     109.64,
+     110.42,
+     110.38
+    ],
+    "median": 110.42,
+    "min": 109.64,
+    "max": 115.56,
+    "spread_pct": 5.361347581959791
+   },
+   "new": {
+    "rounds": [
+     109.57,
+     110.0,
+     109.67,
+     110.33,
+     110.36
+    ],
+    "median": 110.0,
+    "min": 109.57,
+    "max": 110.36,
+    "spread_pct": 0.7181818181818239
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9961963412425285
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / Point::add (J+A mixed)": {
+   "base": {
+    "rounds": [
+     223.34,
+     217.61,
+     218.25,
+     217.77,
+     217.51
+    ],
+    "median": 217.77,
+    "min": 217.51,
+    "max": 223.34,
+    "spread_pct": 2.6771364283418344
+   },
+   "new": {
+    "rounds": [
+     234.87,
+     217.12,
+     215.94,
+     218.22,
+     215.93
+    ],
+    "median": 217.12,
+    "min": 215.93,
+    "max": 234.87,
+    "spread_pct": 8.723286661753868
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9970151995224319
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / dual_scalar_mul_gen_point": {
+   "base": {
+    "rounds": [
+     33929.95,
+     34003.94,
+     34115.29,
+     34066.01,
+     33914.73
+    ],
+    "median": 34003.94,
+    "min": 33914.73,
+    "max": 34115.29,
+    "spread_pct": 0.5898140039065992
+   },
+   "new": {
+    "rounds": [
+     37730.74,
+     34570.23,
+     34266.08,
+     34671.79,
+     34412.37
+    ],
+    "median": 34570.23,
+    "min": 34266.08,
+    "max": 37730.74,
+    "spread_pct": 10.022091261759023
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.016653658370177
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / FE52::from_4x64_limbs": {
+   "base": {
+    "rounds": [
+     2.41,
+     2.41,
+     2.41,
+     2.41,
+     2.41
+    ],
+    "median": 2.41,
+    "min": 2.41,
+    "max": 2.41,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     2.41,
+     2.41,
+     2.41,
+     2.41,
+     2.41
+    ],
+    "median": 2.41,
+    "min": 2.41,
+    "max": 2.41,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / FE52::mul (52-bit)": {
+   "base": {
+    "rounds": [
+     23.42,
+     23.58,
+     23.51,
+     23.4,
+     23.4
+    ],
+    "median": 23.42,
+    "min": 23.4,
+    "max": 23.58,
+    "spread_pct": 0.7685738684884701
+   },
+   "new": {
+    "rounds": [
+     23.48,
+     23.48,
+     23.37,
+     23.87,
+     23.47
+    ],
+    "median": 23.48,
+    "min": 23.37,
+    "max": 23.87,
+    "spread_pct": 2.1294718909710393
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0025619128949614
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / FE52::sqr (52-bit)": {
+   "base": {
+    "rounds": [
+     20.65,
+     20.64,
+     20.69,
+     20.6,
+     20.64
+    ],
+    "median": 20.64,
+    "min": 20.6,
+    "max": 20.69,
+    "spread_pct": 0.43604651162790625
+   },
+   "new": {
+    "rounds": [
+     20.61,
+     20.68,
+     20.66,
+     20.69,
+     20.66
+    ],
+    "median": 20.66,
+    "min": 20.61,
+    "max": 20.69,
+    "spread_pct": 0.38722168441433613
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.000968992248062
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / FE52::inverse_safegcd": {
+   "base": {
+    "rounds": [
+     1538.62,
+     1545.85,
+     1546.52,
+     1543.04,
+     1551.2
+    ],
+    "median": 1545.85,
+    "min": 1538.62,
+    "max": 1551.2,
+    "spread_pct": 0.8137917650483653
+   },
+   "new": {
+    "rounds": [
+     1540.48,
+     1540.96,
+     1538.97,
+     1541.49,
+     1540.65
+    ],
+    "median": 1540.65,
+    "min": 1538.97,
+    "max": 1541.49,
+    "spread_pct": 0.1635673254795042
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9966361548662549
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / FE52::inverse (Fermat)": {
+   "base": {
+    "rounds": [
+     6492.65,
+     6494.16,
+     6515.27,
+     6496.81,
+     6488.44
+    ],
+    "median": 6494.16,
+    "min": 6488.44,
+    "max": 6515.27,
+    "spread_pct": 0.4131404215479883
+   },
+   "new": {
+    "rounds": [
+     6499.73,
+     6495.43,
+     6495.86,
+     6513.16,
+     6499.45
+    ],
+    "median": 6499.45,
+    "min": 6495.43,
+    "max": 6513.16,
+    "spread_pct": 0.2727923131957253
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.000814578020868
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / FE52::add (52-bit)": {
+   "base": {
+    "rounds": [
+     0.84,
+     0.83,
+     0.83,
+     0.83,
+     0.83
+    ],
+    "median": 0.83,
+    "min": 0.83,
+    "max": 0.84,
+    "spread_pct": 1.204819277108435
+   },
+   "new": {
+    "rounds": [
+     0.83,
+     0.83,
+     0.84,
+     0.93,
+     0.83
+    ],
+    "median": 0.83,
+    "min": 0.83,
+    "max": 0.93,
+    "spread_pct": 12.048192771084349
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / FE52::negate (52-bit)": {
+   "base": {
+    "rounds": [
+     0.8,
+     0.8,
+     0.8,
+     0.8,
+     0.8
+    ],
+    "median": 0.8,
+    "min": 0.8,
+    "max": 0.8,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     0.8,
+     0.8,
+     0.8,
+     0.8,
+     0.8
+    ],
+    "median": 0.8,
+    "min": 0.8,
+    "max": 0.8,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / FE52::normalize": {
+   "base": {
+    "rounds": [
+     5.74,
+     5.74,
+     5.83,
+     5.74,
+     5.74
+    ],
+    "median": 5.74,
+    "min": 5.74,
+    "max": 5.83,
+    "spread_pct": 1.5679442508710777
+   },
+   "new": {
+    "rounds": [
+     5.74,
+     5.93,
+     5.74,
+     5.74,
+     5.74
+    ],
+    "median": 5.74,
+    "min": 5.74,
+    "max": 5.93,
+    "spread_pct": 3.310104529616716
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / SHA256 (BIP0340/challenge)": {
+   "base": {
+    "rounds": [
+     177.2,
+     177.12,
+     177.03,
+     177.05,
+     177.08
+    ],
+    "median": 177.08,
+    "min": 177.03,
+    "max": 177.2,
+    "spread_pct": 0.09600180709283233
+   },
+   "new": {
+    "rounds": [
+     176.76,
+     176.57,
+     176.53,
+     176.57,
+     176.8
+    ],
+    "median": 176.57,
+    "min": 176.53,
+    "max": 176.8,
+    "spread_pct": 0.15291385852636927
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9971199457872147
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / tagged_hash (recompute tag)": {
+   "base": {
+    "rounds": [
+     324.03,
+     324.19,
+     324.32,
+     324.43,
+     324.29
+    ],
+    "median": 324.29,
+    "min": 324.03,
+    "max": 324.43,
+    "spread_pct": 0.12334638749268681
+   },
+   "new": {
+    "rounds": [
+     326.92,
+     327.36,
+     326.69,
+     327.6,
+     326.77
+    ],
+    "median": 326.92,
+    "min": 326.69,
+    "max": 327.6,
+    "spread_pct": 0.2783555609935229
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0081100249776433
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / cached_tagged_hash (midstate)": {
+   "base": {
+    "rounds": [
+     157.31,
+     157.58,
+     157.5,
+     157.58,
+     157.68
+    ],
+    "median": 157.58,
+    "min": 157.31,
+    "max": 157.68,
+    "spread_pct": 0.23480137073232932
+   },
+   "new": {
+    "rounds": [
+     158.22,
+     158.47,
+     158.19,
+     158.43,
+     158.17
+    ],
+    "median": 158.22,
+    "min": 158.17,
+    "max": 158.47,
+    "spread_pct": 0.18960940462647666
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0040614291153698
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / lift_x (4x64 sqrt)": {
+   "base": {
+    "rounds": [
+     5626.66,
+     5634.19,
+     5638.98,
+     5642.23,
+     5640.11
+    ],
+    "median": 5638.98,
+    "min": 5626.66,
+    "max": 5642.23,
+    "spread_pct": 0.27611376525541337
+   },
+   "new": {
+    "rounds": [
+     5690.77,
+     5753.73,
+     5715.94,
+     5700.02,
+     5705.84
+    ],
+    "median": 5705.84,
+    "min": 5690.77,
+    "max": 5753.73,
+    "spread_pct": 1.103430870827067
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0118567542356953
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / lift_x (FE52 sqrt)": {
+   "base": {
+    "rounds": [
+     5573.25,
+     5590.06,
+     5598.02,
+     5588.98,
+     5596.32
+    ],
+    "median": 5590.06,
+    "min": 5573.25,
+    "max": 5598.02,
+    "spread_pct": 0.44310794517412033
+   },
+   "new": {
+    "rounds": [
+     5632.84,
+     5647.64,
+     5652.73,
+     5638.09,
+     5646.34
+    ],
+    "median": 5646.34,
+    "min": 5632.84,
+    "max": 5652.73,
+    "spread_pct": 0.3522635902194947
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0100678704700843
+  },
+  "MICRO-DIAGNOSTICS (sub-ops) / FE::parse_bytes_strict": {
+   "base": {
+    "rounds": [
+     6.24,
+     6.24,
+     6.24,
+     6.25,
+     6.24
+    ],
+    "median": 6.24,
+    "min": 6.24,
+    "max": 6.25,
+    "spread_pct": 0.16025641025640683
+   },
+   "new": {
+    "rounds": [
+     6.16,
+     6.16,
+     6.22,
+     6.16,
+     6.36
+    ],
+    "median": 6.16,
+    "min": 6.16,
+    "max": 6.36,
+    "spread_pct": 3.2467532467532494
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9871794871794871
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(N=4)": {
+   "base": {
+    "rounds": [
+     139455.63,
+     139007.87,
+     139007.56,
+     139043.02,
+     138809.81
+    ],
+    "median": 139007.87,
+    "min": 138809.81,
+    "max": 139455.63,
+    "spread_pct": 0.46459240041589517
+   },
+   "new": {
+    "rounds": [
+     139046.07,
+     139202.92,
+     139143.59,
+     139002.81,
+     140184.43
+    ],
+    "median": 139143.59,
+    "min": 139002.81,
+    "max": 140184.43,
+    "spread_pct": 0.8492090796277395
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0009763475981612
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig amortized (N=4)": {
+   "base": {
+    "rounds": [
+     35450.42,
+     35364.13,
+     35350.42,
+     35330.54,
+     35256.14
+    ],
+    "median": 35350.42,
+    "min": 35256.14,
+    "max": 35450.42,
+    "spread_pct": 0.5495832864220533
+   },
+   "new": {
+    "rounds": [
+     35608.98,
+     35652.0,
+     35687.6,
+     35687.11,
+     66720.51
+    ],
+    "median": 35687.11,
+    "min": 35608.98,
+    "max": 66720.51,
+    "spread_pct": 87.17861995549652
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0095243564291458
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(cached,N=4)": {
+   "base": {
+    "rounds": [
+     141813.97,
+     141927.36,
+     142294.4,
+     142228.28,
+     142155.5
+    ],
+    "median": 142155.5,
+    "min": 141813.97,
+    "max": 142294.4,
+    "spread_pct": 0.3379608949354707
+   },
+   "new": {
+    "rounds": [
+     143348.83,
+     143594.99,
+     143682.51,
+     144432.38,
+     143715.25
+    ],
+    "median": 143682.51,
+    "min": 143348.83,
+    "max": 144432.38,
+    "spread_pct": 0.7541279728479252
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0107418284906318
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig cached (N=4)": {
+   "base": {
+    "rounds": [
+     35453.49,
+     35481.84,
+     35573.6,
+     35557.07,
+     35538.87
+    ],
+    "median": 35538.87,
+    "min": 35453.49,
+    "max": 35573.6,
+    "spread_pct": 0.3379679770347244
+   },
+   "new": {
+    "rounds": [
+     35837.21,
+     35898.75,
+     35920.63,
+     36108.1,
+     35928.81
+    ],
+    "median": 35920.63,
+    "min": 35837.21,
+    "max": 36108.1,
+    "spread_pct": 0.7541348801510426
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.010742041038446
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(N=16)": {
+   "base": {
+    "rounds": [
+     557045.8,
+     556287.39,
+     557413.81,
+     555265.3,
+     555406.44
+    ],
+    "median": 556287.39,
+    "min": 555265.3,
+    "max": 557413.81,
+    "spread_pct": 0.38622302763325433
+   },
+   "new": {
+    "rounds": [
+     556498.65,
+     558252.9,
+     695122.42,
+     558188.72,
+     558153.07
+    ],
+    "median": 558188.72,
+    "min": 556498.65,
+    "max": 695122.42,
+    "spread_pct": 24.83457028655112
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0034178916045535
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig amortized (N=16)": {
+   "base": {
+    "rounds": [
+     34363.8,
+     34412.99,
+     34462.62,
+     34551.97,
+     44501.41
+    ],
+    "median": 34462.62,
+    "min": 34363.8,
+    "max": 44501.41,
+    "spread_pct": 29.416248677552666
+   },
+   "new": {
+    "rounds": [
+     34632.8,
+     34683.99,
+     34704.41,
+     34613.79,
+     34647.93
+    ],
+    "median": 34647.93,
+    "min": 34613.79,
+    "max": 34704.41,
+    "spread_pct": 0.26154520630814776
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0053771303516679
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(cached,N=16)": {
+   "base": {
+    "rounds": [
+     568313.7,
+     568799.73,
+     572008.98,
+     570611.17,
+     568949.2
+    ],
+    "median": 568949.2,
+    "min": 568313.7,
+    "max": 572008.98,
+    "spread_pct": 0.6494920811910849
+   },
+   "new": {
+    "rounds": [
+     575035.07,
+     577173.45,
+     579606.54,
+     578315.14,
+     574716.38
+    ],
+    "median": 577173.45,
+    "min": 574716.38,
+    "max": 579606.54,
+    "spread_pct": 0.8472600394214309
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0144551569806233
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig cached (N=16)": {
+   "base": {
+    "rounds": [
+     35519.61,
+     35549.98,
+     35750.56,
+     35663.2,
+     35559.32
+    ],
+    "median": 35559.32,
+    "min": 35519.61,
+    "max": 35750.56,
+    "spread_pct": 0.6494781115049362
+   },
+   "new": {
+    "rounds": [
+     35939.69,
+     36073.34,
+     36225.41,
+     36144.7,
+     35919.77
+    ],
+    "median": 36073.34,
+    "min": 35919.77,
+    "max": 36225.41,
+    "spread_pct": 0.8472739147525755
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0144552820470132
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(N=64)": {
+   "base": {
+    "rounds": [
+     2095195.68,
+     2092461.19,
+     2092872.13,
+     2095294.55,
+     2092622.85
+    ],
+    "median": 2092872.13,
+    "min": 2092461.19,
+    "max": 2095294.55,
+    "spread_pct": 0.13538141959968203
+   },
+   "new": {
+    "rounds": [
+     1804127.77,
+     1803453.84,
+     1797140.69,
+     1802474.62,
+     1806809.36
+    ],
+    "median": 1803453.84,
+    "min": 1797140.69,
+    "max": 1806809.36,
+    "spread_pct": 0.5361196269930678
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.8617123875599606
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig amortized (N=64)": {
+   "base": {
+    "rounds": [
+     35134.63,
+     35174.18,
+     35125.85,
+     35372.89,
+     78386.17
+    ],
+    "median": 35174.18,
+    "min": 35125.85,
+    "max": 78386.17,
+    "spread_pct": 122.98885148139914
+   },
+   "new": {
+    "rounds": [
+     35309.31,
+     35469.89,
+     35437.96,
+     35380.09,
+     38923.84
+    ],
+    "median": 35437.96,
+    "min": 35309.31,
+    "max": 38923.84,
+    "spread_pct": 10.199599525480583
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0074992508709513
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(cached,N=64)": {
+   "base": {
+    "rounds": [
+     1849910.08,
+     1841275.33,
+     1849874.11,
+     1844820.26,
+     1836553.65
+    ],
+    "median": 1844820.26,
+    "min": 1836553.65,
+    "max": 1849910.08,
+    "spread_pct": 0.7239962770140094
+   },
+   "new": {
+    "rounds": [
+     1536315.25,
+     1540985.15,
+     1545719.7,
+     1543302.47,
+     1544356.01
+    ],
+    "median": 1543302.47,
+    "min": 1536315.25,
+    "max": 1545719.7,
+    "spread_pct": 0.6093717973509077
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.8365598012242125
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig cached (N=64)": {
+   "base": {
+    "rounds": [
+     28904.85,
+     28769.93,
+     28904.28,
+     28825.32,
+     28696.15
+    ],
+    "median": 28825.32,
+    "min": 28696.15,
+    "max": 28904.85,
+    "spread_pct": 0.7240162468274319
+   },
+   "new": {
+    "rounds": [
+     24004.93,
+     24077.89,
+     24151.87,
+     24114.1,
+     24130.56
+    ],
+    "median": 24114.1,
+    "min": 24004.93,
+    "max": 24151.87,
+    "spread_pct": 0.6093530341169635
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.8365596635180459
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(N=128)": {
+   "base": {
+    "rounds": [
+     3399858.77,
+     3384689.67,
+     3388576.57,
+     3399913.99,
+     3386360.7
+    ],
+    "median": 3388576.57,
+    "min": 3384689.67,
+    "max": 3399913.99,
+    "spread_pct": 0.44928363534073246
+   },
+   "new": {
+    "rounds": [
+     4942926.97,
+     2801466.25,
+     2802724.49,
+     2805130.74,
+     2821429.55
+    ],
+    "median": 2805130.74,
+    "min": 2801466.25,
+    "max": 4942926.97,
+    "spread_pct": 76.34085247663
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.827819788649486
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig amortized (N=128)": {
+   "base": {
+    "rounds": [
+     35040.26,
+     35393.97,
+     35434.28,
+     35310.78,
+     35546.19
+    ],
+    "median": 35393.97,
+    "min": 35040.26,
+    "max": 35546.19,
+    "spread_pct": 1.4294242776382537
+   },
+   "new": {
+    "rounds": [
+     35344.3,
+     35398.34,
+     35407.87,
+     35433.18,
+     36139.43
+    ],
+    "median": 35407.87,
+    "min": 35344.3,
+    "max": 36139.43,
+    "spread_pct": 2.24563070300472
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0003927222631426
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(cached,N=128)": {
+   "base": {
+    "rounds": [
+     3125519.95,
+     3130854.15,
+     3175931.65,
+     3127150.42,
+     3126468.75
+    ],
+    "median": 3127150.42,
+    "min": 3125519.95,
+    "max": 3175931.65,
+    "spread_pct": 1.6120650825616416
+   },
+   "new": {
+    "rounds": [
+     2532062.42,
+     2533204.99,
+     2614493.09,
+     2532635.68,
+     2546453.39
+    ],
+    "median": 2533204.99,
+    "min": 2532062.42,
+    "max": 2614493.09,
+    "spread_pct": 3.254007090835547
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.8100681610320491
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig cached (N=128)": {
+   "base": {
+    "rounds": [
+     24418.12,
+     24459.8,
+     24811.97,
+     24430.86,
+     24425.54
+    ],
+    "median": 24430.86,
+    "min": 24418.12,
+    "max": 24811.97,
+    "spread_pct": 1.6121004336318991
+   },
+   "new": {
+    "rounds": [
+     19781.74,
+     19790.66,
+     20425.73,
+     19786.22,
+     19894.17
+    ],
+    "median": 19790.66,
+    "min": 19781.74,
+    "max": 20425.73,
+    "spread_pct": 3.2540097197364712
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.8100680860190759
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(N=192)": {
+   "base": {
+    "rounds": [
+     4590295.5,
+     4621358.18,
+     4604645.43,
+     4589882.15,
+     4586370.06
+    ],
+    "median": 4590295.5,
+    "min": 4586370.06,
+    "max": 4621358.18,
+    "spread_pct": 0.7622193386024955
+   },
+   "new": {
+    "rounds": [
+     3763540.1,
+     3767957.8,
+     3791233.08,
+     3778968.33,
+     3782109.56
+    ],
+    "median": 3778968.33,
+    "min": 3763540.1,
+    "max": 3791233.08,
+    "spread_pct": 0.7328185256318351
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.8232516468711002
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig amortized (N=192)": {
+   "base": {
+    "rounds": [
+     35163.23,
+     35351.27,
+     35096.09,
+     36253.14,
+     35016.53
+    ],
+    "median": 35163.23,
+    "min": 35016.53,
+    "max": 36253.14,
+    "spread_pct": 3.5167702170705035
+   },
+   "new": {
+    "rounds": [
+     35277.57,
+     68247.6,
+     35312.56,
+     35373.07,
+     35456.8
+    ],
+    "median": 35373.07,
+    "min": 35277.57,
+    "max": 68247.6,
+    "spread_pct": 93.2065834263184
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0059675974021727
+  },
+  "BATCH VERIFICATION (FAST) / schnorr_batch_verify(cached,N=192)": {
+   "base": {
+    "rounds": [
+     4336006.36,
+     4345804.21,
+     4348671.98,
+     4370552.64,
+     4329448.53
+    ],
+    "median": 4345804.21,
+    "min": 4329448.53,
+    "max": 4370552.64,
+    "spread_pct": 0.9458343729663653
+   },
+   "new": {
+    "rounds": [
+     3495544.87,
+     3517173.08,
+     3506425.45,
+     3510990.53,
+     3532180.64
+    ],
+    "median": 3510990.53,
+    "min": 3495544.87,
+    "max": 3532180.64,
+    "spread_pct": 1.043459664358594
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.8079035226485732
+  },
+  "BATCH VERIFICATION (FAST) /   -> per-sig cached (N=192)": {
+   "base": {
+    "rounds": [
+     22583.37,
+     22634.4,
+     22649.33,
+     22763.3,
+     22549.21
+    ],
+    "median": 22634.4,
+    "min": 22549.21,
+    "max": 22763.3,
+    "spread_pct": 0.9458611670731282
+   },
+   "new": {
+    "rounds": [
+     18205.96,
+     18318.61,
+     18262.63,
+     18286.41,
+     18396.77
+    ],
+    "median": 18286.41,
+    "min": 18205.96,
+    "max": 18396.77,
+    "spread_pct": 1.0434524873936508
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.8079034566853992
+  },
+  "BATCH VERIFICATION (FAST) / ecdsa_batch_verify(N=4)": {
+   "base": {
+    "rounds": [
+     141801.67,
+     141456.51,
+     141401.68,
+     141322.15,
+     141024.57
+    ],
+    "median": 141401.68,
+    "min": 141024.57,
+    "max": 141801.67,
+    "spread_pct": 0.5495691423185395
+   },
+   "new": {
+    "rounds": [
+     142435.91,
+     142608.01,
+     142750.41,
+     142748.45,
+     266882.04
+    ],
+    "median": 142748.45,
+    "min": 142435.91,
+    "max": 266882.04,
+    "spread_pct": 87.17862085367649
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0095244271496635
+  },
+  "BATCH VERIFICATION (FAST) / ecdsa_batch_verify(N=16)": {
+   "base": {
+    "rounds": [
+     549820.76,
+     550607.91,
+     551401.98,
+     552831.59,
+     712022.62
+    ],
+    "median": 551401.98,
+    "min": 549820.76,
+    "max": 712022.62,
+    "spread_pct": 29.41626361225616
+   },
+   "new": {
+    "rounds": [
+     554124.84,
+     554943.79,
+     555270.54,
+     553820.7,
+     554366.85
+    ],
+    "median": 554366.85,
+    "min": 553820.7,
+    "max": 555270.54,
+    "spread_pct": 0.2615307895845655
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0053769665462573
+  },
+  "BATCH VERIFICATION (FAST) / ecdsa_batch_verify(N=64)": {
+   "base": {
+    "rounds": [
+     2248616.36,
+     2251147.48,
+     2248054.18,
+     2263865.23,
+     5016714.77
+    ],
+    "median": 2251147.48,
+    "min": 2248054.18,
+    "max": 5016714.77,
+    "spread_pct": 122.98885855314994
+   },
+   "new": {
+    "rounds": [
+     2259795.88,
+     2270073.11,
+     2268029.6,
+     2264325.96,
+     2491125.69
+    ],
+    "median": 2268029.6,
+    "min": 2259795.88,
+    "max": 2491125.69,
+    "spread_pct": 10.199593955916626
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.007499339847783
+  },
+  "BATCH VERIFICATION (FAST) / ecdsa_batch_verify(N=128)": {
+   "base": {
+    "rounds": [
+     4485153.0,
+     4530427.75,
+     4535588.31,
+     4519780.45,
+     4549912.61
+    ],
+    "median": 4530427.75,
+    "min": 4485153.0,
+    "max": 4549912.61,
+    "spread_pct": 1.4294369885934135
+   },
+   "new": {
+    "rounds": [
+     4524070.56,
+     4530987.9,
+     4532207.89,
+     4535447.27,
+     4625846.65
+    ],
+    "median": 4532207.89,
+    "min": 4524070.56,
+    "max": 4625846.65,
+    "spread_pct": 2.245618305033241
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0003929297846101
+  },
+  "BATCH VERIFICATION (FAST) / ecdsa_batch_verify(N=192)": {
+   "base": {
+    "rounds": [
+     6751339.3,
+     6787443.42,
+     6738448.44,
+     6960603.16,
+     6723174.56
+    ],
+    "median": 6751339.3,
+    "min": 6723174.56,
+    "max": 6960603.16,
+    "spread_pct": 3.516762962868724
+   },
+   "new": {
+    "rounds": [
+     6773293.13,
+     13103538.28,
+     6780010.89,
+     6791629.35,
+     6807706.06
+    ],
+    "median": 6791629.35,
+    "min": 6773293.13,
+    "max": 13103538.28,
+    "spread_pct": 93.20657567981091
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0059677122137825
+  },
+  "CT POINT ARITHMETIC (sub-ops) / ct::scalar_inverse (SafeGCD)": {
+   "base": {
+    "rounds": [
+     2512.33,
+     2515.78,
+     2515.78,
+     2515.77,
+     2519.58
+    ],
+    "median": 2515.78,
+    "min": 2512.33,
+    "max": 2519.58,
+    "spread_pct": 0.2881810015184157
+   },
+   "new": {
+    "rounds": [
+     2516.6,
+     2519.25,
+     2525.7,
+     2526.14,
+     2522.47
+    ],
+    "median": 2522.47,
+    "min": 2516.6,
+    "max": 2526.14,
+    "spread_pct": 0.378200731822379
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.002659215034701
+  },
+  "CT POINT ARITHMETIC (sub-ops) / ct::generator_mul (k*G)": {
+   "base": {
+    "rounds": [
+     12902.74,
+     12917.43,
+     12861.7,
+     12912.15,
+     12917.44
+    ],
+    "median": 12912.15,
+    "min": 12861.7,
+    "max": 12917.44,
+    "spread_pct": 0.4316864348694817
+   },
+   "new": {
+    "rounds": [
+     12916.33,
+     12873.0,
+     12944.44,
+     12853.37,
+     12916.1
+    ],
+    "median": 12916.1,
+    "min": 12853.37,
+    "max": 12944.44,
+    "spread_pct": 0.7050889974527892
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.000305913422629
+  },
+  "CT POINT ARITHMETIC (sub-ops) / ct::scalar_mul (k*P)": {
+   "base": {
+    "rounds": [
+     34311.45,
+     34509.22,
+     34213.52,
+     34409.81,
+     34268.11
+    ],
+    "median": 34311.45,
+    "min": 34213.52,
+    "max": 34509.22,
+    "spread_pct": 0.8618114361241054
+   },
+   "new": {
+    "rounds": [
+     34531.6,
+     34564.69,
+     34855.1,
+     34614.06,
+     34545.78
+    ],
+    "median": 34564.69,
+    "min": 34531.6,
+    "max": 34855.1,
+    "spread_pct": 0.9359262299184514
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0073806265838374
+  },
+  "CT POINT ARITHMETIC (sub-ops) / ct::point_dbl": {
+   "base": {
+    "rounds": [
+     138.18,
+     135.78,
+     136.23,
+     135.95,
+     135.37
+    ],
+    "median": 135.95,
+    "min": 135.37,
+    "max": 138.18,
+    "spread_pct": 2.066936373666791
+   },
+   "new": {
+    "rounds": [
+     135.96,
+     135.72,
+     136.13,
+     136.4,
+     136.02
+    ],
+    "median": 136.02,
+    "min": 135.72,
+    "max": 136.4,
+    "spread_pct": 0.4999264813997991
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0005148951820524
+  },
+  "CT POINT ARITHMETIC (sub-ops) / ct::point_add_complete (11M+6S)": {
+   "base": {
+    "rounds": [
+     359.54,
+     356.45,
+     353.99,
+     353.96,
+     354.53
+    ],
+    "median": 354.53,
+    "min": 353.96,
+    "max": 359.54,
+    "spread_pct": 1.573914760387003
+   },
+   "new": {
+    "rounds": [
+     466.91,
+     467.88,
+     468.12,
+     468.35,
+     469.46
+    ],
+    "median": 468.12,
+    "min": 466.91,
+    "max": 469.46,
+    "spread_pct": 0.544732119969229
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.320396017262291
+  },
+  "CT POINT ARITHMETIC (sub-ops) / ct::point_add_mixed_complete (7M+5S)": {
+   "base": {
+    "rounds": [
+     264.2,
+     263.92,
+     259.23,
+     261.02,
+     260.3
+    ],
+    "median": 261.02,
+    "min": 259.23,
+    "max": 264.2,
+    "spread_pct": 1.904068653742997
+   },
+   "new": {
+    "rounds": [
+     336.56,
+     336.92,
+     336.45,
+     336.35,
+     337.57
+    ],
+    "median": 336.56,
+    "min": 336.35,
+    "max": 337.57,
+    "spread_pct": 0.36249108628475474
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.2894031108727302
+  },
+  "CT POINT ARITHMETIC (sub-ops) / ct::point_add_mixed_unified (7M+5S)": {
+   "base": {
+    "rounds": [
+     254.83,
+     254.2,
+     251.77,
+     252.51,
+     252.31
+    ],
+    "median": 252.51,
+    "min": 251.77,
+    "max": 254.83,
+    "spread_pct": 1.2118331947249623
+   },
+   "new": {
+    "rounds": [
+     305.87,
+     305.3,
+     306.05,
+     305.47,
+     305.53
+    ],
+    "median": 305.53,
+    "min": 305.3,
+    "max": 306.05,
+    "spread_pct": 0.24547507609727362
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.209971882301691
+  },
+  "CT SIGNING (Ultra CT) / ct::ecdsa_sign": {
+   "base": {
+    "rounds": [
+     19403.19,
+     19377.83,
+     19337.0,
+     19380.58,
+     19351.61
+    ],
+    "median": 19377.83,
+    "min": 19337.0,
+    "max": 19403.19,
+    "spread_pct": 0.341575914330958
+   },
+   "new": {
+    "rounds": [
+     19334.27,
+     19361.61,
+     19403.91,
+     19407.59,
+     19438.03
+    ],
+    "median": 19403.91,
+    "min": 19334.27,
+    "max": 19438.03,
+    "spread_pct": 0.5347375863936619
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0013458679325806
+  },
+  "CT SIGNING (Ultra CT) / ct::ecdsa_sign_verified": {
+   "base": {
+    "rounds": [
+     77603.95,
+     71281.48,
+     70706.23,
+     71052.61,
+     70712.92
+    ],
+    "median": 71052.61,
+    "min": 70706.23,
+    "max": 77603.95,
+    "spread_pct": 9.70790517054898
+   },
+   "new": {
+    "rounds": [
+     70938.37,
+     70646.57,
+     70793.57,
+     70846.61,
+     71033.56
+    ],
+    "median": 70846.61,
+    "min": 70646.57,
+    "max": 71033.56,
+    "spread_pct": 0.5462364395416953
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9971007398602247
+  },
+  "CT SIGNING (Ultra CT) / ct::schnorr_sign": {
+   "base": {
+    "rounds": [
+     15611.65,
+     15328.57,
+     15309.75,
+     15303.24,
+     15239.92
+    ],
+    "median": 15309.75,
+    "min": 15239.92,
+    "max": 15611.65,
+    "spread_pct": 2.42806054964973
+   },
+   "new": {
+    "rounds": [
+     15190.48,
+     15290.56,
+     15205.42,
+     15263.27,
+     15250.0
+    ],
+    "median": 15250.0,
+    "min": 15190.48,
+    "max": 15290.56,
+    "spread_pct": 0.6562622950819668
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9960972582831202
+  },
+  "CT SIGNING (Ultra CT) / ct::schnorr_sign_verified": {
+   "base": {
+    "rounds": [
+     54274.27,
+     54197.5,
+     53640.99,
+     53831.13,
+     53752.59
+    ],
+    "median": 53831.13,
+    "min": 53640.99,
+    "max": 54274.27,
+    "spread_pct": 1.1764196664643651
+   },
+   "new": {
+    "rounds": [
+     53992.42,
+     54037.6,
+     53692.91,
+     53816.42,
+     53905.94
+    ],
+    "median": 53905.94,
+    "min": 53692.91,
+    "max": 54037.6,
+    "spread_pct": 0.6394286047140538
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0013897163221357
+  },
+  "CT SIGNING (Ultra CT) / ct::schnorr_keypair_create": {
+   "base": {
+    "rounds": [
+     14661.08,
+     14785.52,
+     14695.5,
+     14678.68,
+     14664.4
+    ],
+    "median": 14678.68,
+    "min": 14661.08,
+    "max": 14785.52,
+    "spread_pct": 0.8477601528202842
+   },
+   "new": {
+    "rounds": [
+     14622.98,
+     14601.43,
+     14605.69,
+     14645.23,
+     14689.77
+    ],
+    "median": 14622.98,
+    "min": 14601.43,
+    "max": 14689.77,
+    "spread_pct": 0.6041176285545091
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9962053808653094
+  },
+  "ETHEREUM OPERATIONS / keccak256 (32B)": {
+   "base": {
+    "rounds": [
+     471.48,
+     427.48,
+     425.15,
+     426.07,
+     426.42
+    ],
+    "median": 426.42,
+    "min": 425.15,
+    "max": 471.48,
+    "spread_pct": 10.864875005862773
+   },
+   "new": {
+    "rounds": [
+     425.5,
+     425.42,
+     424.61,
+     426.75,
+     426.06
+    ],
+    "median": 425.5,
+    "min": 424.61,
+    "max": 426.75,
+    "spread_pct": 0.5029377203290214
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9978425026968716
+  },
+  "ETHEREUM OPERATIONS / ethereum_address": {
+   "base": {
+    "rounds": [
+     431.48,
+     431.64,
+     429.63,
+     431.49,
+     429.67
+    ],
+    "median": 431.48,
+    "min": 429.63,
+    "max": 431.64,
+    "spread_pct": 0.465838509316768
+   },
+   "new": {
+    "rounds": [
+     429.72,
+     430.37,
+     428.61,
+     429.37,
+     430.75
+    ],
+    "median": 429.72,
+    "min": 428.61,
+    "max": 430.75,
+    "spread_pct": 0.4979986968258369
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9959210160378233
+  },
+  "ETHEREUM OPERATIONS / eip191_hash": {
+   "base": {
+    "rounds": [
+     446.87,
+     424.68,
+     420.84,
+     422.98,
+     422.38
+    ],
+    "median": 422.98,
+    "min": 420.84,
+    "max": 446.87,
+    "spread_pct": 6.153955269752713
+   },
+   "new": {
+    "rounds": [
+     422.67,
+     421.87,
+     425.03,
+     422.78,
+     421.35
+    ],
+    "median": 422.67,
+    "min": 421.35,
+    "max": 425.03,
+    "spread_pct": 0.870655594198772
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9992671048276515
+  },
+  "ETHEREUM OPERATIONS / eth_sign_hash": {
+   "base": {
+    "rounds": [
+     21093.5,
+     21179.67,
+     20990.43,
+     21088.6,
+     21134.8
+    ],
+    "median": 21093.5,
+    "min": 20990.43,
+    "max": 21179.67,
+    "spread_pct": 0.8971484106478202
+   },
+   "new": {
+    "rounds": [
+     21037.48,
+     21326.14,
+     21067.16,
+     21095.19,
+     21118.81
+    ],
+    "median": 21095.19,
+    "min": 21037.48,
+    "max": 21326.14,
+    "spread_pct": 1.3683688082449121
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0000801194680826
+  },
+  "ETHEREUM OPERATIONS / ecdsa_sign_recoverable": {
+   "base": {
+    "rounds": [
+     21105.8,
+     21001.59,
+     21038.81,
+     21200.6,
+     21063.64
+    ],
+    "median": 21063.64,
+    "min": 21001.59,
+    "max": 21200.6,
+    "spread_pct": 0.9448034622695717
+   },
+   "new": {
+    "rounds": [
+     21007.02,
+     21045.27,
+     21239.55,
+     21048.16,
+     21125.21
+    ],
+    "median": 21048.16,
+    "min": 21007.02,
+    "max": 21239.55,
+    "spread_pct": 1.1047521493565178
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9992650842874261
+  },
+  "ETHEREUM OPERATIONS / ecrecover": {
+   "base": {
+    "rounds": [
+     45603.94,
+     45532.43,
+     45395.28,
+     46025.63,
+     45360.25
+    ],
+    "median": 45532.43,
+    "min": 45360.25,
+    "max": 46025.63,
+    "spread_pct": 1.4613320659582574
+   },
+   "new": {
+    "rounds": [
+     45608.14,
+     46060.93,
+     45589.41,
+     45852.32,
+     45836.39
+    ],
+    "median": 45836.39,
+    "min": 45589.41,
+    "max": 46060.93,
+    "spread_pct": 1.0287023039990646
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0066756814867996
+  },
+  "ETHEREUM OPERATIONS / eth_personal_sign": {
+   "base": {
+    "rounds": [
+     21505.69,
+     21576.15,
+     21530.95,
+     21818.78,
+     21525.44
+    ],
+    "median": 21530.95,
+    "min": 21505.69,
+    "max": 21818.78,
+    "spread_pct": 1.4541392739289263
+   },
+   "new": {
+    "rounds": [
+     21817.09,
+     21735.61,
+     21592.62,
+     21623.65,
+     21550.34
+    ],
+    "median": 21623.65,
+    "min": 21550.34,
+    "max": 21817.09,
+    "spread_pct": 1.2336030226164407
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0043054300901726
+  },
+  "ETHEREUM OPERATIONS / ethereum_address_eip55": {
+   "base": {
+    "rounds": [
+     951.82,
+     951.54,
+     946.96,
+     955.23,
+     949.39
+    ],
+    "median": 951.54,
+    "min": 946.96,
+    "max": 955.23,
+    "spread_pct": 0.8691174306912985
+   },
+   "new": {
+    "rounds": [
+     954.33,
+     953.34,
+     956.27,
+     956.62,
+     952.53
+    ],
+    "median": 954.33,
+    "min": 952.53,
+    "max": 956.62,
+    "spread_pct": 0.42857292550795134
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0029320890346176
+  },
+  "REAL-WORLD FLOWS / ecdh_compute (SHA256 shared secret)": {
+   "base": {
+    "rounds": [
+     37273.63,
+     37232.94,
+     37201.87,
+     37294.11,
+     37217.26
+    ],
+    "median": 37232.94,
+    "min": 37201.87,
+    "max": 37294.11,
+    "spread_pct": 0.2477376215791661
+   },
+   "new": {
+    "rounds": [
+     37529.22,
+     37495.76,
+     37363.64,
+     37485.98,
+     37553.67
+    ],
+    "median": 37495.76,
+    "min": 37363.64,
+    "max": 37553.67,
+    "spread_pct": 0.506803969302126
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0070588033069643
+  },
+  "REAL-WORLD FLOWS / ecdh_compute_xonly (SHA256 x-coordinate)": {
+   "base": {
+    "rounds": [
+     37044.45,
+     37172.18,
+     36999.41,
+     37226.63,
+     37080.43
+    ],
+    "median": 37080.43,
+    "min": 36999.41,
+    "max": 37226.63,
+    "spread_pct": 0.6127760654339605
+   },
+   "new": {
+    "rounds": [
+     37455.21,
+     37414.31,
+     37404.52,
+     37390.24,
+     37438.28
+    ],
+    "median": 37414.31,
+    "min": 37390.24,
+    "max": 37455.21,
+    "spread_pct": 0.1736501354695601
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.009004210576846
+  },
+  "REAL-WORLD FLOWS / ecdh_compute_raw (x-only shared)": {
+   "base": {
+    "rounds": [
+     37106.32,
+     37293.51,
+     37019.75,
+     37369.92,
+     37140.82
+    ],
+    "median": 37140.82,
+    "min": 37019.75,
+    "max": 37369.92,
+    "spread_pct": 0.942817094506794
+   },
+   "new": {
+    "rounds": [
+     37232.05,
+     53830.24,
+     37291.9,
+     37323.63,
+     37308.62
+    ],
+    "median": 37308.62,
+    "min": 37232.05,
+    "max": 53830.24,
+    "spread_pct": 44.48888755467234
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.00451794009933
+  },
+  "REAL-WORLD FLOWS / taproot_output_key (BIP-341 key path)": {
+   "base": {
+    "rounds": [
+     21639.77,
+     21721.64,
+     21808.95,
+     21895.31,
+     21633.21
+    ],
+    "median": 21721.64,
+    "min": 21633.21,
+    "max": 21895.31,
+    "spread_pct": 1.206630806881995
+   },
+   "new": {
+    "rounds": [
+     21476.47,
+     21462.97,
+     21434.95,
+     21469.49,
+     21515.62
+    ],
+    "median": 21469.49,
+    "min": 21434.95,
+    "max": 21515.62,
+    "spread_pct": 0.3757425071578237
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9883917604748077
+  },
+  "REAL-WORLD FLOWS / taproot_tweak_privkey (BIP-341)": {
+   "base": {
+    "rounds": [
+     14574.72,
+     14606.55,
+     14577.51,
+     14615.44,
+     14560.36
+    ],
+    "median": 14577.51,
+    "min": 14560.36,
+    "max": 14615.44,
+    "spread_pct": 0.3778423064021217
+   },
+   "new": {
+    "rounds": [
+     14518.18,
+     14501.53,
+     14490.43,
+     14526.21,
+     14457.67
+    ],
+    "median": 14501.53,
+    "min": 14457.67,
+    "max": 14526.21,
+    "spread_pct": 0.4726397835262835
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.994787861575811
+  },
+  "REAL-WORLD FLOWS / bip32_master_key (64B seed)": {
+   "base": {
+    "rounds": [
+     1778.7,
+     1777.01,
+     1773.08,
+     1769.59,
+     1775.64
+    ],
+    "median": 1775.64,
+    "min": 1769.59,
+    "max": 1778.7,
+    "spread_pct": 0.5130544479736955
+   },
+   "new": {
+    "rounds": [
+     1824.61,
+     1823.62,
+     1823.07,
+     1826.84,
+     1819.61
+    ],
+    "median": 1823.62,
+    "min": 1819.61,
+    "max": 1826.84,
+    "spread_pct": 0.39646417565062997
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0270212430447612
+  },
+  "REAL-WORLD FLOWS / bip32_coin_derive_key (BTC m/84'/0'/0'/0/0)": {
+   "base": {
+    "rounds": [
+     85016.62,
+     85073.36,
+     85057.26,
+     85418.48,
+     84906.55
+    ],
+    "median": 85057.26,
+    "min": 84906.55,
+    "max": 85418.48,
+    "spread_pct": 0.6018651435515241
+   },
+   "new": {
+    "rounds": [
+     84754.77,
+     84879.57,
+     84864.49,
+     84965.76,
+     85009.99
+    ],
+    "median": 84879.57,
+    "min": 84754.77,
+    "max": 85009.99,
+    "spread_pct": 0.30068484088691916
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9979109367031105
+  },
+  "REAL-WORLD FLOWS / coin_address_from_seed (BTC end-to-end)": {
+   "base": {
+    "rounds": [
+     101944.51,
+     102773.95,
+     102419.9,
+     102770.71,
+     102909.65
+    ],
+    "median": 102770.71,
+    "min": 101944.51,
+    "max": 102909.65,
+    "spread_pct": 0.9391197161136664
+   },
+   "new": {
+    "rounds": [
+     102324.7,
+     102460.9,
+     103715.02,
+     102674.98,
+     102656.61
+    ],
+    "median": 102656.61,
+    "min": 102324.7,
+    "max": 103715.02,
+    "spread_pct": 1.3543404560115582
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.998889761489436
+  },
+  "REAL-WORLD FLOWS / coin_address_from_seed (ETH end-to-end)": {
+   "base": {
+    "rounds": [
+     102262.55,
+     102941.2,
+     102604.4,
+     103084.31,
+     102596.25
+    ],
+    "median": 102604.4,
+    "min": 102262.55,
+    "max": 103084.31,
+    "spread_pct": 0.8009013258690609
+   },
+   "new": {
+    "rounds": [
+     102864.78,
+     102768.72,
+     103306.65,
+     102636.54,
+     102861.45
+    ],
+    "median": 102861.45,
+    "min": 102636.54,
+    "max": 103306.65,
+    "spread_pct": 0.6514685530876734
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0025052531860232
+  },
+  "REAL-WORLD FLOWS / silent_payment_create_output": {
+   "base": {
+    "rounds": [
+     50649.85,
+     50911.45,
+     50881.18,
+     51233.49,
+     50910.86
+    ],
+    "median": 50910.86,
+    "min": 50649.85,
+    "max": 51233.49,
+    "spread_pct": 1.1463958770289864
+   },
+   "new": {
+    "rounds": [
+     51398.03,
+     51487.07,
+     90715.44,
+     51342.18,
+     51399.57
+    ],
+    "median": 51399.57,
+    "min": 51342.18,
+    "max": 90715.44,
+    "spread_pct": 76.60231398822987
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0095993271376678
+  },
+  "REAL-WORLD FLOWS / silent_payment_scan (single output set)": {
+   "base": {
+    "rounds": [
+     65826.89,
+     66220.77,
+     66129.85,
+     66417.38,
+     66326.59
+    ],
+    "median": 66220.77,
+    "min": 65826.89,
+    "max": 66417.38,
+    "spread_pct": 0.8916990847433595
+   },
+   "new": {
+    "rounds": [
+     66545.67,
+     66401.09,
+     115737.2,
+     66668.56,
+     66670.12
+    ],
+    "median": 66668.56,
+    "min": 66401.09,
+    "max": 115737.2,
+    "spread_pct": 74.0020633414011
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.006762077819391
+  },
+  "REAL-WORLD FLOWS / fast_scan_batch /tx (N=1)": {
+   "base": {
+    "rounds": [
+     40872.64,
+     40908.9,
+     40787.32,
+     40925.21,
+     40918.0
+    ],
+    "median": 40908.9,
+    "min": 40787.32,
+    "max": 40925.21,
+    "spread_pct": 0.33706601741919096
+   },
+   "new": {
+    "rounds": [
+     41054.0,
+     40982.15,
+     71169.19,
+     41076.16,
+     40986.42
+    ],
+    "median": 41054.0,
+    "min": 40982.15,
+    "max": 71169.19,
+    "spread_pct": 73.53008233058898
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0035469054411141
+  },
+  "REAL-WORLD FLOWS / fast_scan_batch /tx (N=16)": {
+   "base": {
+    "rounds": [
+     38279.1,
+     38485.28,
+     38326.55,
+     38597.5,
+     38413.69
+    ],
+    "median": 38413.69,
+    "min": 38279.1,
+    "max": 38597.5,
+    "spread_pct": 0.8288711654621086
+   },
+   "new": {
+    "rounds": [
+     38134.76,
+     38360.84,
+     38413.11,
+     39514.11,
+     38245.21
+    ],
+    "median": 38360.84,
+    "min": 38134.76,
+    "max": 39514.11,
+    "spread_pct": 3.5957241812223053
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9986241884078305
+  },
+  "REAL-WORLD FLOWS / fast_scan_batch /tx (N=64)": {
+   "base": {
+    "rounds": [
+     38303.84,
+     37887.08,
+     37747.1,
+     38056.88,
+     38512.69
+    ],
+    "median": 38056.88,
+    "min": 37747.1,
+    "max": 38512.69,
+    "spread_pct": 2.0116993300554427
+   },
+   "new": {
+    "rounds": [
+     37547.94,
+     37690.3,
+     37931.34,
+     37650.31,
+     37851.67
+    ],
+    "median": 37690.3,
+    "min": 37547.94,
+    "max": 37931.34,
+    "spread_pct": 1.0172378569552223
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9903675761123877
+  },
+  "REAL-WORLD FLOWS / fast_scan_batch /tx (N=256)": {
+   "base": {
+    "rounds": [
+     38025.99,
+     38338.94,
+     37940.39,
+     37909.06,
+     37873.32
+    ],
+    "median": 37940.39,
+    "min": 37873.32,
+    "max": 38338.94,
+    "spread_pct": 1.2272409429634292
+   },
+   "new": {
+    "rounds": [
+     37832.73,
+     38102.53,
+     40422.53,
+     37755.26,
+     37865.92
+    ],
+    "median": 37865.92,
+    "min": 37755.26,
+    "max": 40422.53,
+    "spread_pct": 7.0439857264791055
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.998037184119615
+  },
+  "REAL-WORLD FLOWS / fast_scan_batch /tx (N=1024)": {
+   "base": {
+    "rounds": [
+     38303.1,
+     38407.78,
+     38995.58,
+     39437.13,
+     38593.6
+    ],
+    "median": 38593.6,
+    "min": 38303.1,
+    "max": 39437.13,
+    "spread_pct": 2.938388748393513
+   },
+   "new": {
+    "rounds": [
+     38268.38,
+     38358.27,
+     38248.58,
+     37878.86,
+     38911.99
+    ],
+    "median": 38268.38,
+    "min": 37878.86,
+    "max": 38911.99,
+    "spread_pct": 2.6996961982712553
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9915732142116828
+  },
+  "libsecp256k1 (bitcoin-core) / field_mul": {
+   "base": {
+    "rounds": [
+     33.19,
+     24.39,
+     23.72,
+     23.75,
+     23.7
+    ],
+    "median": 23.75,
+    "min": 23.7,
+    "max": 33.19,
+    "spread_pct": 39.9578947368421
+   },
+   "new": {
+    "rounds": [
+     23.93,
+     23.95,
+     23.62,
+     24.28,
+     23.6
+    ],
+    "median": 23.93,
+    "min": 23.6,
+    "max": 24.28,
+    "spread_pct": 2.8416213957375667
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0075789473684211
+  },
+  "libsecp256k1 (bitcoin-core) / field_sqr": {
+   "base": {
+    "rounds": [
+     29.57,
+     18.91,
+     18.86,
+     19.09,
+     19.08
+    ],
+    "median": 19.08,
+    "min": 18.86,
+    "max": 29.57,
+    "spread_pct": 56.132075471698116
+   },
+   "new": {
+    "rounds": [
+     19.4,
+     19.05,
+     19.21,
+     19.14,
+     19.07
+    ],
+    "median": 19.14,
+    "min": 19.05,
+    "max": 19.4,
+    "spread_pct": 1.8286311389759553
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0031446540880504
+  },
+  "libsecp256k1 (bitcoin-core) / field_inv_var": {
+   "base": {
+    "rounds": [
+     1569.07,
+     1566.12,
+     1575.23,
+     1567.02,
+     1572.06
+    ],
+    "median": 1569.07,
+    "min": 1566.12,
+    "max": 1575.23,
+    "spread_pct": 0.5805986985921678
+   },
+   "new": {
+    "rounds": [
+     1555.97,
+     1659.62,
+     1557.59,
+     1581.33,
+     1570.7
+    ],
+    "median": 1570.7,
+    "min": 1555.97,
+    "max": 1659.62,
+    "spread_pct": 6.598968612720434
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0010388319195447
+  },
+  "libsecp256k1 (bitcoin-core) / field_add": {
+   "base": {
+    "rounds": [
+     12.14,
+     12.13,
+     12.12,
+     12.14,
+     12.14
+    ],
+    "median": 12.14,
+    "min": 12.12,
+    "max": 12.14,
+    "spread_pct": 0.16474464579902265
+   },
+   "new": {
+    "rounds": [
+     12.13,
+     12.12,
+     12.16,
+     12.13,
+     20.99
+    ],
+    "median": 12.13,
+    "min": 12.12,
+    "max": 20.99,
+    "spread_pct": 73.12448474855728
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.999176276771005
+  },
+  "libsecp256k1 (bitcoin-core) / field_negate": {
+   "base": {
+    "rounds": [
+     20.55,
+     11.74,
+     11.69,
+     11.73,
+     11.69
+    ],
+    "median": 11.73,
+    "min": 11.69,
+    "max": 20.55,
+    "spread_pct": 75.53282182438194
+   },
+   "new": {
+    "rounds": [
+     11.76,
+     11.73,
+     11.75,
+     11.73,
+     11.76
+    ],
+    "median": 11.75,
+    "min": 11.73,
+    "max": 11.76,
+    "spread_pct": 0.25531914893616475
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0017050298380221
+  },
+  "libsecp256k1 (bitcoin-core) / field_normalize": {
+   "base": {
+    "rounds": [
+     13.75,
+     13.75,
+     13.78,
+     13.77,
+     13.77
+    ],
+    "median": 13.77,
+    "min": 13.75,
+    "max": 13.78,
+    "spread_pct": 0.21786492374727207
+   },
+   "new": {
+    "rounds": [
+     13.76,
+     13.7,
+     13.83,
+     13.75,
+     13.8
+    ],
+    "median": 13.76,
+    "min": 13.7,
+    "max": 13.83,
+    "spread_pct": 0.9447674418604708
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9992737835875091
+  },
+  "libsecp256k1 (bitcoin-core) / field_from_bytes (set_b32)": {
+   "base": {
+    "rounds": [
+     23.0,
+     12.99,
+     12.97,
+     12.98,
+     13.02
+    ],
+    "median": 12.99,
+    "min": 12.97,
+    "max": 23.0,
+    "spread_pct": 77.21324095458044
+   },
+   "new": {
+    "rounds": [
+     13.06,
+     12.91,
+     13.05,
+     12.98,
+     13.05
+    ],
+    "median": 13.05,
+    "min": 12.91,
+    "max": 13.06,
+    "spread_pct": 1.1494252873563244
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0046189376443417
+  },
+  "libsecp256k1 (bitcoin-core) / scalar_mul": {
+   "base": {
+    "rounds": [
+     51.46,
+     48.19,
+     47.84,
+     48.32,
+     48.3
+    ],
+    "median": 48.3,
+    "min": 47.84,
+    "max": 51.46,
+    "spread_pct": 7.494824016563142
+   },
+   "new": {
+    "rounds": [
+     48.39,
+     48.01,
+     48.4,
+     48.25,
+     48.43
+    ],
+    "median": 48.39,
+    "min": 48.01,
+    "max": 48.43,
+    "spread_pct": 0.867947923124616
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0018633540372672
+  },
+  "libsecp256k1 (bitcoin-core) / scalar_inverse (CT)": {
+   "base": {
+    "rounds": [
+     2597.79,
+     2602.0,
+     2615.04,
+     2615.34,
+     2633.83
+    ],
+    "median": 2615.04,
+    "min": 2597.79,
+    "max": 2633.83,
+    "spread_pct": 1.3781815956926076
+   },
+   "new": {
+    "rounds": [
+     2594.23,
+     2589.95,
+     2620.99,
+     2625.01,
+     2611.65
+    ],
+    "median": 2611.65,
+    "min": 2589.95,
+    "max": 2625.01,
+    "spread_pct": 1.3424463461796334
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9987036527165933
+  },
+  "libsecp256k1 (bitcoin-core) / scalar_inverse_var": {
+   "base": {
+    "rounds": [
+     1576.75,
+     1577.16,
+     1576.82,
+     1576.77,
+     1576.27
+    ],
+    "median": 1576.77,
+    "min": 1576.27,
+    "max": 1577.16,
+    "spread_pct": 0.056444503637188684
+   },
+   "new": {
+    "rounds": [
+     1575.05,
+     1574.12,
+     1574.84,
+     1635.66,
+     1573.08
+    ],
+    "median": 1574.84,
+    "min": 1573.08,
+    "max": 1635.66,
+    "spread_pct": 3.9737370145538695
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9987759787413509
+  },
+  "libsecp256k1 (bitcoin-core) / scalar_add": {
+   "base": {
+    "rounds": [
+     17.57,
+     9.71,
+     9.81,
+     9.62,
+     9.81
+    ],
+    "median": 9.81,
+    "min": 9.62,
+    "max": 17.57,
+    "spread_pct": 81.03975535168196
+   },
+   "new": {
+    "rounds": [
+     9.79,
+     9.67,
+     9.8,
+     9.76,
+     9.84
+    ],
+    "median": 9.79,
+    "min": 9.67,
+    "max": 9.84,
+    "spread_pct": 1.7364657814096012
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9979612640163098
+  },
+  "libsecp256k1 (bitcoin-core) / scalar_negate": {
+   "base": {
+    "rounds": [
+     22.15,
+     12.96,
+     12.96,
+     12.94,
+     12.96
+    ],
+    "median": 12.96,
+    "min": 12.94,
+    "max": 22.15,
+    "spread_pct": 71.06481481481481
+   },
+   "new": {
+    "rounds": [
+     12.95,
+     12.95,
+     12.95,
+     12.95,
+     12.96
+    ],
+    "median": 12.95,
+    "min": 12.95,
+    "max": 12.96,
+    "spread_pct": 0.07722007722008929
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9992283950617282
+  },
+  "libsecp256k1 (bitcoin-core) / scalar_from_bytes (set_b32)": {
+   "base": {
+    "rounds": [
+     17.39,
+     9.38,
+     9.29,
+     9.28,
+     9.44
+    ],
+    "median": 9.38,
+    "min": 9.28,
+    "max": 17.39,
+    "spread_pct": 86.46055437100215
+   },
+   "new": {
+    "rounds": [
+     9.23,
+     9.28,
+     9.32,
+     9.42,
+     9.39
+    ],
+    "median": 9.32,
+    "min": 9.23,
+    "max": 9.42,
+    "spread_pct": 2.038626609442055
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9936034115138592
+  },
+  "libsecp256k1 (bitcoin-core) / point_dbl (gej_double_var)": {
+   "base": {
+    "rounds": [
+     155.2,
+     144.61,
+     145.3,
+     145.11,
+     145.61
+    ],
+    "median": 145.3,
+    "min": 144.61,
+    "max": 155.2,
+    "spread_pct": 7.288368891947676
+   },
+   "new": {
+    "rounds": [
+     145.16,
+     145.11,
+     145.52,
+     145.74,
+     145.79
+    ],
+    "median": 145.52,
+    "min": 145.11,
+    "max": 145.79,
+    "spread_pct": 0.46728971962615334
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0015141087405368
+  },
+  "libsecp256k1 (bitcoin-core) / point_add (gej_add_ge_var)": {
+   "base": {
+    "rounds": [
+     268.5,
+     259.06,
+     352.36,
+     258.86,
+     258.59
+    ],
+    "median": 259.06,
+    "min": 258.59,
+    "max": 352.36,
+    "spread_pct": 36.19624797344246
+   },
+   "new": {
+    "rounds": [
+     258.2,
+     258.38,
+     258.61,
+     258.86,
+     259.36
+    ],
+    "median": 258.61,
+    "min": 258.2,
+    "max": 259.36,
+    "spread_pct": 0.4485518734774467
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.998262950667799
+  },
+  "libsecp256k1 (bitcoin-core) / ecmult (a*P + b*G, Strauss)": {
+   "base": {
+    "rounds": [
+     39000.54,
+     39075.41,
+     39042.64,
+     38970.45,
+     39069.66
+    ],
+    "median": 39042.64,
+    "min": 38970.45,
+    "max": 39075.41,
+    "spread_pct": 0.2688342796491385
+   },
+   "new": {
+    "rounds": [
+     39078.0,
+     38988.76,
+     39090.06,
+     39043.68,
+     38980.74
+    ],
+    "median": 39043.68,
+    "min": 38980.74,
+    "max": 39090.06,
+    "spread_pct": 0.27999409891690463
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.000026637542953
+  },
+  "libsecp256k1 (bitcoin-core) / ecmult_gen (k*G, comb)": {
+   "base": {
+    "rounds": [
+     18337.67,
+     18347.13,
+     18361.59,
+     18362.15,
+     18407.49
+    ],
+    "median": 18361.59,
+    "min": 18337.67,
+    "max": 18407.49,
+    "spread_pct": 0.3802502942283503
+   },
+   "new": {
+    "rounds": [
+     18398.8,
+     18355.53,
+     18372.96,
+     18340.02,
+     18426.76
+    ],
+    "median": 18372.96,
+    "min": 18340.02,
+    "max": 18426.76,
+    "spread_pct": 0.4721068352622439
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0006192274198475
+  },
+  "libsecp256k1 (bitcoin-core) / generator_mul (ec_pubkey_create)": {
+   "base": {
+    "rounds": [
+     21127.55,
+     21228.19,
+     21124.64,
+     21148.01,
+     21103.72
+    ],
+    "median": 21127.55,
+    "min": 21103.72,
+    "max": 21228.19,
+    "spread_pct": 0.5891359859519799
+   },
+   "new": {
+    "rounds": [
+     21126.98,
+     21123.02,
+     21128.32,
+     21108.75,
+     21194.17
+    ],
+    "median": 21126.98,
+    "min": 21108.75,
+    "max": 21194.17,
+    "spread_pct": 0.4043171338260284
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.999973021008115
+  },
+  "libsecp256k1 (bitcoin-core) / scalar_mul_P (k*P, tweak_mul)": {
+   "base": {
+    "rounds": [
+     37267.97,
+     37230.21,
+     37312.29,
+     37224.47,
+     37160.85
+    ],
+    "median": 37230.21,
+    "min": 37160.85,
+    "max": 37312.29,
+    "spread_pct": 0.40676644047939114
+   },
+   "new": {
+    "rounds": [
+     37281.61,
+     37175.4,
+     37439.4,
+     37250.06,
+     37206.18
+    ],
+    "median": 37250.06,
+    "min": 37175.4,
+    "max": 37439.4,
+    "spread_pct": 0.7087236906464044
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.000533169165578
+  },
+  "libsecp256k1 (bitcoin-core) / serialize_compressed (33B)": {
+   "base": {
+    "rounds": [
+     32.44,
+     32.84,
+     32.59,
+     32.52,
+     32.41
+    ],
+    "median": 32.52,
+    "min": 32.41,
+    "max": 32.84,
+    "spread_pct": 1.322263222632247
+   },
+   "new": {
+    "rounds": [
+     32.51,
+     32.46,
+     33.15,
+     32.41,
+     32.6
+    ],
+    "median": 32.51,
+    "min": 32.41,
+    "max": 33.15,
+    "spread_pct": 2.276222700707481
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9996924969249691
+  },
+  "libsecp256k1 (bitcoin-core) / serialize_uncompressed (65B)": {
+   "base": {
+    "rounds": [
+     50.62,
+     50.02,
+     41.85,
+     42.56,
+     41.62
+    ],
+    "median": 42.56,
+    "min": 41.62,
+    "max": 50.62,
+    "spread_pct": 21.14661654135338
+   },
+   "new": {
+    "rounds": [
+     42.62,
+     41.94,
+     41.82,
+     42.02,
+     41.69
+    ],
+    "median": 41.94,
+    "min": 41.69,
+    "max": 42.62,
+    "spread_pct": 2.2174535050071524
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9854323308270676
+  },
+  "libsecp256k1 (bitcoin-core) / point_add (pubkey_combine)": {
+   "base": {
+    "rounds": [
+     3312.27,
+     3447.74,
+     3306.74,
+     3294.7,
+     3301.1
+    ],
+    "median": 3306.74,
+    "min": 3294.7,
+    "max": 3447.74,
+    "spread_pct": 4.62812316662332
+   },
+   "new": {
+    "rounds": [
+     3301.84,
+     3299.29,
+     3303.43,
+     3292.95,
+     3299.37
+    ],
+    "median": 3299.37,
+    "min": 3292.95,
+    "max": 3303.43,
+    "spread_pct": 0.3176363972515971
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9977712187834544
+  },
+  "libsecp256k1 (bitcoin-core) / ecdsa_sign": {
+   "base": {
+    "rounds": [
+     29444.89,
+     29518.02,
+     29411.86,
+     29432.9,
+     29492.36
+    ],
+    "median": 29444.89,
+    "min": 29411.86,
+    "max": 29518.02,
+    "spread_pct": 0.36053794053908794
+   },
+   "new": {
+    "rounds": [
+     29512.38,
+     29468.72,
+     29425.85,
+     29416.77,
+     29479.97
+    ],
+    "median": 29468.72,
+    "min": 29416.77,
+    "max": 29512.38,
+    "spread_pct": 0.324445717357254
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0008093085081997
+  },
+  "libsecp256k1 (bitcoin-core) / ecdsa_verify": {
+   "base": {
+    "rounds": [
+     41506.06,
+     41594.46,
+     41650.31,
+     41547.77,
+     41591.13
+    ],
+    "median": 41591.13,
+    "min": 41506.06,
+    "max": 41650.31,
+    "spread_pct": 0.34682875892047177
+   },
+   "new": {
+    "rounds": [
+     41565.89,
+     41595.69,
+     41540.4,
+     41578.76,
+     41583.2
+    ],
+    "median": 41578.76,
+    "min": 41540.4,
+    "max": 41595.69,
+    "spread_pct": 0.13297654860318314
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9997025808147075
+  },
+  "libsecp256k1 (bitcoin-core) / schnorr_keypair_create": {
+   "base": {
+    "rounds": [
+     21084.06,
+     21128.27,
+     21091.88,
+     21163.91,
+     21055.53
+    ],
+    "median": 21091.88,
+    "min": 21055.53,
+    "max": 21163.91,
+    "spread_pct": 0.5138470349727052
+   },
+   "new": {
+    "rounds": [
+     21064.96,
+     21098.75,
+     21156.61,
+     21085.24,
+     21112.29
+    ],
+    "median": 21098.75,
+    "min": 21064.96,
+    "max": 21156.61,
+    "spread_pct": 0.43438592333669745
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0003257177643718
+  },
+  "libsecp256k1 (bitcoin-core) / schnorr_sign (BIP-340)": {
+   "base": {
+    "rounds": [
+     22584.02,
+     22575.38,
+     22596.61,
+     22647.91,
+     22522.36
+    ],
+    "median": 22584.02,
+    "min": 22522.36,
+    "max": 22647.91,
+    "spread_pct": 0.5559240560360789
+   },
+   "new": {
+    "rounds": [
+     22575.28,
+     22570.09,
+     22592.87,
+     22584.25,
+     22560.16
+    ],
+    "median": 22575.28,
+    "min": 22560.16,
+    "max": 22592.87,
+    "spread_pct": 0.14489299800489353
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9996130006969529
+  },
+  "libsecp256k1 (bitcoin-core) / schnorr_verify (BIP-340)": {
+   "base": {
+    "rounds": [
+     42098.02,
+     42060.36,
+     42160.92,
+     42109.55,
+     42105.59
+    ],
+    "median": 42105.59,
+    "min": 42060.36,
+    "max": 42160.92,
+    "spread_pct": 0.2388281460965104
+   },
+   "new": {
+    "rounds": [
+     43249.93,
+     42060.78,
+     42135.28,
+     42133.57,
+     42015.01
+    ],
+    "median": 42133.57,
+    "min": 42015.01,
+    "max": 43249.93,
+    "spread_pct": 2.9309645491706453
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0006645198416648
+  },
+  "OpenSSL (ECDSA, secp256k1) / generator_mul (EC_POINT_mul k*G)": {
+   "base": {
+    "rounds": [
+     395756.67,
+     396752.81,
+     396742.52,
+     395536.36,
+     395635.15
+    ],
+    "median": 395756.67,
+    "min": 395536.36,
+    "max": 396752.81,
+    "spread_pct": 0.3073732149605998
+   },
+   "new": {
+    "rounds": [
+     397671.75,
+     402374.94,
+     397633.57,
+     395673.87,
+     397240.15
+    ],
+    "median": 397633.57,
+    "min": 395673.87,
+    "max": 402374.94,
+    "spread_pct": 1.6852374913918882
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0047425606244362
+  },
+  "OpenSSL (ECDSA, secp256k1) / ecdsa_sign (ECDSA_do_sign)": {
+   "base": {
+    "rounds": [
+     421936.89,
+     422101.65,
+     423216.7,
+     436832.38,
+     650609.62
+    ],
+    "median": 423216.7,
+    "min": 421936.89,
+    "max": 650609.62,
+    "spread_pct": 54.0320667875346
+   },
+   "new": {
+    "rounds": [
+     427677.5,
+     423138.31,
+     421526.3,
+     423246.63,
+     424435.37
+    ],
+    "median": 423246.63,
+    "min": 421526.3,
+    "max": 427677.5,
+    "spread_pct": 1.4533370295234276
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0000707202716717
+  },
+  "OpenSSL (ECDSA, secp256k1) / ecdsa_verify (ECDSA_do_verify)": {
+   "base": {
+    "rounds": [
+     400885.76,
+     401844.09,
+     400776.72,
+     401127.77,
+     794364.91
+    ],
+    "median": 401127.77,
+    "min": 400776.72,
+    "max": 794364.91,
+    "spread_pct": 98.12040437888407
+   },
+   "new": {
+    "rounds": [
+     401439.51,
+     402263.44,
+     401409.59,
+     796859.0,
+     404168.08
+    ],
+    "median": 402263.44,
+    "min": 401409.59,
+    "max": 796859.0,
+    "spread_pct": 98.30607772856513
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0028311926646216
+  },
+  "FIELD ARITHMETIC / mul": {
+   "base": {
+    "rounds": [
+     20.45,
+     20.41,
+     20.45,
+     20.78,
+     29.98
+    ],
+    "median": 20.45,
+    "min": 20.41,
+    "max": 29.98,
+    "spread_pct": 46.79706601466993
+   },
+   "new": {
+    "rounds": [
+     20.22,
+     24.33,
+     20.47,
+     20.44,
+     20.4
+    ],
+    "median": 20.44,
+    "min": 20.22,
+    "max": 24.33,
+    "spread_pct": 20.107632093933457
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9995110024449879
+  },
+  "FIELD ARITHMETIC / sqr": {
+   "base": {
+    "rounds": [
+     18.99,
+     19.0,
+     19.04,
+     19.11,
+     27.37
+    ],
+    "median": 19.04,
+    "min": 18.99,
+    "max": 27.37,
+    "spread_pct": 44.01260504201682
+   },
+   "new": {
+    "rounds": [
+     18.93,
+     21.88,
+     18.89,
+     18.95,
+     18.89
+    ],
+    "median": 18.93,
+    "min": 18.89,
+    "max": 21.88,
+    "spread_pct": 15.795034337031161
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9942226890756303
+  },
+  "FIELD ARITHMETIC / inv": {
+   "base": {
+    "rounds": [
+     1507.74,
+     1500.98,
+     1501.85,
+     1510.93,
+     1831.97
+    ],
+    "median": 1507.74,
+    "min": 1500.98,
+    "max": 1831.97,
+    "spread_pct": 21.952723944446657
+   },
+   "new": {
+    "rounds": [
+     1531.55,
+     1732.17,
+     1512.53,
+     1518.11,
+     1552.5
+    ],
+    "median": 1531.55,
+    "min": 1512.53,
+    "max": 1732.17,
+    "spread_pct": 14.34102706408541
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0157918474007455
+  },
+  "FIELD ARITHMETIC / add": {
+   "base": {
+    "rounds": [
+     7.3,
+     7.22,
+     7.22,
+     7.65,
+     12.56
+    ],
+    "median": 7.3,
+    "min": 7.22,
+    "max": 12.56,
+    "spread_pct": 73.15068493150686
+   },
+   "new": {
+    "rounds": [
+     9.63,
+     10.32,
+     9.62,
+     9.62,
+     9.76
+    ],
+    "median": 9.63,
+    "min": 9.62,
+    "max": 10.32,
+    "spread_pct": 7.26895119418485
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.319178082191781
+  },
+  "FIELD ARITHMETIC / sub": {
+   "base": {
+    "rounds": [
+     7.63,
+     7.63,
+     7.66,
+     8.16,
+     13.2
+    ],
+    "median": 7.66,
+    "min": 7.63,
+    "max": 13.2,
+    "spread_pct": 72.7154046997389
+   },
+   "new": {
+    "rounds": [
+     7.75,
+     10.12,
+     7.64,
+     7.64,
+     7.63
+    ],
+    "median": 7.64,
+    "min": 7.63,
+    "max": 10.12,
+    "spread_pct": 32.59162303664921
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9973890339425587
+  },
+  "FIELD ARITHMETIC / negate": {
+   "base": {
+    "rounds": [
+     10.49,
+     10.53,
+     10.53,
+     10.58,
+     12.54
+    ],
+    "median": 10.53,
+    "min": 10.49,
+    "max": 12.54,
+    "spread_pct": 19.46818613485279
+   },
+   "new": {
+    "rounds": [
+     10.52,
+     12.0,
+     10.54,
+     10.47,
+     10.53
+    ],
+    "median": 10.53,
+    "min": 10.47,
+    "max": 12.0,
+    "spread_pct": 14.529914529914526
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "FIELD ARITHMETIC / normalize (FE52)": {
+   "base": {
+    "rounds": [
+     5.74,
+     5.74,
+     5.83,
+     5.74,
+     5.74
+    ],
+    "median": 5.74,
+    "min": 5.74,
+    "max": 5.83,
+    "spread_pct": 1.5679442508710777
+   },
+   "new": {
+    "rounds": [
+     5.74,
+     5.93,
+     5.74,
+     5.74,
+     5.74
+    ],
+    "median": 5.74,
+    "min": 5.74,
+    "max": 5.93,
+    "spread_pct": 3.310104529616716
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "FIELD ARITHMETIC / from_bytes (32B)": {
+   "base": {
+    "rounds": [
+     5.11,
+     5.11,
+     5.12,
+     5.11,
+     7.55
+    ],
+    "median": 5.11,
+    "min": 5.11,
+    "max": 7.55,
+    "spread_pct": 47.74951076320938
+   },
+   "new": {
+    "rounds": [
+     5.13,
+     5.51,
+     5.11,
+     5.12,
+     5.12
+    ],
+    "median": 5.12,
+    "min": 5.11,
+    "max": 5.51,
+    "spread_pct": 7.812499999999989
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0019569471624266
+  },
+  "FIELD ARITHMETIC / FE52 add (hot path)": {
+   "base": {
+    "rounds": [
+     0.84,
+     0.83,
+     0.83,
+     0.83,
+     0.83
+    ],
+    "median": 0.83,
+    "min": 0.83,
+    "max": 0.84,
+    "spread_pct": 1.204819277108435
+   },
+   "new": {
+    "rounds": [
+     0.83,
+     0.83,
+     0.84,
+     0.93,
+     0.83
+    ],
+    "median": 0.83,
+    "min": 0.83,
+    "max": 0.93,
+    "spread_pct": 12.048192771084349
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "FIELD ARITHMETIC / FE52 neg (hot path)": {
+   "base": {
+    "rounds": [
+     0.8,
+     0.8,
+     0.8,
+     0.8,
+     0.8
+    ],
+    "median": 0.8,
+    "min": 0.8,
+    "max": 0.8,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     0.8,
+     0.8,
+     0.8,
+     0.8,
+     0.8
+    ],
+    "median": 0.8,
+    "min": 0.8,
+    "max": 0.8,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "SCALAR ARITHMETIC / mul": {
+   "base": {
+    "rounds": [
+     48.2,
+     48.27,
+     48.34,
+     48.41,
+     62.48
+    ],
+    "median": 48.34,
+    "min": 48.2,
+    "max": 62.48,
+    "spread_pct": 29.54075299958625
+   },
+   "new": {
+    "rounds": [
+     48.15,
+     48.2,
+     48.11,
+     48.1,
+     48.22
+    ],
+    "median": 48.15,
+    "min": 48.1,
+    "max": 48.22,
+    "spread_pct": 0.24922118380061772
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9960695076541166
+  },
+  "SCALAR ARITHMETIC / inv (fast/var-time)": {
+   "base": {
+    "rounds": [
+     1603.98,
+     1600.86,
+     1582.37,
+     1587.95,
+     1590.05
+    ],
+    "median": 1590.05,
+    "min": 1582.37,
+    "max": 1603.98,
+    "spread_pct": 1.3590767585925052
+   },
+   "new": {
+    "rounds": [
+     1584.99,
+     1576.17,
+     1584.14,
+     1572.22,
+     1582.9
+    ],
+    "median": 1582.9,
+    "min": 1572.22,
+    "max": 1584.99,
+    "spread_pct": 0.8067471097352948
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9955032860601869
+  },
+  "SCALAR ARITHMETIC / add": {
+   "base": {
+    "rounds": [
+     9.36,
+     9.55,
+     9.25,
+     9.49,
+     17.27
+    ],
+    "median": 9.49,
+    "min": 9.25,
+    "max": 17.27,
+    "spread_pct": 84.5100105374078
+   },
+   "new": {
+    "rounds": [
+     9.3,
+     9.22,
+     9.46,
+     9.44,
+     9.49
+    ],
+    "median": 9.44,
+    "min": 9.22,
+    "max": 9.49,
+    "spread_pct": 2.8601694915254194
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9947312961011591
+  },
+  "SCALAR ARITHMETIC / negate": {
+   "base": {
+    "rounds": [
+     10.47,
+     10.56,
+     10.54,
+     10.56,
+     12.49
+    ],
+    "median": 10.56,
+    "min": 10.47,
+    "max": 12.49,
+    "spread_pct": 19.128787878787872
+   },
+   "new": {
+    "rounds": [
+     10.52,
+     10.52,
+     10.55,
+     10.49,
+     10.56
+    ],
+    "median": 10.52,
+    "min": 10.49,
+    "max": 10.56,
+    "spread_pct": 0.6653992395437289
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9962121212121211
+  },
+  "SCALAR ARITHMETIC / from_bytes (32B)": {
+   "base": {
+    "rounds": [
+     8.73,
+     8.77,
+     8.66,
+     8.89,
+     10.55
+    ],
+    "median": 8.77,
+    "min": 8.66,
+    "max": 10.55,
+    "spread_pct": 21.550741163055882
+   },
+   "new": {
+    "rounds": [
+     9.31,
+     9.26,
+     9.43,
+     9.28,
+     9.47
+    ],
+    "median": 9.31,
+    "min": 9.26,
+    "max": 9.47,
+    "spread_pct": 2.25563909774437
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0615735461801596
+  },
+  "POINT ARITHMETIC [Ultra=cold/no-precomp vs libsecp=warm-precomp] / dbl (Jacobian)": {
+   "base": {
+    "rounds": [
+     111.46,
+     111.67,
+     111.32,
+     112.15,
+     110.37
+    ],
+    "median": 111.46,
+    "min": 110.37,
+    "max": 112.15,
+    "spread_pct": 1.5969854656378981
+   },
+   "new": {
+    "rounds": [
+     111.4,
+     111.91,
+     111.3,
+     111.96,
+     111.79
+    ],
+    "median": 111.79,
+    "min": 111.3,
+    "max": 111.96,
+    "spread_pct": 0.590392700599335
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0029607033913512
+  },
+  "POINT ARITHMETIC [Ultra=cold/no-precomp vs libsecp=warm-precomp] / add (mixed J+A)": {
+   "base": {
+    "rounds": [
+     224.33,
+     225.15,
+     225.11,
+     225.28,
+     224.49
+    ],
+    "median": 225.11,
+    "min": 224.33,
+    "max": 225.28,
+    "spread_pct": 0.4220159033361417
+   },
+   "new": {
+    "rounds": [
+     221.41,
+     221.66,
+     221.77,
+     223.53,
+     222.22
+    ],
+    "median": 221.77,
+    "min": 221.41,
+    "max": 223.53,
+    "spread_pct": 0.9559453487847791
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9851628092932344
+  },
+  "POINT ARITHMETIC [Ultra=cold/no-precomp vs libsecp=warm-precomp] / ecmult (a*P+b*G) [cold]": {
+   "base": {
+    "rounds": [
+     34242.67,
+     34071.34,
+     34044.88,
+     34139.53,
+     33930.89
+    ],
+    "median": 34071.34,
+    "min": 33930.89,
+    "max": 34242.67,
+    "spread_pct": 0.9150799469583493
+   },
+   "new": {
+    "rounds": [
+     34468.08,
+     42958.32,
+     34193.77,
+     34277.89,
+     34318.81
+    ],
+    "median": 34318.81,
+    "min": 34193.77,
+    "max": 42958.32,
+    "spread_pct": 25.538618617603593
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0072632893217583
+  },
+  "POINT ARITHMETIC [Ultra=cold/no-precomp vs libsecp=warm-precomp] / ecmult_gen (k*G) [cold]": {
+   "base": {
+    "rounds": [
+     8871.9,
+     8853.38,
+     8857.53,
+     8899.1,
+     11518.76
+    ],
+    "median": 8871.9,
+    "min": 8853.38,
+    "max": 11518.76,
+    "spread_pct": 30.042944577824382
+   },
+   "new": {
+    "rounds": [
+     8864.89,
+     11126.07,
+     9115.09,
+     8833.15,
+     8860.57
+    ],
+    "median": 8864.89,
+    "min": 8833.15,
+    "max": 11126.07,
+    "spread_pct": 25.865182760304982
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9992098648542026
+  },
+  "POINT ARITHMETIC [Ultra=cold/no-precomp vs libsecp=warm-precomp] / pubkey_create (API) [cold]": {
+   "base": {
+    "rounds": [
+     8871.9,
+     8853.38,
+     8857.53,
+     8899.1,
+     11518.76
+    ],
+    "median": 8871.9,
+    "min": 8853.38,
+    "max": 11518.76,
+    "spread_pct": 30.042944577824382
+   },
+   "new": {
+    "rounds": [
+     8864.89,
+     11126.07,
+     9115.09,
+     8833.15,
+     8860.57
+    ],
+    "median": 8864.89,
+    "min": 8833.15,
+    "max": 11126.07,
+    "spread_pct": 25.865182760304982
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9992098648542026
+  },
+  "POINT ARITHMETIC [Ultra=cold/no-precomp vs libsecp=warm-precomp] / scalar_mul (k*P) [cold]": {
+   "base": {
+    "rounds": [
+     31075.32,
+     31120.3,
+     31172.83,
+     31015.84,
+     30977.85
+    ],
+    "median": 31075.32,
+    "min": 30977.85,
+    "max": 31172.83,
+    "spread_pct": 0.6274432572214967
+   },
+   "new": {
+    "rounds": [
+     31082.7,
+     41194.57,
+     30977.52,
+     30953.61,
+     30953.36
+    ],
+    "median": 30977.52,
+    "min": 30953.36,
+    "max": 41194.57,
+    "spread_pct": 33.06013522063741
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9968528079517766
+  },
+  "POINT ARITHMETIC [Ultra=cold/no-precomp vs libsecp=warm-precomp] / scalar_mul (KPlan) [cold]": {
+   "base": {
+    "rounds": [
+     29299.37,
+     29276.63,
+     29188.35,
+     29333.54,
+     29147.89
+    ],
+    "median": 29276.63,
+    "min": 29147.89,
+    "max": 29333.54,
+    "spread_pct": 0.6341235312944197
+   },
+   "new": {
+    "rounds": [
+     29205.34,
+     33523.47,
+     29239.95,
+     29184.69,
+     29117.23
+    ],
+    "median": 29205.34,
+    "min": 29117.23,
+    "max": 33523.47,
+    "spread_pct": 15.087103933732674
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9975649519770547
+  },
+  "POINT ARITHMETIC [Ultra=cold/no-precomp vs libsecp=warm-precomp] / point_add (combine)": {
+   "base": {
+    "rounds": [
+     1761.46,
+     1765.05,
+     1762.32,
+     1756.55,
+     1757.27
+    ],
+    "median": 1761.46,
+    "min": 1756.55,
+    "max": 1765.05,
+    "spread_pct": 0.4825542447742214
+   },
+   "new": {
+    "rounds": [
+     1778.6,
+     1772.54,
+     1775.3,
+     1775.33,
+     1777.5
+    ],
+    "median": 1775.33,
+    "min": 1772.54,
+    "max": 1778.6,
+    "spread_pct": 0.3413449893822526
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0078741498529629
+  },
+  "SERIALIZATION / compressed (33B)": {
+   "base": {
+    "rounds": [
+     12.43,
+     12.43,
+     12.43,
+     12.43,
+     12.43
+    ],
+    "median": 12.43,
+    "min": 12.43,
+    "max": 12.43,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     12.43,
+     12.43,
+     12.43,
+     12.43,
+     12.43
+    ],
+    "median": 12.43,
+    "min": 12.43,
+    "max": 12.43,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "SERIALIZATION / uncompressed (65B)": {
+   "base": {
+    "rounds": [
+     13.23,
+     13.23,
+     13.23,
+     13.24,
+     13.24
+    ],
+    "median": 13.23,
+    "min": 13.23,
+    "max": 13.24,
+    "spread_pct": 0.07558578987150254
+   },
+   "new": {
+    "rounds": [
+     13.23,
+     13.23,
+     13.23,
+     13.23,
+     13.23
+    ],
+    "median": 13.23,
+    "min": 13.23,
+    "max": 13.23,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "SIGNING (FAST non-CT vs libsecp CT) [diagnostic only \u2014 not production-equivalent] / ECDSA Sign": {
+   "base": {
+    "rounds": [
+     19484.08,
+     19456.8,
+     19435.19,
+     19491.84,
+     19410.32
+    ],
+    "median": 19456.8,
+    "min": 19410.32,
+    "max": 19491.84,
+    "spread_pct": 0.41897948275153385
+   },
+   "new": {
+    "rounds": [
+     19447.28,
+     19432.14,
+     19353.45,
+     19469.36,
+     19462.77
+    ],
+    "median": 19447.28,
+    "min": 19353.45,
+    "max": 19469.36,
+    "spread_pct": 0.5960216544421629
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9995107109082686
+  },
+  "SIGNING (FAST non-CT vs libsecp CT) [diagnostic only \u2014 not production-equivalent] / Schnorr Sign": {
+   "base": {
+    "rounds": [
+     15280.25,
+     15244.73,
+     15274.43,
+     15507.8,
+     15321.98
+    ],
+    "median": 15280.25,
+    "min": 15244.73,
+    "max": 15507.8,
+    "spread_pct": 1.7216341355671516
+   },
+   "new": {
+    "rounds": [
+     15233.43,
+     15274.78,
+     15156.39,
+     15259.88,
+     15242.59
+    ],
+    "median": 15242.59,
+    "min": 15156.39,
+    "max": 15274.78,
+    "spread_pct": 0.7767052712170388
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9975353806384057
+  },
+  "SIGNING (FAST non-CT vs libsecp CT) [diagnostic only \u2014 not production-equivalent] / Schnorr Keypair": {
+   "base": {
+    "rounds": [
+     14716.52,
+     14675.84,
+     14680.58,
+     14667.87,
+     14701.97
+    ],
+    "median": 14680.58,
+    "min": 14667.87,
+    "max": 14716.52,
+    "spread_pct": 0.3313901766823902
+   },
+   "new": {
+    "rounds": [
+     14643.05,
+     14597.81,
+     14613.57,
+     14605.91,
+     14586.86
+    ],
+    "median": 14605.91,
+    "min": 14586.86,
+    "max": 14643.05,
+    "spread_pct": 0.38470728629711326
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9949136886962232
+  },
+  "VERIFICATION / ECDSA Verify [cold-path Point]": {
+   "base": {
+    "rounds": [
+     36826.35,
+     36790.72,
+     36717.8,
+     36672.62,
+     36694.08
+    ],
+    "median": 36717.8,
+    "min": 36672.62,
+    "max": 36826.35,
+    "spread_pct": 0.4186797683956988
+   },
+   "new": {
+    "rounds": [
+     37104.22,
+     37155.4,
+     37079.94,
+     36974.5,
+     37156.79
+    ],
+    "median": 37104.22,
+    "min": 36974.5,
+    "max": 37156.79,
+    "spread_pct": 0.4912918261049575
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0105240510052345
+  },
+  "VERIFICATION / Schnorr Verify (cached pubkey)": {
+   "base": {
+    "rounds": [
+     36767.15,
+     36700.66,
+     36763.22,
+     36787.45,
+     36744.57
+    ],
+    "median": 36763.22,
+    "min": 36700.66,
+    "max": 36787.45,
+    "spread_pct": 0.23607834134222624
+   },
+   "new": {
+    "rounds": [
+     37006.36,
+     37287.2,
+     37006.29,
+     37066.71,
+     37058.44
+    ],
+    "median": 37058.44,
+    "min": 37006.29,
+    "max": 37287.2,
+    "spread_pct": 0.7580189560056931
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0080303085529505
+  },
+  "VERIFICATION / Schnorr Verify (Ultra raw+lift_x vs libsecp cached)": {
+   "base": {
+    "rounds": [
+     37125.49,
+     37108.79,
+     37185.29,
+     37137.86,
+     37306.73
+    ],
+    "median": 37137.86,
+    "min": 37108.79,
+    "max": 37306.73,
+    "spread_pct": 0.5329870918787522
+   },
+   "new": {
+    "rounds": [
+     37491.37,
+     37737.95,
+     37400.79,
+     37545.79,
+     37608.34
+    ],
+    "median": 37545.79,
+    "min": 37400.79,
+    "max": 37737.95,
+    "spread_pct": 0.8979968193504417
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0109842085677527
+  },
+  "CT-vs-CT (fair signing) / ECDSA Sign": {
+   "base": {
+    "rounds": [
+     19403.19,
+     19377.83,
+     19337.0,
+     19380.58,
+     19351.61
+    ],
+    "median": 19377.83,
+    "min": 19337.0,
+    "max": 19403.19,
+    "spread_pct": 0.341575914330958
+   },
+   "new": {
+    "rounds": [
+     19334.27,
+     19361.61,
+     19403.91,
+     19407.59,
+     19438.03
+    ],
+    "median": 19403.91,
+    "min": 19334.27,
+    "max": 19438.03,
+    "spread_pct": 0.5347375863936619
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0013458679325806
+  },
+  "CT-vs-CT (fair signing) / Schnorr Sign": {
+   "base": {
+    "rounds": [
+     15611.65,
+     15328.57,
+     15309.75,
+     15303.24,
+     15239.92
+    ],
+    "median": 15309.75,
+    "min": 15239.92,
+    "max": 15611.65,
+    "spread_pct": 2.42806054964973
+   },
+   "new": {
+    "rounds": [
+     15190.48,
+     15290.56,
+     15205.42,
+     15263.27,
+     15250.0
+    ],
+    "median": 15250.0,
+    "min": 15190.48,
+    "max": 15290.56,
+    "spread_pct": 0.6562622950819668
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9960972582831202
+  },
+  "CT-vs-CT (fair signing) / ECDSA Verify": {
+   "base": {
+    "rounds": [
+     36826.35,
+     36790.72,
+     36717.8,
+     36672.62,
+     36694.08
+    ],
+    "median": 36717.8,
+    "min": 36672.62,
+    "max": 36826.35,
+    "spread_pct": 0.4186797683956988
+   },
+   "new": {
+    "rounds": [
+     37104.22,
+     37155.4,
+     37079.94,
+     36974.5,
+     37156.79
+    ],
+    "median": 37104.22,
+    "min": 36974.5,
+    "max": 37156.79,
+    "spread_pct": 0.4912918261049575
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0105240510052345
+  },
+  "CT-vs-CT (fair signing) / Schnorr Verify (cached pubkey)": {
+   "base": {
+    "rounds": [
+     36767.15,
+     36700.66,
+     36763.22,
+     36787.45,
+     36744.57
+    ],
+    "median": 36763.22,
+    "min": 36700.66,
+    "max": 36787.45,
+    "spread_pct": 0.23607834134222624
+   },
+   "new": {
+    "rounds": [
+     37006.36,
+     37287.2,
+     37006.29,
+     37066.71,
+     37058.44
+    ],
+    "median": 37058.44,
+    "min": 37006.29,
+    "max": 37287.2,
+    "spread_pct": 0.7580189560056931
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0080303085529505
+  },
+  "ETHEREUM / RECOVERY / sign_recoverable": {
+   "base": {
+    "rounds": [
+     21105.8,
+     21001.59,
+     21038.81,
+     21200.6,
+     21063.64
+    ],
+    "median": 21063.64,
+    "min": 21001.59,
+    "max": 21200.6,
+    "spread_pct": 0.9448034622695717
+   },
+   "new": {
+    "rounds": [
+     21007.02,
+     21045.27,
+     21239.55,
+     21048.16,
+     21125.21
+    ],
+    "median": 21048.16,
+    "min": 21007.02,
+    "max": 21239.55,
+    "spread_pct": 1.1047521493565178
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9992650842874261
+  },
+  "ETHEREUM / RECOVERY / ecrecover": {
+   "base": {
+    "rounds": [
+     45603.94,
+     45532.43,
+     45395.28,
+     46025.63,
+     45360.25
+    ],
+    "median": 45532.43,
+    "min": 45360.25,
+    "max": 46025.63,
+    "spread_pct": 1.4613320659582574
+   },
+   "new": {
+    "rounds": [
+     45608.14,
+     46060.93,
+     45589.41,
+     45852.32,
+     45836.39
+    ],
+    "median": 45836.39,
+    "min": 45589.41,
+    "max": 46060.93,
+    "spread_pct": 1.0287023039990646
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0066756814867996
+  },
+  "ETHEREUM / RECOVERY / eth_sign_hash": {
+   "base": {
+    "rounds": [
+     21093.5,
+     21179.67,
+     20990.43,
+     21088.6,
+     21134.8
+    ],
+    "median": 21093.5,
+    "min": 20990.43,
+    "max": 21179.67,
+    "spread_pct": 0.8971484106478202
+   },
+   "new": {
+    "rounds": [
+     21037.48,
+     21326.14,
+     21067.16,
+     21095.19,
+     21118.81
+    ],
+    "median": 21095.19,
+    "min": 21037.48,
+    "max": 21326.14,
+    "spread_pct": 1.3683688082449121
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0000801194680826
+  },
+  "ETHEREUM / RECOVERY / eth_personal_sign": {
+   "base": {
+    "rounds": [
+     21505.69,
+     21576.15,
+     21530.95,
+     21818.78,
+     21525.44
+    ],
+    "median": 21530.95,
+    "min": 21505.69,
+    "max": 21818.78,
+    "spread_pct": 1.4541392739289263
+   },
+   "new": {
+    "rounds": [
+     21817.09,
+     21735.61,
+     21592.62,
+     21623.65,
+     21550.34
+    ],
+    "median": 21623.65,
+    "min": 21550.34,
+    "max": 21817.09,
+    "spread_pct": 1.2336030226164407
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0043054300901726
+  },
+  "ZK Proofs & Commitments / Pedersen commit": {
+   "base": {
+    "rounds": [
+     49401.99,
+     49127.34,
+     49129.81,
+     49191.29,
+     105729.33
+    ],
+    "median": 49191.29,
+    "min": 49127.34,
+    "max": 105729.33,
+    "spread_pct": 115.06506538047691
+   },
+   "new": {
+    "rounds": [
+     49587.51,
+     49308.13,
+     49600.24,
+     92290.93,
+     49581.44
+    ],
+    "median": 49587.51,
+    "min": 49308.13,
+    "max": 92290.93,
+    "spread_pct": 86.68069842587376
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0080546779724622
+  },
+  "ZK Proofs & Commitments / Knowledge prove (sigma)": {
+   "base": {
+    "rounds": [
+     38397.52,
+     38420.9,
+     38382.68,
+     38421.17,
+     81029.04
+    ],
+    "median": 38420.9,
+    "min": 38382.68,
+    "max": 81029.04,
+    "spread_pct": 110.99781629269485
+   },
+   "new": {
+    "rounds": [
+     38690.77,
+     38668.1,
+     38714.37,
+     71533.39,
+     38752.56
+    ],
+    "median": 38714.37,
+    "min": 38668.1,
+    "max": 71533.39,
+    "spread_pct": 84.89170816934384
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.007638290617867
+  },
+  "ZK Proofs & Commitments / Knowledge verify": {
+   "base": {
+    "rounds": [
+     63289.4,
+     41200.22,
+     41280.64,
+     41300.85,
+     80766.12
+    ],
+    "median": 41300.85,
+    "min": 41200.22,
+    "max": 80766.12,
+    "spread_pct": 95.7992389987131
+   },
+   "new": {
+    "rounds": [
+     41183.88,
+     41174.17,
+     41163.19,
+     70145.99,
+     41149.42
+    ],
+    "median": 41174.17,
+    "min": 41149.42,
+    "max": 70145.99,
+    "spread_pct": 70.42417612789768
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.996932750778737
+  },
+  "ZK Proofs & Commitments / DLEQ prove": {
+   "base": {
+    "rounds": [
+     136506.22,
+     72537.5,
+     72489.02,
+     72620.6,
+     101338.44
+    ],
+    "median": 72620.6,
+    "min": 72489.02,
+    "max": 136506.22,
+    "spread_pct": 88.15294833697325
+   },
+   "new": {
+    "rounds": [
+     73113.4,
+     73170.15,
+     73213.03,
+     73030.73,
+     73235.87
+    ],
+    "median": 73170.15,
+    "min": 73030.73,
+    "max": 73235.87,
+    "spread_pct": 0.2803602288638187
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0075674120015532
+  },
+  "ZK Proofs & Commitments / DLEQ verify": {
+   "base": {
+    "rounds": [
+     187937.11,
+     105489.87,
+     105520.86,
+     105707.38,
+     149878.08
+    ],
+    "median": 105707.38,
+    "min": 105489.87,
+    "max": 187937.11,
+    "spread_pct": 77.99572745062832
+   },
+   "new": {
+    "rounds": [
+     105274.9,
+     105590.58,
+     105678.93,
+     105451.75,
+     105544.91
+    ],
+    "median": 105544.91,
+    "min": 105274.9,
+    "max": 105678.93,
+    "spread_pct": 0.38280386993555526
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9984630212195212
+  },
+  "ZK Proofs & Commitments / Bulletproof range_prove (64b)": {
+   "base": {
+    "rounds": [
+     23293475.5,
+     23255194.31,
+     23288623.8,
+     23246182.57,
+     23449251.11
+    ],
+    "median": 23288623.8,
+    "min": 23246182.57,
+    "max": 23449251.11,
+    "spread_pct": 0.8719645340314145
+   },
+   "new": {
+    "rounds": [
+     23233243.87,
+     23235355.26,
+     23280476.89,
+     23295050.4,
+     47955583.65
+    ],
+    "median": 23280476.89,
+    "min": 23233243.87,
+    "max": 47955583.65,
+    "spread_pct": 106.19344224266875
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9996501764093076
+  },
+  "ZK Proofs & Commitments / Bulletproof range_verify (64b)": {
+   "base": {
+    "rounds": [
+     2096347.54,
+     2083250.37,
+     2081964.44,
+     2083069.35,
+     2078385.69
+    ],
+    "median": 2083069.35,
+    "min": 2078385.69,
+    "max": 2096347.54,
+    "spread_pct": 0.862278060977667
+   },
+   "new": {
+    "rounds": [
+     2095257.35,
+     2085231.1,
+     2090381.84,
+     2081272.98,
+     4421099.81
+    ],
+    "median": 2090381.84,
+    "min": 2081272.98,
+    "max": 4421099.81,
+    "spread_pct": 111.93298684607782
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.003510440014875
+  },
+  "ADAPTOR SIGNATURES / Schnorr adaptor sign": {
+   "base": {
+    "rounds": [
+     34159.35,
+     34099.34,
+     33988.82,
+     33972.95,
+     34060.1
+    ],
+    "median": 34060.1,
+    "min": 33972.95,
+    "max": 34159.35,
+    "spread_pct": 0.5472679175927301
+   },
+   "new": {
+    "rounds": [
+     33835.41,
+     33924.02,
+     34011.26,
+     33969.46,
+     62468.05
+    ],
+    "median": 33969.46,
+    "min": 33835.41,
+    "max": 62468.05,
+    "spread_pct": 84.28935873575854
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9973388216711049
+  },
+  "ADAPTOR SIGNATURES / Schnorr adaptor verify": {
+   "base": {
+    "rounds": [
+     50672.73,
+     50657.36,
+     51623.52,
+     50444.87,
+     50535.37
+    ],
+    "median": 50657.36,
+    "min": 50444.87,
+    "max": 51623.52,
+    "spread_pct": 2.326710274676758
+   },
+   "new": {
+    "rounds": [
+     50560.33,
+     50372.4,
+     50547.28,
+     50459.63,
+     67982.81
+    ],
+    "median": 50547.28,
+    "min": 50372.4,
+    "max": 67982.81,
+    "spread_pct": 34.83948097701794
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9978269692696184
+  },
+  "ADAPTOR SIGNATURES / Schnorr adaptor adapt": {
+   "base": {
+    "rounds": [
+     15361.87,
+     15067.3,
+     26677.47,
+     15015.79,
+     15069.15
+    ],
+    "median": 15069.15,
+    "min": 15015.79,
+    "max": 26677.47,
+    "spread_pct": 77.38777568741436
+   },
+   "new": {
+    "rounds": [
+     15013.34,
+     14971.9,
+     15031.84,
+     14999.71,
+     21560.4
+    ],
+    "median": 15013.34,
+    "min": 14971.9,
+    "max": 21560.4,
+    "spread_pct": 43.8843055575908
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9962964068975357
+  },
+  "ADAPTOR SIGNATURES / Schnorr adaptor extract secret": {
+   "base": {
+    "rounds": [
+     53.69,
+     50.14,
+     74.0,
+     45.11,
+     51.47
+    ],
+    "median": 51.47,
+    "min": 45.11,
+    "max": 74.0,
+    "spread_pct": 56.12978434039246
+   },
+   "new": {
+    "rounds": [
+     49.59,
+     45.73,
+     48.62,
+     49.85,
+     92.59
+    ],
+    "median": 49.59,
+    "min": 45.73,
+    "max": 92.59,
+    "spread_pct": 94.49485783424079
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9634738682727804
+  },
+  "ADAPTOR SIGNATURES / ECDSA adaptor sign": {
+   "base": {
+    "rounds": [
+     117293.55,
+     113572.54,
+     162424.01,
+     113335.7,
+     113757.63
+    ],
+    "median": 113757.63,
+    "min": 113335.7,
+    "max": 162424.01,
+    "spread_pct": 43.15166376092752
+   },
+   "new": {
+    "rounds": [
+     114499.42,
+     113748.79,
+     113986.68,
+     113619.55,
+     205611.98
+    ],
+    "median": 113986.68,
+    "min": 113619.55,
+    "max": 205611.98,
+    "spread_pct": 80.70454372388073
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0020134913148242
+  },
+  "ADAPTOR SIGNATURES / ECDSA adaptor verify": {
+   "base": {
+    "rounds": [
+     226629.1,
+     179408.67,
+     179284.0,
+     179374.07,
+     180455.48
+    ],
+    "median": 179408.67,
+    "min": 179284.0,
+    "max": 226629.1,
+    "spread_pct": 26.389527328863206
+   },
+   "new": {
+    "rounds": [
+     179204.56,
+     179941.83,
+     179456.46,
+     179454.28,
+     335855.5
+    ],
+    "median": 179456.46,
+    "min": 179204.56,
+    "max": 335855.5,
+    "spread_pct": 87.2918924178043
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.000266375086555
+  },
+  "FROST THRESHOLD (2-of-3) / keygen_begin (DKG round 1)": {
+   "base": {
+    "rounds": [
+     27298.87,
+     27229.85,
+     27198.86,
+     27283.79,
+     27325.14
+    ],
+    "median": 27283.79,
+    "min": 27198.86,
+    "max": 27325.14,
+    "spread_pct": 0.4628389237712167
+   },
+   "new": {
+    "rounds": [
+     27348.72,
+     27402.0,
+     27442.47,
+     27356.41,
+     50159.64
+    ],
+    "median": 27402.0,
+    "min": 27348.72,
+    "max": 50159.64,
+    "spread_pct": 83.24545653601926
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0043326092159484
+  },
+  "FROST THRESHOLD (2-of-3) / nonce_gen": {
+   "base": {
+    "rounds": [
+     26699.21,
+     26628.06,
+     26603.63,
+     26633.12,
+     26771.53
+    ],
+    "median": 26633.12,
+    "min": 26603.63,
+    "max": 26771.53,
+    "spread_pct": 0.630418065926928
+   },
+   "new": {
+    "rounds": [
+     26812.69,
+     26688.12,
+     26833.49,
+     26663.38,
+     49134.65
+    ],
+    "median": 26812.69,
+    "min": 26663.38,
+    "max": 49134.65,
+    "spread_pct": 83.8083385143378
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0067423568849612
+  },
+  "FROST THRESHOLD (2-of-3) / partial_sign": {
+   "base": {
+    "rounds": [
+     102771.57,
+     80934.93,
+     80764.51,
+     80520.29,
+     81097.65
+    ],
+    "median": 80934.93,
+    "min": 80520.29,
+    "max": 102771.57,
+    "spread_pct": 27.492801933602728
+   },
+   "new": {
+    "rounds": [
+     80535.68,
+     80382.6,
+     80775.05,
+     80431.18,
+     87597.05
+    ],
+    "median": 80535.68,
+    "min": 80382.6,
+    "max": 87597.05,
+    "spread_pct": 8.958079201665644
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9950670248309351
+  },
+  "FROST THRESHOLD (2-of-3) / partial_verify": {
+   "base": {
+    "rounds": [
+     151545.14,
+     165778.21,
+     151764.69,
+     151441.74,
+     152566.66
+    ],
+    "median": 151764.69,
+    "min": 151441.74,
+    "max": 165778.21,
+    "spread_pct": 9.446512228898566
+   },
+   "new": {
+    "rounds": [
+     152152.38,
+     151621.39,
+     152055.38,
+     151143.79,
+     151809.85
+    ],
+    "median": 151809.85,
+    "min": 151143.79,
+    "max": 152152.38,
+    "spread_pct": 0.6643771797416284
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0002975659226134
+  },
+  "FROST THRESHOLD (2-of-3) / aggregate \u2192 Schnorr sig": {
+   "base": {
+    "rounds": [
+     73878.13,
+     74226.33,
+     74002.76,
+     73888.24,
+     73843.63
+    ],
+    "median": 73888.24,
+    "min": 73843.63,
+    "max": 74226.33,
+    "spread_pct": 0.5179443981883951
+   },
+   "new": {
+    "rounds": [
+     73810.93,
+     73985.52,
+     91341.91,
+     73994.41,
+     73865.45
+    ],
+    "median": 73985.52,
+    "min": 73810.93,
+    "max": 91341.91,
+    "spread_pct": 23.695150078015278
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0013165829907438
+  },
+  "MUSIG2 MULTI-SIGNATURES (2-of-2) / key_agg (BIP-327)": {
+   "base": {
+    "rounds": [
+     49147.31,
+     49340.73,
+     49280.35,
+     49210.88,
+     49122.48
+    ],
+    "median": 49210.88,
+    "min": 49122.48,
+    "max": 49340.73,
+    "spread_pct": 0.44349948629246216
+   },
+   "new": {
+    "rounds": [
+     49328.52,
+     49119.75,
+     55086.62,
+     49293.13,
+     49259.32
+    ],
+    "median": 49293.13,
+    "min": 49119.75,
+    "max": 55086.62,
+    "spread_pct": 12.104871409058429
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0016713783618583
+  },
+  "MUSIG2 MULTI-SIGNATURES (2-of-2) / nonce_gen": {
+   "base": {
+    "rounds": [
+     31292.99,
+     31418.6,
+     31264.83,
+     31342.97,
+     31314.87
+    ],
+    "median": 31314.87,
+    "min": 31264.83,
+    "max": 31418.6,
+    "spread_pct": 0.4910446698325645
+   },
+   "new": {
+    "rounds": [
+     31309.77,
+     31166.44,
+     53482.57,
+     31374.11,
+     31282.77
+    ],
+    "median": 31309.77,
+    "min": 31166.44,
+    "max": 53482.57,
+    "spread_pct": 71.27529202546043
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9998371380752978
+  },
+  "MUSIG2 MULTI-SIGNATURES (2-of-2) / partial_sign": {
+   "base": {
+    "rounds": [
+     14734.86,
+     26253.9,
+     14687.53,
+     14819.88,
+     14785.3
+    ],
+    "median": 14785.3,
+    "min": 14687.53,
+    "max": 26253.9,
+    "spread_pct": 78.22884892426939
+   },
+   "new": {
+    "rounds": [
+     14699.76,
+     14687.18,
+     20903.05,
+     14722.47,
+     27466.08
+    ],
+    "median": 14722.47,
+    "min": 14687.18,
+    "max": 27466.08,
+    "spread_pct": 86.79861463463673
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9957505089514586
+  },
+  "MUSIG2 MULTI-SIGNATURES (2-of-2) / partial_verify": {
+   "base": {
+    "rounds": [
+     91364.56,
+     148869.65,
+     91610.34,
+     90984.95,
+     93825.21
+    ],
+    "median": 91610.34,
+    "min": 90984.95,
+    "max": 148869.65,
+    "spread_pct": 63.18577138781496
+   },
+   "new": {
+    "rounds": [
+     94965.55,
+     90605.61,
+     96028.74,
+     93421.91,
+     146993.18
+    ],
+    "median": 94965.55,
+    "min": 90605.61,
+    "max": 146993.18,
+    "spread_pct": 59.37686876978019
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.036624795847281
+  },
+  "MUSIG2 MULTI-SIGNATURES (2-of-2) / sig_agg \u2192 Schnorr sig": {
+   "base": {
+    "rounds": [
+     1762.11,
+     1958.7,
+     1577.94,
+     1564.02,
+     1759.55
+    ],
+    "median": 1759.55,
+    "min": 1564.02,
+    "max": 1958.7,
+    "spread_pct": 22.43073513114149
+   },
+   "new": {
+    "rounds": [
+     1650.05,
+     1566.31,
+     1672.09,
+     1636.9,
+     1975.81
+    ],
+    "median": 1650.05,
+    "min": 1566.31,
+    "max": 1975.81,
+    "spread_pct": 24.817429774855306
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9377681793640419
+  },
+  "ECIES ENCRYPTION / ECIES encrypt (256B payload)": {
+   "base": {
+    "rounds": [
+     77362.2,
+     127668.8,
+     77890.48,
+     77849.4,
+     78004.87
+    ],
+    "median": 77890.48,
+    "min": 77362.2,
+    "max": 127668.8,
+    "spread_pct": 64.586326852781
+   },
+   "new": {
+    "rounds": [
+     84320.78,
+     78739.98,
+     78086.05,
+     78202.33,
+     78285.89
+    ],
+    "median": 78285.89,
+    "min": 78086.05,
+    "max": 84320.78,
+    "spread_pct": 7.964053292362131
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0050764868826074
+  },
+  "ECIES ENCRYPTION / ECIES decrypt (256B payload)": {
+   "base": {
+    "rounds": [
+     66842.53,
+     66949.36,
+     66868.83,
+     67042.33,
+     67090.68
+    ],
+    "median": 66949.36,
+    "min": 66842.53,
+    "max": 67090.68,
+    "spread_pct": 0.37065328182374585
+   },
+   "new": {
+    "rounds": [
+     72529.41,
+     107211.26,
+     67400.78,
+     67458.02,
+     67467.88
+    ],
+    "median": 67467.88,
+    "min": 67400.78,
+    "max": 107211.26,
+    "spread_pct": 59.006567273197255
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0077449582789142
+  },
+  "MESSAGE SIGNING & HASHING / Bitcoin message sign": {
+   "base": {
+    "rounds": [
+     21139.84,
+     21296.8,
+     21340.87,
+     21326.66,
+     21311.83
+    ],
+    "median": 21311.83,
+    "min": 21139.84,
+    "max": 21340.87,
+    "spread_pct": 0.9432789206745682
+   },
+   "new": {
+    "rounds": [
+     21282.01,
+     21897.33,
+     21318.19,
+     21510.4,
+     21318.64
+    ],
+    "median": 21318.64,
+    "min": 21282.01,
+    "max": 21897.33,
+    "spread_pct": 2.8863004394276714
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0003195408371781
+  },
+  "MESSAGE SIGNING & HASHING / Bitcoin message verify": {
+   "base": {
+    "rounds": [
+     34087.41,
+     34155.17,
+     34122.72,
+     34093.29,
+     34153.07
+    ],
+    "median": 34122.72,
+    "min": 34087.41,
+    "max": 34155.17,
+    "spread_pct": 0.19857737015101595
+   },
+   "new": {
+    "rounds": [
+     34363.85,
+     34853.35,
+     34606.57,
+     34319.97,
+     34453.57
+    ],
+    "median": 34453.57,
+    "min": 34319.97,
+    "max": 34853.35,
+    "spread_pct": 1.5481124307292318
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0096958859082745
+  },
+  "MESSAGE SIGNING & HASHING / SHA-256 (32B input)": {
+   "base": {
+    "rounds": [
+     72.4,
+     72.46,
+     72.42,
+     72.44,
+     72.45
+    ],
+    "median": 72.44,
+    "min": 72.4,
+    "max": 72.46,
+    "spread_pct": 0.0828271673108615
+   },
+   "new": {
+    "rounds": [
+     104.16,
+     104.41,
+     104.25,
+     104.11,
+     104.23
+    ],
+    "median": 104.23,
+    "min": 104.11,
+    "max": 104.41,
+    "spread_pct": 0.2878250023985389
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.438845941468802
+  },
+  "MESSAGE SIGNING & HASHING / SHA-512 (32B input)": {
+   "base": {
+    "rounds": [
+     430.2,
+     433.45,
+     436.34,
+     434.64,
+     434.05
+    ],
+    "median": 434.05,
+    "min": 430.2,
+    "max": 436.34,
+    "spread_pct": 1.4145835733210428
+   },
+   "new": {
+    "rounds": [
+     427.62,
+     428.81,
+     428.36,
+     427.55,
+     427.62
+    ],
+    "median": 427.62,
+    "min": 427.55,
+    "max": 428.81,
+    "spread_pct": 0.29465413217342284
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9851860384748301
+  },
+  "MESSAGE SIGNING & HASHING / Multi-scalar mul (4 points)": {
+   "base": {
+    "rounds": [
+     87287.65,
+     87990.89,
+     87615.72,
+     87681.74,
+     89326.42
+    ],
+    "median": 87681.74,
+    "min": 87287.65,
+    "max": 89326.42,
+    "spread_pct": 2.325193364091547
+   },
+   "new": {
+    "rounds": [
+     87290.82,
+     87256.29,
+     87381.51,
+     87350.93,
+     87200.58
+    ],
+    "median": 87290.82,
+    "min": 87200.58,
+    "max": 87381.51,
+    "spread_pct": 0.2072726547877463
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.995541603074939
+  },
+  "MESSAGE SIGNING & HASHING / Multi-scalar mul (64 points)": {
+   "base": {
+    "rounds": [
+     1078289.01,
+     1089049.5,
+     2328782.1,
+     1088157.53,
+     1122338.05
+    ],
+    "median": 1089049.5,
+    "min": 1078289.01,
+    "max": 2328782.1,
+    "spread_pct": 114.8242655636865
+   },
+   "new": {
+    "rounds": [
+     1074484.08,
+     1074202.51,
+     1070088.95,
+     1083181.92,
+     1074417.21
+    ],
+    "median": 1074417.21,
+    "min": 1070088.95,
+    "max": 1083181.92,
+    "spread_pct": 1.2186113437255879
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9865641644388065
+  },
+  "BIP-39 MNEMONIC / bip39_generate (12 words)": {
+   "base": {
+    "rounds": [
+     862.47,
+     870.25,
+     1428.01,
+     873.91,
+     864.3
+    ],
+    "median": 870.25,
+    "min": 862.47,
+    "max": 1428.01,
+    "spread_pct": 64.98592358517666
+   },
+   "new": {
+    "rounds": [
+     912.35,
+     915.75,
+     921.12,
+     916.65,
+     898.94
+    ],
+    "median": 915.75,
+    "min": 898.94,
+    "max": 921.12,
+    "spread_pct": 2.4220584220584165
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0522838264866419
+  },
+  "BIP-39 MNEMONIC / bip39_generate (24 words)": {
+   "base": {
+    "rounds": [
+     1130.02,
+     1145.61,
+     1913.53,
+     1151.45,
+     1138.59
+    ],
+    "median": 1145.61,
+    "min": 1130.02,
+    "max": 1913.53,
+    "spread_pct": 68.3923848430094
+   },
+   "new": {
+    "rounds": [
+     1235.02,
+     1220.09,
+     1228.98,
+     1222.08,
+     1208.42
+    ],
+    "median": 1222.08,
+    "min": 1208.42,
+    "max": 1235.02,
+    "spread_pct": 2.176616915422878
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.06675046481787
+  },
+  "BIP-39 MNEMONIC / bip39_validate (12 words)": {
+   "base": {
+    "rounds": [
+     1504.36,
+     1465.43,
+     2609.14,
+     1461.42,
+     1473.2
+    ],
+    "median": 1473.2,
+    "min": 1461.42,
+    "max": 2609.14,
+    "spread_pct": 77.90659788216126
+   },
+   "new": {
+    "rounds": [
+     1537.05,
+     1520.08,
+     1541.83,
+     1620.38,
+     1489.49
+    ],
+    "median": 1537.05,
+    "min": 1489.49,
+    "max": 1620.38,
+    "spread_pct": 8.515663120913445
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.043341026337225
+  },
+  "BIP-39 MNEMONIC / bip39_to_seed (PBKDF2, 12 words)": {
+   "base": {
+    "rounds": [
+     3602023.59,
+     3631295.68,
+     3610754.81,
+     3603869.73,
+     3641307.31
+    ],
+    "median": 3610754.81,
+    "min": 3602023.59,
+    "max": 3641307.31,
+    "spread_pct": 1.0879642087910202
+   },
+   "new": {
+    "rounds": [
+     3599469.55,
+     3705741.24,
+     3607275.15,
+     3651007.39,
+     3597873.94
+    ],
+    "median": 3607275.15,
+    "min": 3597873.94,
+    "max": 3705741.24,
+    "spread_pct": 2.9902709251330686
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9990363067604693
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-143 sighash (1-in/1-out)": {
+   "base": {
+    "rounds": [
+     339.09,
+     339.01,
+     341.13,
+     339.07,
+     339.01
+    ],
+    "median": 339.07,
+    "min": 339.01,
+    "max": 341.13,
+    "spread_pct": 0.6252396260359231
+   },
+   "new": {
+    "rounds": [
+     372.08,
+     387.53,
+     371.16,
+     378.47,
+     378.94
+    ],
+    "median": 378.47,
+    "min": 371.16,
+    "max": 387.53,
+    "spread_pct": 4.325309799984132
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.1162001946500724
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-143 p2wpkh_script_code": {
+   "base": {
+    "rounds": [
+     2.0,
+     2.0,
+     2.01,
+     2.01,
+     2.01
+    ],
+    "median": 2.01,
+    "min": 2.0,
+    "max": 2.01,
+    "spread_pct": 0.4975124378109347
+   },
+   "new": {
+    "rounds": [
+     2.0,
+     2.64,
+     2.0,
+     2.64,
+     2.63
+    ],
+    "median": 2.63,
+    "min": 2.0,
+    "max": 2.64,
+    "spread_pct": 24.33460076045628
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.3084577114427862
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-144 compute_wtxid": {
+   "base": {
+    "rounds": [
+     417.96,
+     416.07,
+     430.02,
+     417.64,
+     418.25
+    ],
+    "median": 417.96,
+    "min": 416.07,
+    "max": 430.02,
+    "spread_pct": 3.3376399655469395
+   },
+   "new": {
+    "rounds": [
+     447.13,
+     454.41,
+     452.37,
+     446.59,
+     461.36
+    ],
+    "median": 452.37,
+    "min": 446.59,
+    "max": 461.36,
+    "spread_pct": 3.2650264164290377
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0823284524834913
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-144 witness_commitment": {
+   "base": {
+    "rounds": [
+     250.31,
+     249.93,
+     251.59,
+     250.45,
+     251.71
+    ],
+    "median": 250.45,
+    "min": 249.93,
+    "max": 251.71,
+    "spread_pct": 0.7107207027350774
+   },
+   "new": {
+    "rounds": [
+     259.78,
+     260.68,
+     260.52,
+     261.42,
+     260.76
+    ],
+    "median": 260.68,
+    "min": 259.78,
+    "max": 261.42,
+    "spread_pct": 0.6291238299831377
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0408464763425833
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-144 tx_weight": {
+   "base": {
+    "rounds": [
+     90.97,
+     93.76,
+     99.92,
+     94.87,
+     95.56
+    ],
+    "median": 94.87,
+    "min": 90.97,
+    "max": 99.92,
+    "spread_pct": 9.433962264150946
+   },
+   "new": {
+    "rounds": [
+     197.26,
+     158.26,
+     201.11,
+     185.99,
+     208.13
+    ],
+    "median": 197.26,
+    "min": 158.26,
+    "max": 208.13,
+    "spread_pct": 25.28135455743689
+   },
+   "verdict": "regression",
+   "new_over_base_median": 2.0792663644987877
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-141 parse_witness_program": {
+   "base": {
+    "rounds": [
+     18.11,
+     18.43,
+     20.58,
+     18.46,
+     17.65
+    ],
+    "median": 18.43,
+    "min": 17.65,
+    "max": 20.58,
+    "spread_pct": 15.897992403689635
+   },
+   "new": {
+    "rounds": [
+     19.13,
+     19.25,
+     20.05,
+     21.99,
+     18.64
+    ],
+    "median": 19.25,
+    "min": 18.64,
+    "max": 21.99,
+    "spread_pct": 17.40259740259739
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0444926749864352
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-141 p2wpkh_scriptpubkey": {
+   "base": {
+    "rounds": [
+     1.2,
+     1.7,
+     1.21,
+     1.2,
+     1.23
+    ],
+    "median": 1.21,
+    "min": 1.2,
+    "max": 1.7,
+    "spread_pct": 41.32231404958678
+   },
+   "new": {
+    "rounds": [
+     1.21,
+     1.2,
+     1.21,
+     1.2,
+     1.2
+    ],
+    "median": 1.2,
+    "min": 1.2,
+    "max": 1.21,
+    "spread_pct": 0.8333333333333341
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9917355371900827
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-141 p2wsh_scriptpubkey": {
+   "base": {
+    "rounds": [
+     1.59,
+     1.59,
+     1.59,
+     1.59,
+     1.59
+    ],
+    "median": 1.59,
+    "min": 1.59,
+    "max": 1.59,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     1.59,
+     1.59,
+     1.59,
+     1.59,
+     1.59
+    ],
+    "median": 1.59,
+    "min": 1.59,
+    "max": 1.59,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-341 keypath_sighash": {
+   "base": {
+    "rounds": [
+     835.98,
+     831.58,
+     850.84,
+     830.33,
+     829.89
+    ],
+    "median": 831.58,
+    "min": 829.89,
+    "max": 850.84,
+    "spread_pct": 2.519300608480248
+   },
+   "new": {
+    "rounds": [
+     876.81,
+     878.5,
+     877.66,
+     876.18,
+     876.34
+    ],
+    "median": 876.81,
+    "min": 876.18,
+    "max": 878.5,
+    "spread_pct": 0.26459552240508777
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0543904374804587
+  },
+  "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-342 tapscript_sighash": {
+   "base": {
+    "rounds": [
+     924.75,
+     915.14,
+     929.36,
+     921.25,
+     914.68
+    ],
+    "median": 921.25,
+    "min": 914.68,
+    "max": 929.36,
+    "spread_pct": 1.5934871099050272
+   },
+   "new": {
+    "rounds": [
+     950.62,
+     950.63,
+     962.3,
+     950.17,
+     950.36
+    ],
+    "median": 950.62,
+    "min": 950.17,
+    "max": 962.3,
+    "spread_pct": 1.2760093412720115
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0318805970149254
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / ElligatorSwift create": {
+   "base": {
+    "rounds": [
+     46366.52,
+     44911.2,
+     48720.85,
+     44750.96,
+     44657.31
+    ],
+    "median": 44911.2,
+    "min": 44657.31,
+    "max": 48720.85,
+    "spread_pct": 9.047943497390408
+   },
+   "new": {
+    "rounds": [
+     45515.36,
+     45021.51,
+     46542.09,
+     45829.33,
+     44808.45
+    ],
+    "median": 45515.36,
+    "min": 44808.45,
+    "max": 46542.09,
+    "spread_pct": 3.808911980483071
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.013452323696539
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / ElligatorSwift XDH (ECDH)": {
+   "base": {
+    "rounds": [
+     44238.74,
+     40535.32,
+     44260.0,
+     44013.09,
+     44807.5
+    ],
+    "median": 44238.74,
+    "min": 40535.32,
+    "max": 44807.5,
+    "spread_pct": 9.657101445475167
+   },
+   "new": {
+    "rounds": [
+     40783.58,
+     44678.71,
+     44621.83,
+     40981.08,
+     40691.64
+    ],
+    "median": 40981.08,
+    "min": 40691.64,
+    "max": 44678.71,
+    "spread_pct": 9.72905057650994
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9263618267608889
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / HKDF-SHA256 extract": {
+   "base": {
+    "rounds": [
+     321.03,
+     320.48,
+     321.02,
+     321.21,
+     320.31
+    ],
+    "median": 321.02,
+    "min": 320.31,
+    "max": 321.21,
+    "spread_pct": 0.28035636408945774
+   },
+   "new": {
+    "rounds": [
+     327.63,
+     326.31,
+     326.07,
+     326.53,
+     326.18
+    ],
+    "median": 326.31,
+    "min": 326.07,
+    "max": 327.63,
+    "spread_pct": 0.47807299806932124
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0164787240670363
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / HKDF-SHA256 expand": {
+   "base": {
+    "rounds": [
+     262.74,
+     262.61,
+     262.65,
+     262.63,
+     262.73
+    ],
+    "median": 262.65,
+    "min": 262.61,
+    "max": 262.74,
+    "spread_pct": 0.04949552636588444
+   },
+   "new": {
+    "rounds": [
+     265.26,
+     265.47,
+     265.95,
+     265.12,
+     265.54
+    ],
+    "median": 265.47,
+    "min": 265.12,
+    "max": 265.95,
+    "spread_pct": 0.3126530304742472
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0107367218732155
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / AEAD encrypt (256B)": {
+   "base": {
+    "rounds": [
+     902.48,
+     901.37,
+     902.62,
+     901.9,
+     901.54
+    ],
+    "median": 901.9,
+    "min": 901.37,
+    "max": 902.62,
+    "spread_pct": 0.13859629670695198
+   },
+   "new": {
+    "rounds": [
+     896.74,
+     892.74,
+     897.13,
+     900.09,
+     895.17
+    ],
+    "median": 896.74,
+    "min": 892.74,
+    "max": 900.09,
+    "spread_pct": 0.8196355688382388
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.994278744871937
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / AEAD decrypt (256B)": {
+   "base": {
+    "rounds": [
+     929.12,
+     923.83,
+     927.44,
+     924.75,
+     928.08
+    ],
+    "median": 927.44,
+    "min": 923.83,
+    "max": 929.12,
+    "spread_pct": 0.5703873026826494
+   },
+   "new": {
+    "rounds": [
+     917.45,
+     916.88,
+     919.89,
+     920.93,
+     921.32
+    ],
+    "median": 919.89,
+    "min": 916.88,
+    "max": 921.32,
+    "spread_pct": 0.4826664057659127
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.991859311653584
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / Session handshake (full)": {
+   "base": {
+    "rounds": [
+     182439.85,
+     180945.89,
+     182741.36,
+     185192.21,
+     182246.92
+    ],
+    "median": 182439.85,
+    "min": 180945.89,
+    "max": 185192.21,
+    "spread_pct": 2.3275178092943936
+   },
+   "new": {
+    "rounds": [
+     181786.55,
+     183521.61,
+     182457.06,
+     182422.58,
+     182238.69
+    ],
+    "median": 182422.58,
+    "min": 181786.55,
+    "max": 183521.61,
+    "spread_pct": 0.951121292111973
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9999053386636745
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / Session encrypt (256B)": {
+   "base": {
+    "rounds": [
+     1069.6,
+     1066.52,
+     1062.48,
+     1062.25,
+     1067.65
+    ],
+    "median": 1066.52,
+    "min": 1062.25,
+    "max": 1069.6,
+    "spread_pct": 0.689157259123121
+   },
+   "new": {
+    "rounds": [
+     1064.88,
+     1052.6,
+     1060.38,
+     1065.45,
+     1083.82
+    ],
+    "median": 1064.88,
+    "min": 1052.6,
+    "max": 1083.82,
+    "spread_pct": 2.931785741116372
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9984622885646778
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / Session decrypt (256B)": {
+   "base": {
+    "rounds": [
+     2172.35,
+     2169.5,
+     2172.06,
+     2179.44,
+     2167.95
+    ],
+    "median": 2172.06,
+    "min": 2167.95,
+    "max": 2179.44,
+    "spread_pct": 0.5289909118532746
+   },
+   "new": {
+    "rounds": [
+     2154.89,
+     2150.58,
+     2151.68,
+     2147.83,
+     2164.89
+    ],
+    "median": 2151.68,
+    "min": 2147.83,
+    "max": 2164.89,
+    "spread_pct": 0.7928688280785223
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9906172021030726
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / Session encrypt (1KB)": {
+   "base": {
+    "rounds": [
+     3183.2,
+     3173.13,
+     3177.03,
+     3171.37,
+     3175.94
+    ],
+    "median": 3175.94,
+    "min": 3171.37,
+    "max": 3183.2,
+    "spread_pct": 0.3724881452420363
+   },
+   "new": {
+    "rounds": [
+     3148.75,
+     3122.31,
+     3122.99,
+     3119.4,
+     3127.28
+    ],
+    "median": 3122.99,
+    "min": 3119.4,
+    "max": 3148.75,
+    "spread_pct": 0.939804482242976
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9833277706757684
+  },
+  "BIP-324 ENCRYPTED TRANSPORT / Session roundtrip (256B)": {
+   "base": {
+    "rounds": [
+     2170.99,
+     2169.81,
+     2171.14,
+     2178.4,
+     2168.09
+    ],
+    "median": 2170.99,
+    "min": 2168.09,
+    "max": 2178.4,
+    "spread_pct": 0.4748985485884295
+   },
+   "new": {
+    "rounds": [
+     2151.4,
+     2149.69,
+     2153.83,
+     2150.83,
+     2165.65
+    ],
+    "median": 2151.4,
+    "min": 2149.69,
+    "max": 2165.65,
+    "spread_pct": 0.7418425211490209
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9909764669574711
+  },
+  "ConnectBlock / DerParse_ultra_ms": {
+   "base": {
+    "rounds": [
+     75.44,
+     75.49,
+     75.57,
+     75.36,
+     75.53
+    ],
+    "median": 75.49,
+    "min": 75.36,
+    "max": 75.57,
+    "spread_pct": 0.2781825407338638
+   },
+   "new": {
+    "rounds": [
+     76.55,
+     84.33,
+     76.09,
+     76.05,
+     76.53
+    ],
+    "median": 76.53,
+    "min": 76.05,
+    "max": 84.33,
+    "spread_pct": 10.819286554292436
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0137766591601538
+  },
+  "ConnectBlock / DerParse_libsecp_ms": {
+   "base": {
+    "rounds": [
+     96.23,
+     96.14,
+     96.04,
+     96.75,
+     96.42
+    ],
+    "median": 96.23,
+    "min": 96.04,
+    "max": 96.75,
+    "spread_pct": 0.7378156500051893
+   },
+   "new": {
+    "rounds": [
+     96.96,
+     96.69,
+     96.23,
+     96.62,
+     96.48
+    ],
+    "median": 96.62,
+    "min": 96.23,
+    "max": 96.96,
+    "spread_pct": 0.7555371558683397
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0040527901901695
+  },
+  "ConnectBlock / AllEcdsa_ultra_ms": {
+   "base": {
+    "rounds": [
+     73.35,
+     72.75,
+     72.61,
+     72.87,
+     73.14
+    ],
+    "median": 72.87,
+    "min": 72.61,
+    "max": 73.35,
+    "spread_pct": 1.0155070673802593
+   },
+   "new": {
+    "rounds": [
+     73.07,
+     73.09,
+     72.8,
+     73.43,
+     73.02
+    ],
+    "median": 73.07,
+    "min": 72.8,
+    "max": 73.43,
+    "spread_pct": 0.8621869440262895
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0027446136956222
+  },
+  "ConnectBlock / AllEcdsa_libsecp_ms": {
+   "base": {
+    "rounds": [
+     85.79,
+     84.92,
+     84.7,
+     85.07,
+     85.21
+    ],
+    "median": 85.07,
+    "min": 84.7,
+    "max": 85.79,
+    "spread_pct": 1.281297754790177
+   },
+   "new": {
+    "rounds": [
+     85.37,
+     85.01,
+     84.48,
+     85.56,
+     84.71
+    ],
+    "median": 85.01,
+    "min": 84.48,
+    "max": 85.56,
+    "spread_pct": 1.2704387719091852
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9992946984836019
+  },
+  "ConnectBlock / AllSchnorr_ultra_ms": {
+   "base": {
+    "rounds": [
+     74.5,
+     73.43,
+     73.18,
+     73.25,
+     73.27
+    ],
+    "median": 73.27,
+    "min": 73.18,
+    "max": 74.5,
+    "spread_pct": 1.8015558891770072
+   },
+   "new": {
+    "rounds": [
+     73.7,
+     73.38,
+     72.96,
+     73.68,
+     73.54
+    ],
+    "median": 73.54,
+    "min": 72.96,
+    "max": 73.7,
+    "spread_pct": 1.006255099265718
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0036850006824076
+  },
+  "ConnectBlock / AllSchnorr_libsecp_ms": {
+   "base": {
+    "rounds": [
+     86.61,
+     86.69,
+     85.93,
+     86.21,
+     85.98
+    ],
+    "median": 86.21,
+    "min": 85.93,
+    "max": 86.69,
+    "spread_pct": 0.881568263542502
+   },
+   "new": {
+    "rounds": [
+     87.18,
+     86.39,
+     85.85,
+     87.21,
+     87.46
+    ],
+    "median": 87.18,
+    "min": 85.85,
+    "max": 87.46,
+    "spread_pct": 1.8467538426244545
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0112515949425822
+  },
+  "ConnectBlock / Mixed_ultra_ms": {
+   "base": {
+    "rounds": [
+     110.31,
+     111.65,
+     111.96,
+     109.36,
+     109.13
+    ],
+    "median": 110.31,
+    "min": 109.13,
+    "max": 111.96,
+    "spread_pct": 2.5654972350648158
+   },
+   "new": {
+    "rounds": [
+     109.88,
+     109.93,
+     109.44,
+     109.9,
+     162.74
+    ],
+    "median": 109.9,
+    "min": 109.44,
+    "max": 162.74,
+    "spread_pct": 48.49863512283895
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9962832018855952
+  },
+  "ConnectBlock / Mixed_libsecp_ms": {
+   "base": {
+    "rounds": [
+     128.78,
+     128.7,
+     128.93,
+     128.94,
+     128.11
+    ],
+    "median": 128.78,
+    "min": 128.11,
+    "max": 128.94,
+    "spread_pct": 0.6445100170833857
+   },
+   "new": {
+    "rounds": [
+     129.47,
+     129.3,
+     129.08,
+     128.99,
+     128.98
+    ],
+    "median": 129.08,
+    "min": 128.98,
+    "max": 129.47,
+    "spread_pct": 0.37960954446855366
+   },
+   "verdict": "regression",
+   "new_over_base_median": 1.0023295542786148
+  }
+ },
+ "note": "new = dev 022e06d3 before 3bd40175 (lane ISA TUs still in the LTO unit); it shows the CT point-add regression that 3bd40175 fixes. See bench_unified_2026-11-04_dev-4.7.0-fixed_i5-14400f.json for the fixed build."
+}
