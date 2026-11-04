@@ -163,8 +163,10 @@ static inline int ct_schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
 
     // P2-CT-005: reject zero nonce — k'=0 produces point at infinity and a
     // degenerate (all-zeros) signature that would otherwise be returned as success.
-    // Matches CPU schnorr_sign k_prime.is_zero_ct() guard.
-    if (scalar_is_zero_impl(&k_prime)) return 0;
+    // Matches CPU schnorr_sign k_prime.is_zero_ct() guard. k' is secret, so the
+    // check is a CT mask folded into the single verdict branch below; the
+    // remaining work runs on a zero k' without any secret-dependent branch.
+    ulong k_zero = ct_scalar_is_zero(&k_prime);
 
     // CT: R = k'*G
     CTJacobianPoint R;
@@ -201,13 +203,13 @@ static inline int ct_schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
     Scalar s;
     ct_scalar_add_impl(&k, &ed, &s);
 
-    // Rule 14: reject degenerate output — s==0 or R.x all-zeros
-    if (scalar_is_zero_impl(&s)) return 0;
-    {
-        uint _r_or = 0u;
-        for (int _i = 0; _i < 32; ++_i) _r_or |= (uint)rx_bytes[_i];
-        if (_r_or == 0u) return 0;
-    }
+    // Rule 14: reject degenerate output — s==0 or R.x all-zeros. All three
+    // conditions are CT masks; the only branch is the final combined verdict.
+    ulong s_zero = ct_scalar_is_zero(&s);
+    uint r_or = 0u;
+    for (int _i = 0; _i < 32; ++_i) r_or |= (uint)rx_bytes[_i];
+    ulong r_zero = ct_is_zero_mask((ulong)r_or);
+    if ((k_zero | s_zero | r_zero) != 0) return 0;
 
     // Output: sig = R.x || s
     for (int i = 0; i < 32; ++i) sig_out[i] = rx_bytes[i];
@@ -218,6 +220,16 @@ static inline int ct_schnorr_sign_impl(const Scalar* priv, const uchar msg[32],
     return 1;
 }
 
+// CT public key derivation. Defined before its first use in
+// ct_schnorr_sign_verified_impl: an implicit declaration there followed by
+// this static definition is a hard error on NVIDIA OpenCL.
+static inline void ct_schnorr_pubkey_impl(const Scalar* priv, FieldElement* pub_x) {
+    CTJacobianPoint P;
+    ct_generator_mul_impl(priv, &P);
+    FieldElement py;
+    ct_jacobian_to_affine(&P, pub_x, &py);
+}
+
 // CT Schnorr sign with fault countermeasure
 static inline int ct_schnorr_sign_verified_impl(const Scalar* priv, const uchar msg[32],
                                          const uchar aux_rand[32],
@@ -226,13 +238,15 @@ static inline int ct_schnorr_sign_verified_impl(const Scalar* priv, const uchar 
     if (!ok) return 0;
 
     // Rule 14: check s==0 and R.x all-zeros explicitly before verify.
+    // Both checks are accumulated as CT masks; only the combined verdict branches.
     {
         Scalar s_check;
         scalar_from_bytes_impl(sig_out + 32, &s_check);
-        if (scalar_is_zero_impl(&s_check)) return 0;
+        ulong s_zero = ct_scalar_is_zero(&s_check);
         uint r_or = 0;
         for (int _i = 0; _i < 32; ++_i) r_or |= (uint)sig_out[_i];
-        if (r_or == 0u) return 0;
+        ulong r_zero = ct_is_zero_mask((ulong)r_or);
+        if ((s_zero | r_zero) != 0) return 0;
     }
 
     // Derive x-only pubkey for verification (CT generator mul on secret)
@@ -248,14 +262,6 @@ static inline int ct_schnorr_sign_verified_impl(const Scalar* priv, const uchar 
 
     // Fault injection detected if verify fails
     return schnorr_verify_impl(pubkey_x, msg, &sig_v);
-}
-
-// CT public key derivation
-static inline void ct_schnorr_pubkey_impl(const Scalar* priv, FieldElement* pub_x) {
-    CTJacobianPoint P;
-    ct_generator_mul_impl(priv, &P);
-    FieldElement py;
-    ct_jacobian_to_affine(&P, pub_x, &py);
 }
 
 #endif // SECP256K1_CT_SIGN_CL

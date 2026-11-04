@@ -1,5 +1,52 @@
 # Audit Changelog
 
+## 2026-11-04 - OpenCL: the CT drop-in builds again, all kernel files ship next to the binaries, bench verify rows are checked (`opencl_audit_runner`, `opencl_benchmark`)
+
+**What was hidden.** Three pre-existing faults kept every OpenCL sign/verify path out of the
+audit and the benchmark (NF-2026-00020):
+
+1. `secp256k1_ct_extended.cl` (the CT drop-in built by `opencl_audit_runner`) did not
+   compile, so the runner printed
+   `Extended kernels: Build failed` and skipped every module gated on it. Causes:
+   `secp256k1_ct_sign.cl` called `scalar_is_zero_impl`, which is defined nowhere;
+   `ct_schnorr_sign_verified_impl` used `ct_schnorr_pubkey_impl` before its `static`
+   definition; and the CT `schnorr_sign` kernel passed `&signatures[gid].s` (`__global`) to
+   `scalar_from_bytes_impl` (private pointer). `secp256k1_ct_smoke.cl` also passed its
+   `__constant` test vectors to the private-pointer signer/verifier.
+   Fix: the k' == 0, s == 0 and R.x == 0 checks in `ct_schnorr_sign_impl`, and the s / R.x
+   checks in `ct_schnorr_sign_verified_impl`, use the CT masks `ct_scalar_is_zero` /
+   `ct_is_zero_mask` (secret-derived values), combined into one verdict branch at the end;
+   `ct_schnorr_pubkey_impl` is defined before its first use; the kernel decodes s into a
+   private `Scalar` and assigns it; the smoke kernels copy the vectors into private arrays.
+   No variable-time helper was introduced and no verify or inverse code changed.
+2. `src/opencl/CMakeLists.txt` copied six hand-picked `.cl` files next to the binaries, but
+   `secp256k1_extended.cl` `#include`s `secp256k1_ct_ops/field/scalar/point.cl`, so
+   `opencl_benchmark` run from the build dir skipped the signature benchmarks
+   (`secp256k1_ct_ops.cl file not found`). Every `kernels/*.cl` file is now copied
+   (`copy_if_different`, POST_BUILD) next to both `opencl_audit_runner` and `opencl_benchmark`.
+3. `bench_opencl.cpp` never read back a verify result and timed rows against output buffers
+   it never checked (and ECDSA and Schnorr verify shared `d_res`, so a stale accept could
+   carry over). It reported an ECDSA verify time no GPU can reach. Every sign, verify, ZK
+   prove and ZK verify row now zeroes its result buffer, checks each OpenCL call, reads the
+   results back and prints `accepted N/M`. A row with any rejected item or OpenCL error is
+   marked `INVALID`, and the benchmark exits non-zero. An extended-program build or kernel
+   creation failure is now `INVALID` instead of `SKIP`.
+
+**Now running instead of skipping.** In `opencl_audit_runner`, every module gated on the
+extended program now runs: ECDSA and Schnorr sign and verify, the ecrecover round trip, and the
+`inv_var` vs Fermat check. So do the four CT smoke modules (`ct_smoke_masks`, `ct_smoke_cmov`,
+`ct_smoke_ecdsa`, `ct_smoke_schnorr`). The `opencl_benchmark` signature rows run too.
+
+**Validation.** Before the fix, a clang OpenCL C 1.2 syntax check reproduced the reported build
+errors. After the fix, `secp256k1_ct_extended.cl`, `secp256k1_ct_smoke.cl` and
+`secp256k1_extended.cl` pass it, and `bench_opencl.cpp` compiles cleanly. The device run (NVIDIA
+OpenCL) and timings are left to the host GPU. No benchmark numbers are recorded here.
+
+**Still open (not in this change).** `secp256k1_recovery.cl` still does not compile on top of
+`secp256k1_ct_extended.cl`. Its `ecdsa_sign_recoverable_impl` and `ecdsa_recover_impl` conflict
+with the definitions in `secp256k1_extended.cl`, and it uses an undefined `GENERATOR_POINT`.
+`opencl_audit_runner` does not load that file.
+
 ## 2026-11-04 - OpenCL: verify paths use a variable-time SafeGCD inverse (`audit/test_regression_opencl_kernel_closure.cpp`, `opencl_audit_runner`)
 
 **Change.** OpenCL port of the CUDA change of 2026-10-02 (entries below). New in
