@@ -964,6 +964,26 @@ their respective `apply_endomorphism_impl` implementations.
   on this Linux host (Metal requires Apple hardware). Owner validation on real
   Apple hardware is needed before promotion to HIGH assurance.
 
+### CT mixed addition P + (-P) — Metal + OpenCL (fixed 2026-11-04)
+
+**Bug:** `ct_point_add_mixed` in Metal (`secp256k1_ct_point.h`) and OpenCL
+(`secp256k1_ct_point.cl`) had a constant-time select for P == Q, but none for
+P == -Q. That sum came back as Z = 0 with the infinity flag clear, a value every
+later addition and doubling treats as a finite point. Now the flag is set and
+the coordinates are the canonical infinity, using masks only (`5f61a31c`).
+
+- **CUDA and CPU:** not affected. `ct_point.cuh` and the CPU `ct::` code use
+  complete formulas.
+- **Reach:** the CT `ct_scalar_mul_point` and `ct_generator_mul_*`, which serve
+  signing nonces, pubkey creation, ECDH and CT ZK prove. Random scalars reach
+  the case with negligible probability. No input that reaches it through those
+  callers has been constructed.
+- **Test:** OpenCL `opencl_audit_runner` module `ct_add_mixed_neg`. With the old
+  kernel it fails for 23 of 23 points; with the fix it passes.
+  `metal_extended_test.mm` mirrors the checks.
+- **Metal runtime caveat:** code-complete, not runtime-verified on this Linux
+  host.
+
 ### OpenCL generator w4 table storage optimization — production (2026-07-12)
 
 **Not a bug fix — a measured storage-only performance optimization** from the
