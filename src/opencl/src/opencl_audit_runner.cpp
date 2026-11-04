@@ -2262,6 +2262,276 @@ static int audit_inv_var_vs_fermat() {
     return rc;
 }
 
+// =============================================================================
+// CT GLV decomposition + CT scalar multiplication vs the fast path
+// =============================================================================
+// ct_generator_mul_impl and ct_scalar_mul_point (secp256k1_ct_point.cl) scan
+// 33 four-bit windows (132 bits) of the GLV halves k1 and k2, so they are
+// correct only when ct_glv_decompose_impl returns a real split with
+// k1, k2 < 2^128. The old k1 = k, k2 = 0 stub dropped the top bits of every k
+// >= 2^132, so every CT signer and CT pubkey derivation on OpenCL was wrong.
+// audit_ct_glv_scalar_mul builds a test program that includes
+// secp256k1_ct_extended.cl -- the same source g_ext builds -- and checks, for
+// edge scalars (0, 1, 2, 3, n-1, n-2, (n-1)/2, (n+1)/2, 2^127, 2^128-1, 2^128,
+// 2^129, 2^255, lambda, lambda^2, n-lambda, zero / all-ones limb patterns)
+// and 2048 seeded random k < n:
+//   1. ct_glv_decompose_impl: k1, k2 < 2^128, both sign masks are 0 or
+//      all-ones, and (+/-k1) + (+/-k2)*lambda == k (mod n), checked on the
+//      host with an independent double-and-add mod-n multiply
+//   2. ct_generator_mul_impl(k) == fast windowed k*G (no GLV in the reference)
+//   3. ct_scalar_mul_point(P, k) == fast windowed (k*m mod n)*G for P = m*G
+
+static const char* const kCtGlvCheckSource = R"CLSRC(
+#include "secp256k1_ct_extended.cl"
+
+// o[0..3] affine x, o[4..7] affine y (canonical LE limbs),
+// o[8] = 1 for the point at infinity (x = y = 0 then)
+static inline void ctglv_put_point(const JacobianPoint* p, __global ulong* o) {
+    for (int i = 0; i < 9; ++i) o[i] = 0;
+    if (p->infinity) { o[8] = 1; return; }
+    FieldElement zi, zi2, zi3, x, y;
+    field_inv_impl(&zi, &p->z);
+    field_sqr_impl(&zi2, &zi);
+    field_mul_impl(&zi3, &zi, &zi2);
+    field_mul_impl(&x, &p->x, &zi2);
+    field_mul_impl(&y, &p->y, &zi3);
+    uchar bx[32], by[32];
+    field_to_bytes_impl(&x, bx);
+    field_to_bytes_impl(&y, by);
+    for (int i = 0; i < 4; ++i) {
+        ulong lx = 0, ly = 0;
+        for (int j = 0; j < 8; ++j) {
+            lx = (lx << 8) | (ulong)bx[(3 - i) * 8 + j];
+            ly = (ly << 8) | (ulong)by[(3 - i) * 8 + j];
+        }
+        o[i] = lx;
+        o[4 + i] = ly;
+    }
+}
+
+// in: 4 ulongs per item (k < n). out: 46 ulongs per item
+//   [0..3] k1  [4..7] k2  [8] k1_neg  [9] k2_neg      (ct_glv_decompose_impl)
+//   [10..18] ct_generator_mul_impl(k)                 [19..27] fast windowed k*G
+//   [28..36] ct_scalar_mul_point(P, k), P = m*G       [37..45] fast windowed (k*m mod n)*G
+__kernel void ct_glv_check(__global const ulong* in, __global ulong* out, const uint count) {
+    const uint gid = get_global_id(0);
+    if (gid >= count) return;
+    __global ulong* o = out + (size_t)gid * 46;
+    Scalar k;
+    for (int i = 0; i < 4; ++i) k.limbs[i] = in[gid * 4 + i];
+
+    CTGLVDecompositionOCL glv;
+    ct_glv_decompose_impl(&k, &glv);
+    for (int i = 0; i < 4; ++i) { o[i] = glv.k1.limbs[i]; o[4 + i] = glv.k2.limbs[i]; }
+    o[8] = glv.k1_neg;
+    o[9] = glv.k2_neg;
+
+    CTJacobianPoint ct_r;
+    JacobianPoint jr;
+    ct_generator_mul_impl(&k, &ct_r);
+    jr = ct_point_to_jacobian(&ct_r);
+    ctglv_put_point(&jr, o + 10);
+    scalar_mul_generator_windowed_impl(&jr, &k);
+    ctglv_put_point(&jr, o + 19);
+
+    Scalar m;
+    m.limbs[0] = 0x0123456789ABCDEFUL; m.limbs[1] = 0xFEDCBA9876543210UL;
+    m.limbs[2] = 0x0F1E2D3C4B5A6978UL; m.limbs[3] = 0x7A6B5C4D3E2F1001UL;
+    JacobianPoint pj;
+    scalar_mul_generator_windowed_impl(&pj, &m);
+    CTJacobianPoint p = ct_point_from_jacobian(&pj);
+    ct_scalar_mul_point(&p, &k, &ct_r);
+    jr = ct_point_to_jacobian(&ct_r);
+    ctglv_put_point(&jr, o + 28);
+    Scalar km;
+    scalar_mul_mod_n_impl(&k, &m, &km);
+    scalar_mul_generator_windowed_impl(&jr, &km);
+    ctglv_put_point(&jr, o + 37);
+}
+)CLSRC";
+
+static constexpr uint64_t CG_LAMBDA[4] = {
+    0xDF02967C1B23BD72ULL, 0x122E22EA20816678ULL,
+    0xA5261C028812645AULL, 0x5363AD4CC05C30E0ULL
+};
+
+// r = (a + b) mod n for a, b < n
+static void cg_add_mod_n(const uint64_t a[4], const uint64_t b[4], uint64_t r[4]) {
+    uint64_t t[4], carry = 0;
+    for (int i = 0; i < 4; ++i) {
+        uint64_t const s = a[i] + b[i];
+        uint64_t const c1 = (s < a[i]) ? 1 : 0;
+        t[i] = s + carry;
+        uint64_t const c2 = (t[i] < s) ? 1 : 0;
+        carry = c1 | c2;
+    }
+    if (carry != 0 || iv_ge(t, ORDER)) { iv_sub(t, ORDER, r); return; }
+    for (int i = 0; i < 4; ++i) r[i] = t[i];
+}
+
+// r = (a * b) mod n by double-and-add over the bits of b, for a < n
+static void cg_mul_mod_n(const uint64_t a[4], const uint64_t b[4], uint64_t r[4]) {
+    uint64_t acc[4] = {0, 0, 0, 0};
+    for (int bit = 255; bit >= 0; --bit) {
+        cg_add_mod_n(acc, acc, acc);
+        if ((b[bit >> 6] >> (bit & 63)) & 1) cg_add_mod_n(acc, a, acc);
+    }
+    for (int i = 0; i < 4; ++i) r[i] = acc[i];
+}
+
+// r = (-a) mod n for a < n
+static void cg_neg_mod_n(const uint64_t a[4], uint64_t r[4]) {
+    if (iv_is_zero(a)) { for (int i = 0; i < 4; ++i) r[i] = 0; return; }
+    iv_sub(ORDER, a, r);
+}
+
+// Edge and seeded random scalars k < n, 4 limbs per value.
+static std::vector<uint64_t> cg_corpus() {
+    std::vector<uint64_t> v;
+    auto push = [&v](const uint64_t a[4]) { v.insert(v.end(), a, a + 4); };
+    auto push_red = [&v](uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3) {
+        const uint64_t a[4] = {a0, a1, a2, a3};
+        uint64_t r[4];
+        iv_reduce_once(a, ORDER, r);
+        v.insert(v.end(), r, r + 4);
+    };
+    auto halve = [](const uint64_t a[4], uint64_t r[4]) {
+        for (int i = 0; i < 4; ++i) r[i] = (a[i] >> 1) | (i < 3 ? (a[i + 1] << 63) : 0);
+    };
+    const uint64_t F = ~0ULL;
+    const uint64_t one[4] = {1, 0, 0, 0}, two[4] = {2, 0, 0, 0};
+    uint64_t t[4], u[4];
+
+    push_red(0, 0, 0, 0); push_red(1, 0, 0, 0); push_red(2, 0, 0, 0); push_red(3, 0, 0, 0);
+    iv_sub(ORDER, one, t); push(t);                               // n-1
+    iv_sub(ORDER, two, t); push(t);                               // n-2
+    iv_sub(ORDER, one, t); halve(t, u); push(u);                  // (n-1)/2
+    iv_add_u64(ORDER, 1, t); halve(t, u); push(u);                // (n+1)/2
+    push_red(0, 1ULL << 63, 0, 0);                                // 2^127
+    push_red(F, F, 0, 0);                                         // 2^128-1
+    push_red(0, 0, 1, 0);                                         // 2^128
+    push_red(0, 0, 2, 0);                                         // 2^129
+    push_red(0, 0, 0, 1ULL << 63);                                // 2^255
+    push(CG_LAMBDA);                                              // lambda
+    cg_mul_mod_n(CG_LAMBDA, CG_LAMBDA, t); push(t);               // lambda^2
+    cg_neg_mod_n(CG_LAMBDA, t); push(t);                          // n-lambda
+    push_red(0, 0, 0, 1); push_red(0, 1, 0, 0);                   // zero limbs
+    push_red(F, 0, 0, 0); push_red(F, 0, F, 0); push_red(0, F, 0, F);
+    push_red(F, F, F, 0); push_red(0, F, F, F); push_red(F, F, F, F); // all-ones limbs
+    push_red(0x8000000000000001ULL, 0, 0, 0x8000000000000000ULL);
+
+    uint64_t s = 0x6C7D15C0FFEE1234ULL;                           // splitmix64, fixed seed
+    auto next = [&s]() {
+        uint64_t z = (s += 0x9E3779B97F4A7C15ULL);
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+        return z ^ (z >> 31);
+    };
+    for (int i = 0; i < 2048; ++i) {
+        uint64_t const a0 = next(), a1 = next(), a2 = next(), a3 = next();
+        push_red(a0, a1, a2, a3);
+    }
+    return v;
+}
+
+static int audit_ct_glv_scalar_mul() {
+    if (g_kernel_dir.empty() || !g_ctx) return -1;
+    cl_context ctx = (cl_context)g_ctx->native_context();
+    cl_command_queue q = (cl_command_queue)g_ctx->native_queue();
+    cl_device_id dev = nullptr;
+    if (clGetCommandQueueInfo(q, CL_QUEUE_DEVICE, sizeof(dev), &dev, nullptr) != CL_SUCCESS) return 1;
+
+    cl_int err = CL_SUCCESS;
+    const char* src = kCtGlvCheckSource;
+    size_t const len = std::strlen(src);
+    cl_program prog = clCreateProgramWithSource(ctx, 1, &src, &len, &err);
+    if (err != CL_SUCCESS) return 2;
+    std::string const opts = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable -I " + g_kernel_dir;
+    err = clBuildProgram(prog, 1, &dev, opts.c_str(), nullptr, nullptr);
+    if (err != CL_SUCCESS) {
+        size_t log_size = 0;
+        clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+        std::string log(log_size + 1, '\0');
+        clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
+        std::fprintf(stderr, "    ct_glv_check build failed:\n%s\n", log.c_str());
+        clReleaseProgram(prog);
+        return 3;
+    }
+    cl_kernel k = clCreateKernel(prog, "ct_glv_check", &err);
+    if (err != CL_SUCCESS) { clReleaseProgram(prog); return 4; }
+
+    std::vector<uint64_t> const in = cg_corpus();
+    size_t const n = in.size() / 4;
+    std::vector<uint64_t> out(n * 46, 0);
+    int rc = 0;
+    cl_int e2 = CL_SUCCESS;
+    cl_mem d_in = clCreateBuffer(ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                 in.size() * sizeof(uint64_t), (void*)in.data(), &err);
+    cl_mem d_out = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY, out.size() * sizeof(uint64_t), nullptr, &e2);
+    if (err != CL_SUCCESS || e2 != CL_SUCCESS) rc = 5;
+    if (rc == 0) {
+        cl_uint count = (cl_uint)n;
+        clSetKernelArg(k, 0, sizeof(cl_mem), &d_in);
+        clSetKernelArg(k, 1, sizeof(cl_mem), &d_out);
+        clSetKernelArg(k, 2, sizeof(cl_uint), &count);
+        size_t global = n;
+        err = clEnqueueNDRangeKernel(q, k, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (err == CL_SUCCESS) {
+            err = clEnqueueReadBuffer(q, d_out, CL_TRUE, 0, out.size() * sizeof(uint64_t),
+                                      out.data(), 0, nullptr, nullptr);
+        }
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "    ct_glv_check: OpenCL error %d\n", err);
+            rc = 6;
+        }
+    }
+    if (d_in) clReleaseMemObject(d_in);
+    if (d_out) clReleaseMemObject(d_out);
+
+    size_t bad = 0;
+    for (size_t i = 0; i < n && rc == 0; ++i) {
+        const uint64_t* kk = &in[i * 4];
+        const uint64_t* o = &out[i * 46];
+        const uint64_t* k1 = o;
+        const uint64_t* k2 = o + 4;
+        uint64_t const F = ~0ULL;
+        bool const masks_ok = (o[8] == 0 || o[8] == F) && (o[9] == 0 || o[9] == F);
+        bool const short_ok = (k1[2] | k1[3] | k2[2] | k2[3]) == 0;
+        bool split_ok = false;
+        if (masks_ok && short_ok) {
+            uint64_t s1[4], s2[4], s2l[4], sum[4];
+            if (o[8] != 0) cg_neg_mod_n(k1, s1); else for (int j = 0; j < 4; ++j) s1[j] = k1[j];
+            if (o[9] != 0) cg_neg_mod_n(k2, s2); else for (int j = 0; j < 4; ++j) s2[j] = k2[j];
+            cg_mul_mod_n(CG_LAMBDA, s2, s2l);
+            cg_add_mod_n(s1, s2l, sum);
+            split_ok = iv_eq(sum, kk);
+        }
+        bool const gen_ok = std::equal(o + 10, o + 19, o + 19);
+        bool const pt_ok = std::equal(o + 28, o + 37, o + 37);
+        bool const k_zero = iv_is_zero(kk);
+        bool const ref_ok = ((o[27] == 1) == k_zero) && ((o[45] == 1) == k_zero);
+        if (!(masks_ok && short_ok && split_ok && gen_ok && pt_ok && ref_ok)) {
+            if (bad < 8) {
+                std::fprintf(stderr, "    scalar #%zu: masks=%d short=%d split=%d k*G=%d k*P=%d ref=%d\n",
+                             i, (int)masks_ok, (int)short_ok, (int)split_ok, (int)gen_ok,
+                             (int)pt_ok, (int)ref_ok);
+                iv_print("k", kk); iv_print("k1", k1); iv_print("k2", k2);
+                iv_print("ct k*G x", o + 10); iv_print("ref k*G x", o + 19);
+                iv_print("ct k*P x", o + 28); iv_print("ref k*P x", o + 37);
+            }
+            ++bad;
+        }
+    }
+    if (rc == 0 && bad != 0) {
+        std::fprintf(stderr, "    ct_glv_check: %zu of %zu scalars failed\n", bad, n);
+        rc = 7;
+    }
+
+    clReleaseKernel(k);
+    clReleaseProgram(prog);
+    return rc;
+}
+
 // ECDSA public-key recovery (ecrecover_batch -> ecdsa_recover_impl, which
 // inverts r and the public intermediate points with the variable-time
 // SafeGCD inverses): for six keys, exactly one recid of a valid signature
@@ -2448,6 +2718,7 @@ static const OclAuditModule OCL_MODULES[] = {
     { "ct_cmov",           "CT cmov256 / cswap256 correctness",                    "gpu_ct_smoke", audit_ct_smoke_cmov,    false },
     { "ct_ecdsa",          "CT ECDSA sign (privkey=1) + fast-path verify",         "gpu_ct_smoke", audit_ct_smoke_ecdsa,   false },
     { "ct_schnorr",        "CT Schnorr sign (privkey=1, BIP-340) + verify",        "gpu_ct_smoke", audit_ct_smoke_schnorr, false },
+    { "ct_glv_scalar_mul", "CT GLV split + CT k*G / k*P == fast path (edge + 2048 random)", "gpu_ct_smoke", audit_ct_glv_scalar_mul, false },
 };
 static constexpr int NUM_OCL_MODULES = sizeof(OCL_MODULES) / sizeof(OCL_MODULES[0]);
 

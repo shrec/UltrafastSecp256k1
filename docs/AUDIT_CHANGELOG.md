@@ -1,5 +1,55 @@
 # Audit Changelog
 
+## 2026-11-04 - OpenCL and Metal: the CT generator / scalar multiplication uses a real constant-time GLV split (`ct_glv_decompose_impl`, `ct_glv_decompose`)
+
+**Root cause (NF-2026-00039).** `ct_glv_decompose_impl` (`src/opencl/kernels/secp256k1_ct_scalar.cl`)
+and `ct_glv_decompose` (`src/metal/shaders/secp256k1_ct_scalar.h`) were stubs: they returned
+k1 = k (negated when k > n/2) and k2 = 0. The CT multipliers that consume them,
+`ct_generator_mul_impl` / `ct_scalar_mul_point` (`secp256k1_ct_point.cl`) and
+`ct_generator_mul_metal` / `ct_scalar_mul_point` (`secp256k1_ct_point.h`), scan only 33 four-bit
+windows (132 bits) of k1 and k2 because they assume a real GLV split with |k1|, |k2| < 2^128.
+So the top bits of every k whose normalized value is >= 2^132 were silently dropped and k*G
+was wrong for essentially every random scalar. Measured by the manager on the OpenCL backend
+before the fix: `ct_generator_mul_impl` matched a pure-Python reference for 5 of 16 scalars
+(only k = 1, 2, 3, 42 and n-1), and `ct_ecdsa_sign_impl` produced 0 of 16 valid signatures. The
+verifier and the fast `scalar_mul_generator_windowed_impl` were correct.
+
+**Affected callers.** Every OpenCL / Metal user of the CT multipliers: CT ECDSA and Schnorr
+signing and the CT sign-then-verify paths (`secp256k1_ct_sign.cl` / `.h`, the CT signers in
+`secp256k1_extended.cl` and the `secp256k1_ct_extended.cl` drop-in), CT pubkey derivation, recovery
+signing (`secp256k1_recovery.cl` / `.h`), BIP-32 private derivation (`secp256k1_bip32.cl` / `.h`),
+the CT ZK provers (knowledge, DLEQ, Bulletproof commitments in `secp256k1_ct_zk.cl` / `.h`, which
+also use `ct_scalar_mul_point` on non-generator bases), the Metal kernels in
+`secp256k1_kernels.metal`, and BCH nonce grinding (`src/bch/opencl/secp256k1_bch_grinding.cl`).
+This is why the OpenCL ECDSA / Schnorr sign+verify, multi-key, stress and `ct_smoke_ecdsa` /
+`ct_smoke_schnorr` audit modules failed.
+
+**Fix.** Both functions now compute the Babai-rounded GLV split, ported from the CUDA
+`ct_glv_decompose`: c1 = round(k*g1 / 2^384), c2 = round(k*g2 / 2^384), k2 = c1*(-b1) + c2*(-b2)
+mod n, k1 = k - lambda*k2 mod n, and each half is replaced by its negation under a mask when it
+is above n/2. The constants are the g1, g2, -b1, -b2 and lambda used by the variable-time
+`glv_decompose_impl` in `secp256k1_extended.cl` (Metal carries the same values in 8x32 limbs).
+The new `ct_mul_shift_384_impl` / `ct_mul_shift_384` is a fixed schoolbook product that adds the
+rounding bit as a carry instead of branching on it. Everything else uses the existing masked
+`ct_scalar_mul/add/sub/neg`, `ct_scalar_is_high` and `ct_scalar_cmov`. No branch, loop bound or
+memory index depends on k. The output contract (k1, k2 < 2^128 plus the k1_neg / k2_neg masks)
+is unchanged, so the 33-window loops are now correct as they are. The fast
+`glv_decompose_impl`, the verifiers and the inverse code are untouched. The Metal change mirrors
+the OpenCL one line for line. It has not been compiled with the Metal toolchain (none is
+available here).
+
+**Tests.** New `opencl_audit_runner` module `ct_glv_scalar_mul` (section `gpu_ct_smoke`). It builds
+a test program over `secp256k1_ct_extended.cl` and runs it on edge scalars (0, 1, 2, 3, n-1, n-2,
+(n-1)/2, (n+1)/2, 2^127, 2^128-1, 2^128, 2^129, 2^255, lambda, lambda^2, n-lambda, zero and
+all-ones limb patterns) and on 2048 seeded random k < n. It checks:
+(1) k1, k2 < 2^128 and the sign masks are 0 or all-ones;
+(2) (+/-k1) + (+/-k2)*lambda == k (mod n), using an independent host double-and-add mod-n
+multiply;
+(3) `ct_generator_mul_impl(k)` == fast windowed k*G;
+(4) `ct_scalar_mul_point(m*G, k)` == fast windowed (k*m mod n)*G.
+The existing OpenCL sign+verify roundtrip, multi-key, stress and CT smoke modules are the
+end-to-end check.
+
 ## 2026-11-04 - OpenCL: the CT drop-in builds again, all kernel files ship next to the binaries, bench verify rows are checked (`opencl_audit_runner`, `opencl_benchmark`)
 
 **What was hidden.** Three pre-existing faults kept every OpenCL sign/verify path out of the
