@@ -623,3 +623,21 @@ unsupported API.
   (`bip327_sign_verify_vectors`) verifies the official infinity-aggregate `valid` case;
   `audit/test_regression_musig2_infinity_nonce.cpp` covers the R=b·G / R=G unit cases.
   Listed here only to record that the earlier fail-closed rejection was corrected.
+
+### secp256k1_musig_partial_sig_verify — signer key parity (CONFORMANT, not a divergence)
+
+- **Behavior:** Matches BIP-327 `PartialSigVerify` / libsecp256k1. The shim passes the
+  signer's 33-byte compressed key (with its real Y parity) to the core
+  `musig2_partial_verify` overload, which checks only `s*G == R_eff + e*a_i*g*gacc*P_i`
+  for that parity. The negated-key-term partial signature
+  `s' = k1 + b*k2 - e*a_i*g*gacc*d_i` returns 0, as upstream.
+- **History:** Before NF-2026-00028 the shim dropped the parity and called the x-only
+  core overload, which accepts either parity, so it returned 1 for that forged partial
+  signature where upstream returns 0 (the aggregate is then invalid and blame attribution
+  fails). That divergence was undocumented; it is fixed, not waived.
+- **Not affected:** the native C ABI `ufsecp_musig2_partial_verify` keeps its x-only key
+  argument and stays parity-lenient by contract (see docs/API_REFERENCE.md, MuSig2).
+- **Test:** `audit/test_regression_musig2_session_token.cpp`
+  (`test_negated_key_term_rejected`): the shim and the core 33-byte overload reject the
+  forged partial signature, the honest partial signatures still verify, and the
+  aggregate built with the forgery fails BIP-340 verification.

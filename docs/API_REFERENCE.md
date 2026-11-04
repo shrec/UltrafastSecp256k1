@@ -2700,6 +2700,20 @@ itself with `ufsecp_musig2_start_sign_session`, from the aggregate nonce it
 received and the message it intends to sign. A session blob received from a
 coordinator or peer must never be passed in.
 
+**`ufsecp_musig2_partial_verify` is parity-lenient.** It takes the signer key as
+a 32-byte x-only value, which does not carry the key's Y parity, so it accepts
+the partial signature if `s_i*G == R_i + e*a_i*g*gacc*P_i` holds for either
+parity of `P_i`. BIP-327 `PartialSigVerify` checks only `cpoint(pk_i)`, the key
+with its real parity. A dishonest signer can therefore return
+`s_i' = k1 + b*k2 - e*a_i*g*gacc*d_i` (the key term negated): it passes this
+function, but the aggregate signature is invalid, so the failure cannot be
+blamed on that signer through this call. The x-only signature is kept for ABI
+stability. When blame attribution matters, verify with the signer's 33-byte
+compressed key: the C++ overload
+`secp256k1::musig2_partial_verify(..., const std::array<uint8_t, 33>&, ...)`
+and the shim's `secp256k1_musig_partial_sig_verify` check only the real parity
+and reject that signature, as libsecp256k1 does.
+
 <a id="c-abi-frost"></a>
 ### FROST Threshold Signatures
 

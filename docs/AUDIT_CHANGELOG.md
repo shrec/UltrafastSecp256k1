@@ -1,5 +1,29 @@
 # Audit Changelog
 
+## 2026-11-04 - MuSig2: partial signature verification checks only the signer key's real parity (`musig2_partial_verify`, `secp256k1_musig_partial_sig_verify`)
+
+**Root cause (NF-2026-00028).** `secp256k1::musig2_partial_verify` (`src/cpu/src/musig2.cpp`)
+took the signer key as 32-byte x-only and returned true if `s*G == R_eff + ea*P` OR
+`s*G == R_eff - ea*P`, with `ea = e*a_i*g*gacc`. BIP-327 `PartialSigVerify` checks only
+`cpoint(pk_i)`, with the key's real parity. A signer could return
+`s' = k1 + b*k2 - e*a_i*g*gacc*d_i`: it passed partial verification, but the aggregate
+signature was invalid, which defeats blame attribution. The shim
+`secp256k1_musig_partial_sig_verify` held the 33-byte key, dropped its parity and passed x-only,
+so it returned 1 where libsecp256k1 returns 0. That divergence was undocumented.
+
+**Fix.** New core overload `musig2_partial_verify(..., const std::array<uint8_t, 33>&, ...)`
+decompresses the key strictly (02/03 prefix, x < p, on curve) and checks only that point. The
+shim now calls it with the 33-byte key. The x-only overload and the C ABI
+`ufsecp_musig2_partial_verify` are unchanged (no ABI change) and are documented as
+parity-lenient in `docs/API_REFERENCE.md`; `docs/SHIM_KNOWN_DIVERGENCES.md` records the shim as
+conformant. Verification only; no signing or CT code changed.
+
+**Guard.** `audit/test_regression_musig2_session_token.cpp` (`test_negated_key_term_rejected`,
+module `regression_musig2_session_token`): builds `s'` from a real 2-of-2 shim session and checks
+that the shim and the core 33-byte overload reject it, that the honest partial signatures still
+verify, that the x-only overload still accepts it (documented contract), and that the aggregate
+with `s'` fails BIP-340 verification.
+
 ## 2026-11-04 - OpenCL: the CT BIP-340 signer rejects a zero private key (`ct_schnorr_sign_impl`, module `fuzz_schnorr_zero`)
 
 `ct_schnorr_sign_impl` (`src/opencl/kernels/secp256k1_ct_sign.cl`) signed with `d = 0` and

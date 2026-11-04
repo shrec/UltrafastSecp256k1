@@ -753,9 +753,11 @@ int secp256k1_musig_partial_sig_verify(
     }
     if (!found) return 0;  // unrecognized signer — fail, do not sign as signer 0
 
-    std::array<unsigned char, 32> pk_x;
-    std::memcpy(pk_x.data(), pk33.data() + 1, 32);
-    return secp256k1::musig2_partial_verify(psig, pn, pk_x, e->ctx, s, idx) ? 1 : 0;
+    // BIP-327 PartialSigVerify checks only cpoint(pk_i), the key with its real
+    // parity. Pass the 33-byte key so the negated-key-term partial signature is
+    // rejected like upstream libsecp256k1 (NF-2026-00028); the x-only overload
+    // would accept either parity.
+    return secp256k1::musig2_partial_verify(psig, pn, pk33, e->ctx, s, idx) ? 1 : 0;
 }
 
 int secp256k1_musig_partial_sig_agg(
