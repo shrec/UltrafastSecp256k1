@@ -15,7 +15,8 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
 - **Faster verification:**
   - Schnorr batch verify is faster at 64 signatures and up: it now uses 128-bit
     randomizers and a 3n-point MSM. Canonical A/B in `docs/BENCHMARKS.md`.
-  - CUDA verifiers use a variable-time inverse.
+  - CUDA, OpenCL and Metal verifiers use a variable-time inverse, and GPU
+    ECDSA verify checks `x(R)` without an inversion.
   - CUDA has a native carry chain again.
   - GPU hash160 is register-only for 33-byte keys (CUDA, OpenCL, Metal) and
     for 65-byte keys on CUDA.
@@ -25,6 +26,18 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
 - **A CPU feature view, a measurement kit and Intel SDE CI.**
 
 ### Added
+- **Benchmarks: result-checked GPU verify, ecrecover and hash160 rows, and
+  like-for-like CPU recovery rows.** CUDA `gpu_bench_unified` times ECDSA verify,
+  BIP-340 verify (x-only), ecrecover, and hash160 of 33- and 65-byte keys. Its
+  inputs are valid and made on the host with the CPU library. After the timed
+  passes it reads every result back and checks it; a wrong result marks the row
+  `INVALID` and the run exits non-zero. In `bench_unified`, the Ethereum
+  ecrecover row compared UltrafastSecp256k1 recover-plus-address with
+  libsecp256k1's bare recover. New rows time `ecdsa_recover` and
+  recover+serialize(33B) on both libraries, plus libsecp256k1
+  `ecdsa_sign_recoverable`, in an ECDSA RECOVERY comparison table.
+  `audit/test_exploit_ecdsa_recovery.cpp` gains a 64-entry byte-identity pool
+  and the recid bit-1 boundaries `r = p-n+1` and `r = p-n-1`.
 - **CUDA: registers-only `sha256_65` for 65-byte (uncompressed) keys in
   hash160.** `hash160_pubkey` sends 33-byte keys to `sha256_33` and 65-byte keys
   to `sha256_65`, and keeps the generic SHA-256 for every other length. Names,
@@ -163,8 +176,8 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   on values derived from them. `field_inv`, `scalar_inverse` and every
   constant-time path are unchanged, and an unqualified call from namespace `ct`
   is a compile error. Covered by a `secp256k1_cuda_test` vector test, the
-  `gpu_audit_runner` module `inv_var_diff`, and `gpu_bench_unified` rows. CUDA
-  only; OpenCL and Metal have no port. Details and measurements:
+  `gpu_audit_runner` module `inv_var_diff`, and `gpu_bench_unified` rows. The
+  OpenCL and Metal ports are listed under Changed. Details and measurements:
   `docs/AUDIT_CHANGELOG.md` 2026-10-02.
 
 ### Changed
@@ -198,7 +211,8 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   with `field_inv_var` / `scalar_inv_var` (new helper `jacobian_to_affine_var`
   for public points). Accept/reject results and outputs are unchanged. Signing,
   ECDH, key derivation, provers and every shared affine-conversion helper keep
-  the Fermat inverse. OpenCL and Metal are unchanged. Per-site reasoning,
+  the Fermat inverse. The OpenCL and Metal ports are separate entries below.
+  Per-site reasoning,
   evidence and measurements: `docs/AUDIT_CHANGELOG.md` 2026-10-02 and
   `docs/BENCHMARKS.md`.
 - **CUDA hash160 is register-only for 33-byte keys.** `src/cuda/include/hash160.cuh`
@@ -230,7 +244,29 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   230.6 -> 143.7 ns/op and BIP-340 verify 184.0 -> 156.1 ns/op, with
   non-overlapping ranges
   (`docs/benchmark_artifacts/opencl_verify_inv_var_ab_2026-11-04_rtx5060ti.json`).
-  Metal is unchanged.
+  The Metal port is the next entry.
+- **Metal verify paths use a variable-time SafeGCD inverse.** This ports the
+  OpenCL change to `src/metal/shaders/`: SafeGCD field and scalar inverses
+  (divstep cap 750; they return 0 on failure). They are used only where every
+  operand is public: ECDSA and BIP-340 verify, the GLV Shamir table inversion,
+  ecrecover, FROST partial verify and the SNARK witness. Signing, ECDH, key
+  generation, BIP-32/352, provers and every `secp256k1_ct_*.h` keep the Fermat /
+  CT inverses, and the kernel-closure audit module now checks the Metal shaders
+  for the same rule. `src/metal/tests/metal_extended_test.mm` compares the two
+  inverses and verifies valid signatures. Metal is not built on Linux: its
+  compile and test check is the macOS CI job. Throughput: not yet measured.
+- **GPU ECDSA verify checks `x(R) mod n == r` without inverting `R.z` (CUDA,
+  OpenCL, Metal).** Verify used to invert `R.z` only to compare the affine x of
+  R with r. Every route that returns only a verdict now checks `X == r*Z^2`, or
+  `X == (r+n)*Z^2` when `r < p-n`, as libsecp256k1 does. The ECDSA SNARK witness
+  and recovery output affine points, so they keep the conversion. New audit
+  module `ecdsa_verify_rx` (CUDA and OpenCL): valid signatures are accepted,
+  tampered r, s, message or key are rejected, and in the `x(R) >= n` branch the
+  right r is accepted and r+1 rejected. On an RTX 5060 Ti: CUDA
+  `secp256k1_cuda_bench` ECDSA verify 150.6 -> 149.7 ns/op (one run each);
+  OpenCL kernel-only, 65536 valid signatures, 143.8 -> 141.7 ns/op (11 launches
+  each). Neither is a confirmed speedup; the change removes one field inversion
+  per signature.
 
 ### Fixed
 - **GPU C ABI rejects non-canonical point coordinates.** The shared host-side
@@ -247,7 +283,14 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   log of one is known, so this closes a CPU/GPU verdict mismatch, not a
   forgery. Reported by Gleb Lizunov (@hokvo). Regression assertions in
   `audit/test_gpu_host_api_negative.cpp`; details in `docs/AUDIT_CHANGELOG.md`
-  2026-11-02.
+  2026-11-02. A follow-up (NF-2026-00029) applies the same check to
+  `ufsecp_gpu_msm`, which now returns `UFSECP_ERR_BAD_PUBKEY`, and per item to
+  the ECDSA and BIP-340 verify batches, the lbtc row and column verifiers,
+  `verify_collect` and `commitment_verify`: an item with a non-canonical key is
+  reported invalid and the other items are unaffected
+  (`audit/test_exploit_gpu_noncanonical_point_encoding.cpp`). C++ `GpuBackend`
+  methods called directly still skip this host-side check
+  (`docs/API_REFERENCE.md`).
 - **CPU: the lane ISA translation units are kept out of LTO.** With
   `lanes_avx2.cpp`, `lanes_avx_ifma.cpp`, `lanes_ifma256.cpp` and
   `lanes_ifma512.cpp` in the same GCC LTO unit as the library (from `a2d93fa0`
@@ -258,7 +301,10 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   their constant kernel tables and define no weak symbols, so no inlining is
   lost and no ISA code leaks into generic paths. With the fix the full
   `bench_unified` run is within 3% of 4.6.2 on every row except the faster
-  Schnorr batch rows and one SHA-256 microbench row (NF-2026-00040):
+  Schnorr batch rows and the SHA-256 (32B) microbench row. That row was a
+  bench artifact (NF-2026-00040): once `main()` grew, its timed loop called the
+  out-of-line `SHA256::update`/`finalize`. The SHA-256/512 rows now time
+  `noinline` fixed-length helpers. Evidence:
   `docs/BENCHMARKS.md`,
   `docs/benchmark_artifacts/bench_unified_2026-11-04_dev-4.7.0-fixed_i5-14400f.json`,
   `docs/benchmark_artifacts/cpu_lane_lto_bisect_quick_2026-11-04_i5-14400f.json`.
@@ -292,6 +338,18 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   compile check is the macOS CI job. The OpenCL CT BIP-340 signer also rejects
   a zero private key now (`fuzz_schnorr_zero`). Details in
   `docs/AUDIT_CHANGELOG.md` 2026-11-04 (NF-2026-00039).
+- **MuSig2 partial-signature verification checks the signer key's real parity
+  (BIP-327).** `musig2_partial_verify` took the signer key x-only and accepted
+  `s*G == R_eff + e*a*P` or `R_eff - e*a*P`. A signer could therefore return a
+  partial signature with the key term negated: it passed partial verification
+  but made the aggregate signature invalid, which defeats blame (NF-2026-00028).
+  A new overload takes the 33-byte compressed key and checks only that key's
+  parity, as BIP-327 `PartialSigVerify` does. The libsecp256k1 shim's
+  `secp256k1_musig_partial_sig_verify` uses it and now rejects that signature
+  like upstream. The x-only overload and the C ABI `ufsecp_musig2_partial_verify`
+  are unchanged and documented as parity-lenient (`docs/API_REFERENCE.md`,
+  `docs/SHIM_KNOWN_DIVERGENCES.md`). Regression:
+  `audit/test_regression_musig2_session_token.cpp`.
 
 ## [4.6.2] - 2026-09-27
 
