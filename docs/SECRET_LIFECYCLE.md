@@ -1,6 +1,18 @@
 # Secret Lifecycle Review
 
-**Last updated**: 2026-09-24 | **Version**: 4.7.0
+**Last updated**: 2026-11-04 | **Version**: 4.7.0
+
+### 2026-11-04 - MuSig2 partial verify with the signer's real parity (d5a2cdf3): secret handling unchanged
+
+`d5a2cdf3` changes only the partial-verify half of `src/cpu/src/musig2.cpp`.
+It factors `musig2_partial_verify`'s setup into the file-local
+`partial_verify_setup` (`s*G`, `R_eff`, `ea`) and adds an overload that takes
+the signer's 33-byte compressed key. The new overload checks only `cpoint(pk_i)`
+with its real Y parity, as BIP-327 PartialSigVerify does. Every input on that
+path is public: the partial signature, the public nonces, the public key and the
+session values. No hunk lands in `musig2_nonce_gen`, `musig2_partial_sign` or
+`musig2_partial_sig_agg`. The file has 23 `secure_erase` calls before and after
+the commit. No secret is copied, retained or released differently.
 
 ### 2026-09-24 - raw Jacobian ECDH and erase-on-exit scratch
 

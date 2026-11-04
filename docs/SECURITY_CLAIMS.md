@@ -2,6 +2,32 @@
 
 **UltrafastSecp256k1 v4.7.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-11-04 - MuSig2 partial verify: strict BIP-327 parity with the 33-byte key
+
+This entry supersedes the 2026-06-22 entry below for the paths that hold the
+signer's compressed key. That entry calls both-parity acceptance safe, but it
+is not harmless. A signer can return `s' = k1 + b*k2 - e*a_i*g*gacc*d_i`. That
+value passes the both-parity check, yet it makes the aggregate signature
+invalid. The coordinator then cannot tell which signer misbehaved
+(NF-2026-00028). It still does not enable aggregate forgery.
+
+`d5a2cdf3` adds a `musig2_partial_verify` overload that takes the signer's
+33-byte compressed key. It accepts only `s*G == R_eff + ea*cpoint(pk_i)` with
+the key's real Y parity, which is BIP-327 PartialSigVerify.
+`secp256k1_musig_partial_sig_verify` in the shim now uses it and rejects the
+negated-key-term signature as upstream libsecp256k1 does.
+
+The x-only overload and the C ABI `ufsecp_musig2_partial_verify` are unchanged.
+They stay parity-lenient, because an x-only key carries no parity. This is
+documented in `docs/API_REFERENCE.md` and `docs/SHIM_KNOWN_DIVERGENCES.md`.
+
+**Claim:** with the 33-byte key, partial verify rejects any partial signature
+that BIP-327 rejects, so blame is reliable. The x-only path keeps the weaker
+2026-06-22 property. Secret handling is unchanged (`docs/SECRET_LIFECYCLE.md`
+2026-11-04). Validation: `audit/test_regression_musig2_session_token.cpp`. The
+shim and the 33-byte overload reject the negated-key-term signature, and the
+honest one verifies.
+
 ### 2026-11-02 - MuSig2: session blob is signer-local; key_agg input is 33-byte keys (doc-only)
 
 No claim moves. `include/ufsecp/ufsecp.h` now states that the MuSig2 session

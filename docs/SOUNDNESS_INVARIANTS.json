@@ -59,6 +59,17 @@
       "ref": ""
     },
     {
+      "id": "musig2-partial-verify-setup",
+      "protocol": "MuSig2 partial signature (setup shared by both musig2_partial_verify overloads)",
+      "verify_function": "partial_verify_setup",
+      "claim": "File-local helper of musig2_partial_verify: computes s*G, R_eff = R1_i + b*R2_i (negated when the session R was) and ea = e*a_i*g*gacc, and returns false on a bad signer index or an infinity nonce point. It decides nothing on its own; its soundness is that of musig2_partial_verify (musig2-partial-binding).",
+      "forge": "Inherits the musig2-partial-binding forge-probe. The signer-parity forge s' = k1 + b*k2 - e*a_i*g*gacc*d_i is already rejected by the 33-byte overload in audit/test_regression_musig2_session_token.cpp.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": "NF-2026-00028"
+    },
+    {
       "id": "frost-partial-binding",
       "protocol": "FROST partial signature",
       "verify_function": "frost_verify_partial",
