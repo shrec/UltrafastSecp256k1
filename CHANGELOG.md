@@ -196,6 +196,21 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   to 19.6 µs/call). generator_mul is faster at every size on both, and ecdh at
   most sizes. OpenCL verify is faster at every size; CUDA verify rows overlap.
   `docs/benchmark_artifacts/gpu_abi_batch_scratch_ab_2026-11-04_rtx5060ti.json`.
+- **GPU ecrecover uses one dual multiplication (CUDA, OpenCL).** `ecdsa_recover`
+  now computes `Q = u1*G + u2*R` with `u1 = -z*r^-1` and `u2 = s*r^-1` in a single
+  GLV Shamir pass. Before, it ran two separate scalar multiplications plus an add.
+  It also converts to affine only once, and rejects signatures with `r` or `s` >= n.
+  If an exceptional addition leaves `Z = 0`, the kernel recomputes the result
+  exactly with a complete addition, so a wrong key is never reported as
+  recovered. `gpu_audit_runner` gains ecrecover edge cases and a new
+  `ecrecover_cpu_diff` module (GPU vs CPU bytes, 64 keys x 4 recids plus crafted
+  cases). The OpenCL ecrecover round-trip audit gains the same edge cases,
+  checked against a big-integer reference.
+
+  CUDA `gpu_bench_unified`, one run of each binary on an RTX 5060 Ti (batch
+  65536): ecrecover 713.29 to 169.34 ns/op. The verify rows are unchanged
+  (`docs/benchmark_artifacts/cuda_ecrecover_dual_mul_ab_2026-11-04_rtx5060ti.json`).
+  OpenCL ecrecover throughput: not yet measured, no harness has that row.
 - **Release: NuGet publishing uses nuget.org trusted publishing.** `pack-nuget`
   in `release.yml` gets a one-hour API key from `NuGet/login` (GitHub OIDC,
   `id-token: write` on that job only) instead of the stored `NUGET_TOKEN`, which

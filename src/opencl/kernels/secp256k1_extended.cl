@@ -800,10 +800,11 @@ static inline void shamir_double_mul_glv_impl(
     }
 
     // Batch inversion: Montgomery's trick — 1 field_inv for 11 Z values.
-    // Variable-time SafeGCD inverse: every caller of this helper is a verifier
-    // with public points and public scalars (ecdsa_verify_impl,
-    // schnorr_verify_impl, lbtc_commitment_verify, ecdsa_snark_witness_impl in
-    // this file; knowledge / DLEQ proof verification in secp256k1_zk.cl), and
+    // Variable-time SafeGCD inverse: every caller of this helper works on
+    // public points and public scalars (ecdsa_verify_impl,
+    // schnorr_verify_impl, lbtc_commitment_verify, ecdsa_snark_witness_impl and
+    // the public-key recovery ecdsa_recover_impl in this file; knowledge / DLEQ
+    // proof verification in secp256k1_zk.cl), and
     // these Z values are sums of the public table points. A signer, ECDH or
     // prover must not call this helper.
     FieldElement prefix[11];
@@ -1983,6 +1984,10 @@ static inline int ecdsa_recover_impl(const uchar msg_hash[32], const ECDSASignat
                                 int recid, JacobianPoint* Q) {
     if (recid < 0 || recid > 3) return 0;
     if (scalar_is_zero(&sig->r) || scalar_is_zero(&sig->s)) return 0;
+    // r >= n or s >= n is not a valid compact signature (the CPU parser and
+    // every ecdsa_verify route reject it); the kernel receives raw limbs, so
+    // reject here instead of reducing a non-canonical scalar mod n.
+    if (lbtc_scalar_ge_order(&sig->r) || lbtc_scalar_ge_order(&sig->s)) return 0;
 
     // Reconstruct R.x
     FieldElement rx_fe;
@@ -2020,48 +2025,65 @@ static inline int ecdsa_recover_impl(const uchar msg_hash[32], const ECDSASignat
     JacobianPoint Rpt;
     if (!lift_x_field_impl(&rx_fe, y_parity, &Rpt)) return 0;
 
-    // Q = r⁻¹ * (s*R - z*G)
+    // Q = r^-1 * (s*R - z*G) = u1*G + u2*R,  u1 = -z*r^-1,  u2 = s*r^-1.
     // Public-key recovery: r, s, msg_hash and recid are public signature data,
-    // R is lifted from r, and every intermediate point below is built only from
-    // them, so all three inversions use the variable-time SafeGCD inverse.
+    // R is lifted from r and Q is built only from them, so r^-1, the Shamir
+    // table inversion and the final Q.z inversion are variable-time SafeGCD.
     Scalar z;
     scalar_from_bytes_impl(msg_hash, &z);
 
     Scalar r_inv;
     scalar_inv_var_impl(&sig->r, &r_inv);
 
-    // s*R  (need affine for scalar_mul_impl)
-    FieldElement pz_inv, pz_inv2, pz_inv3;
-    field_inv_var_impl(&pz_inv, &Rpt.z);
-    field_sqr_impl(&pz_inv2, &pz_inv);
-    field_mul_impl(&pz_inv3, &pz_inv2, &pz_inv);
-    AffinePoint r_aff;
-    field_mul_impl(&r_aff.x, &Rpt.x, &pz_inv2);
-    field_mul_impl(&r_aff.y, &Rpt.y, &pz_inv3);
+    Scalar zr, u1, u2;
+    scalar_mul_mod_n_impl(&z, &r_inv, &zr);
+    scalar_negate_impl(&zr, &u1);
+    scalar_mul_mod_n_impl(&sig->s, &r_inv, &u2);
 
-    JacobianPoint sR;
-    scalar_mul_glv_impl(&sR, &sig->s, &r_aff);
+    // lift_x_field_impl returns R with Z = 1, so (x, y) is already affine.
+    AffinePoint r_aff;
+    r_aff.x = Rpt.x;
+    r_aff.y = Rpt.y;
 
     AffinePoint G; get_generator(&G);
-    JacobianPoint zG;
-    scalar_mul_glv_impl(&zG, &z, &G);
+    JacobianPoint Qj;
+    shamir_double_mul_glv_impl(&G, &u1, &r_aff, &u2, &Qj);
 
-    point_negate_y(&zG);
-    JacobianPoint sR_minus_zG;
-    point_add_impl(&sR_minus_zG, &sR, &zG);
+    // The Shamir loop adds without the P == +-Q checks, so an input whose true
+    // result is the point at infinity (R = c*G with z = c*s, crafted from
+    // public data) or an exceptional final doubling ends with Z = 0. Recompute
+    // exactly with two single multiplications and the complete point_add_impl
+    // in that case only; a genuine infinity is then rejected.
+    int qz_zero = point_is_infinity(&Qj);
+    if (!qz_zero) {
+        uchar qzb[32];
+        field_to_bytes_impl(&Qj.z, qzb);
+        qz_zero = 1;
+        for (int i = 0; i < 32; i++) if (qzb[i] != 0) qz_zero = 0;
+    }
+    if (qz_zero) {
+        JacobianPoint uR;
+        scalar_mul_glv_impl(&uR, &u2, &r_aff);
+        if (scalar_is_zero(&u1)) {
+            Qj = uR;
+        } else {
+            JacobianPoint uG;
+            scalar_mul_glv_impl(&uG, &u1, &G);
+            point_add_impl(&Qj, &uG, &uR);
+        }
+        if (point_is_infinity(&Qj)) return 0;
+    }
 
-    // Convert to affine for final scalar_mul
+    // One affine conversion; Q is returned with Z = 1.
     FieldElement qz_inv, qz_inv2, qz_inv3;
-    field_inv_var_impl(&qz_inv, &sR_minus_zG.z);
+    field_inv_var_impl(&qz_inv, &Qj.z);
     field_sqr_impl(&qz_inv2, &qz_inv);
     field_mul_impl(&qz_inv3, &qz_inv2, &qz_inv);
-    AffinePoint diff_aff;
-    field_mul_impl(&diff_aff.x, &sR_minus_zG.x, &qz_inv2);
-    field_mul_impl(&diff_aff.y, &sR_minus_zG.y, &qz_inv3);
-
-    scalar_mul_glv_impl(Q, &r_inv, &diff_aff);
-
-    if (point_is_infinity(Q)) return 0;
+    field_mul_impl(&Q->x, &Qj.x, &qz_inv2);
+    field_mul_impl(&Q->y, &Qj.y, &qz_inv3);
+    Q->z.limbs[0] = 1; Q->z.limbs[1] = 0; Q->z.limbs[2] = 0; Q->z.limbs[3] = 0;
+    Q->infinity = 0;
+    for (int i = 0; i < 7; ++i) Q->pad[i] = 0;
     return 1;
 }
 

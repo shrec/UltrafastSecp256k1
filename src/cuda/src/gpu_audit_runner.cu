@@ -42,6 +42,7 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/recovery.hpp"
 #endif
 
 #include <cuda_runtime.h>
@@ -1524,6 +1525,160 @@ __global__ void audit_ecdsa_recovery_kernel(int* result) {
     *result = 0;
 }
 
+#if !SECP256K1_CUDA_LIMBS_32
+// One thread per (message, signature, recid) through ecdsa_recover, the device
+// function behind ecdsa_recover_batch_kernel. Each slot starts as infinity.
+__global__ void audit_ecrecover_cases_kernel(const uint8_t* msgs,
+                                             const ECDSASignatureGPU* sigs,
+                                             const int* recids, JacobianPoint* out,
+                                             int* ok, int count) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= count) return;
+    JacobianPoint q;
+    field_set_zero(&q.x); field_set_one(&q.y); field_set_zero(&q.z);
+    q.infinity = true;
+    ok[i] = ecdsa_recover(msgs + static_cast<size_t>(i) * 32, &sigs[i], recids[i], &q) ? 1 : 0;
+    out[i] = q;
+}
+
+struct EcrecoverCase {
+    uint8_t msg[32];
+    ECDSASignatureGPU sig;
+    int recid;
+};
+
+static Scalar ecrec_scalar(uint64_t l0, uint64_t l1, uint64_t l2, uint64_t l3) {
+    Scalar s{};
+    s.limbs[0] = l0; s.limbs[1] = l1; s.limbs[2] = l2; s.limbs[3] = l3;
+    return s;
+}
+
+#ifdef HAVE_CPU_LIB
+// Big-endian 32 bytes -> little-endian 64-bit limbs, no reduction.
+static Scalar ecrec_scalar_be(const uint8_t b[32]) {
+    Scalar s{};
+    for (int i = 0; i < 4; ++i) {
+        uint64_t limb = 0;
+        for (int j = 0; j < 8; ++j) limb = (limb << 8) | b[(3 - i) * 8 + j];
+        s.limbs[i] = limb;
+    }
+    return s;
+}
+#endif  // HAVE_CPU_LIB
+
+static EcrecoverCase ecrec_case(uint64_t z, const Scalar& r, const Scalar& s, int recid) {
+    EcrecoverCase c{};
+    for (int i = 0; i < 8; ++i) c.msg[31 - i] = static_cast<uint8_t>(z >> (8 * i));
+    c.sig.r = r;
+    c.sig.s = s;
+    c.recid = recid;
+    return c;
+}
+
+// Runs ecdsa_recover on the device for every case.
+static int run_ecrecover_cases(const std::vector<EcrecoverCase>& cases,
+                               std::vector<JacobianPoint>& out, std::vector<int>& ok) {
+    const size_t n = cases.size();
+    std::vector<uint8_t> h_msg(n * 32);
+    std::vector<ECDSASignatureGPU> h_sig(n);
+    std::vector<int> h_rec(n);
+    for (size_t i = 0; i < n; ++i) {
+        std::memcpy(&h_msg[i * 32], cases[i].msg, 32);
+        h_sig[i] = cases[i].sig;
+        h_rec[i] = cases[i].recid;
+    }
+    out.assign(n, JacobianPoint{});
+    ok.assign(n, -1);
+
+    uint8_t* d_msg = nullptr; ECDSASignatureGPU* d_sig = nullptr; int* d_rec = nullptr;
+    JacobianPoint* d_out = nullptr; int* d_ok = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_msg, n * 32));
+    CUDA_CHECK(cudaMalloc(&d_sig, n * sizeof(ECDSASignatureGPU)));
+    CUDA_CHECK(cudaMalloc(&d_rec, n * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(&d_out, n * sizeof(JacobianPoint)));
+    CUDA_CHECK(cudaMalloc(&d_ok, n * sizeof(int)));
+    CUDA_CHECK(cudaMemcpy(d_msg, h_msg.data(), n * 32, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_sig, h_sig.data(), n * sizeof(ECDSASignatureGPU), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_rec, h_rec.data(), n * sizeof(int), cudaMemcpyHostToDevice));
+    const int count = static_cast<int>(n);
+    audit_ecrecover_cases_kernel<<<(count + 63) / 64, 64>>>(d_msg, d_sig, d_rec, d_out, d_ok, count);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(out.data(), d_out, n * sizeof(JacobianPoint), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(ok.data(), d_ok, n * sizeof(int), cudaMemcpyDeviceToHost));
+    cudaFree(d_msg); cudaFree(d_sig); cudaFree(d_rec); cudaFree(d_out); cudaFree(d_ok);
+    return 0;
+}
+
+// Edge rejections of ecdsa_recover. Every rejection has a positive control on
+// a neighbouring input, so a check cannot pass because recovery always fails.
+static int ecrecover_edge_cases() {
+    const Scalar zero  = ecrec_scalar(0, 0, 0, 0);
+    const Scalar one   = ecrec_scalar(1, 0, 0, 0);
+    const Scalar two   = ecrec_scalar(2, 0, 0, 0);
+    const Scalar five  = ecrec_scalar(5, 0, 0, 0);
+    const Scalar seven = ecrec_scalar(7, 0, 0, 0);
+    const Scalar gx    = ecrec_scalar(0x59F2815B16F81798ULL, 0x029BFCDB2DCE28D9ULL,
+                                      0x55A06295CE870B07ULL, 0x79BE667EF9DCBBACULL);
+    const Scalar n     = ecrec_scalar(0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+                                      0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL);
+    const Scalar n_p7  = ecrec_scalar(0xBFD25E8CD0364148ULL, 0xBAAEDCE6AF48A03BULL,
+                                      0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL);
+    const Scalar ones  = ecrec_scalar(~0ULL, ~0ULL, ~0ULL, ~0ULL);
+    const Scalar pmn   = ecrec_scalar(0x402DA1722FC9BAEEULL, 0x4551231950B75FC4ULL, 1, 0);
+    const Scalar pmn1  = ecrec_scalar(0x402DA1722FC9BAEFULL, 0x4551231950B75FC4ULL, 1, 0);
+    // x(2G); 2G has even y.
+    const Scalar g2x   = ecrec_scalar(0xABAC09B95C709EE5ULL, 0x5C778E4B8CEF3CA7ULL,
+                                      0x3045406E95C07CD8ULL, 0xC6047F9441ED7D6DULL);
+
+    struct EdgeCase { const char* name; EcrecoverCase c; int want; };
+    const EdgeCase edges[] = {
+        { "r = 0",                                ecrec_case(7, zero, seven, 0), 0 },
+        { "s = 0",                                ecrec_case(7, gx, zero, 0),    0 },
+        { "r = n",                                ecrec_case(7, n, seven, 1),    0 },
+        { "r = 2^256 - 1",                        ecrec_case(7, ones, seven, 1), 0 },
+        { "s = n",                                ecrec_case(7, gx, n, 1),       0 },
+        { "s = n + 7 (would reduce to s = 7)",    ecrec_case(7, gx, n_p7, 1),    0 },
+        { "control: r = x(G), s = 7, recid 1",    ecrec_case(7, gx, seven, 1),   1 },
+        { "recid = -1",                           ecrec_case(7, gx, seven, -1),  0 },
+        { "recid = 4",                            ecrec_case(7, gx, seven, 4),   0 },
+        { "x = 5 is not on the curve (recid 0)",  ecrec_case(7, five, seven, 0), 0 },
+        { "x = 5 is not on the curve (recid 1)",  ecrec_case(7, five, seven, 1), 0 },
+        { "control: x = 1 lifts (recid 0)",       ecrec_case(7, one, seven, 0),  1 },
+        { "recid 2 with r = p - n",               ecrec_case(7, pmn, seven, 2),  0 },
+        { "recid 2 with r = p - n + 1 (x wraps to 1)", ecrec_case(7, pmn1, seven, 2), 0 },
+        { "recid 3 with r = p - n + 1 (x wraps to 1)", ecrec_case(7, pmn1, seven, 3), 0 },
+        { "control: recid 2, r = 2 (x = 2 + n lifts)", ecrec_case(7, two, seven, 2), 1 },
+        { "control: recid 3, r = 2 (x = 2 + n lifts)", ecrec_case(7, two, seven, 3), 1 },
+        // R = G (even y), s = z = 7: s*R - z*G = O, so Q is the point at infinity
+        // (degenerate Shamir table: P = R).
+        { "Q at infinity (R = G, s = z = 7)",     ecrec_case(7, gx, seven, 0),   0 },
+        // R = 2G (even y), s = 7, z = 14: s*R - z*G = O through the regular
+        // Shamir table; the last addition is the unchecked P + (-P).
+        { "Q at infinity (R = 2G, s = 7, z = 14)", ecrec_case(14, g2x, seven, 0), 0 },
+        { "control: R = -2G, s = 7, z = 14",      ecrec_case(14, g2x, seven, 1), 1 },
+    };
+    const size_t count = sizeof(edges) / sizeof(edges[0]);
+    std::vector<EcrecoverCase> cases;
+    for (size_t i = 0; i < count; ++i) cases.push_back(edges[i].c);
+    std::vector<JacobianPoint> out;
+    std::vector<int> ok;
+    if (run_ecrecover_cases(cases, out, ok) != 0) return 10;
+    for (size_t i = 0; i < count; ++i) {
+        if (ok[i] != edges[i].want) {
+            std::fprintf(stderr, "    ecrecover edge '%s': got %d, want %d\n",
+                         edges[i].name, ok[i], edges[i].want);
+            return 20 + static_cast<int>(i);
+        }
+        if (ok[i] && out[i].infinity) {
+            std::fprintf(stderr, "    ecrecover edge '%s': success with infinity\n", edges[i].name);
+            return 20 + static_cast<int>(i);
+        }
+    }
+    return 0;
+}
+#endif  // !SECP256K1_CUDA_LIMBS_32
+
 static int audit_ecdsa_recovery() {
 #if SECP256K1_CUDA_LIMBS_32
     return 0;
@@ -1534,9 +1689,128 @@ static int audit_ecdsa_recovery() {
     CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaMemcpy(&h_r, d_r, sizeof(int), cudaMemcpyDeviceToHost));
     cudaFree(d_r);
-    return h_r;
+    if (h_r != 0) return h_r;
+    return ecrecover_edge_cases();
 #endif
 }
+
+#if defined(HAVE_CPU_LIB) && !SECP256K1_CUDA_LIMBS_32
+// GPU ecdsa_recover vs CPU secp256k1::ecdsa_recover, byte for byte on the
+// 33-byte compressed key: 64 CPU-signed recoverable signatures under all four
+// recids (exactly one recid, the signer's, recovers the signer key), plus 32
+// random (r, s, z) triples under recids 0..3 and crafted recid 2/3 inputs.
+static int audit_ecrecover_cpu_differential() {
+    using CpuScalar = secp256k1::fast::Scalar;
+    std::mt19937_64 rng(0xEC4EC0DEULL);
+    auto rand32 = [&rng](std::array<uint8_t, 32>& b) {
+        for (auto& x : b) x = static_cast<uint8_t>(rng());
+    };
+
+    struct CpuCase { std::array<uint8_t, 32> msg, r, s; int recid; };
+    std::vector<CpuCase> cpu_cases;
+    std::vector<std::array<uint8_t, 33>> signer_pub;
+    std::vector<int> signer_recid;
+
+    constexpr int kKeys = 64;
+    for (int k = 0; k < kKeys; ++k) {
+        std::array<uint8_t, 32> skb{}, msg{};
+        rand32(skb); rand32(msg);
+        const auto sk = CpuScalar::from_bytes(skb);
+        if (sk.is_zero()) return 1;
+        const auto rs = secp256k1::ecdsa_sign_recoverable(msg, sk);
+        if (rs.sig.r.is_zero() || rs.sig.s.is_zero()) return 2;
+        const auto pub = secp256k1::fast::Point::generator().scalar_mul(sk).to_compressed();
+        std::array<uint8_t, 33> pub33{};
+        std::memcpy(pub33.data(), pub.data(), 33);
+        signer_pub.push_back(pub33);
+        signer_recid.push_back(rs.recid);
+        for (int recid = 0; recid < 4; ++recid)
+            cpu_cases.push_back({msg, rs.sig.r.to_bytes(), rs.sig.s.to_bytes(), recid});
+    }
+    for (int t = 0; t < 32; ++t) {
+        std::array<uint8_t, 32> msg{}, r{}, s{};
+        rand32(msg); rand32(r); rand32(s);
+        // Keep r, s canonical (< n) so both sides see identical scalars.
+        r[0] &= 0x7F; s[0] &= 0x7F;
+        for (int recid = 0; recid < 4; ++recid) cpu_cases.push_back({msg, r, s, recid});
+    }
+    {
+        // recid 2/3 with r = 2: x = 2 + n lies on the curve.
+        std::array<uint8_t, 32> msg{}, r{}, s{};
+        rand32(msg); rand32(s); s[0] &= 0x7F;
+        r[31] = 2;
+        cpu_cases.push_back({msg, r, s, 2});
+        cpu_cases.push_back({msg, r, s, 3});
+    }
+    {
+        // Crafted R = G and R = 2G with z = s * dlog(R): the even-y recid gives
+        // Q = infinity (rejected on both sides), the odd-y recid a real key.
+        static const uint8_t GX[32] = {
+            0x79,0xBE,0x66,0x7E,0xF9,0xDC,0xBB,0xAC,0x55,0xA0,0x62,0x95,0xCE,0x87,0x0B,0x07,
+            0x02,0x9B,0xFC,0xDB,0x2D,0xCE,0x28,0xD9,0x59,0xF2,0x81,0x5B,0x16,0xF8,0x17,0x98};
+        static const uint8_t G2X[32] = {
+            0xC6,0x04,0x7F,0x94,0x41,0xED,0x7D,0x6D,0x30,0x45,0x40,0x6E,0x95,0xC0,0x7C,0xD8,
+            0x5C,0x77,0x8E,0x4B,0x8C,0xEF,0x3C,0xA7,0xAB,0xAC,0x09,0xB9,0x5C,0x70,0x9E,0xE5};
+        std::array<uint8_t, 32> s{}, z7{}, z14{}, gx{}, g2x{};
+        s[31] = 7; z7[31] = 7; z14[31] = 14;
+        std::memcpy(gx.data(), GX, 32);
+        std::memcpy(g2x.data(), G2X, 32);
+        for (int recid = 0; recid < 2; ++recid) {
+            cpu_cases.push_back({z7, gx, s, recid});
+            cpu_cases.push_back({z14, g2x, s, recid});
+        }
+    }
+
+    std::vector<EcrecoverCase> cases;
+    for (const auto& c : cpu_cases) {
+        EcrecoverCase g{};
+        std::memcpy(g.msg, c.msg.data(), 32);
+        g.sig.r = ecrec_scalar_be(c.r.data());
+        g.sig.s = ecrec_scalar_be(c.s.data());
+        g.recid = c.recid;
+        cases.push_back(g);
+    }
+    std::vector<JacobianPoint> out;
+    std::vector<int> ok;
+    if (run_ecrecover_cases(cases, out, ok) != 0) return 3;
+
+    int successes = 0;
+    for (size_t i = 0; i < cpu_cases.size(); ++i) {
+        const auto& c = cpu_cases[i];
+        const secp256k1::ECDSASignature cpu_sig{CpuScalar::from_bytes(c.r), CpuScalar::from_bytes(c.s)};
+        const auto cpu_res = secp256k1::ecdsa_recover(c.msg, cpu_sig, c.recid);
+        const auto& cpu_q = cpu_res.first;
+        const bool cpu_ok = cpu_res.second;
+        if ((ok[i] != 0) != cpu_ok) {
+            std::fprintf(stderr, "    ecrecover case %zu (recid %d): GPU ok=%d, CPU ok=%d\n",
+                         i, c.recid, ok[i], cpu_ok ? 1 : 0);
+            return 4;
+        }
+        if (!cpu_ok) continue;
+        ++successes;
+        const auto gpu33 = HostPoint::from_device(out[i]).to_compressed();
+        const auto cpu33 = cpu_q.to_compressed();
+        if (gpu33.size() != 33 || std::memcmp(gpu33.data(), cpu33.data(), 33) != 0) {
+            std::fprintf(stderr, "    ecrecover case %zu (recid %d): GPU key != CPU key\n",
+                         i, c.recid);
+            return 5;
+        }
+        if (i < static_cast<size_t>(kKeys) * 4) {
+            const size_t key = i / 4;
+            const bool is_signer = std::memcmp(gpu33.data(), signer_pub[key].data(), 33) == 0;
+            if (is_signer != (c.recid == signer_recid[key])) {
+                std::fprintf(stderr, "    key #%zu recid %d: signer match %d (signature recid %d)\n",
+                             key, c.recid, is_signer ? 1 : 0, signer_recid[key]);
+                return 6;
+            }
+        }
+    }
+    // Every signer recid succeeds; a corpus with no other success would not
+    // exercise the differential at all.
+    if (successes <= kKeys) return 7;
+    return 0;
+}
+#endif  // HAVE_CPU_LIB && !SECP256K1_CUDA_LIMBS_32
 
 // BIP-32 derivation chain integrity
 __global__ void audit_bip32_chain_integrity_kernel(int* result) {
@@ -2465,6 +2739,7 @@ static const GpuAuditModule GPU_MODULES[] = {
     { "diff_field_mul",    "CPU-GPU differential field mul (10 rounds)",  "differential", audit_cpu_gpu_differential_field_mul, false },
 #if !SECP256K1_CUDA_LIMBS_32
     { "diff_ecdsa",        "CPU-GPU differential ECDSA sign+verify",     "differential", audit_cpu_gpu_differential_ecdsa, false },
+    { "ecrecover_cpu_diff", "ecrecover GPU vs CPU bytes (64 keys x 4 recids + crafted)", "differential", audit_ecrecover_cpu_differential, false },
 #endif
 #endif
 

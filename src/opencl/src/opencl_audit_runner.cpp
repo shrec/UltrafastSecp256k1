@@ -2613,18 +2613,377 @@ static int audit_ct_glv_scalar_mul() {
     return rc;
 }
 
-// ECDSA public-key recovery (ecrecover_batch -> ecdsa_recover_impl, which
-// inverts r and the public intermediate points with the variable-time
-// SafeGCD inverses): for six keys, exactly one recid of a valid signature
-// recovers the signer's key, and a signature with a flipped s bit recovers it
-// for no recid.
+// -----------------------------------------------------------------------------
+// ecrecover host reference. Schoolbook arithmetic on 8 x 32-bit words, reduced
+// by folding with c = 2^256 - m, and complete Jacobian formulas with an
+// explicit infinity flag. It shares no code with the OpenCL kernels, so it is
+// the CPU oracle the GPU recovery is compared against byte for byte.
+// -----------------------------------------------------------------------------
+struct RrU256 { uint32_t w[8]; };
+struct RrMod  { RrU256 m; uint32_t c[5]; int clen; };
+
+static const RrMod RR_P = {
+    {{0xFFFFFC2Fu, 0xFFFFFFFEu, 0xFFFFFFFFu, 0xFFFFFFFFu,
+      0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu}},
+    {0x000003D1u, 0x00000001u, 0u, 0u, 0u}, 2};
+static const RrMod RR_N = {
+    {{0xD0364141u, 0xBFD25E8Cu, 0xAF48A03Bu, 0xBAAEDCE6u,
+      0xFFFFFFFEu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu}},
+    {0x2FC9BEBFu, 0x402DA173u, 0x50B75FC4u, 0x45512319u, 0x00000001u}, 5};
+
+static RrU256 rr_small(uint32_t v) { RrU256 r{}; r.w[0] = v; return r; }
+
+static RrU256 rr_from_limbs(const uint64_t l[4]) {
+    RrU256 r{};
+    for (int i = 0; i < 4; ++i) {
+        r.w[2 * i]     = (uint32_t)l[i];
+        r.w[2 * i + 1] = (uint32_t)(l[i] >> 32);
+    }
+    return r;
+}
+
+static RrU256 rr_from_be(const uint8_t b[32]) {
+    RrU256 r{};
+    for (int i = 0; i < 8; ++i) {
+        const uint8_t* p = b + (7 - i) * 4;
+        r.w[i] = ((uint32_t)p[0] << 24) | ((uint32_t)p[1] << 16) | ((uint32_t)p[2] << 8) | p[3];
+    }
+    return r;
+}
+
+static void rr_to_be(const RrU256& a, uint8_t b[32]) {
+    for (int i = 0; i < 8; ++i) {
+        uint8_t* p = b + (7 - i) * 4;
+        p[0] = (uint8_t)(a.w[i] >> 24); p[1] = (uint8_t)(a.w[i] >> 16);
+        p[2] = (uint8_t)(a.w[i] >> 8);  p[3] = (uint8_t)a.w[i];
+    }
+}
+
+static int rr_cmp(const RrU256& a, const RrU256& b) {
+    for (int i = 7; i >= 0; --i)
+        if (a.w[i] != b.w[i]) return a.w[i] < b.w[i] ? -1 : 1;
+    return 0;
+}
+
+static bool rr_is_zero(const RrU256& a) {
+    uint32_t acc = 0;
+    for (int i = 0; i < 8; ++i) acc |= a.w[i];
+    return acc == 0;
+}
+
+static uint32_t rr_add_raw(RrU256& r, const RrU256& a, const RrU256& b) {
+    uint64_t c = 0;
+    for (int i = 0; i < 8; ++i) {
+        c += (uint64_t)a.w[i] + b.w[i];
+        r.w[i] = (uint32_t)c;
+        c >>= 32;
+    }
+    return (uint32_t)c;
+}
+
+static uint32_t rr_sub_raw(RrU256& r, const RrU256& a, const RrU256& b) {
+    uint64_t borrow = 0;
+    for (int i = 0; i < 8; ++i) {
+        const uint64_t d = (uint64_t)a.w[i] - b.w[i] - borrow;
+        r.w[i] = (uint32_t)d;
+        borrow = (d >> 63) & 1u;
+    }
+    return (uint32_t)borrow;
+}
+
+static RrU256 rr_addm(const RrU256& a, const RrU256& b, const RrMod& M) {
+    RrU256 r;
+    const uint32_t carry = rr_add_raw(r, a, b);
+    if (carry || rr_cmp(r, M.m) >= 0) rr_sub_raw(r, r, M.m);
+    return r;
+}
+
+static RrU256 rr_subm(const RrU256& a, const RrU256& b, const RrMod& M) {
+    RrU256 r;
+    if (rr_sub_raw(r, a, b)) rr_add_raw(r, r, M.m);
+    return r;
+}
+
+static RrU256 rr_mulm(const RrU256& a, const RrU256& b, const RrMod& M) {
+    uint32_t t[32] = {0};
+    for (int i = 0; i < 8; ++i) {
+        uint64_t carry = 0;
+        for (int j = 0; j < 8; ++j) {
+            const uint64_t cur = (uint64_t)a.w[i] * b.w[j] + t[i + j] + carry;
+            t[i + j] = (uint32_t)cur;
+            carry = cur >> 32;
+        }
+        t[i + 8] = (uint32_t)carry;
+    }
+    // Fold: lo + hi * 2^256 == lo + hi * c (mod m), until hi is zero.
+    int len = 16;
+    for (;;) {
+        bool hi_zero = true;
+        for (int i = 8; i < len; ++i) if (t[i]) { hi_zero = false; break; }
+        if (hi_zero) break;
+        uint32_t u[32] = {0};
+        for (int i = 0; i < 8; ++i) u[i] = t[i];
+        for (int i = 8; i < len; ++i) {
+            uint64_t carry = 0;
+            int k = i - 8;
+            for (int j = 0; j < M.clen; ++j, ++k) {
+                const uint64_t cur = (uint64_t)t[i] * M.c[j] + u[k] + carry;
+                u[k] = (uint32_t)cur;
+                carry = cur >> 32;
+            }
+            while (carry) {
+                const uint64_t cur = (uint64_t)u[k] + carry;
+                u[k++] = (uint32_t)cur;
+                carry = cur >> 32;
+            }
+        }
+        const int nl = (len - 8) + M.clen + 1;
+        len = nl > 9 ? nl : 9;
+        for (int i = 0; i < 32; ++i) t[i] = u[i];
+    }
+    RrU256 r;
+    for (int i = 0; i < 8; ++i) r.w[i] = t[i];
+    while (rr_cmp(r, M.m) >= 0) rr_sub_raw(r, r, M.m);
+    return r;
+}
+
+static RrU256 rr_powm(const RrU256& a, const RrU256& e, const RrMod& M) {
+    RrU256 r = rr_small(1);
+    for (int i = 255; i >= 0; --i) {
+        r = rr_mulm(r, r, M);
+        if ((e.w[i / 32] >> (i % 32)) & 1u) r = rr_mulm(r, a, M);
+    }
+    return r;
+}
+
+struct RrPt { RrU256 x, y, z; bool inf; };
+
+static RrPt rr_inf() { RrPt p{}; p.inf = true; return p; }
+
+static RrPt rr_dbl(const RrPt& P) {
+    if (P.inf || rr_is_zero(P.y)) return rr_inf();
+    const RrMod& M = RR_P;
+    const RrU256 A = rr_mulm(P.x, P.x, M);
+    const RrU256 B = rr_mulm(P.y, P.y, M);
+    const RrU256 C = rr_mulm(B, B, M);
+    RrU256 t = rr_addm(P.x, B, M);
+    t = rr_subm(rr_subm(rr_mulm(t, t, M), A, M), C, M);
+    const RrU256 D = rr_addm(t, t, M);
+    const RrU256 E = rr_addm(rr_addm(A, A, M), A, M);
+    RrU256 c8 = rr_addm(C, C, M);
+    c8 = rr_addm(c8, c8, M);
+    c8 = rr_addm(c8, c8, M);
+    RrPt R;
+    R.inf = false;
+    R.x = rr_subm(rr_mulm(E, E, M), rr_addm(D, D, M), M);
+    R.y = rr_subm(rr_mulm(E, rr_subm(D, R.x, M), M), c8, M);
+    const RrU256 yz = rr_mulm(P.y, P.z, M);
+    R.z = rr_addm(yz, yz, M);
+    return R;
+}
+
+static RrPt rr_add(const RrPt& P, const RrPt& Q) {
+    if (P.inf) return Q;
+    if (Q.inf) return P;
+    const RrMod& M = RR_P;
+    const RrU256 z1z1 = rr_mulm(P.z, P.z, M), z2z2 = rr_mulm(Q.z, Q.z, M);
+    const RrU256 u1 = rr_mulm(P.x, z2z2, M), u2 = rr_mulm(Q.x, z1z1, M);
+    const RrU256 s1 = rr_mulm(rr_mulm(P.y, Q.z, M), z2z2, M);
+    const RrU256 s2 = rr_mulm(rr_mulm(Q.y, P.z, M), z1z1, M);
+    if (rr_cmp(u1, u2) == 0) return rr_cmp(s1, s2) == 0 ? rr_dbl(P) : rr_inf();
+    const RrU256 h = rr_subm(u2, u1, M), rd = rr_subm(s2, s1, M);
+    const RrU256 h2 = rr_mulm(h, h, M), h3 = rr_mulm(h, h2, M), v = rr_mulm(u1, h2, M);
+    RrPt R;
+    R.inf = false;
+    R.x = rr_subm(rr_subm(rr_mulm(rd, rd, M), h3, M), rr_addm(v, v, M), M);
+    R.y = rr_subm(rr_mulm(rd, rr_subm(v, R.x, M), M), rr_mulm(s1, h3, M), M);
+    R.z = rr_mulm(rr_mulm(h, P.z, M), Q.z, M);
+    return R;
+}
+
+static RrPt rr_smul(const RrU256& k, const RrPt& P) {
+    RrPt R = rr_inf();
+    for (int i = 255; i >= 0; --i) {
+        R = rr_dbl(R);
+        if ((k.w[i / 32] >> (i % 32)) & 1u) R = rr_add(R, P);
+    }
+    return R;
+}
+
+// Reference ecrecover with the libsecp256k1 / CPU ecdsa_recover rules:
+// recid in 0..3, 0 < r, s < n, recid & 2 requires r < p - n (x = r + n),
+// x must lift, y parity = recid & 1, Q = r^-1 (s R - z G) != infinity.
+// Output: 65-byte uncompressed key.
+static bool rr_ecrecover(const uint8_t msg[32], const uint64_t r_l[4], const uint64_t s_l[4],
+                         int recid, uint8_t out65[65]) {
+    std::memset(out65, 0, 65);
+    if (recid < 0 || recid > 3) return false;
+    const RrU256 r = rr_from_limbs(r_l), s = rr_from_limbs(s_l);
+    if (rr_is_zero(r) || rr_is_zero(s)) return false;
+    if (rr_cmp(r, RR_N.m) >= 0 || rr_cmp(s, RR_N.m) >= 0) return false;
+    RrU256 x = r;
+    if (recid & 2) {
+        RrU256 pmn;
+        rr_sub_raw(pmn, RR_P.m, RR_N.m);
+        if (rr_cmp(r, pmn) >= 0) return false;
+        rr_add_raw(x, r, RR_N.m);   // r < p - n, so x < p
+    }
+    const RrU256 alpha = rr_addm(rr_mulm(rr_mulm(x, x, RR_P), x, RR_P), rr_small(7), RR_P);
+    RrU256 e;
+    rr_add_raw(e, RR_P.m, rr_small(1));           // p + 1
+    for (int i = 0; i < 8; ++i)                   // (p + 1) / 4
+        e.w[i] = (e.w[i] >> 2) | (i < 7 ? (e.w[i + 1] << 30) : 0u);
+    RrU256 y = rr_powm(alpha, e, RR_P);
+    if (rr_cmp(rr_mulm(y, y, RR_P), alpha) != 0) return false;
+    if ((int)(y.w[0] & 1u) != (recid & 1)) y = rr_subm(rr_small(0), y, RR_P);
+
+    RrU256 z = rr_from_be(msg);
+    if (rr_cmp(z, RR_N.m) >= 0) rr_sub_raw(z, z, RR_N.m);
+    RrU256 nm2;
+    rr_sub_raw(nm2, RR_N.m, rr_small(2));
+    const RrU256 rinv = rr_powm(r, nm2, RR_N);
+    const RrU256 u1 = rr_subm(rr_small(0), rr_mulm(z, rinv, RR_N), RR_N);
+    const RrU256 u2 = rr_mulm(s, rinv, RR_N);
+
+    static const uint64_t GXL[4] = {0x59F2815B16F81798ULL, 0x029BFCDB2DCE28D9ULL,
+                                    0x55A06295CE870B07ULL, 0x79BE667EF9DCBBACULL};
+    static const uint64_t GYL[4] = {0x9C47D08FFB10D4B8ULL, 0xFD17B448A6855419ULL,
+                                    0x5DA4FBFC0E1108A8ULL, 0x483ADA7726A3C465ULL};
+    const RrPt G = {rr_from_limbs(GXL), rr_from_limbs(GYL), rr_small(1), false};
+    const RrPt R = {x, y, rr_small(1), false};
+    const RrPt Q = rr_add(rr_smul(u1, G), rr_smul(u2, R));
+    if (Q.inf) return false;
+    RrU256 pm2;
+    rr_sub_raw(pm2, RR_P.m, rr_small(2));
+    const RrU256 zi  = rr_powm(Q.z, pm2, RR_P);    // Fermat: Q.z^(p-2)
+    const RrU256 zi2 = rr_mulm(zi, zi, RR_P);
+    out65[0] = 0x04;
+    rr_to_be(rr_mulm(Q.x, zi2, RR_P), out65 + 1);
+    rr_to_be(rr_mulm(Q.y, rr_mulm(zi2, zi, RR_P), RR_P), out65 + 33);
+    return true;
+}
+
+// GPU Jacobian output -> 65-byte uncompressed key (canonical coordinates).
+static void ocl_point_to_65(const JacobianPoint& p, uint8_t out65[65]) {
+    AffinePoint const a = jacobian_to_affine(p);
+    uint64_t x[4], y[4];
+    iv_reduce_once(a.x.limbs, MODULUS, x);
+    iv_reduce_once(a.y.limbs, MODULUS, y);
+    out65[0] = 0x04;
+    for (int i = 0; i < 4; ++i) {
+        for (int b = 0; b < 8; ++b) {
+            out65[1 + 31 - (i * 8 + b)]  = (uint8_t)(x[i] >> (8 * b));
+            out65[33 + 31 - (i * 8 + b)] = (uint8_t)(y[i] >> (8 * b));
+        }
+    }
+}
+
+// One ecrecover_batch launch over every case.
+static bool ocl_ecrecover_run(cl_kernel k, const std::vector<uint8_t>& msgs,
+                              const std::vector<ExtendedCL::ECDSASig>& sigs,
+                              const std::vector<int>& recids,
+                              std::vector<JacobianPoint>& pubs, std::vector<int>& res) {
+    const size_t n = recids.size();
+    pubs.assign(n, JacobianPoint{});
+    res.assign(n, -1);
+    cl_int e[5] = {};
+    cl_mem d_msg = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                  msgs.size(), const_cast<uint8_t*>(msgs.data()), &e[0]);
+    cl_mem d_sig = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                  n * sizeof(ExtendedCL::ECDSASig),
+                                  const_cast<ExtendedCL::ECDSASig*>(sigs.data()), &e[1]);
+    cl_mem d_rec = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                  n * sizeof(int), const_cast<int*>(recids.data()), &e[2]);
+    cl_mem d_pub = clCreateBuffer(g_ext.context, CL_MEM_WRITE_ONLY,
+                                  n * sizeof(JacobianPoint), nullptr, &e[3]);
+    cl_mem d_res = clCreateBuffer(g_ext.context, CL_MEM_WRITE_ONLY, n * sizeof(int), nullptr, &e[4]);
+    bool ok = true;
+    for (cl_int x : e) ok = ok && (x == CL_SUCCESS);
+    if (ok) {
+        cl_uint count = (cl_uint)n;
+        clSetKernelArg(k, 0, sizeof(cl_mem), &d_msg);
+        clSetKernelArg(k, 1, sizeof(cl_mem), &d_sig);
+        clSetKernelArg(k, 2, sizeof(cl_mem), &d_rec);
+        clSetKernelArg(k, 3, sizeof(cl_mem), &d_pub);
+        clSetKernelArg(k, 4, sizeof(cl_mem), &d_res);
+        clSetKernelArg(k, 5, sizeof(cl_uint), &count);
+        size_t global = n;
+        ok = clEnqueueNDRangeKernel(g_ext.queue, k, 1, nullptr, &global, nullptr,
+                                    0, nullptr, nullptr) == CL_SUCCESS
+          && clEnqueueReadBuffer(g_ext.queue, d_pub, CL_TRUE, 0, n * sizeof(JacobianPoint),
+                                 pubs.data(), 0, nullptr, nullptr) == CL_SUCCESS
+          && clEnqueueReadBuffer(g_ext.queue, d_res, CL_TRUE, 0, n * sizeof(int),
+                                 res.data(), 0, nullptr, nullptr) == CL_SUCCESS;
+    }
+    if (d_msg) clReleaseMemObject(d_msg);
+    if (d_sig) clReleaseMemObject(d_sig);
+    if (d_rec) clReleaseMemObject(d_rec);
+    if (d_pub) clReleaseMemObject(d_pub);
+    if (d_res) clReleaseMemObject(d_res);
+    return ok;
+}
+
+// ECDSA public-key recovery (ecrecover_batch -> ecdsa_recover_impl: one
+// variable-time r^-1, one GLV Shamir u1*G + u2*R, one affine conversion).
+// Every case is compared byte for byte (status and 65-byte key) with the host
+// reference rr_ecrecover:
+//   * six fixed keys and 64 seeded keys, signed on the GPU, under recids 0..3:
+//     exactly one recid recovers the signer; with one flipped s bit (the six
+//     fixed keys) no recid does;
+//   * 32 random (r, s, z) triples under recids 0..3;
+//   * edge inputs with their expected status: r or s zero or >= n, recid out
+//     of range, x not on the curve, recid 2/3 with r >= p - n (x would wrap),
+//     Q at infinity (R = G and R = 2G with z = s * dlog(R)), each next to a
+//     positive control on a neighbouring input.
 static int audit_ecrecover_roundtrip() {
     if (!g_ext.valid) return -1;
     cl_int err = CL_SUCCESS;
     cl_kernel k = clCreateKernel(g_ext.program, "ecrecover_batch", &err);
     if (err != CL_SUCCESS || !k) return 1;
 
-    static const uint64_t keys[][4] = {
+    std::vector<uint8_t> msgs;
+    std::vector<ExtendedCL::ECDSASig> sigs;
+    std::vector<int> recids;
+    std::vector<int> case_signer;   // signer index, -1 = none
+    std::vector<int> case_want;     // expected status, -1 = reference only
+    std::vector<const char*> case_name;
+    auto add_case = [&](const uint8_t msg[32], const ExtendedCL::ECDSASig& s, int recid,
+                        int signer, int want, const char* name) {
+        msgs.insert(msgs.end(), msg, msg + 32);
+        sigs.push_back(s);
+        recids.push_back(recid);
+        case_signer.push_back(signer);
+        case_want.push_back(want);
+        case_name.push_back(name);
+    };
+    struct Signer { uint8_t pub65[65]; int want_matches; };
+    std::vector<Signer> signers;
+    int rc = 0;
+
+    auto add_signer = [&](const uint64_t key[4], const uint8_t msg[32], bool with_corrupt) {
+        Scalar priv{{key[0], key[1], key[2], key[3]}};
+        ExtendedCL::ECDSASig sig{};
+        if (!ocl_ecdsa_sign(priv, msg, sig)) return 2;
+        JacobianPoint const pub = ext_generator_mul(priv);
+        if (!ocl_ecdsa_verify(pub, msg, sig)) return 3;
+        Signer sg{};
+        ocl_point_to_65(pub, sg.pub65);
+        sg.want_matches = 1;
+        signers.push_back(sg);
+        for (int recid = 0; recid < 4; ++recid)
+            add_case(msg, sig, recid, (int)signers.size() - 1, -1, "signed");
+        if (with_corrupt) {
+            ExtendedCL::ECDSASig bad = sig;
+            bad.s[0] ^= 1;
+            sg.want_matches = 0;
+            signers.push_back(sg);
+            for (int recid = 0; recid < 4; ++recid)
+                add_case(msg, bad, recid, (int)signers.size() - 1, -1, "flipped s bit");
+        }
+        return 0;
+    };
+
+    static const uint64_t fixed_keys[][4] = {
         {1, 0, 0, 0},
         {2, 0, 0, 0},
         {42, 0, 0, 0},
@@ -2632,88 +2991,139 @@ static int audit_ecrecover_roundtrip() {
         {0x1111111111111111ULL, 0x2222222222222222ULL, 0x3333333333333333ULL, 0x4444444444444444ULL},
         {0xBFD25E8CD0364140ULL, 0xBAAEDCE6AF48A03BULL, 0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL},
     };
-    int rc = 0;
-    for (size_t t = 0; t < sizeof(keys) / sizeof(keys[0]) && rc == 0; ++t) {
-        Scalar priv{{keys[t][0], keys[t][1], keys[t][2], keys[t][3]}};
+    for (size_t t = 0; t < sizeof(fixed_keys) / sizeof(fixed_keys[0]) && rc == 0; ++t) {
         uint8_t msg[32];
         for (int i = 0; i < 32; ++i) msg[i] = (uint8_t)(0x5A ^ (i * 7) ^ (int)(t * 31));
-        ExtendedCL::ECDSASig sig{};
-        if (!ocl_ecdsa_sign(priv, msg, sig)) { rc = 2; break; }
-        JacobianPoint const pub = ext_generator_mul(priv);
-        if (!ocl_ecdsa_verify(pub, msg, sig)) { rc = 3; break; }
-        AffinePoint const want = jacobian_to_affine(pub);
-        uint64_t want_x[4], want_y[4];
-        iv_reduce_once(want.x.limbs, MODULUS, want_x);
-        iv_reduce_once(want.y.limbs, MODULUS, want_y);
+        rc = add_signer(fixed_keys[t], msg, true);
+    }
 
-        for (int corrupt = 0; corrupt < 2 && rc == 0; ++corrupt) {
-            ExtendedCL::ECDSASig s = sig;
-            if (corrupt) s.s[0] ^= 1;
-            std::vector<uint8_t> msgs(4 * 32);
-            for (int j = 0; j < 4; ++j) std::memcpy(&msgs[j * 32], msg, 32);
-            std::vector<ExtendedCL::ECDSASig> sigs(4, s);
-            int recids[4] = {0, 1, 2, 3};
-            std::vector<JacobianPoint> pubs(4);
-            int res[4] = {0, 0, 0, 0};
+    uint64_t seed = 0xEC4EC0DE5EED0001ULL;
+    auto next = [&seed]() {
+        seed += 0x9E3779B97F4A7C15ULL;
+        uint64_t z = seed;
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+        return z ^ (z >> 31);
+    };
+    auto rand_msg = [&next](uint8_t msg[32]) {
+        for (int i = 0; i < 32; i += 8) {
+            const uint64_t v = next();
+            for (int b = 0; b < 8; ++b) msg[i + b] = (uint8_t)(v >> (8 * b));
+        }
+    };
+    constexpr int kSeededKeys = 64;
+    for (int t = 0; t < kSeededKeys && rc == 0; ++t) {
+        // Below 2^255 < n and non-zero.
+        uint64_t key[4] = {next() | 1u, next(), next(), next() & 0x7FFFFFFFFFFFFFFFULL};
+        uint8_t msg[32];
+        rand_msg(msg);
+        rc = add_signer(key, msg, false);
+    }
+    if (rc != 0) { clReleaseKernel(k); return rc; }
 
-            cl_int e[5] = {};
-            cl_mem d_msg = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          msgs.size(), msgs.data(), &e[0]);
-            cl_mem d_sig = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          sigs.size() * sizeof(ExtendedCL::ECDSASig), sigs.data(), &e[1]);
-            cl_mem d_rec = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          sizeof(recids), recids, &e[2]);
-            cl_mem d_pub = clCreateBuffer(g_ext.context, CL_MEM_WRITE_ONLY,
-                                          pubs.size() * sizeof(JacobianPoint), nullptr, &e[3]);
-            cl_mem d_res = clCreateBuffer(g_ext.context, CL_MEM_WRITE_ONLY, sizeof(res), nullptr, &e[4]);
-            bool ok = true;
-            for (cl_int x : e) ok = ok && (x == CL_SUCCESS);
-            if (ok) {
-                cl_uint count = 4;
-                clSetKernelArg(k, 0, sizeof(cl_mem), &d_msg);
-                clSetKernelArg(k, 1, sizeof(cl_mem), &d_sig);
-                clSetKernelArg(k, 2, sizeof(cl_mem), &d_rec);
-                clSetKernelArg(k, 3, sizeof(cl_mem), &d_pub);
-                clSetKernelArg(k, 4, sizeof(cl_mem), &d_res);
-                clSetKernelArg(k, 5, sizeof(cl_uint), &count);
-                size_t global = 4;
-                ok = clEnqueueNDRangeKernel(g_ext.queue, k, 1, nullptr, &global, nullptr,
-                                            0, nullptr, nullptr) == CL_SUCCESS
-                  && clEnqueueReadBuffer(g_ext.queue, d_pub, CL_TRUE, 0,
-                                         pubs.size() * sizeof(JacobianPoint), pubs.data(),
-                                         0, nullptr, nullptr) == CL_SUCCESS
-                  && clEnqueueReadBuffer(g_ext.queue, d_res, CL_TRUE, 0, sizeof(res), res,
-                                         0, nullptr, nullptr) == CL_SUCCESS;
-            }
-            if (d_msg) clReleaseMemObject(d_msg);
-            if (d_sig) clReleaseMemObject(d_sig);
-            if (d_rec) clReleaseMemObject(d_rec);
-            if (d_pub) clReleaseMemObject(d_pub);
-            if (d_res) clReleaseMemObject(d_res);
-            if (!ok) { rc = 4; break; }
+    for (int t = 0; t < 32; ++t) {
+        uint8_t msg[32];
+        rand_msg(msg);
+        ExtendedCL::ECDSASig s{};
+        for (int i = 0; i < 4; ++i) { s.r[i] = next(); s.s[i] = next(); }
+        s.r[3] &= 0x7FFFFFFFFFFFFFFFULL;   // canonical: below 2^255 < n
+        s.s[3] &= 0x7FFFFFFFFFFFFFFFULL;
+        for (int recid = 0; recid < 4; ++recid) add_case(msg, s, recid, -1, -1, "random (r, s, z)");
+    }
 
-            int matches = 0;
-            for (int j = 0; j < 4; ++j) {
-                if (!res[j]) continue;
-                AffinePoint const got = jacobian_to_affine(pubs[j]);
-                uint64_t gx[4], gy[4];
-                iv_reduce_once(got.x.limbs, MODULUS, gx);
-                iv_reduce_once(got.y.limbs, MODULUS, gy);
-                if (iv_eq(gx, want_x) && iv_eq(gy, want_y)) ++matches;
-            }
-            if (!corrupt && matches != 1) {
-                std::fprintf(stderr, "    key #%zu: %d recids recovered the signer key (want 1)\n",
-                             t, matches);
-                rc = 5;
-            }
-            if (corrupt && matches != 0) {
-                std::fprintf(stderr, "    key #%zu: corrupted signature recovered the signer key\n", t);
-                rc = 6;
-            }
+    {
+        static const uint64_t ZERO[4]  = {0, 0, 0, 0};
+        static const uint64_t ONE[4]   = {1, 0, 0, 0};
+        static const uint64_t TWO[4]   = {2, 0, 0, 0};
+        static const uint64_t FIVE[4]  = {5, 0, 0, 0};
+        static const uint64_t SEVEN[4] = {7, 0, 0, 0};
+        static const uint64_t GX[4]    = {0x59F2815B16F81798ULL, 0x029BFCDB2DCE28D9ULL,
+                                          0x55A06295CE870B07ULL, 0x79BE667EF9DCBBACULL};
+        static const uint64_t G2X[4]   = {0xABAC09B95C709EE5ULL, 0x5C778E4B8CEF3CA7ULL,
+                                          0x3045406E95C07CD8ULL, 0xC6047F9441ED7D6DULL};
+        static const uint64_t NN[4]    = {0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+                                          0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL};
+        static const uint64_t NP7[4]   = {0xBFD25E8CD0364148ULL, 0xBAAEDCE6AF48A03BULL,
+                                          0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL};
+        static const uint64_t ONES[4]  = {~0ULL, ~0ULL, ~0ULL, ~0ULL};
+        static const uint64_t PMN[4]   = {0x402DA1722FC9BAEEULL, 0x4551231950B75FC4ULL, 1, 0};
+        static const uint64_t PMN1[4]  = {0x402DA1722FC9BAEFULL, 0x4551231950B75FC4ULL, 1, 0};
+        struct Edge { const char* name; uint8_t z; const uint64_t* r; const uint64_t* s; int recid; int want; };
+        static const Edge edges[] = {
+            { "r = 0",                                     7, ZERO, SEVEN, 0, 0 },
+            { "s = 0",                                     7, GX, ZERO, 0, 0 },
+            { "r = n",                                     7, NN, SEVEN, 1, 0 },
+            { "r = 2^256 - 1",                             7, ONES, SEVEN, 1, 0 },
+            { "s = n",                                     7, GX, NN, 1, 0 },
+            { "s = n + 7 (would reduce to s = 7)",         7, GX, NP7, 1, 0 },
+            { "control: r = x(G), s = 7, recid 1",         7, GX, SEVEN, 1, 1 },
+            { "recid = -1",                                7, GX, SEVEN, -1, 0 },
+            { "recid = 4",                                 7, GX, SEVEN, 4, 0 },
+            { "x = 5 is not on the curve (recid 0)",       7, FIVE, SEVEN, 0, 0 },
+            { "x = 5 is not on the curve (recid 1)",       7, FIVE, SEVEN, 1, 0 },
+            { "control: x = 1 lifts (recid 0)",            7, ONE, SEVEN, 0, 1 },
+            { "recid 2 with r = p - n",                    7, PMN, SEVEN, 2, 0 },
+            { "recid 2 with r = p - n + 1 (x wraps to 1)", 7, PMN1, SEVEN, 2, 0 },
+            { "recid 3 with r = p - n + 1 (x wraps to 1)", 7, PMN1, SEVEN, 3, 0 },
+            { "control: recid 2, r = 2 (x = 2 + n lifts)", 7, TWO, SEVEN, 2, 1 },
+            { "control: recid 3, r = 2 (x = 2 + n lifts)", 7, TWO, SEVEN, 3, 1 },
+            { "Q at infinity (R = G, s = z = 7)",          7, GX, SEVEN, 0, 0 },
+            { "Q at infinity (R = 2G, s = 7, z = 14)",    14, G2X, SEVEN, 0, 0 },
+            { "control: R = -2G, s = 7, z = 14",          14, G2X, SEVEN, 1, 1 },
+        };
+        for (const Edge& ed : edges) {
+            uint8_t msg[32] = {0};
+            msg[31] = ed.z;
+            ExtendedCL::ECDSASig s{};
+            for (int i = 0; i < 4; ++i) { s.r[i] = ed.r[i]; s.s[i] = ed.s[i]; }
+            add_case(msg, s, ed.recid, -1, ed.want, ed.name);
         }
     }
+
+    std::vector<JacobianPoint> pubs;
+    std::vector<int> res;
+    if (!ocl_ecrecover_run(k, msgs, sigs, recids, pubs, res)) { clReleaseKernel(k); return 4; }
     clReleaseKernel(k);
-    return rc;
+
+    std::vector<int> matches(signers.size(), 0);
+    int successes = 0;
+    for (size_t i = 0; i < recids.size(); ++i) {
+        uint8_t want65[65];
+        const bool ref_ok = rr_ecrecover(&msgs[i * 32], sigs[i].r, sigs[i].s, recids[i], want65);
+        const bool gpu_ok = res[i] != 0;
+        if (gpu_ok != ref_ok) {
+            std::fprintf(stderr, "    ecrecover case %zu (%s, recid %d): GPU ok=%d, reference ok=%d\n",
+                         i, case_name[i], recids[i], res[i], ref_ok ? 1 : 0);
+            return 5;
+        }
+        if (case_want[i] >= 0 && (gpu_ok ? 1 : 0) != case_want[i]) {
+            std::fprintf(stderr, "    ecrecover edge '%s': got %d, want %d\n",
+                         case_name[i], gpu_ok ? 1 : 0, case_want[i]);
+            return 6;
+        }
+        if (!gpu_ok) continue;
+        ++successes;
+        uint8_t got65[65];
+        ocl_point_to_65(pubs[i], got65);
+        if (std::memcmp(got65, want65, 65) != 0) {
+            std::fprintf(stderr, "    ecrecover case %zu (%s, recid %d): GPU key != reference key\n",
+                         i, case_name[i], recids[i]);
+            return 7;
+        }
+        const int sg = case_signer[i];
+        if (sg >= 0 && std::memcmp(got65, signers[sg].pub65, 65) == 0) ++matches[sg];
+    }
+    for (size_t sg = 0; sg < signers.size(); ++sg) {
+        if (matches[sg] != signers[sg].want_matches) {
+            std::fprintf(stderr, "    signer #%zu: %d recids recovered the signer key (want %d)\n",
+                         sg, matches[sg], signers[sg].want_matches);
+            return 8;
+        }
+    }
+    // Signer recids alone give one success per valid signature; the corpus
+    // must also succeed elsewhere to exercise the comparison.
+    if (successes <= (int)(6 + kSeededKeys)) return 9;
+    return 0;
 }
 
 // =============================================================================
@@ -2753,7 +3163,7 @@ static const OclAuditModule OCL_MODULES[] = {
 
     // Section 2: Signature Operations
     { "ecdsa_roundtrip",   "ECDSA sign + verify roundtrip",              "signatures", audit_ecdsa_roundtrip, false },
-    { "ecrecover_rt",      "ECDSA ecrecover roundtrip (+ corrupted sig)", "signatures", audit_ecrecover_roundtrip, false },
+    { "ecrecover_rt",      "ECDSA ecrecover vs host reference (70 keys, random, edges)", "signatures", audit_ecrecover_roundtrip, false },
     { "schnorr_roundtrip", "Schnorr/BIP-340 sign + verify roundtrip",    "signatures", audit_schnorr_roundtrip, false },
     { "ecdsa_wrong_key",   "ECDSA verify rejects wrong pubkey",          "signatures", audit_ecdsa_wrong_key, false },
     { "ecdsa_verify_rx",   "ECDSA verify projective x(R)==r (r+n branch)", "signatures", audit_ecdsa_verify_rx, false },
