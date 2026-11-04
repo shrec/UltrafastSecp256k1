@@ -297,6 +297,18 @@ else()
     )
 endif()
 target_link_libraries(gpu_bench_unified PRIVATE secp256k1_cuda_lib)
+# The verification rows (ECDSA / BIP-340 verify, ecrecover, hash160) build
+# their inputs and reference results with the CPU library. Same linkage as
+# bench_compare below: the CPU target suppresses INTERFACE LTO propagation when
+# CUDA is enabled, so link it directly and keep nvcc's host link at -fno-lto.
+target_include_directories(gpu_bench_unified PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../cpu/include
+)
+target_link_libraries(gpu_bench_unified PRIVATE
+    fastsecp256k1
+)
+set_target_properties(gpu_bench_unified PROPERTIES INTERPROCEDURAL_OPTIMIZATION FALSE)
+target_link_options(gpu_bench_unified PRIVATE -fno-lto)
 
 # ===== BIP-324 Transport Benchmark (CUDA batch parallel) =====
 set(_BENCH_BIP324_SOURCES src/bench_bip324_transport.cu)
