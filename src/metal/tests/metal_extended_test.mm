@@ -24,6 +24,7 @@
 #include <chrono>
 #include <vector>
 #include <string>
+#include <set>
 
 // =============================================================================
 // Helpers
@@ -855,6 +856,275 @@ static int test_ct_smoke(MetalCtx& ctx, bool verbose) {
 }
 
 // =============================================================================
+// CT mixed addition: P + (-P) is the flagged point at infinity
+// =============================================================================
+// ct_point_add_mixed (shaders/secp256k1_ct_point.h) once handled only P == Q
+// (h == 0, rr == 0). For P == -Q (h == 0, rr != 0) the formula gives
+// z3 = 2*z1*h = 0 with the infinity flag clear, and Z = 0 is sticky through
+// later additions and doublings. The check kernel is not part of the shipped
+// metallib: it is appended to secp256k1_kernels.metal (its quoted #includes
+// expanded from the shader directory) and compiled here at runtime. Mirrors
+// the OpenCL audit module ct_add_mixed_neg. For P = i*G (i = 1, 2, 3, 7, 15,
+// taken from CT_G_TABLE_A_METAL) with Z = 1 and with Z = c != 1, and for a
+// CT k*G multiple:
+//   out[0] P + (-P) has the infinity flag set, and (P + (-P)) + O stays O
+//   out[1] (P + (-P)) + Q == Q, also after one doubling of P + (-P)
+//   out[2] P + P (mixed add) == ct_point_dbl(P) == (2i)*G
+//   out[3] P + Q == (i+j)*G and (P + Q) + (-Q) == P
+// Each word is a bitmap of failing cases; 0 = pass.
+
+static const char* const kCtAddNegKernelSource = R"MTLSRC(
+
+// ---- ct_point_add_mixed P + (-P) regression (appended by metal_extended_test) ----
+inline CTAffinePoint ctneg_table_point(int i) {
+    CTAffinePoint a;
+    for (int j = 0; j < 8; ++j) {
+        a.x.limbs[j] = CT_G_TABLE_A_METAL[i - 1][j];
+        a.y.limbs[j] = CT_G_TABLE_A_METAL[i - 1][j + 8];
+    }
+    a.infinity = 0;
+    return a;
+}
+
+inline CTAffinePoint ctneg_negate(thread const CTAffinePoint &a) {
+    CTAffinePoint r = a;
+    r.y = ct_field_neg(a.y);
+    return r;
+}
+
+// (x*c^2, y*c^3, c): the same point with Z = c
+inline CTJacobianPoint ctneg_scaled(thread const CTAffinePoint &a, thread const FieldElement &c) {
+    FieldElement c2 = field_sqr(c);
+    FieldElement c3 = field_mul(c2, c);
+    CTJacobianPoint r;
+    r.x = field_mul(a.x, c2);
+    r.y = field_mul(a.y, c3);
+    r.z = c;
+    r.infinity = 0;
+    return r;
+}
+
+inline CTAffinePoint ctneg_affine(thread const CTJacobianPoint &p) {
+    FieldElement zi = ct_field_inv(p.z);
+    FieldElement zi2 = field_sqr(zi);
+    FieldElement zi3 = field_mul(zi, zi2);
+    CTAffinePoint a;
+    a.x = field_mul(p.x, zi2);
+    a.y = field_mul(p.y, zi3);
+    a.infinity = p.infinity;
+    return a;
+}
+
+inline bool ctneg_equal(thread const CTJacobianPoint &p, thread const CTAffinePoint &q) {
+    if (p.infinity != 0u || q.infinity != 0u) return false;
+    CTAffinePoint a = ctneg_affine(p);
+    uint d = 0;
+    for (int j = 0; j < 8; ++j) d |= (a.x.limbs[j] ^ q.x.limbs[j]) | (a.y.limbs[j] ^ q.y.limbs[j]);
+    return d == 0u;
+}
+
+kernel void ct_add_neg_check_kernel(device uint* out [[buffer(0)]],
+                                    uint gid [[thread_position_in_grid]]) {
+    if (gid != 0) return;
+    const uint INF = 0xFFFFFFFFu;
+    FieldElement one = field_one();
+    FieldElement c;
+    const uint c_limbs[8] = { 0x7F4A7C15u, 0x9E3779B9u, 0x1CE4E5B9u, 0xBF58476Du,
+                              0x133111EBu, 0x94D049BBu, 0x89ABCDEFu, 0x01234567u };
+    for (int j = 0; j < 8; ++j) c.limbs[j] = c_limbs[j];
+    CTAffinePoint id_pt;
+    id_pt.x = field_zero();
+    id_pt.y = field_zero();
+    id_pt.infinity = INF;
+
+    const int idx[5] = { 1, 2, 3, 7, 15 };
+    uint bad_inf = 0, bad_q = 0, bad_dbl = 0, bad_add = 0;
+    for (int t = 0; t < 5; ++t) {
+        int i = idx[t];
+        int jq = (i == 2) ? 5 : 2;               // Q = jq*G, never +/-P
+        CTAffinePoint pa = ctneg_table_point(i);
+        CTAffinePoint na = ctneg_negate(pa);
+        CTAffinePoint qa = ctneg_table_point(jq);
+        CTAffinePoint nq = ctneg_negate(qa);
+        for (int zc = 0; zc < 2; ++zc) {
+            uint bit = 1u << (uint)(t * 2 + zc);
+            FieldElement zf = (zc == 0) ? one : c;
+            CTJacobianPoint pj = ctneg_scaled(pa, zf);
+
+            CTJacobianPoint s = ct_point_add_mixed(pj, na);
+            if (s.infinity != INF) bad_inf |= bit;
+            CTJacobianPoint so = ct_point_add_mixed(s, id_pt);
+            if (so.infinity != INF) bad_inf |= bit;
+
+            CTJacobianPoint sq = ct_point_add_mixed(s, qa);
+            if (!ctneg_equal(sq, qa)) bad_q |= bit;
+            CTJacobianPoint sd = ct_point_dbl(s);
+            CTJacobianPoint sdq = ct_point_add_mixed(sd, qa);
+            if (!ctneg_equal(sdq, qa)) bad_q |= bit;
+
+            CTJacobianPoint pp = ct_point_add_mixed(pj, pa);
+            CTJacobianPoint pd = ct_point_dbl(pj);
+            CTAffinePoint pda = ctneg_affine(pd);
+            if (!ctneg_equal(pp, pda)) bad_dbl |= bit;
+            if (2 * i <= 15) {
+                CTAffinePoint e = ctneg_table_point(2 * i);
+                if (!ctneg_equal(pp, e)) bad_dbl |= bit;
+            }
+
+            CTJacobianPoint pq = ct_point_add_mixed(pj, qa);
+            if (i + jq <= 15) {
+                CTAffinePoint e = ctneg_table_point(i + jq);
+                if (!ctneg_equal(pq, e)) bad_add |= bit;
+            }
+            CTJacobianPoint pqq = ct_point_add_mixed(pq, nq);
+            if (!ctneg_equal(pqq, pa)) bad_add |= bit;
+        }
+    }
+
+    // A CT k*G multiple: Z comes out of the ladder, not 1
+    Scalar256 k;
+    const uint k_limbs[8] = { 0x89ABCDEFu, 0x01234567u, 0x76543210u, 0xFEDCBA98u,
+                              0x4B5A6978u, 0x0F1E2D3Cu, 0x3E2F1001u, 0x7A6B5C4Du };
+    for (int j = 0; j < 8; ++j) k.limbs[j] = k_limbs[j];
+    uint rbit = 1u << 10;
+    CTJacobianPoint r = ct_generator_mul_metal(k);
+    CTAffinePoint ra = ctneg_affine(r);
+    CTAffinePoint nra = ctneg_negate(ra);
+    CTAffinePoint g = ctneg_table_point(1);
+    CTAffinePoint ng = ctneg_negate(g);
+    CTJacobianPoint rs = ct_point_add_mixed(r, nra);
+    if (rs.infinity != INF) bad_inf |= rbit;
+    CTJacobianPoint rsg = ct_point_add_mixed(rs, g);
+    if (!ctneg_equal(rsg, g)) bad_q |= rbit;
+    CTJacobianPoint rr2 = ct_point_add_mixed(r, ra);
+    CTJacobianPoint rd = ct_point_dbl(r);
+    CTAffinePoint rda = ctneg_affine(rd);
+    if (!ctneg_equal(rr2, rda)) bad_dbl |= rbit;
+    CTJacobianPoint rg = ct_point_add_mixed(r, g);
+    CTJacobianPoint rgg = ct_point_add_mixed(rg, ng);
+    if (!ctneg_equal(rgg, ra)) bad_add |= rbit;
+
+    out[0] = bad_inf;
+    out[1] = bad_q;
+    out[2] = bad_dbl;
+    out[3] = bad_add;
+}
+)MTLSRC";
+
+static bool ctneg_read_file(const std::string& path, std::string& out) {
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return false;
+    fseek(f, 0, SEEK_END);
+    long sz = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (sz < 0) { fclose(f); return false; }
+    out.assign((size_t)sz, '\0');
+    size_t got = sz > 0 ? fread(&out[0], 1, (size_t)sz, f) : 0;
+    fclose(f);
+    return got == (size_t)sz;
+}
+
+// Expand every quoted #include of dir+name in place, once per file (the
+// shader headers are include-guarded); <...> includes are left as they are.
+static bool metal_inline_includes(const std::string& dir, const std::string& name,
+                                  std::set<std::string>& seen, std::string& out) {
+    size_t slash = name.rfind('/');
+    std::string sub_dir = dir + (slash == std::string::npos ? "" : name.substr(0, slash + 1));
+    std::string path = dir + name;
+    if (seen.count(path)) return true;
+    seen.insert(path);
+    std::string text;
+    if (!ctneg_read_file(path, text)) {
+        fprintf(stderr, "  cannot read %s\n", path.c_str());
+        return false;
+    }
+    size_t pos = 0;
+    while (pos < text.size()) {
+        size_t eol = text.find('\n', pos);
+        if (eol == std::string::npos) eol = text.size();
+        std::string line = text.substr(pos, eol - pos);
+        size_t s = line.find_first_not_of(" \t");
+        bool handled = false;
+        if (s != std::string::npos && line.compare(s, 8, "#include") == 0) {
+            size_t q1 = line.find('"', s + 8);
+            size_t q2 = (q1 == std::string::npos) ? std::string::npos : line.find('"', q1 + 1);
+            if (q2 != std::string::npos) {
+                std::string inc = line.substr(q1 + 1, q2 - q1 - 1);
+                std::string base = sub_dir.substr(dir.size());
+                if (!metal_inline_includes(dir, base + inc, seen, out)) return false;
+                handled = true;
+            }
+        }
+        if (!handled) { out += line; out += '\n'; }
+        pos = eol + 1;
+    }
+    return true;
+}
+
+static int test_ct_add_negation(MetalCtx& ctx, bool verbose) {
+    static const char* dirs[] = { "", "shaders/", "../shaders/", "src/metal/shaders/" };
+    std::string dir;
+    bool found = false;
+    for (const char* d : dirs) {
+        std::string p = std::string(d) + "secp256k1_kernels.metal";
+        FILE* f = fopen(p.c_str(), "r");
+        if (f) { fclose(f); dir = d; found = true; break; }
+    }
+    if (!found) {
+        printf("  SKIP: secp256k1_kernels.metal source not found (needed to build the check kernel)\n");
+        return 0;
+    }
+
+    std::set<std::string> seen;
+    std::string src;
+    if (!metal_inline_includes(dir, "secp256k1_kernels.metal", seen, src)) {
+        printf("  FAIL: could not expand the shader includes\n");
+        return 1;
+    }
+    src += kCtAddNegKernelSource;
+
+    MetalCtx tctx;
+    tctx.device = ctx.device;
+    tctx.queue = ctx.queue;
+    if (!tctx.load_source(src)) {
+        printf("  FAIL: ct_add_neg_check_kernel did not compile\n");
+        return 1;
+    }
+    auto pipe = tctx.get_pipeline("ct_add_neg_check_kernel");
+    if (!pipe) {
+        printf("  FAIL: ct_add_neg_check_kernel pipeline\n");
+        return 1;
+    }
+
+    auto out_buf = ctx.alloc(4 * sizeof(uint32_t));
+    memset([out_buf contents], 0xFF, 4 * sizeof(uint32_t));   // not written = fail
+    tctx.dispatch_sync(pipe, 1, {out_buf});
+    const uint32_t* results = static_cast<const uint32_t*>([out_buf contents]);
+
+    static const char* subtests[] = {
+        "P + (-P) is flagged infinity, (P + (-P)) + O stays O",
+        "(P + (-P)) + Q == Q, also after a doubling",
+        "P + P == ct_point_dbl(P) == 2P",
+        "P + Q == (i+j)*G, (P + Q) + (-Q) == P",
+    };
+    int passed = 0, total = 0;
+    for (int i = 0; i < 4; ++i) {
+        total++;
+        if (verbose) printf("  [CT add %d] %s: ", i, subtests[i]);
+        if (results[i] == 0) {
+            if (verbose) printf("PASS\n");
+            passed++;
+        } else {
+            if (!verbose) printf("  [CT add %d] %s: ", i, subtests[i]);
+            printf("FAIL (case bitmap=0x%x)\n", results[i]);
+        }
+    }
+
+    printf("  CT mixed addition: %d/%d passed\n", passed, total);
+    return (passed == total) ? 0 : 1;
+}
+
+// =============================================================================
 // Main
 // =============================================================================
 
@@ -913,6 +1183,9 @@ int main(int argc, char** argv) {
 
         printf("\n--- GPU CT Layer Smoke Tests ---\n");
         ret |= test_ct_smoke(ctx, verbose);
+
+        printf("\n--- CT Mixed Addition: P + (-P) = O ---\n");
+        ret |= test_ct_add_negation(ctx, verbose);
 
         printf("\n--- Variable-time Inverse Tests ---\n");
         ret |= test_inv_var(ctx, verbose);

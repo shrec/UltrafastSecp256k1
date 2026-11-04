@@ -2613,6 +2613,263 @@ static int audit_ct_glv_scalar_mul() {
     return rc;
 }
 
+// =============================================================================
+// CT mixed addition: P + (-P) is the flagged point at infinity
+// =============================================================================
+// ct_point_add_mixed (secp256k1_ct_point.cl) once handled only P == Q
+// (h == 0, rr == 0) as a special case. For P == -Q (h == 0, rr != 0) the
+// formula gives z3 = 2*z1*h = 0, but the infinity flag stayed clear, so the
+// result was an unflagged Z = 0 point and Z = 0 is sticky through later
+// additions and doublings. audit_ct_add_mixed_negation checks, for P = m*G
+// with m in {1, 2, 3, n-1, n-2, (n-1)/2, lambda} plus seeded random m, with P
+// given once with Z = 1 and once rescaled to Z = c (c != 1):
+//   1. P + (-P) has the infinity flag set (Z = 1 and Z = c inputs)
+//   2. (P + (-P)) + Q == Q, also after one doubling of P + (-P), and
+//      (P + (-P)) + O stays O
+//   3. P + P (mixed add) == ct_point_dbl(P) == fast windowed (2m)*G
+//   4. P + Q == fast windowed (m+q)*G for an unrelated fixed Q = q*G
+
+static const char* const kCtAddNegCheckSource = R"CLSRC(
+#include "secp256k1_ct_extended.cl"
+
+// o[0..3] affine x, o[4..7] affine y (canonical LE limbs),
+// o[8] = 1 for the point at infinity (x = y = 0 then)
+static inline void ctneg_put_point(const JacobianPoint* p, __global ulong* o) {
+    for (int i = 0; i < 9; ++i) o[i] = 0;
+    if (p->infinity) { o[8] = 1; return; }
+    FieldElement zi, zi2, zi3, x, y;
+    field_inv_impl(&zi, &p->z);
+    field_sqr_impl(&zi2, &zi);
+    field_mul_impl(&zi3, &zi, &zi2);
+    field_mul_impl(&x, &p->x, &zi2);
+    field_mul_impl(&y, &p->y, &zi3);
+    uchar bx[32], by[32];
+    field_to_bytes_impl(&x, bx);
+    field_to_bytes_impl(&y, by);
+    for (int i = 0; i < 4; ++i) {
+        ulong lx = 0, ly = 0;
+        for (int j = 0; j < 8; ++j) {
+            lx = (lx << 8) | (ulong)bx[(3 - i) * 8 + j];
+            ly = (ly << 8) | (ulong)by[(3 - i) * 8 + j];
+        }
+        o[i] = lx;
+        o[4 + i] = ly;
+    }
+}
+
+static inline void ctneg_put_ct(const CTJacobianPoint* p, __global ulong* o) {
+    JacobianPoint j = ct_point_to_jacobian(p);
+    ctneg_put_point(&j, o);
+}
+
+static inline void ctneg_to_affine(const JacobianPoint* p, CTAffinePoint* a) {
+    FieldElement zi, zi2, zi3;
+    field_inv_impl(&zi, &p->z);
+    field_sqr_impl(&zi2, &zi);
+    field_mul_impl(&zi3, &zi, &zi2);
+    field_mul_impl(&a->x, &p->x, &zi2);
+    field_mul_impl(&a->y, &p->y, &zi3);
+    a->infinity = 0;
+}
+
+// in: 4 ulongs per item (m, 0 < m < n). out: 84 ulongs per item
+//   [0] (P1 + (-P)).infinity       [1] (Pc + (-P)).infinity
+//   [2..10]  (P1 + (-P)) + Q       [11..19] (Pc + (-P)) + Q
+//   [20..28] dbl(Pc + (-P)) + Q    [29..37] Q
+//   [38..46] Pc + P (mixed add)    [47..55] ct_point_dbl(Pc)   [56..64] fast (2m)*G
+//   [65..73] Pc + Q                [74..82] fast (m+q)*G
+//   [83] ((Pc + (-P)) + O).infinity
+// P1 = P with Z = 1, Pc = P with Z = c != 1.
+__kernel void ct_add_neg_check(__global const ulong* in, __global ulong* out, const uint count) {
+    const uint gid = get_global_id(0);
+    if (gid >= count) return;
+    __global ulong* o = out + (size_t)gid * 84;
+    Scalar m;
+    for (int i = 0; i < 4; ++i) m.limbs[i] = in[gid * 4 + i];
+    Scalar qs;
+    qs.limbs[0] = 0x1111111111111111UL; qs.limbs[1] = 0x2222222222222222UL;
+    qs.limbs[2] = 0x3333333333333333UL; qs.limbs[3] = 0x0444444444444444UL;
+
+    JacobianPoint pj, qj, ref;
+    scalar_mul_generator_windowed_impl(&pj, &m);
+    scalar_mul_generator_windowed_impl(&qj, &qs);
+
+    CTAffinePoint pa, qa, na, id;
+    ctneg_to_affine(&pj, &pa);
+    ctneg_to_affine(&qj, &qa);
+    na = pa;
+    ct_field_neg_impl(&na.y, &pa.y);
+    for (int i = 0; i < 4; ++i) { id.x.limbs[i] = 0; id.y.limbs[i] = 0; }
+    id.infinity = ~(ulong)0;
+
+    CTJacobianPoint p1;
+    p1.x = pa.x; p1.y = pa.y;
+    p1.z.limbs[0] = 1; p1.z.limbs[1] = 0; p1.z.limbs[2] = 0; p1.z.limbs[3] = 0;
+    p1.infinity = 0;
+
+    FieldElement c, c2, c3;
+    c.limbs[0] = 0x9E3779B97F4A7C15UL; c.limbs[1] = 0xBF58476D1CE4E5B9UL;
+    c.limbs[2] = 0x94D049BB133111EBUL; c.limbs[3] = 0x0123456789ABCDEFUL;
+    field_sqr_impl(&c2, &c);
+    field_mul_impl(&c3, &c2, &c);
+    CTJacobianPoint pc;
+    field_mul_impl(&pc.x, &pa.x, &c2);
+    field_mul_impl(&pc.y, &pa.y, &c3);
+    pc.z = c;
+    pc.infinity = 0;
+
+    CTJacobianPoint a1, ac, t, t2;
+    ct_point_add_mixed(&p1, &na, &a1);
+    ct_point_add_mixed(&pc, &na, &ac);
+    o[0] = a1.infinity;
+    o[1] = ac.infinity;
+
+    ct_point_add_mixed(&a1, &qa, &t);
+    ctneg_put_ct(&t, o + 2);
+    ct_point_add_mixed(&ac, &qa, &t);
+    ctneg_put_ct(&t, o + 11);
+    ct_point_dbl(&ac, &t2);
+    ct_point_add_mixed(&t2, &qa, &t);
+    ctneg_put_ct(&t, o + 20);
+    ctneg_put_point(&qj, o + 29);
+
+    ct_point_add_mixed(&pc, &pa, &t);
+    ctneg_put_ct(&t, o + 38);
+    ct_point_dbl(&pc, &t);
+    ctneg_put_ct(&t, o + 47);
+    Scalar m2;
+    scalar_add_mod_n_impl(&m, &m, &m2);
+    scalar_mul_generator_windowed_impl(&ref, &m2);
+    ctneg_put_point(&ref, o + 56);
+
+    ct_point_add_mixed(&pc, &qa, &t);
+    ctneg_put_ct(&t, o + 65);
+    Scalar mq;
+    scalar_add_mod_n_impl(&m, &qs, &mq);
+    scalar_mul_generator_windowed_impl(&ref, &mq);
+    ctneg_put_point(&ref, o + 74);
+
+    ct_point_add_mixed(&ac, &id, &t);
+    o[83] = t.infinity;
+}
+)CLSRC";
+
+// Edge and seeded random scalars 0 < m < n, none equal to +/-q of the kernel.
+static std::vector<uint64_t> can_corpus() {
+    std::vector<uint64_t> v;
+    auto push = [&v](const uint64_t a[4]) { v.insert(v.end(), a, a + 4); };
+    const uint64_t one[4] = {1, 0, 0, 0}, two[4] = {2, 0, 0, 0}, three[4] = {3, 0, 0, 0};
+    uint64_t t[4], u[4];
+    push(one); push(two); push(three);
+    iv_sub(ORDER, one, t); push(t);                               // n-1
+    iv_sub(ORDER, two, t); push(t);                               // n-2
+    iv_sub(ORDER, one, t);                                        // (n-1)/2
+    for (int i = 0; i < 4; ++i) u[i] = (t[i] >> 1) | (i < 3 ? (t[i + 1] << 63) : 0);
+    push(u);
+    push(CG_LAMBDA);                                              // lambda
+
+    uint64_t s = 0x5A17C0DE0BADF00DULL;                           // splitmix64, fixed seed
+    auto next = [&s]() {
+        uint64_t z = (s += 0x9E3779B97F4A7C15ULL);
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+        return z ^ (z >> 31);
+    };
+    for (int i = 0; i < 16; ++i) {
+        const uint64_t a[4] = {next(), next(), next(), next()};
+        iv_reduce_once(a, ORDER, t);
+        if (iv_is_zero(t)) continue;
+        push(t);
+    }
+    return v;
+}
+
+static int audit_ct_add_mixed_negation() {
+    if (g_kernel_dir.empty() || !g_ctx) return -1;
+    cl_context ctx = (cl_context)g_ctx->native_context();
+    cl_command_queue q = (cl_command_queue)g_ctx->native_queue();
+    cl_device_id dev = nullptr;
+    if (clGetCommandQueueInfo(q, CL_QUEUE_DEVICE, sizeof(dev), &dev, nullptr) != CL_SUCCESS) return 1;
+
+    cl_int err = CL_SUCCESS;
+    const char* src = kCtAddNegCheckSource;
+    size_t const len = std::strlen(src);
+    cl_program prog = clCreateProgramWithSource(ctx, 1, &src, &len, &err);
+    if (err != CL_SUCCESS) return 2;
+    std::string const opts = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable -I " + g_kernel_dir;
+    err = clBuildProgram(prog, 1, &dev, opts.c_str(), nullptr, nullptr);
+    if (err != CL_SUCCESS) {
+        size_t log_size = 0;
+        clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+        std::string log(log_size + 1, '\0');
+        clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
+        std::fprintf(stderr, "    ct_add_neg_check build failed:\n%s\n", log.c_str());
+        clReleaseProgram(prog);
+        return 3;
+    }
+    cl_kernel k = clCreateKernel(prog, "ct_add_neg_check", &err);
+    if (err != CL_SUCCESS) { clReleaseProgram(prog); return 4; }
+
+    std::vector<uint64_t> const in = can_corpus();
+    size_t const n = in.size() / 4;
+    std::vector<uint64_t> out(n * 84, 0);
+    int rc = 0;
+    cl_int e2 = CL_SUCCESS;
+    cl_mem d_in = clCreateBuffer(ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                 in.size() * sizeof(uint64_t), (void*)in.data(), &err);
+    cl_mem d_out = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY, out.size() * sizeof(uint64_t), nullptr, &e2);
+    if (err != CL_SUCCESS || e2 != CL_SUCCESS) rc = 5;
+    if (rc == 0) {
+        cl_uint count = (cl_uint)n;
+        clSetKernelArg(k, 0, sizeof(cl_mem), &d_in);
+        clSetKernelArg(k, 1, sizeof(cl_mem), &d_out);
+        clSetKernelArg(k, 2, sizeof(cl_uint), &count);
+        size_t global = n;
+        err = clEnqueueNDRangeKernel(q, k, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (err == CL_SUCCESS) {
+            err = clEnqueueReadBuffer(q, d_out, CL_TRUE, 0, out.size() * sizeof(uint64_t),
+                                      out.data(), 0, nullptr, nullptr);
+        }
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "    ct_add_neg_check: OpenCL error %d\n", err);
+            rc = 6;
+        }
+    }
+    if (d_in) clReleaseMemObject(d_in);
+    if (d_out) clReleaseMemObject(d_out);
+
+    size_t bad = 0;
+    uint64_t const F = ~0ULL;
+    for (size_t i = 0; i < n && rc == 0; ++i) {
+        const uint64_t* o = &out[i * 84];
+        bool const inf_ok = o[0] == F && o[1] == F && o[83] == F;
+        bool const q_ok = o[37] == 0 && std::equal(o + 2, o + 11, o + 29) &&
+                          std::equal(o + 11, o + 20, o + 29) && std::equal(o + 20, o + 29, o + 29);
+        bool const dbl_ok = o[64] == 0 && std::equal(o + 38, o + 47, o + 56) &&
+                            std::equal(o + 47, o + 56, o + 56);
+        bool const add_ok = o[82] == 0 && std::equal(o + 65, o + 74, o + 74);
+        if (!(inf_ok && q_ok && dbl_ok && add_ok)) {
+            if (bad < 8) {
+                std::fprintf(stderr, "    m #%zu: P+(-P)=O %d, (P+(-P))+Q=Q %d, P+P=2P %d, P+Q %d\n",
+                             i, (int)inf_ok, (int)q_ok, (int)dbl_ok, (int)add_ok);
+                iv_print("m", &in[i * 4]);
+                iv_print("(P+(-P))+Q x", o + 11); iv_print("Q x", o + 29);
+                iv_print("P+P x", o + 38); iv_print("ref 2P x", o + 56);
+                iv_print("P+Q x", o + 65); iv_print("ref P+Q x", o + 74);
+            }
+            ++bad;
+        }
+    }
+    if (rc == 0 && bad != 0) {
+        std::fprintf(stderr, "    ct_add_neg_check: %zu of %zu points failed\n", bad, n);
+        rc = 7;
+    }
+
+    clReleaseKernel(k);
+    clReleaseProgram(prog);
+    return rc;
+}
+
 // -----------------------------------------------------------------------------
 // ecrecover host reference. Schoolbook arithmetic on 8 x 32-bit words, reduced
 // by folding with c = 2^256 - m, and complete Jacobian formulas with an
@@ -3211,6 +3468,7 @@ static const OclAuditModule OCL_MODULES[] = {
     { "ct_ecdsa",          "CT ECDSA sign (privkey=1) + fast-path verify",         "gpu_ct_smoke", audit_ct_smoke_ecdsa,   false },
     { "ct_schnorr",        "CT Schnorr sign (privkey=1, BIP-340) + verify",        "gpu_ct_smoke", audit_ct_smoke_schnorr, false },
     { "ct_glv_scalar_mul", "CT GLV split + CT k*G / k*P == fast path (edge + 2048 random)", "gpu_ct_smoke", audit_ct_glv_scalar_mul, false },
+    { "ct_add_mixed_neg",  "CT mixed add: P+(-P)=O flagged, O+Q=Q, P+P=2P, P+Q (Z=1, Z!=1)", "gpu_ct_smoke", audit_ct_add_mixed_negation, false },
 };
 static constexpr int NUM_OCL_MODULES = sizeof(OCL_MODULES) / sizeof(OCL_MODULES[0]);
 

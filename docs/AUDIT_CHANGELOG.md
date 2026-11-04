@@ -1,5 +1,39 @@
 # Audit Changelog
 
+## 2026-11-04 - OpenCL/Metal CT mixed addition: P + (-P) is the flagged point at infinity (module `ct_add_mixed_neg`)
+
+**Defect.** `ct_point_add_mixed` (`src/opencl/kernels/secp256k1_ct_point.cl`,
+`src/metal/shaders/secp256k1_ct_point.h`) used the Jacobian+affine formula. It
+made a constant-time select for P == Q (h == 0, rr == 0) but not for P == -Q
+(h == 0, rr != 0). There z3 = 2*z1*h = 0 while the final flag was
+`p.infinity & q.infinity`, so the sum was an unflagged Z = 0 point, and Z = 0
+stays 0 through later additions and doublings. The callers are the CT
+`ct_scalar_mul_point` and `ct_generator_mul_impl`/`ct_generator_mul_metal`
+(signing nonces, pubkey creation, ECDH). There, random scalars reach the case
+with negligible probability. No input that reaches it through those callers has
+been constructed. CUDA (`src/cuda/include/ct/ct_point.cuh`, complete
+Brier-Joye) and the CPU `ct::` code handle it already.
+
+**Fix.** `neg_point = h_zero & ~rr_zero & ~p.infinity & ~q.infinity`, at the
+backend's mask width (64-bit OpenCL, 32-bit Metal). A `ct_point_cmov` then moves
+the canonical infinity into the result, and `neg_point` is ORed into the final
+flag. No branch, and the function signatures are unchanged. These are the only
+CT point additions in the two files.
+
+**Guard.** OpenCL `opencl_audit_runner` module `ct_add_mixed_neg` (section
+`gpu_ct_smoke`, advisory=false). It uses P = m*G for m in {1, 2, 3, n-1, n-2,
+(n-1)/2, lambda} plus 16 seeded random m, and P is given with Z = 1 and with
+Z = c != 1. The checks:
+- P + (-P) is flagged;
+- (P + (-P)) + Q == Q, also after one doubling, and adding O stays O;
+- P + P == `ct_point_dbl(P)` == (2m)*G;
+- P + Q == (m+q)*G.
+
+Host run on an RTX 5060 Ti: 45/45 with the fix. With the old
+`secp256k1_ct_point.cl` (same runner, `--kernel-dir`) the module fails for 23 of
+23 points, on the flag and on (P + (-P)) + Q. `src/metal/tests/metal_extended_test.mm`
+mirrors the checks; Metal is not compiled on Linux, so they run on the macOS CI job.
+
 ## 2026-11-04 - CPU bench: recover-vs-recover rows against libsecp256k1, and the SHA-256 (32B) row timed out of line (NF-2026-00040)
 
 **ecrecover comparison.** bench_unified's "ETHEREUM / RECOVERY" table compared Ultra

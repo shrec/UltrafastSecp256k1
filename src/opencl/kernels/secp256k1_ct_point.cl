@@ -199,15 +199,25 @@ static inline void ct_point_add_mixed(const CTJacobianPoint* p, const CTAffinePo
 
     // Handle degenerate cases via CT select:
     // If h==0 && rr==0: P==Q, should double
+    // If h==0 && rr!=0: P==-Q, the sum is the point at infinity. The formula
+    // above then gives z3 = 2*z1*h = 0, so the result must carry the infinity
+    // flag (and canonical infinity coordinates), or the Z = 0 value would be
+    // treated as a finite point by every later addition.
+    // Masks are full 64-bit (0 or ~0), the same width as CTJacobianPoint.infinity.
     ulong h_zero = ct_field_is_zero(&h);
     ulong rr_zero = ct_field_is_zero(&rr);
     ulong same_point = h_zero & rr_zero;
+    ulong neg_point = h_zero & ~rr_zero & ~p->infinity & ~q->infinity;
 
-    CTJacobianPoint dbl_result;
     // Only compute double if needed (always computed for CT)
     CTJacobianPoint p_dbl;
     ct_point_dbl(p, &p_dbl);
     ct_point_cmov(r, &p_dbl, same_point & ~p->infinity & ~q->infinity);
+
+    // If P == -Q, result = O
+    CTJacobianPoint inf;
+    ct_point_set_infinity(&inf);
+    ct_point_cmov(r, &inf, neg_point);
 
     // If P is infinity, result = Q (as Jacobian)
     CTJacobianPoint q_jac;
@@ -220,8 +230,8 @@ static inline void ct_point_add_mixed(const CTJacobianPoint* p, const CTAffinePo
     // If Q is infinity, result = P
     ct_point_cmov(r, p, q->infinity);
 
-    // Final infinity flag
-    r->infinity = p->infinity & q->infinity;
+    // Final infinity flag: O + O, or P + (-P)
+    r->infinity = (p->infinity & q->infinity) | neg_point;
 }
 
 // ---------------------------------------------------------------------------

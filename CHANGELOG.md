@@ -299,6 +299,22 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   per signature.
 
 ### Fixed
+- **OpenCL and Metal CT mixed addition returns the point at infinity for
+  P + (-P).** `ct_point_add_mixed` in `secp256k1_ct_point.cl` and
+  `secp256k1_ct_point.h` handled P == Q specially, but not P == -Q. In that case
+  the formula gives Z = 0 with the infinity flag clear, and later additions and
+  doublings treat that value as a finite point. The flag is now set and the
+  coordinates are set to the canonical infinity, using constant-time masks
+  only. CUDA and the CPU `ct::` code already used a complete formula and are
+  unchanged. Random scalars reach this case in the CT scalar multiplications
+  with negligible probability. No input that reaches it there has been
+  constructed.
+
+  New OpenCL audit module `ct_add_mixed_neg`. P + (-P) must be flagged for 23
+  points, given with Z = 1 and with Z != 1. (P + (-P)) + Q must equal Q, also
+  after a doubling, and adding O must stay O. P + P must equal the doubling, and
+  P + Q must match the fast path. The old kernel fails it for 23 of 23 points.
+  `metal_extended_test.mm` mirrors the checks; it is not compiled on Linux.
 - **GPU C ABI rejects non-canonical point coordinates.** The shared host-side
   input check of the GPU C ABI looked only at the SEC1 prefix byte, so a
   compressed key whose x is `>= p` (for example `x = p + 1`, the second
