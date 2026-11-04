@@ -490,5 +490,195 @@
     "batch_size": 8192
    }
   ]
+ },
+ "issue_sizes": {
+  "invocation": "bench_gpu_abi_batch --backend <cuda|opencl> --ops bch_schnorr_verify --sizes 2,8,32,128,512,2048,65536",
+  "note": "the batch sizes of issue #466 / Knuth #825-#826, plus 65536 for throughput; end-to-end C ABI time per call, transfers included",
+  "cuda_abi": {
+   "generated_by": "bench_gpu_abi_batch",
+   "schema": "ufsecp.gpu_abi_batch_bench.v1",
+   "timing": "wall clock per ufsecp_gpu_* call, steady_clock",
+   "passes": 11,
+   "warmup": 2,
+   "rows": [
+    {
+     "backend": "CUDA",
+     "op": "bch_schnorr_verify",
+     "batch": 2,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 860186,
+     "min_ns_per_call": 858858,
+     "max_ns_per_call": 865858,
+     "median_ns_per_item": 430093.0,
+     "items_per_sec": 2325.1
+    },
+    {
+     "backend": "CUDA",
+     "op": "bch_schnorr_verify",
+     "batch": 8,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 867366,
+     "min_ns_per_call": 867121,
+     "max_ns_per_call": 964916,
+     "median_ns_per_item": 108420.75,
+     "items_per_sec": 9223.3
+    },
+    {
+     "backend": "CUDA",
+     "op": "bch_schnorr_verify",
+     "batch": 32,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 870513,
+     "min_ns_per_call": 870162,
+     "max_ns_per_call": 872711,
+     "median_ns_per_item": 27203.531,
+     "items_per_sec": 36759.9
+    },
+    {
+     "backend": "CUDA",
+     "op": "bch_schnorr_verify",
+     "batch": 128,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 911740,
+     "min_ns_per_call": 898314,
+     "max_ns_per_call": 919703,
+     "median_ns_per_item": 7122.969,
+     "items_per_sec": 140390.9
+    },
+    {
+     "backend": "CUDA",
+     "op": "bch_schnorr_verify",
+     "batch": 512,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 918457,
+     "min_ns_per_call": 913083,
+     "max_ns_per_call": 922118,
+     "median_ns_per_item": 1793.861,
+     "items_per_sec": 557456.7
+    },
+    {
+     "backend": "CUDA",
+     "op": "bch_schnorr_verify",
+     "batch": 2048,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 939913,
+     "min_ns_per_call": 932541,
+     "max_ns_per_call": 945258,
+     "median_ns_per_item": 458.942,
+     "items_per_sec": 2178925.1
+    },
+    {
+     "backend": "CUDA",
+     "op": "bch_schnorr_verify",
+     "batch": 65536,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 10590239,
+     "min_ns_per_call": 10516472,
+     "max_ns_per_call": 10630113,
+     "median_ns_per_item": 161.594,
+     "items_per_sec": 6188340.0
+    }
+   ]
+  },
+  "opencl_abi": {
+   "generated_by": "bench_gpu_abi_batch",
+   "schema": "ufsecp.gpu_abi_batch_bench.v1",
+   "timing": "wall clock per ufsecp_gpu_* call, steady_clock",
+   "passes": 11,
+   "warmup": 2,
+   "rows": [
+    {
+     "backend": "OpenCL",
+     "op": "bch_schnorr_verify",
+     "batch": 2,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 878362,
+     "min_ns_per_call": 873913,
+     "max_ns_per_call": 886974,
+     "median_ns_per_item": 439181.0,
+     "items_per_sec": 2277.0
+    },
+    {
+     "backend": "OpenCL",
+     "op": "bch_schnorr_verify",
+     "batch": 8,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 884154,
+     "min_ns_per_call": 883606,
+     "max_ns_per_call": 886162,
+     "median_ns_per_item": 110519.25,
+     "items_per_sec": 9048.2
+    },
+    {
+     "backend": "OpenCL",
+     "op": "bch_schnorr_verify",
+     "batch": 32,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 887937,
+     "min_ns_per_call": 887162,
+     "max_ns_per_call": 889663,
+     "median_ns_per_item": 27748.031,
+     "items_per_sec": 36038.6
+    },
+    {
+     "backend": "OpenCL",
+     "op": "bch_schnorr_verify",
+     "batch": 128,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 933641,
+     "min_ns_per_call": 932881,
+     "max_ns_per_call": 934477,
+     "median_ns_per_item": 7294.07,
+     "items_per_sec": 137097.7
+    },
+    {
+     "backend": "OpenCL",
+     "op": "bch_schnorr_verify",
+     "batch": 512,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 1348679,
+     "min_ns_per_call": 1340094,
+     "max_ns_per_call": 1358478,
+     "median_ns_per_item": 2634.139,
+     "items_per_sec": 379630.7
+    },
+    {
+     "backend": "OpenCL",
+     "op": "bch_schnorr_verify",
+     "batch": 2048,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 1368678,
+     "min_ns_per_call": 1363841,
+     "max_ns_per_call": 1374026,
+     "median_ns_per_item": 668.3,
+     "items_per_sec": 1496334.4
+    },
+    {
+     "backend": "OpenCL",
+     "op": "bch_schnorr_verify",
+     "batch": 65536,
+     "status": "ok",
+     "passes": 11,
+     "median_ns_per_call": 11882336,
+     "min_ns_per_call": 11834546,
+     "max_ns_per_call": 12057508,
+     "median_ns_per_item": 181.31,
+     "items_per_sec": 5515413.8
+    }
+   ]
+  }
  }
 }
