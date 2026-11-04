@@ -475,10 +475,18 @@ if(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
         set(_lanes_avx2_flags "/arch:AVX2")
         set(_lanes_ifma_flags "/arch:AVX512")
         set(_lanes_avx_ifma_flags "")   # no MSVC switch for AVX-IFMA: backend not built
+        set(_lanes_tu_flags "")
     else()
         set(_lanes_avx2_flags "-mavx2")
         set(_lanes_ifma_flags "-mavx512f;-mavx512vl;-mavx512ifma")
         set(_lanes_avx_ifma_flags "-mavx2;-mavxifma")
+        # The ISA TUs stay out of LTO. Their code is reached only through the
+        # constant kernel tables, so nothing in them needs cross-TU inlining,
+        # and they define no weak (COMDAT) symbols. With them in the LTO unit,
+        # GCC 14 stopped inlining hot CT helpers elsewhere (ct::scalar_window,
+        # comb_lookup, FieldElement::operator-=): ct::point_add_complete and
+        # ct::point_add_mixed_complete ran about 30% slower in bench_unified.
+        set(_lanes_tu_flags "-fno-lto")
     endif()
 
     # _secp256k1_lanes_probe(<result-var> <flag-list> <source>)
@@ -524,21 +532,21 @@ int main() {
     if(SECP256K1_LANES_PROBE_AVX2)
         list(APPEND SECP256K1_SOURCES src/lanes/lanes_avx2.cpp)
         set_source_files_properties(src/lanes/lanes_avx2.cpp PROPERTIES
-            COMPILE_OPTIONS "${_lanes_avx2_flags}" SKIP_UNITY_BUILD_INCLUSION ON)
+            COMPILE_OPTIONS "${_lanes_avx2_flags};${_lanes_tu_flags}" SKIP_UNITY_BUILD_INCLUSION ON)
         list(APPEND _SECP256K1_LANES_DEFS SECP256K1_LANES_HAVE_AVX2=1)
         list(APPEND _lanes_built avx2)
     endif()
     if(SECP256K1_LANES_PROBE_AVX_IFMA)
         list(APPEND SECP256K1_SOURCES src/lanes/lanes_avx_ifma.cpp)
         set_source_files_properties(src/lanes/lanes_avx_ifma.cpp PROPERTIES
-            COMPILE_OPTIONS "${_lanes_avx_ifma_flags}" SKIP_UNITY_BUILD_INCLUSION ON)
+            COMPILE_OPTIONS "${_lanes_avx_ifma_flags};${_lanes_tu_flags}" SKIP_UNITY_BUILD_INCLUSION ON)
         list(APPEND _SECP256K1_LANES_DEFS SECP256K1_LANES_HAVE_AVX_IFMA=1)
         list(APPEND _lanes_built avx_ifma)
     endif()
     if(SECP256K1_LANES_PROBE_IFMA)
         list(APPEND SECP256K1_SOURCES src/lanes/lanes_ifma256.cpp src/lanes/lanes_ifma512.cpp)
         set_source_files_properties(src/lanes/lanes_ifma256.cpp src/lanes/lanes_ifma512.cpp PROPERTIES
-            COMPILE_OPTIONS "${_lanes_ifma_flags}" SKIP_UNITY_BUILD_INCLUSION ON)
+            COMPILE_OPTIONS "${_lanes_ifma_flags};${_lanes_tu_flags}" SKIP_UNITY_BUILD_INCLUSION ON)
         list(APPEND _SECP256K1_LANES_DEFS SECP256K1_LANES_HAVE_IFMA256=1 SECP256K1_LANES_HAVE_IFMA512=1)
         list(APPEND _lanes_built ifma256 ifma512)
     endif()
