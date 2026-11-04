@@ -225,10 +225,12 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   that rule by source scan, with live positive and negative controls. On the
   GPU, `inv_var_fermat` matches the Fermat inverses on edge values and 16384
   random inputs per modulus, and the ZK knowledge / DLEQ roundtrips (which use
-  the Shamir helper) pass. Throughput: not yet measured. The OpenCL
-  ECDSA/Schnorr verify kernels reject valid signatures on NVIDIA OpenCL, a
-  fault that predates this change (NF-2026-00039), so a verify benchmark would
-  only time the rejection path. Metal is unchanged.
+  the Shamir helper) pass. Kernel-only on an RTX 5060 Ti (NVIDIA OpenCL), with
+  65536 valid signatures, every one accepted by both kernel sets: ECDSA verify
+  230.6 -> 143.7 ns/op and BIP-340 verify 184.0 -> 156.1 ns/op, with
+  non-overlapping ranges
+  (`docs/benchmark_artifacts/opencl_verify_inv_var_ab_2026-11-04_rtx5060ti.json`).
+  Metal is unchanged.
 
 ### Fixed
 - **GPU C ABI rejects non-canonical point coordinates.** The shared host-side
@@ -270,9 +272,26 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
   rows. It now copies every `kernels/*.cl` file, reads back every result and
   marks a row `INVALID` when one fails. With those modules running, the ZK
   knowledge and DLEQ roundtrips and the CT mask/cmov smoke tests pass on NVIDIA
-  OpenCL. The ECDSA/Schnorr sign+verify roundtrips fail there, with or without
-  this release's OpenCL changes; that fault predates them and is tracked as
-  NF-2026-00039.
+  OpenCL. They also exposed the CT signer fault fixed in the next entry.
+- **OpenCL and Metal: CT `k*G` and `k*P` were wrong for almost every scalar,
+  so the CT signers produced invalid signatures.** The CT GLV decomposition
+  (`ct_glv_decompose_impl` on OpenCL, `ct_glv_decompose` on Metal) was a stub:
+  `k1 = k`, `k2 = 0`. `ct_generator_mul_impl` and `ct_scalar_mul_point` scan
+  only 132 bits of `k1` and `k2`, so they dropped the top bits of every scalar
+  whose normalized value is `>= 2^132`. Affected: every OpenCL/Metal CT signer
+  (ECDSA, BIP-340), CT pubkey derivation (BIP-32) and the BCH grinding kernel.
+  On OpenCL the GPU C ABI verify, ECDH, generator-mul, hash160, ecrecover and
+  MSM batches passed the GPU-vs-CPU equivalence test (380/380) before this fix.
+  Both now compute a real Babai-rounded GLV split with the same lattice
+  constants as the variable-time decomposition, using fixed multiplies and
+  masks only. Checked on the host GPU against a pure-Python secp256k1
+  reference: CT `k*G` 16/16 correct (was 5/16), CT ECDSA signatures 16/16
+  valid (was 0/16). New OpenCL audit module `ct_glv_scalar_mul` checks the
+  split invariant and CT `k*G` / `k*P` against the fast path on edge scalars
+  and 2048 random ones. Metal mirrors the OpenCL change line for line; its
+  compile check is the macOS CI job. The OpenCL CT BIP-340 signer also rejects
+  a zero private key now (`fuzz_schnorr_zero`). Details in
+  `docs/AUDIT_CHANGELOG.md` 2026-11-04 (NF-2026-00039).
 
 ## [4.6.2] - 2026-09-27
 

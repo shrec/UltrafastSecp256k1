@@ -290,8 +290,20 @@ The bisect that located it ran `bench_unified --quick`, one run per commit: `doc
 
 `gpu_bench_unified --suite all` ran 5 alternating rounds over its field, point, scalar-mul, sign and MSM rows. No median moved by more than 1.1%. It has no verify rows. Source: `docs/benchmark_artifacts/gpu_bench_unified_v462_vs_4.7.0_ab_2026-11-04_rtx5060ti.json`.
 
+**OpenCL verify (RTX 5060 Ti, NVIDIA OpenCL 580.196.07), variable-time inverse (`d84eb5f4`) vs the Fermat inverses.** Kernel-only setup:
+- `secp256k1_extended.cl` built as the GPU backend builds it;
+- 65536 valid signatures, made from 512 distinct ones by a pure-Python secp256k1 reference;
+- 11 timed launches after 3 warmups;
+- every result is accepted by both kernel sets.
+
+Source, with the harness inline: `docs/benchmark_artifacts/opencl_verify_inv_var_ab_2026-11-04_rtx5060ti.json`.
+
+| Kernel | Fermat: ns/op median (min - max) | Variable-time: ns/op median (min - max) | Change |
+|--------|---------------------------------:|----------------------------------------:|-------:|
+| `ecdsa_verify` | 230.6 (230.5 - 233.2) | 143.7 (143.6 - 143.9) | -37.7% |
+| `schnorr_verify` | 184.0 (182.4 - 184.5) | 156.1 (152.2 - 159.3) | -15.2% |
+
 **Not measured:**
-- OpenCL verify: the verify kernels reject valid signatures on NVIDIA OpenCL (NF-2026-00039).
 - Metal: no macOS host.
 - The CPU lane backends on IFMA hardware.
 
