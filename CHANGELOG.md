@@ -46,6 +46,12 @@ only gains functions (`UFSECP_ABI_VERSION` stays 4).
     pairs, the R = -R twin, one bad entry at every position, and range and
     pubkey rejects. `bch_schnorr_differential` checks the single, batch, C ABI
     and shim surfaces against each other.
+  - New harness `bench_bch_schnorr` (`benchmarks/bch/`). It times single,
+    batch and C ABI batch verification and, when given Knuth's pinned
+    libsecp256k1 fork, the reference single and batch, all on the same inputs.
+    Every implementation is cross-checked before timing. CI builds and runs it
+    on each benchmark platform. `docs/BCH_SCHNORR_BATCH_BENCH.md` gives the
+    reproduction steps for #466.
   - Throughput: not yet measured — benchmark required.
 - **Benchmarks: result-checked GPU verify, ecrecover and hash160 rows, and
   like-for-like CPU recovery rows.** CUDA `gpu_bench_unified` times ECDSA verify,

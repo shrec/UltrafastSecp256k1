@@ -2018,6 +2018,8 @@ Drop-in replacement via `compat/libsecp256k1_bchn_shim/` — exposes the BCHN
 `secp256k1_schnorr_*` API (legacy BCH Schnorr, not BIP-340) backed by the
 fast engine.
 
+BCH 2019 Schnorr single and batch verification against Knuth's libsecp256k1 fork (issue #466): harness and per-platform reproduction steps in [`BCH_SCHNORR_BATCH_BENCH.md`](BCH_SCHNORR_BATCH_BENCH.md).
+
 **BCH Schnorr scheme:** `e = SHA256(R.x[32] || P_compressed[33] || msg[32])`, `s = k + e·d`
 
 Reference: [bitcoin-abc/secp256k1](https://github.com/bitcoin-abc/secp256k1) built with

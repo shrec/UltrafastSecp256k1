@@ -1498,6 +1498,13 @@ if(SECP256K1_BUILD_BENCH)
     else()
         message(STATUS "bench_unified: skipped (libsecp256k1 source not found at ${LIBSECP_SRC_DIR})")
     endif()
+
+    # BCH 2019 Schnorr single/batch verification against the libsecp256k1 fork
+    # Knuth vendors (issue #466). Built whenever benchmarks are, independent of
+    # SECP256K1_BUILD_BCH; the reference rows are opt-in through the
+    # UFSECP_BCH_REF_SECP256K1_* cache variables (benchmarks/bch/CMakeLists.txt).
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/bch"
+                     "${PROJECT_BINARY_DIR}/benchmarks/bch")
 endif()
 
 # Tests -- unified test runner
