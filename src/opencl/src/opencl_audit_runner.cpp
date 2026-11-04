@@ -1981,6 +1981,391 @@ static int audit_hash160_gpu_vs_cpu() {
 }
 
 // =============================================================================
+// Variable-time SafeGCD inverses vs Fermat (modinv30_var_impl, secp256k1_field.cl)
+// =============================================================================
+// The OpenCL verifiers invert public values with field_inv_var_impl and
+// scalar_inv_var_impl. audit_inv_var_vs_fermat builds a test program that
+// includes secp256k1_ct_extended.cl -- the same source g_ext builds -- and
+// checks on the device, separately for p and for n:
+//   1. var(a) is canonical (< M) and equals the Fermat inverse of (a mod M)
+//      for edge inputs (0, 1, 2, M-2, M-1, (M-1)/2, (M+1)/2, M, M+1, values
+//      above M, 2^255, 2^256-1, zero / all-ones limb patterns) and 16384
+//      seeded random 256-bit inputs
+//   2. (a mod M) * var(a) == 1 (mod M) when a != 0 mod M; var(a) == 0 otherwise
+//   3. the core with the full iteration cap returns the same value, and with
+//      one outer iteration fewer than the input needs it returns 0 (fail
+//      closed) -- at least 10000 such inputs per modulus
+// audit_ecrecover_roundtrip exercises the switched recovery path end to end.
+
+static const char* const kInvVarCheckSource = R"CLSRC(
+#include "secp256k1_ct_extended.cl"
+
+// in:  8 ulongs per item: the raw input, then the input reduced mod M by the host
+// out: 12 ulongs per item
+//   mode 0 (p) / 1 (n): [0..3] var(raw)  [4..7] Fermat(reduced)  [8..11] reduced * var(raw)
+//   mode 2 (p) / 3 (n): [0..3] modinv30_var_impl(raw, iters[i])  [4] outer iterations used
+__kernel void inv_var_check(__global const ulong* in, __global const int* iters,
+                            __global ulong* out, const uint count, const uint mode) {
+    const uint gid = get_global_id(0);
+    if (gid >= count) return;
+    ulong raw[4], red[4], o[12];
+    for (int i = 0; i < 4; ++i) { raw[i] = in[gid * 8 + i]; red[i] = in[gid * 8 + 4 + i]; }
+    for (int i = 0; i < 12; ++i) o[i] = 0;
+    if (mode == 0u) {
+        FieldElement a, ar, v, f, prod;
+        for (int i = 0; i < 4; ++i) { a.limbs[i] = raw[i]; ar.limbs[i] = red[i]; }
+        field_inv_var_impl(&v, &a);
+        field_inv_impl(&f, &ar);
+        field_mul_impl(&prod, &ar, &v);
+        for (int i = 0; i < 4; ++i) { o[i] = v.limbs[i]; o[4 + i] = f.limbs[i]; o[8 + i] = prod.limbs[i]; }
+    } else if (mode == 1u) {
+        Scalar a, ar, v, f, prod;
+        for (int i = 0; i < 4; ++i) { a.limbs[i] = raw[i]; ar.limbs[i] = red[i]; }
+        scalar_inv_var_impl(&a, &v);
+        scalar_inverse_impl(&ar, &f);
+        scalar_mul_mod_n_impl(&ar, &v, &prod);
+        for (int i = 0; i < 4; ++i) { o[i] = v.limbs[i]; o[4 + i] = f.limbs[i]; o[8 + i] = prod.limbs[i]; }
+    } else {
+        ulong r4[4];
+        const int used = modinv30_var_impl(raw, r4, mode == 3u ? 1 : 0, iters[gid]);
+        for (int i = 0; i < 4; ++i) o[i] = r4[i];
+        o[4] = (ulong)used;
+    }
+    for (int i = 0; i < 12; ++i) out[gid * 12 + i] = o[i];
+}
+)CLSRC";
+
+// The iteration cap the OpenCL core uses (MODINV30_MAX_ITERS in secp256k1_field.cl).
+static constexpr int kModinv30MaxIters = 25;
+
+static bool iv_ge(const uint64_t a[4], const uint64_t m[4]) {
+    for (int i = 3; i >= 0; --i) {
+        if (a[i] != m[i]) return a[i] > m[i];
+    }
+    return true;
+}
+
+static void iv_sub(const uint64_t a[4], const uint64_t b[4], uint64_t r[4]) {
+    uint64_t borrow = 0;
+    for (int i = 0; i < 4; ++i) {
+        uint64_t const t = a[i] - b[i];
+        uint64_t const next = (uint64_t)(a[i] < b[i]) | (uint64_t)(t < borrow);
+        r[i] = t - borrow;
+        borrow = next;
+    }
+}
+
+static void iv_add_u64(const uint64_t a[4], uint64_t v, uint64_t r[4]) {
+    uint64_t carry = v;
+    for (int i = 0; i < 4; ++i) {
+        r[i] = a[i] + carry;
+        carry = (r[i] < carry) ? 1 : 0;
+    }
+}
+
+// r = a mod m for a < 2m (true for any 256-bit a when m > 2^255)
+static void iv_reduce_once(const uint64_t a[4], const uint64_t m[4], uint64_t r[4]) {
+    if (iv_ge(a, m)) { iv_sub(a, m, r); return; }
+    for (int i = 0; i < 4; ++i) r[i] = a[i];
+}
+
+static bool iv_is_zero(const uint64_t a[4]) { return (a[0] | a[1] | a[2] | a[3]) == 0; }
+static bool iv_is_one(const uint64_t a[4]) { return a[0] == 1 && (a[1] | a[2] | a[3]) == 0; }
+static bool iv_eq(const uint64_t a[4], const uint64_t b[4]) {
+    return a[0] == b[0] && a[1] == b[1] && a[2] == b[2] && a[3] == b[3];
+}
+
+static void iv_print(const char* what, const uint64_t a[4]) {
+    std::fprintf(stderr, "      %-10s %016llx %016llx %016llx %016llx\n", what,
+                 (unsigned long long)a[3], (unsigned long long)a[2],
+                 (unsigned long long)a[1], (unsigned long long)a[0]);
+}
+
+// Edge and seeded random inputs for modulus m, 4 limbs per value.
+static std::vector<uint64_t> iv_corpus(const uint64_t m[4]) {
+    std::vector<uint64_t> v;
+    auto push = [&v](const uint64_t a[4]) { v.insert(v.end(), a, a + 4); };
+    auto push4 = [&v](uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3) {
+        v.push_back(a0); v.push_back(a1); v.push_back(a2); v.push_back(a3);
+    };
+    const uint64_t F = ~0ULL;
+    const uint64_t one[4] = {1, 0, 0, 0}, two[4] = {2, 0, 0, 0};
+    uint64_t t[4], u[4];
+
+    push4(0, 0, 0, 0); push4(1, 0, 0, 0); push4(2, 0, 0, 0); push4(3, 0, 0, 0);
+    iv_sub(m, one, t); push(t);                                   // M-1
+    iv_sub(m, two, t); push(t);                                   // M-2
+    iv_sub(m, one, t);                                            // (M-1)/2
+    for (int i = 0; i < 4; ++i) u[i] = (t[i] >> 1) | (i < 3 ? (t[i + 1] << 63) : 0);
+    push(u);
+    iv_add_u64(m, 1, t);                                          // (M+1)/2
+    for (int i = 0; i < 4; ++i) u[i] = (t[i] >> 1) | (i < 3 ? (t[i + 1] << 63) : 0);
+    push(u);
+    push(m);                                                      // M      (== 0)
+    iv_add_u64(m, 1, t); push(t);                                 // M+1    (== 1)
+    iv_add_u64(m, 2, t); push(t);                                 // M+2    (== 2)
+    iv_add_u64(m, 0xFFFFFFFFULL, t); push(t);                     // above M, below 2^256
+    push4(F, F, F, F);                                            // 2^256-1
+    push4(0, 0, 0, 1ULL << 63);                                   // 2^255
+    push4(0, 0, 0, 1); push4(0, 0, 1, 0); push4(0, 1, 0, 0);      // zero limbs
+    push4(F, 0, 0, 0); push4(F, 0, F, 0); push4(0, F, 0, F);
+    push4(F, F, F, 0); push4(0, F, F, F); push4(F, F, 0, 0);      // all-ones limbs
+    push4(0x3FFFFFFF3FFFFFFFULL, 0x3FFFFFFF3FFFFFFFULL,
+          0x3FFFFFFF3FFFFFFFULL, 0x3FFFFFFF3FFFFFFFULL);          // 30-bit boundaries
+    push4(0xC0000000C0000000ULL, 0xC0000000C0000000ULL,
+          0xC0000000C0000000ULL, 0xC0000000C0000000ULL);
+    push4(0x8000000000000001ULL, 0, 0, 0x8000000000000000ULL);
+
+    uint64_t s = 0x5EC9256B1D0C0DEULL;                            // splitmix64, fixed seed
+    auto next = [&s]() {
+        uint64_t z = (s += 0x9E3779B97F4A7C15ULL);
+        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ULL;
+        z = (z ^ (z >> 27)) * 0x94D049BB133111EBULL;
+        return z ^ (z >> 31);
+    };
+    for (int i = 0; i < 16384; ++i) push4(next(), next(), next(), next());
+    for (int i = 0; i < 64; ++i) { iv_add_u64(m, next() & 0xFFFFFFFFULL, t); push(t); }
+    return v;
+}
+
+// Runs inv_var_check over `in` (8 ulongs per item). Returns 0 on success.
+static int iv_run(cl_context ctx, cl_command_queue q, cl_kernel k,
+                  const std::vector<uint64_t>& in, const std::vector<int>& iters,
+                  cl_uint mode, std::vector<uint64_t>& out) {
+    size_t const n = in.size() / 8;
+    cl_int err = CL_SUCCESS, e2 = CL_SUCCESS, e3 = CL_SUCCESS;
+    cl_mem d_in = clCreateBuffer(ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                 in.size() * sizeof(uint64_t), (void*)in.data(), &err);
+    cl_mem d_it = clCreateBuffer(ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                 iters.size() * sizeof(int), (void*)iters.data(), &e2);
+    cl_mem d_out = clCreateBuffer(ctx, CL_MEM_WRITE_ONLY, n * 12 * sizeof(uint64_t), nullptr, &e3);
+    int rc = (err != CL_SUCCESS || e2 != CL_SUCCESS || e3 != CL_SUCCESS) ? 1 : 0;
+    out.assign(n * 12, 0);
+    if (rc == 0) {
+        cl_uint count = (cl_uint)n;
+        clSetKernelArg(k, 0, sizeof(cl_mem), &d_in);
+        clSetKernelArg(k, 1, sizeof(cl_mem), &d_it);
+        clSetKernelArg(k, 2, sizeof(cl_mem), &d_out);
+        clSetKernelArg(k, 3, sizeof(cl_uint), &count);
+        clSetKernelArg(k, 4, sizeof(cl_uint), &mode);
+        size_t global = n;
+        err = clEnqueueNDRangeKernel(q, k, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
+        if (err == CL_SUCCESS) {
+            err = clEnqueueReadBuffer(q, d_out, CL_TRUE, 0, n * 12 * sizeof(uint64_t),
+                                      out.data(), 0, nullptr, nullptr);
+        }
+        if (err != CL_SUCCESS) {
+            std::fprintf(stderr, "    inv_var_check mode %u: OpenCL error %d\n", mode, err);
+            rc = 2;
+        }
+    }
+    if (d_in) clReleaseMemObject(d_in);
+    if (d_it) clReleaseMemObject(d_it);
+    if (d_out) clReleaseMemObject(d_out);
+    return rc;
+}
+
+static int audit_inv_var_vs_fermat() {
+    if (g_kernel_dir.empty() || !g_ctx) return -1;
+    cl_context ctx = (cl_context)g_ctx->native_context();
+    cl_command_queue q = (cl_command_queue)g_ctx->native_queue();
+    cl_device_id dev = nullptr;
+    if (clGetCommandQueueInfo(q, CL_QUEUE_DEVICE, sizeof(dev), &dev, nullptr) != CL_SUCCESS) return 1;
+
+    cl_int err = CL_SUCCESS;
+    const char* src = kInvVarCheckSource;
+    size_t const len = std::strlen(src);
+    cl_program prog = clCreateProgramWithSource(ctx, 1, &src, &len, &err);
+    if (err != CL_SUCCESS) return 2;
+    std::string const opts = "-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable -I " + g_kernel_dir;
+    err = clBuildProgram(prog, 1, &dev, opts.c_str(), nullptr, nullptr);
+    if (err != CL_SUCCESS) {
+        size_t log_size = 0;
+        clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, 0, nullptr, &log_size);
+        std::string log(log_size + 1, '\0');
+        clGetProgramBuildInfo(prog, dev, CL_PROGRAM_BUILD_LOG, log_size, log.data(), nullptr);
+        std::fprintf(stderr, "    inv_var_check build failed:\n%s\n", log.c_str());
+        clReleaseProgram(prog);
+        return 3;
+    }
+    cl_kernel k = clCreateKernel(prog, "inv_var_check", &err);
+    if (err != CL_SUCCESS) { clReleaseProgram(prog); return 4; }
+
+    int rc = 0;
+    for (int which = 0; which < 2 && rc == 0; ++which) {
+        const uint64_t* m = (which == 0) ? MODULUS : ORDER;
+        const char* label = (which == 0) ? "p" : "n";
+        std::vector<uint64_t> const corpus = iv_corpus(m);
+        size_t const n = corpus.size() / 4;
+        std::vector<uint64_t> in(n * 8);
+        for (size_t i = 0; i < n; ++i) {
+            for (int j = 0; j < 4; ++j) in[i * 8 + j] = corpus[i * 4 + j];
+            iv_reduce_once(&corpus[i * 4], m, &in[i * 8 + 4]);
+        }
+
+        // 1 + 2: var == Fermat, canonical, a * a^-1 == 1
+        std::vector<int> const full(n, kModinv30MaxIters);
+        std::vector<uint64_t> out;
+        if (iv_run(ctx, q, k, in, full, (cl_uint)which, out) != 0) { rc = 10; break; }
+        for (size_t i = 0; i < n && rc == 0; ++i) {
+            const uint64_t* red = &in[i * 8 + 4];
+            const uint64_t* v = &out[i * 12];
+            uint64_t f[4], prod[4];
+            iv_reduce_once(&out[i * 12 + 4], m, f);
+            iv_reduce_once(&out[i * 12 + 8], m, prod);
+            bool const ok = !iv_ge(v, m) && iv_eq(v, f)
+                         && (iv_is_zero(red) ? iv_is_zero(v) : iv_is_one(prod));
+            if (!ok) {
+                std::fprintf(stderr, "    mod %s input #%zu: var inverse != Fermat or a*inv != 1\n",
+                             label, i);
+                iv_print("input", &in[i * 8]); iv_print("var", v);
+                iv_print("fermat", f);         iv_print("a*var", prod);
+                rc = 11;
+            }
+        }
+        if (rc != 0) break;
+
+        // 3: the core agrees at the full cap and fails closed one iteration short
+        std::vector<uint64_t> core;
+        if (iv_run(ctx, q, k, in, full, (cl_uint)(which + 2), core) != 0) { rc = 12; break; }
+        std::vector<int> fewer(n, 0);
+        for (size_t i = 0; i < n && rc == 0; ++i) {
+            int const used = (int)core[i * 12 + 4];
+            if (!iv_eq(&core[i * 12], &out[i * 12]) || used < 1 || used > kModinv30MaxIters) {
+                std::fprintf(stderr, "    mod %s input #%zu: core result/iterations wrong (used=%d)\n",
+                             label, i, used);
+                rc = 13;
+            }
+            fewer[i] = used - 1;
+        }
+        if (rc != 0) break;
+        std::vector<uint64_t> capped;
+        if (iv_run(ctx, q, k, in, fewer, (cl_uint)(which + 2), capped) != 0) { rc = 14; break; }
+        size_t fail_closed = 0;
+        for (size_t i = 0; i < n && rc == 0; ++i) {
+            if (!iv_is_zero(&capped[i * 12]) || (int)capped[i * 12 + 4] != fewer[i]) {
+                std::fprintf(stderr, "    mod %s input #%zu: cap of %d iterations did not return 0\n",
+                             label, i, fewer[i]);
+                iv_print("input", &in[i * 8]); iv_print("got", &capped[i * 12]);
+                rc = 15;
+            }
+            if (!iv_is_zero(&in[i * 8 + 4])) ++fail_closed;
+        }
+        if (rc == 0 && fail_closed < 10000) {
+            std::fprintf(stderr, "    mod %s: only %zu fail-closed cases\n", label, fail_closed);
+            rc = 16;
+        }
+    }
+
+    clReleaseKernel(k);
+    clReleaseProgram(prog);
+    return rc;
+}
+
+// ECDSA public-key recovery (ecrecover_batch -> ecdsa_recover_impl, which
+// inverts r and the public intermediate points with the variable-time
+// SafeGCD inverses): for six keys, exactly one recid of a valid signature
+// recovers the signer's key, and a signature with a flipped s bit recovers it
+// for no recid.
+static int audit_ecrecover_roundtrip() {
+    if (!g_ext.valid) return -1;
+    cl_int err = CL_SUCCESS;
+    cl_kernel k = clCreateKernel(g_ext.program, "ecrecover_batch", &err);
+    if (err != CL_SUCCESS || !k) return 1;
+
+    static const uint64_t keys[][4] = {
+        {1, 0, 0, 0},
+        {2, 0, 0, 0},
+        {42, 0, 0, 0},
+        {0xDEADBEEFCAFEBABEULL, 0x0123456789ABCDEFULL, 0, 0},
+        {0x1111111111111111ULL, 0x2222222222222222ULL, 0x3333333333333333ULL, 0x4444444444444444ULL},
+        {0xBFD25E8CD0364140ULL, 0xBAAEDCE6AF48A03BULL, 0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL},
+    };
+    int rc = 0;
+    for (size_t t = 0; t < sizeof(keys) / sizeof(keys[0]) && rc == 0; ++t) {
+        Scalar priv{{keys[t][0], keys[t][1], keys[t][2], keys[t][3]}};
+        uint8_t msg[32];
+        for (int i = 0; i < 32; ++i) msg[i] = (uint8_t)(0x5A ^ (i * 7) ^ (int)(t * 31));
+        ExtendedCL::ECDSASig sig{};
+        if (!ocl_ecdsa_sign(priv, msg, sig)) { rc = 2; break; }
+        JacobianPoint const pub = ext_generator_mul(priv);
+        if (!ocl_ecdsa_verify(pub, msg, sig)) { rc = 3; break; }
+        AffinePoint const want = jacobian_to_affine(pub);
+        uint64_t want_x[4], want_y[4];
+        iv_reduce_once(want.x.limbs, MODULUS, want_x);
+        iv_reduce_once(want.y.limbs, MODULUS, want_y);
+
+        for (int corrupt = 0; corrupt < 2 && rc == 0; ++corrupt) {
+            ExtendedCL::ECDSASig s = sig;
+            if (corrupt) s.s[0] ^= 1;
+            std::vector<uint8_t> msgs(4 * 32);
+            for (int j = 0; j < 4; ++j) std::memcpy(&msgs[j * 32], msg, 32);
+            std::vector<ExtendedCL::ECDSASig> sigs(4, s);
+            int recids[4] = {0, 1, 2, 3};
+            std::vector<JacobianPoint> pubs(4);
+            int res[4] = {0, 0, 0, 0};
+
+            cl_int e[5] = {};
+            cl_mem d_msg = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                          msgs.size(), msgs.data(), &e[0]);
+            cl_mem d_sig = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                          sigs.size() * sizeof(ExtendedCL::ECDSASig), sigs.data(), &e[1]);
+            cl_mem d_rec = clCreateBuffer(g_ext.context, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                                          sizeof(recids), recids, &e[2]);
+            cl_mem d_pub = clCreateBuffer(g_ext.context, CL_MEM_WRITE_ONLY,
+                                          pubs.size() * sizeof(JacobianPoint), nullptr, &e[3]);
+            cl_mem d_res = clCreateBuffer(g_ext.context, CL_MEM_WRITE_ONLY, sizeof(res), nullptr, &e[4]);
+            bool ok = true;
+            for (cl_int x : e) ok = ok && (x == CL_SUCCESS);
+            if (ok) {
+                cl_uint count = 4;
+                clSetKernelArg(k, 0, sizeof(cl_mem), &d_msg);
+                clSetKernelArg(k, 1, sizeof(cl_mem), &d_sig);
+                clSetKernelArg(k, 2, sizeof(cl_mem), &d_rec);
+                clSetKernelArg(k, 3, sizeof(cl_mem), &d_pub);
+                clSetKernelArg(k, 4, sizeof(cl_mem), &d_res);
+                clSetKernelArg(k, 5, sizeof(cl_uint), &count);
+                size_t global = 4;
+                ok = clEnqueueNDRangeKernel(g_ext.queue, k, 1, nullptr, &global, nullptr,
+                                            0, nullptr, nullptr) == CL_SUCCESS
+                  && clEnqueueReadBuffer(g_ext.queue, d_pub, CL_TRUE, 0,
+                                         pubs.size() * sizeof(JacobianPoint), pubs.data(),
+                                         0, nullptr, nullptr) == CL_SUCCESS
+                  && clEnqueueReadBuffer(g_ext.queue, d_res, CL_TRUE, 0, sizeof(res), res,
+                                         0, nullptr, nullptr) == CL_SUCCESS;
+            }
+            if (d_msg) clReleaseMemObject(d_msg);
+            if (d_sig) clReleaseMemObject(d_sig);
+            if (d_rec) clReleaseMemObject(d_rec);
+            if (d_pub) clReleaseMemObject(d_pub);
+            if (d_res) clReleaseMemObject(d_res);
+            if (!ok) { rc = 4; break; }
+
+            int matches = 0;
+            for (int j = 0; j < 4; ++j) {
+                if (!res[j]) continue;
+                AffinePoint const got = jacobian_to_affine(pubs[j]);
+                uint64_t gx[4], gy[4];
+                iv_reduce_once(got.x.limbs, MODULUS, gx);
+                iv_reduce_once(got.y.limbs, MODULUS, gy);
+                if (iv_eq(gx, want_x) && iv_eq(gy, want_y)) ++matches;
+            }
+            if (!corrupt && matches != 1) {
+                std::fprintf(stderr, "    key #%zu: %d recids recovered the signer key (want 1)\n",
+                             t, matches);
+                rc = 5;
+            }
+            if (corrupt && matches != 0) {
+                std::fprintf(stderr, "    key #%zu: corrupted signature recovered the signer key\n", t);
+                rc = 6;
+            }
+        }
+    }
+    clReleaseKernel(k);
+    return rc;
+}
+
+// =============================================================================
 // Module & Section Registry
 // =============================================================================
 
@@ -2013,9 +2398,11 @@ static const OclAuditModule OCL_MODULES[] = {
     { "scalar_mul_lin",    "Scalar mul linearity (a+b)*G = aG+bG",      "math_invariants", audit_scalar_mul_linearity, false },
     { "group_order",       "Group order basic checks",                    "math_invariants", audit_group_order_basic, false },
     { "batch_inv",         "Batch inversion (Montgomery trick)",          "math_invariants", audit_batch_inversion, false },
+    { "inv_var_fermat",    "VT SafeGCD inverse == Fermat (p, n, fail-closed)", "math_invariants", audit_inv_var_vs_fermat, false },
 
     // Section 2: Signature Operations
     { "ecdsa_roundtrip",   "ECDSA sign + verify roundtrip",              "signatures", audit_ecdsa_roundtrip, false },
+    { "ecrecover_rt",      "ECDSA ecrecover roundtrip (+ corrupted sig)", "signatures", audit_ecrecover_roundtrip, false },
     { "schnorr_roundtrip", "Schnorr/BIP-340 sign + verify roundtrip",    "signatures", audit_schnorr_roundtrip, false },
     { "ecdsa_wrong_key",   "ECDSA verify rejects wrong pubkey",          "signatures", audit_ecdsa_wrong_key, false },
 

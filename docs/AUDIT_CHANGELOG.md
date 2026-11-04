@@ -1,5 +1,67 @@
 # Audit Changelog
 
+## 2026-11-04 - OpenCL: verify paths use a variable-time SafeGCD inverse (`audit/test_regression_opencl_kernel_closure.cpp`, `opencl_audit_runner`)
+
+**Change.** OpenCL port of the CUDA change of 2026-10-02 (entries below). New in
+`src/opencl/kernels/secp256k1_field.cl`: `modinv30_var_impl`, a port of
+`src/cuda/include/modinv_var.cuh` (Bernstein-Yang SafeGCD, variable time, 30 divsteps per
+batch on 9 signed 30-bit limbs, input reduced first, `MODINV30_MAX_ITERS` = 25 so the cap is
+750 >= 741 proven divsteps, cap reached -> result 0), and `field_inv_var_impl(r, a)` on top of
+it. `scalar_inv_var_impl(a, r)` sits next to `scalar_inverse_impl` in
+`secp256k1_extended.cl`. Both are defined inside the six scan-only embed files, so the #415
+embed (includes stripped) still compiles; no `.cl` file was added to the include chain. The
+signatures follow the Fermat functions they replace (`field_inv_impl(r, a)`,
+`scalar_inverse_impl(a, r)`), and the results are the same values, now always canonical.
+
+**Sites switched (public data only).** Callers were listed up to the kernels for each site.
+
+| Function | Value inverted | Why it is public |
+|----------|----------------|------------------|
+| `ecdsa_verify_impl` (`extended.cl`) | `sig.s`; `pubkey.z` (Z != 1 only); `R.z` | signature, pubkey and message are the verifier's public inputs; R = u1*G + u2*Q with u1, u2 from them. Every ECDSA verify kernel reaches it: `ecdsa_verify`, `ecdsa_verify_compressed`, `ecdsa_verify_lbtc_rows`, `ecdsa_verify_lbtc_columns` and `ecdsa_verify_lbtc_collect`. |
+| `shamir_double_mul_glv_impl` (`extended.cl`) | product of the 11 table Z values | the table is sums of the two public affine inputs. Its callers are all verifiers: `ecdsa_verify_impl`, `schnorr_verify_impl`, `lbtc_commitment_verify`, `ecdsa_snark_witness_impl`, and knowledge / DLEQ proof verification in `secp256k1_zk.cl` (that file is unchanged). |
+| `schnorr_verify_impl` (`extended.cl`) | `R.z` | R = s*G - e*P from signature, x-only key and message. |
+| `ecdsa_recover_impl` (`extended.cl`, `ecrecover_batch`) | `sig.r`; `R.z` (R lifted from r); Z of s*R - z*G | built from r, s, recid and the message hash only. |
+| `ecdsa_recover_impl` (`secp256k1_recovery.cl`) | `sig.r` | same as above. The old call `scalar_inverse_impl(&r_inv, sig_r)` had input and output swapped for the `(in, out)` signature; the new call passes `sig_r` as the input. |
+| `lbtc_commitment_verify` (`extended.cl`) | Z of tweak*G + P | Taproot commitment check: the internal key and the tweak are public. |
+| `ecdsa_snark_witness_impl` (`extended.cl`) | `pubkey.z` (Z != 1 only), `sig.s`, `R.z` | the witness is computed from a public signature, pubkey and message. |
+| `frost_jac_to_affine_bytes` (`secp256k1_frost.cl`) | Z of z_i*G and of R_i + lambda_i*e*Y_i | its only caller is `frost_verify_partial`; z_i, D_i, E_i, Y_i, rho_i and lambda_i*e are published to the aggregator. |
+
+**Left on the Fermat / CT inverse.** Every `secp256k1_ct_*.cl` file (unchanged), all signing
+(`ecdsa_sign_impl`, `schnorr_sign_impl`, the recoverable signer's k^-1), ECDH, key generation,
+BIP-32 / BIP-352, the provers, `secp256k1_affine.cl` and the shared batch / affine helpers,
+`secp256k1_zk.cl` and `secp256k1_ct_zk.cl` (NF-2026-00036). The sign-then-verify wrapper
+`ct_ecdsa_sign_verified_impl` normalises the key it derived to Z = 1 with the CT inverse before
+calling `ecdsa_verify_impl`, so the pubkey-Z branch is not reached from a signer; as on CUDA, its
+verify leg then inverts s and R.z of the signature it just produced. A caller of the
+`ecdsa_verify` kernel that passes a Jacobian pubkey straight out of a secret scalar
+multiplication would put that Z through the variable-time inverse; host callers pass parsed
+(Z = 1) keys.
+
+**Public-only guard.** OpenCL has no namespaces, so the CUDA `= delete` guard becomes a source
+scan in the existing kernel-closure module (no new audit module, module counts unchanged).
+OKC-5: with comments stripped, `field_inv_var_impl`, `scalar_inv_var_impl` and
+`modinv30_var_impl` appear in no `secp256k1_ct_*.cl` file, on no preprocessor line, and inside
+no top-level function whose name contains sign, ecdh, keygen, derive or prove, across every
+kernel file and the OpenCL C embedded in `opencl_context.cpp`. OKC-6 (positive control): the
+scan finds the real calls in `ecdsa_verify_impl`, `schnorr_verify_impl` and
+`ecdsa_recover_impl`. OKC-7 (negative control, live): replacing `field_inv_impl(` with
+`field_inv_var_impl(` in the real `secp256k1_extended.cl` is rejected in `ecdsa_sign_impl`,
+`schnorr_sign_impl` and `ecdh_compute_raw_impl`, a call appended to the real
+`secp256k1_ct_field.cl` is rejected, a macro wrapping the inverse is rejected, and a synthetic
+verifier call is accepted. The scan is direct-reference only, not a call graph; each helper
+that calls a `_var` inverse says in a comment that all its callers are verifiers.
+
+**Tests.** `opencl_audit_runner` gains `inv_var_fermat`: a device program built on
+`secp256k1_ct_extended.cl` compares `field_inv_var_impl` with `field_inv_impl` and
+`scalar_inv_var_impl` with `scalar_inverse_impl` (on the input reduced mod M) for 0, 1, 2, 3,
+M-2, M-1, (M-1)/2, (M+1)/2, M, M+1, M+2, values between M and 2^256, 2^255, 2^256-1, zero /
+all-ones / 30-bit-boundary limb patterns and 16384 seeded random inputs, requires a canonical
+result and a*inv == 1 (0 for a == 0 mod M), and checks that the core with one outer iteration
+fewer than each input needs returns 0 (at least 10000 such inputs per modulus). It also gains
+`ecrecover_rt`: for six keys, exactly one recid of a GPU-made signature recovers the signer's key
+through `ecrecover_batch`, and a signature with one flipped s bit recovers it for none. No
+performance numbers are recorded in this entry.
+
 ## 2026-11-03 - Lane verify dual multiplication is GLV-split (`audit/test_lanes_verify_differential.cpp`)
 
 **Change.** `lg_dual_mul` (`src/cpu/src/lanes/group_lanes.hpp`) now computes
