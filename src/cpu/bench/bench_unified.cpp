@@ -87,8 +87,8 @@
 #include "secp256k1/glv.hpp"
 #include "secp256k1/batch_verify.hpp"
 #include "secp256k1/lanes.hpp"
+#include "secp256k1/recovery.hpp"   // recovery.cpp is always built
 #ifdef SECP256K1_BUILD_ETHEREUM
-#include "secp256k1/recovery.hpp"
 #include "secp256k1/coins/keccak256.hpp"
 #include "secp256k1/coins/ethereum.hpp"
 #include "secp256k1/coins/eth_signing.hpp"
@@ -104,9 +104,7 @@
 #include "secp256k1.h"
 #include "secp256k1_extrakeys.h"
 #include "secp256k1_schnorrsig.h"
-#ifdef SECP256K1_BUILD_ETHEREUM
-#include "secp256k1_recovery.h"
-#endif
+#include "secp256k1_recovery.h"  // recovery module is always on in libsecp_provider.c
 
 // Thin wrappers from libsecp_provider.c exposing internal field ops
 extern "C" {
@@ -566,6 +564,42 @@ static void print_row_3col(const char* name, double ultra, double libsecp) {
         printf("| %-34s | %8.1f | %8.1f | %8.2fx |\n", name, ultra, libsecp, ratio);
     }
     g_report.add(g_current_section, name, ultra);
+}
+
+// ---- Out-of-line hash rows (NF-2026-00040) ----------------------------------
+// The SHA-256 (32B) row moved from bc5aa9f4 to a2d93fa0 with no change to
+// SHA256::hash/update/finalize or sha256_compress_dispatch. Cause: the row's
+// lambda was timed inside main(); Harness::run and the lambda are inlined into
+// main(), which by then is far past GCC's inline-unit growth budget, so the
+// timed loop called SHA256::update/finalize out of line. Any unrelated code
+// added to main() moved the row. Each helper below is its own function, so
+// the compiler sees a small caller with a fresh budget and inlines the header
+// SHA path as a real caller would. noipa (GCC) also stops interprocedural
+// constant propagation of the input pointer into the helper body.
+#if defined(__GNUC__) && !defined(__clang__)
+#define BENCH_OUT_OF_LINE __attribute__((noipa))
+#elif defined(__clang__)
+#define BENCH_OUT_OF_LINE __attribute__((noinline))
+#elif defined(_MSC_VER)
+#define BENCH_OUT_OF_LINE __declspec(noinline)
+#else
+#define BENCH_OUT_OF_LINE
+#endif
+
+static constexpr std::size_t kHashRowInputLen = 32;
+
+BENCH_OUT_OF_LINE static double bench_sha256_32(const std::uint8_t* in, int iters) {
+    return bench_ns([in]() {
+        auto h = SHA256::hash(in, kHashRowInputLen);
+        bench::DoNotOptimize(h);
+    }, iters);
+}
+
+BENCH_OUT_OF_LINE static double bench_sha512_32(const std::uint8_t* in, int iters) {
+    return bench_ns([in]() {
+        auto h = SHA512::hash(in, kHashRowInputLen);
+        bench::DoNotOptimize(h);
+    }, iters);
 }
 
 // (libsecp256k1 is benchmarked inline in main() using the SAME Harness)
@@ -1946,6 +1980,54 @@ int main(int argc, char** argv) {
 #endif // SECP256K1_BUILD_ETHEREUM
 
     // =====================================================================
+    //  SECTION 6.6: ECDSA Recovery (Ultra FAST) -- recover-vs-recover
+    // =====================================================================
+    // ecdsa_recover alone is what libsecp's secp256k1_ecdsa_recover does. The
+    // Ethereum "ecrecover" row also serializes 65B and runs Keccak-256, so it
+    // is not the libsecp comparison point. recovery.cpp is always built.
+    double u_rec_sign = 0, u_rec_recover = 0, u_rec_recover_ser33 = 0;
+    {
+        print_header("ECDSA RECOVERY -- Ultra FAST");
+
+        idx = 0;
+        u_rec_sign = bench_ns([&]() {
+            auto rs = ecdsa_sign_recoverable(msghashes[idx % POOL], privkeys[idx % POOL]);
+            bench::DoNotOptimize(rs); ++idx;
+        }, N_SIGN);
+        print_row("ecdsa_sign_recoverable", u_rec_sign);
+
+        std::vector<RecoverableSignature> rec_sigs;
+        rec_sigs.reserve(static_cast<std::size_t>(POOL));
+        for (int i = 0; i < POOL; ++i) {
+            rec_sigs.push_back(ecdsa_sign_recoverable(msghashes[i], privkeys[i]));
+        }
+
+        idx = 0;
+        u_rec_recover = bench_ns([&]() {
+            const auto& rs = rec_sigs[static_cast<std::size_t>(idx % POOL)];
+            auto [Q, ok] = ecdsa_recover(msghashes[idx % POOL], rs.sig, rs.recid);
+            bench::DoNotOptimize(Q);
+            bench::DoNotOptimize(ok);
+            ++idx;
+        }, N_VERIFY);
+        print_row("ecdsa_recover", u_rec_recover);
+
+        idx = 0;
+        u_rec_recover_ser33 = bench_ns([&]() {
+            const auto& rs = rec_sigs[static_cast<std::size_t>(idx % POOL)];
+            auto [Q, ok] = ecdsa_recover(msghashes[idx % POOL], rs.sig, rs.recid);
+            auto out33 = Q.to_compressed();
+            bench::DoNotOptimize(out33);
+            bench::DoNotOptimize(ok);
+            ++idx;
+        }, N_VERIFY);
+        print_row("ecdsa_recover + serialize 33B", u_rec_recover_ser33);
+
+        print_sep();
+        printf("\n");
+    }
+
+    // =====================================================================
     //  SECTION 6.7: Real-World Wallet / Protocol Flows
     // =====================================================================
 
@@ -2180,26 +2262,28 @@ int main(int argc, char** argv) {
         (void)ok; ++idx;
     }, N_VERIFY);
 
-#ifdef SECP256K1_BUILD_ETHEREUM
+    // ECDSA recovery (libsecp). The recovery module is always compiled into
+    // libsecp_provider.c (ENABLE_MODULE_RECOVERY 1), and Ultra's recovery.cpp
+    // is always built, so these rows do not depend on SECP256K1_BUILD_ETHEREUM.
     // ECDSA Sign Recoverable (libsecp)
     secp256k1_ecdsa_recoverable_signature ls_rec_sigs[POOL];
     idx = 0;
     const double ls_sign_rec = bench_ns([&]() {
-        secp256k1_ecdsa_sign_recoverable(ls_ctx, &ls_rec_sigs[idx % POOL],
-                                         ls_msgs[idx % POOL],
-                                         ls_seckeys[idx % POOL],
-                                         NULL, NULL);
+        (void)secp256k1_ecdsa_sign_recoverable(ls_ctx, &ls_rec_sigs[idx % POOL],
+                                               ls_msgs[idx % POOL],
+                                               ls_seckeys[idx % POOL],
+                                               NULL, NULL);
         bench::DoNotOptimize(ls_rec_sigs[idx % POOL]); ++idx;
     }, N_SIGN);
 
     // Pre-sign all recovery sigs for the recover benchmark
     for (int i = 0; i < POOL; ++i) {
-        secp256k1_ecdsa_sign_recoverable(ls_ctx, &ls_rec_sigs[i],
-                                         ls_msgs[i], ls_seckeys[i],
-                                         NULL, NULL);
+        (void)secp256k1_ecdsa_sign_recoverable(ls_ctx, &ls_rec_sigs[i],
+                                               ls_msgs[i], ls_seckeys[i],
+                                               NULL, NULL);
     }
 
-    // ECDSA Recover (libsecp)
+    // ECDSA Recover (libsecp): secp256k1_ecdsa_recover only.
     idx = 0;
     const double ls_recover = bench_ns([&]() {
         secp256k1_pubkey pk;
@@ -2207,10 +2291,19 @@ int main(int argc, char** argv) {
                                       ls_msgs[idx % POOL]);
         bench::DoNotOptimize(pk); ++idx;
     }, N_VERIFY);
-#else
-    const double ls_sign_rec = 0.0;
-    const double ls_recover  = 0.0;
-#endif // SECP256K1_BUILD_ETHEREUM
+
+    // ECDSA Recover + 33-byte compressed serialization (libsecp).
+    idx = 0;
+    const double ls_recover_ser33 = bench_ns([&]() {
+        secp256k1_pubkey pk;
+        unsigned char out33[33];
+        size_t out_len = sizeof(out33);
+        (void)secp256k1_ecdsa_recover(ls_ctx, &pk, &ls_rec_sigs[idx % POOL],
+                                      ls_msgs[idx % POOL]);
+        (void)secp256k1_ec_pubkey_serialize(ls_ctx, out33, &out_len, &pk,
+                                            SECP256K1_EC_COMPRESSED);
+        bench::DoNotOptimize(out33); ++idx;
+    }, N_VERIFY);
 
     // Schnorr Keypair Create
     idx = 0;
@@ -2486,6 +2579,9 @@ int main(int argc, char** argv) {
     print_row("point_add (pubkey_combine)",       ls_point_add);
     print_row("ecdsa_sign",                       ls_ecdsa_sign);
     print_row("ecdsa_verify",                     ls_ecdsa_verify);
+    print_row("ecdsa_sign_recoverable",           ls_sign_rec);
+    print_row("ecdsa_recover",                    ls_recover);
+    print_row("ecdsa_recover + serialize 33B",    ls_recover_ser33);
     print_row("schnorr_keypair_create",           ls_schnorr_kp);
     print_row("schnorr_sign (BIP-340)",           ls_schnorr_sign);
     print_row("schnorr_verify (BIP-340)",         ls_schnorr_verify);
@@ -2719,11 +2815,26 @@ int main(int argc, char** argv) {
     print_sep_3col();
     printf("\n");
 
+    // ---- ECDSA Recovery: recover-vs-recover ----
+    // Both sides recover from the same kind of input (64-byte r||s + recid,
+    // 32-byte hash) with no address derivation. The "+ serialize 33B" rows add
+    // the compressed encoding on both sides (Point::to_compressed vs
+    // secp256k1_ec_pubkey_serialize), which is what a caller that needs bytes pays.
+    print_header_3col("ECDSA RECOVERY");
+    print_row_3col("ecdsa_sign_recoverable", u_rec_sign,          ls_sign_rec);
+    print_row_3col("ecdsa_recover",          u_rec_recover,       ls_recover);
+    print_row_3col("ecdsa_recover + serialize 33B", u_rec_recover_ser33, ls_recover_ser33);
+    print_sep_3col();
+    printf("\n");
+
 #ifdef SECP256K1_BUILD_ETHEREUM
     // ---- Ethereum / Recovery Operations ----
+    // ecrecover = recover + 65B serialize + Keccak-256 address. libsecp has no
+    // equivalent, so the row has no libsecp column; the recover-vs-recover
+    // comparison is the ECDSA RECOVERY table above.
     print_header_3col("ETHEREUM / RECOVERY");
     print_row_3col("sign_recoverable",    u_sign_rec,         ls_sign_rec);
-    print_row_3col("ecrecover",           u_ecrecover,        ls_recover);
+    print_row_3col("ecrecover",           u_ecrecover,        0.0);
     print_row_3col("eth_sign_hash",       u_eth_sign,         ls_sign_rec);
     print_row_3col("eth_personal_sign",   u_personal_sign,    ls_sign_rec);
     print_sep_3col();
@@ -3110,17 +3221,11 @@ int main(int argc, char** argv) {
             bench::DoNotOptimize(ok);
         }, N_VERIFY);
 
-        // SHA-256 (32-byte input)
-        u_sha256_32 = bench_ns([&]{
-            auto h = SHA256::hash(msghashes[0].data(), 32);
-            bench::DoNotOptimize(h);
-        }, N_FIELD);
-
-        // SHA-512 (32-byte input)
-        u_sha512_32 = bench_ns([&]{
-            auto h = SHA512::hash(msghashes[0].data(), 32);
-            bench::DoNotOptimize(h);
-        }, N_FIELD);
+        // SHA-256 / SHA-512 (32-byte input). Timed through the out-of-line
+        // bench_sha256_32 / bench_sha512_32 helpers so the loop measures the
+        // library call, not main()'s inline budget (NF-2026-00040).
+        u_sha256_32 = bench_sha256_32(msghashes[0].data(), N_FIELD);
+        u_sha512_32 = bench_sha512_32(msghashes[0].data(), N_FIELD);
 
         // Multi-scalar multiplication (4-point)
         std::vector<Scalar> msm_scalars_4(4);

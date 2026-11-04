@@ -21,6 +21,8 @@
 #include <mutex>
 #include <new>
 #include <limits>
+#include <utility>
+#include <vector>
 
 /* CPU headers needed for ufsecp_bip352_prepare_scan_plan */
 #include "secp256k1/scalar.hpp"
@@ -170,7 +172,77 @@ static ufsecp_error_t to_abi_error_clear_on_fail(
  * secp256k1/detail/sec1_canonical.hpp (sec1_compressed_batch_canonical,
  * sec1_uncompressed_batch_canonical) so the CPU-only exploit PoC
  * test_exploit_gpu_noncanonical_point_encoding exercises the very predicate
- * used here. No private copy of the check lives in this file. */
+ * used here. No private copy of the check lives in this file.
+ *
+ * Whole-batch entry points (ecdh, hash160, msm, frost, zk, snark witness,
+ * bip352 scan) reject a non-canonical point with an error. Verify / validate
+ * batches report per item instead (NF-2026-00029): an item whose key is not
+ * canonical is reported invalid and every other item keeps the kernel's
+ * verdict. This is a host post-mask applied after a successful dispatch: the
+ * kernel still sees the original bytes (it reduces a coordinate >= p mod p and
+ * may call the item valid), and the mask then overwrites that item's verdict,
+ * so nothing the kernel writes can survive for a non-canonical key. On a
+ * failed dispatch the outputs are already cleared, so no mask is needed.
+ *
+ * Known remaining gap: the gate lives in this C ABI layer only. C++ callers
+ * that invoke GpuBackend methods directly (the libbitcoin direct entry point,
+ * compat/libbitcoin_direct) bypass it and get the kernels' reduce-mod-p
+ * behaviour. */
+
+/* results[i] = 0 for every 33-byte compressed key (at keys + i * key_stride)
+ * that is not canonical (prefix 0x02/0x03 and x < p). */
+static void mask_noncanonical_compressed(const uint8_t* keys, size_t key_stride,
+                                         size_t count, uint8_t* results) {
+    for (size_t index = 0; index < count; ++index) {
+        if (!secp256k1::detail::sec1_compressed_canonical(keys + index * key_stride)) {
+            results[index] = 0;
+        }
+    }
+}
+
+/* results[i] = 0 for every 32-byte x-only coordinate that is >= p. The CPU
+ * BIP-340 / BIP-341 paths reject such an x (lift_x fails), and no canonical
+ * serialized x can equal it. */
+static void mask_noncanonical_xonly(const uint8_t* keys32, size_t count, uint8_t* results) {
+    for (size_t index = 0; index < count; ++index) {
+        if (!secp256k1::detail::sec1_coordinate_below_p(keys32 + index * 32)) {
+            results[index] = 0;
+        }
+    }
+}
+
+/* Run a per-item verify dispatch and post-mask it. `dispatch` returns the
+ * backend's GpuError; results are cleared on failure, masked on success. */
+template <typename Dispatch, typename Mask>
+static ufsecp_error_t verify_then_mask(Dispatch&& dispatch, Mask&& mask,
+                                       uint8_t* results, size_t count) {
+    const ufsecp_error_t rc = to_abi_error_clear_on_fail(dispatch(), results, count, 1);
+    if (rc == UFSECP_OK) {
+        mask();
+    }
+    return rc;
+}
+
+/* "Collect" verify variant: the caller pre-seeds key_buffer non-zero and the
+ * backend writes 0 for a valid row. A row whose key is not canonical must keep
+ * its pre-seeded marker (= invalid), so its byte is saved before dispatch and
+ * restored afterwards whatever the backend wrote (also on a failed dispatch,
+ * where it only re-asserts "invalid"). `is_canonical(i)` tests row i's key. */
+template <typename IsCanonical, typename Dispatch>
+static ufsecp_error_t collect_then_restore(IsCanonical&& is_canonical, Dispatch&& dispatch,
+                                           uint8_t* key_buffer, size_t count) {
+    std::vector<std::pair<size_t, uint8_t>> kept;
+    for (size_t index = 0; index < count; ++index) {
+        if (!is_canonical(index)) {
+            kept.emplace_back(index, key_buffer[index]);
+        }
+    }
+    const ufsecp_error_t rc = to_abi_error(dispatch());
+    for (const auto& entry : kept) {
+        key_buffer[entry.first] = entry.second;
+    }
+    return rc;
+}
 
 static bool has_valid_recovery_ids(const int* recids, size_t count) {
     for (size_t index = 0; index < count; ++index) {
@@ -344,10 +416,13 @@ ufsecp_error_t ufsecp_gpu_ecdsa_verify_batch(
         return UFSECP_ERR_NULL_ARG;
     }
     try {
-    return to_abi_error_clear_on_fail(
-        ctx->backend->ecdsa_verify_batch(
-            msg_hashes32, pubkeys33, sigs64, count, out_results),
-        out_results, count, 1);
+    return verify_then_mask(
+        [&] {
+            return ctx->backend->ecdsa_verify_batch(
+                msg_hashes32, pubkeys33, sigs64, count, out_results);
+        },
+        [&] { mask_noncanonical_compressed(pubkeys33, 33, count, out_results); },
+        out_results, count);
     } UFSECP_GPU_CATCH
 }
 
@@ -366,9 +441,11 @@ ufsecp_error_t ufsecp_gpu_ecdsa_verify_opaque_rows(
     }
     if (!clear_output_bytes(out_results, count, 1)) return UFSECP_ERR_BAD_INPUT;
     try {
-        return to_abi_error_clear_on_fail(
-            ctx->backend->ecdsa_verify_lbtc_rows(rows, stride, count, out_results),
-            out_results, count, 1);
+        /* Row layout: 32 msg | 33 compressed pubkey | 64 sig | tail. */
+        return verify_then_mask(
+            [&] { return ctx->backend->ecdsa_verify_lbtc_rows(rows, stride, count, out_results); },
+            [&] { mask_noncanonical_compressed(rows + 32, stride, count, out_results); },
+            out_results, count);
     } UFSECP_GPU_CATCH
 }
 
@@ -405,10 +482,13 @@ ufsecp_error_t ufsecp_gpu_schnorr_verify_batch(
         return UFSECP_ERR_NULL_ARG;
     }
     try {
-    return to_abi_error_clear_on_fail(
-        ctx->backend->schnorr_verify_batch(
-            msg_hashes32, pubkeys_x32, sigs64, count, out_results),
-        out_results, count, 1);
+    return verify_then_mask(
+        [&] {
+            return ctx->backend->schnorr_verify_batch(
+                msg_hashes32, pubkeys_x32, sigs64, count, out_results);
+        },
+        [&] { mask_noncanonical_xonly(pubkeys_x32, count, out_results); },
+        out_results, count);
     } UFSECP_GPU_CATCH
 }
 
@@ -434,10 +514,13 @@ ufsecp_error_t ufsecp_gpu_ecdsa_verify_lbtc_columns(
         return UFSECP_ERR_NULL_ARG;
     }
     try {
-    return to_abi_error_clear_on_fail(
-        ctx->backend->ecdsa_verify_lbtc_columns(
-            digests32, pubkeys33, sigs64, count, out_results),
-        out_results, count, 1);
+    return verify_then_mask(
+        [&] {
+            return ctx->backend->ecdsa_verify_lbtc_columns(
+                digests32, pubkeys33, sigs64, count, out_results);
+        },
+        [&] { mask_noncanonical_compressed(pubkeys33, 33, count, out_results); },
+        out_results, count);
     } UFSECP_GPU_CATCH
 }
 
@@ -457,10 +540,13 @@ ufsecp_error_t ufsecp_gpu_schnorr_verify_lbtc_columns(
         return UFSECP_ERR_NULL_ARG;
     }
     try {
-    return to_abi_error_clear_on_fail(
-        ctx->backend->schnorr_verify_lbtc_columns(
-            digests32, xonly32, sigs64, count, out_results),
-        out_results, count, 1);
+    return verify_then_mask(
+        [&] {
+            return ctx->backend->schnorr_verify_lbtc_columns(
+                digests32, xonly32, sigs64, count, out_results);
+        },
+        [&] { mask_noncanonical_xonly(xonly32, count, out_results); },
+        out_results, count);
     } UFSECP_GPU_CATCH
 }
 
@@ -479,9 +565,13 @@ ufsecp_error_t ufsecp_gpu_ecdsa_verify_collect(
     }
     if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
     try {
-    return to_abi_error(
-        ctx->backend->ecdsa_verify_collect(
-            msg_hashes32, pubkeys33, sigs64, count, key_buffer));
+    return collect_then_restore(
+        [&](size_t i) { return secp256k1::detail::sec1_compressed_canonical(pubkeys33 + i * 33); },
+        [&] {
+            return ctx->backend->ecdsa_verify_collect(
+                msg_hashes32, pubkeys33, sigs64, count, key_buffer);
+        },
+        key_buffer, count);
     } UFSECP_GPU_CATCH
 }
 
@@ -500,9 +590,13 @@ ufsecp_error_t ufsecp_gpu_schnorr_verify_collect(
     }
     if (count > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
     try {
-    return to_abi_error(
-        ctx->backend->schnorr_verify_collect(
-            msg_hashes32, pubkeys_x32, sigs64, count, key_buffer));
+    return collect_then_restore(
+        [&](size_t i) { return secp256k1::detail::sec1_coordinate_below_p(pubkeys_x32 + i * 32); },
+        [&] {
+            return ctx->backend->schnorr_verify_collect(
+                msg_hashes32, pubkeys_x32, sigs64, count, key_buffer);
+        },
+        key_buffer, count);
     } UFSECP_GPU_CATCH
 }
 
@@ -564,6 +658,9 @@ ufsecp_error_t ufsecp_gpu_msm(
     if (n > kMaxGpuBatchN) return UFSECP_ERR_BAD_INPUT;
     if (!clear_output_bytes(out_result33, 1, 33)) return UFSECP_ERR_BAD_INPUT;
     if (SECP256K1_UNLIKELY(!scalars32 || !points33 || !out_result33)) return UFSECP_ERR_NULL_ARG;
+    if (!secp256k1::detail::sec1_compressed_batch_canonical(points33, n)) {
+        return UFSECP_ERR_BAD_PUBKEY;
+    }
     try {
     return to_abi_error_clear_on_fail(
         ctx->backend->msm(scalars32, points33, n, out_result33),
@@ -583,9 +680,10 @@ ufsecp_error_t ufsecp_gpu_xonly_validate(
     if (!clear_output_bytes(results, n, 1)) return UFSECP_ERR_BAD_INPUT;
     if (SECP256K1_UNLIKELY(!keys32 || !results)) return UFSECP_ERR_NULL_ARG;
     try {
-    return to_abi_error_clear_on_fail(
-        ctx->backend->xonly_validate(keys32, n, results),
-        results, n, 1);
+    return verify_then_mask(
+        [&] { return ctx->backend->xonly_validate(keys32, n, results); },
+        [&] { mask_noncanonical_xonly(keys32, n, results); },
+        results, n);
     } UFSECP_GPU_CATCH
 }
 
@@ -605,9 +703,16 @@ ufsecp_error_t ufsecp_gpu_commitment_verify(
     if (SECP256K1_UNLIKELY(!internal_x32 || !tweak32 || !tweaked_x32 || !parity || !results))
         return UFSECP_ERR_NULL_ARG;
     try {
-    return to_abi_error_clear_on_fail(
-        ctx->backend->commitment_verify(internal_x32, tweak32, tweaked_x32, parity, n, results),
-        results, n, 1);
+    return verify_then_mask(
+        [&] {
+            return ctx->backend->commitment_verify(
+                internal_x32, tweak32, tweaked_x32, parity, n, results);
+        },
+        [&] {
+            mask_noncanonical_xonly(internal_x32, n, results);
+            mask_noncanonical_xonly(tweaked_x32, n, results);
+        },
+        results, n);
     } UFSECP_GPU_CATCH
 }
 
@@ -644,9 +749,10 @@ ufsecp_error_t ufsecp_gpu_pubkey_validate(
     if (!clear_output_bytes(results, n, 1)) return UFSECP_ERR_BAD_INPUT;
     if (SECP256K1_UNLIKELY(!pubkeys33 || !results)) return UFSECP_ERR_NULL_ARG;
     try {
-    return to_abi_error_clear_on_fail(
-        ctx->backend->pubkey_validate(pubkeys33, n, results),
-        results, n, 1);
+    return verify_then_mask(
+        [&] { return ctx->backend->pubkey_validate(pubkeys33, n, results); },
+        [&] { mask_noncanonical_compressed(pubkeys33, 33, n, results); },
+        results, n);
     } UFSECP_GPU_CATCH
 }
 
@@ -1201,19 +1307,17 @@ ufsecp_error_t ufsecp_gpu_bip352_scan_batch(
         }
         secp256k1::detail::secure_erase(&scan_k, sizeof(scan_k));
     }
-    // Validate compressed pubkey prefixes (must be 0x02 or 0x03) for spend_pubkey
-    // and every tweak pubkey. Reject invalid input before it reaches the GPU kernel.
-    if (spend_pubkey33[0] != 0x02 && spend_pubkey33[0] != 0x03)
+    // Validate the spend pubkey and every tweak pubkey: prefix 0x02/0x03 and
+    // x < p (the same gate as the multi-spend entry point below). Reject
+    // invalid input before it reaches the GPU kernel.
+    if (!secp256k1::detail::sec1_compressed_canonical(spend_pubkey33))
         return UFSECP_ERR_BAD_INPUT;
-    for (size_t i = 0; i < n_tweaks; ++i) {
-        const uint8_t prefix = tweak_pubkeys33[i * 33];
-        if (prefix != 0x02 && prefix != 0x03)
-            return UFSECP_ERR_BAD_INPUT;
-    }
+    if (!secp256k1::detail::sec1_compressed_batch_canonical(tweak_pubkeys33, n_tweaks))
+        return UFSECP_ERR_BAD_INPUT;
     // Issue #335: delegate to the general multi-spend-key backend method with
-    // n_spend == 1. All validation above is unchanged from prior releases, so
-    // output and error semantics for this single-spend-key entry point stay
-    // byte-identical -- only the final dispatch target generalized.
+    // n_spend == 1. The validation above matches prior releases except that
+    // a coordinate >= p is now rejected (BAD_INPUT, NF-2026-00029); output and
+    // error semantics are otherwise unchanged -- only the dispatch target generalized.
     try {
         return to_abi_error_clear_on_fail(
             ctx->backend->bip352_scan_batch_multispend(

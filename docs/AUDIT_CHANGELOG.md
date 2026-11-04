@@ -1,5 +1,74 @@
 # Audit Changelog
 
+## 2026-11-04 - CPU bench: recover-vs-recover rows against libsecp256k1, and the SHA-256 (32B) row timed out of line (NF-2026-00040)
+
+**ecrecover comparison.** bench_unified's "ETHEREUM / RECOVERY" table compared Ultra
+`coins::ecrecover` (recover, 65-byte serialization and a Keccak-256 address) with libsecp256k1's
+bare `secp256k1_ecdsa_recover`, so the ratio counted work libsecp did not do. A profile of
+`ecdsa_recover` (`src/cpu/src/recovery.cpp`), `ufsecp_ecdsa_recover` and the ecrecover wrapper
+found no extra inversion, affine conversion or serialization round trip. r^-1 uses the
+variable-time scalar inverse, lift_x runs in FE52, and Q = u1*G + u2*R is one
+`dual_scalar_mul_gen_point`. The recovery code is unchanged. bench_unified now has an
+"ECDSA RECOVERY -- Ultra FAST" section and an "ECDSA RECOVERY" Ultra-vs-libsecp table:
+`ecdsa_sign_recoverable`, `ecdsa_recover`, and `ecdsa_recover + serialize 33B`
+(`Point::to_compressed` vs `secp256k1_ec_pubkey_serialize`). Those rows also appear in the libsecp
+section. They no longer depend on `SECP256K1_BUILD_ETHEREUM`, because recovery.cpp and libsecp's
+recovery module are always built. The ecrecover row stays in the Ethereum table without a libsecp
+column.
+
+**SHA-256 (32B) row.** The row moved between bc5aa9f4 and a2d93fa0, but the SHA-256 code did not
+change. It was timed by a lambda inside `main()`. `Harness::run` and that lambda were inlined into
+`main()`, which was past GCC's inline-unit growth limit, so the timed loop called
+`SHA256::update`/`finalize` out of line. Any unrelated code added to `main()` could move the row.
+The SHA-256 and SHA-512 rows now run through `bench_sha256_32` / `bench_sha512_32`
+(noipa on GCC, noinline elsewhere, fixed 32-byte length). A small caller gets inlined the way a
+real library caller is. Bench-only change; the library hash path is unchanged.
+
+**Guard.** `audit/test_exploit_ecdsa_recovery.cpp` (module `exploit_ecdsa_recovery`), new checks:
+- a 64-entry pool where the recovered key's 33-byte and 65-byte encodings must equal sk*G byte for
+  byte, the signature must verify, and the opposite-parity recid must give a different key that
+  also verifies;
+- recid&2 boundaries: r = p-n+1 is rejected (r+n would wrap to x = 1, which is on the curve);
+  r = p-n-1 fails in lift_x (x^3+7 = 6 is a non-residue); r = p-n-3 recovers two different
+  verify-consistent keys for recid 2 and 3.
+
+**Open.** `sha256_compress_dispatch` (`src/cpu/src/hash_accel.cpp`) still calls the out-of-line
+`cpu_features()` on every compress. Replacing that call with a cached flag that still follows
+`set_cpu_disable_mask` needs a publish hook in `src/cpu/src/cpu_features.cpp` and a mask-path test
+in `src/cpu/tests/`, which this change did not cover.
+
+## 2026-11-04 - GPU C ABI: non-canonical SEC1 points rejected in `ufsecp_gpu_msm` and per item in the verify batches (NF-2026-00029, module `exploit_gpu_noncanonical_point_encoding`)
+
+**Gap.** caab87a0 put the SEC1 range gate (`sec1_compressed_batch_canonical` /
+`sec1_uncompressed_batch_canonical`, `src/cpu/include/secp256k1/detail/sec1_canonical.hpp`; KB
+`GPU-SEC1-CANONICAL-GATE`) in front of most GPU C ABI entry points, but not all. Measured on CUDA
+with x = p+1 (the second encoding of the on-curve point x = 1): `ufsecp_gpu_msm` returned OK and
+the same result as for the canonical encoding, while the CPU parser rejects it. The verify batches
+(`ecdsa_verify_batch`, `schnorr_verify_batch`, `ecdsa_verify_opaque_rows` / `_lbtc_rows`, the
+`*_verify_lbtc_columns`, the `*_verify_collect` variants and `commitment_verify`) had the same gap.
+
+**Fix (host side, `src/cpu/src/ufsecp_gpu_impl.cpp` only; kernels unchanged).** `ufsecp_gpu_msm`
+returns `UFSECP_ERR_BAD_PUBKEY` (output cleared) for any non-canonical point, like the other
+whole-batch entry points. The single-spend `ufsecp_gpu_bip352_scan_batch`, which only checked the
+prefix, now uses the same gate as the multi-spend entry point (`UFSECP_ERR_BAD_INPUT`). The
+per-item verifiers are post-masked after a successful dispatch: an item whose key is not canonical
+(33-byte prefix / x `>= p`, or an x-only / internal / tweaked x `>= p`) gets result 0 whatever the
+kernel wrote, and the other items keep their verdicts. This covers the verify batches above plus
+`xonly_validate` and `pubkey_validate`. The collect variants save the pre-seeded marker of such a
+row before dispatch and restore it afterwards, so the row stays invalid. A failed dispatch still
+clears every result, as before.
+
+**Remaining gap.** The gate lives in the C ABI only. C++ callers that invoke `GpuBackend` methods
+directly (the libbitcoin direct entry point) bypass it and keep the kernels' reduce-mod-p
+behaviour.
+
+**Test.** `audit/test_exploit_gpu_noncanonical_point_encoding.cpp` (CPU-runnable; GPU part skips
+without a usable runtime) now checks `msm` (x `>= p` at index 0 and 1), `bip352_scan_batch`, a
+65-byte y `>= p` encoding on `zk_knowledge_verify_batch`, every verify batch with the bad key at
+index 0 and at index 1 (bad item 0, valid neighbour 1, collect marker kept), and `xonly_validate`,
+`pubkey_validate` and `commitment_verify` with the p+1 alias of x = 1 (alias 0, x = 1 itself 1).
+GPU results: not yet run in this change; the manager runs the module on the host GPU.
+
 ## 2026-11-04 - CUDA and OpenCL: ECDSA verify checks x(R) mod n == r projectively (`ecdsa_jacobian_x_eq_r_var`, module `ecdsa_verify_rx`)
 
 CUDA `ecdsa_verify` (`src/cuda/include/ecdsa.cuh`) and OpenCL `ecdsa_verify_impl`

@@ -2884,7 +2884,7 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_hash256` | `(ctx, inputs, input_len, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) of fixed-length inputs; `input_len` must be in `[1,320]` |
 | `ufsecp_gpu_hash256_var` | `(ctx, inputs, input_lens[], stride, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) over per-item variable-length inputs; row `i` = `inputs[i*stride .. i*stride+input_lens[i])`, bytes beyond `input_lens[i]` up to `stride` are ignored padding. No tag prefix, no transaction parsing — GPU treats each row as an opaque byte string; rows up to `stride <= 4 MiB` (`kMaxHash256VarStride`). PUBLIC-DATA / variable-time |
 | `ufsecp_gpu_merkle_pair_hash` | `(ctx, left32, right32, n, out32) -> error_t` | Batch Merkle pair HASH256: `out32[i] = SHA256(SHA256(left32[i*32..+32] \|\| right32[i*32..+32]))` over two separate 32-byte column spans (Structure-of-Arrays). Fixed 64-byte combined input per row — no `input_len` parameter. `n==0` is a no-op (`out32` untouched); null `left32`/`right32`/`out32` -> `UFSECP_ERR_NULL_ARG`; `n` over `kMaxGpuBatchN` -> `UFSECP_ERR_BAD_INPUT`; non-OK leaves `out32` cleared. PUBLIC-DATA / variable-time |
-| `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication |
+| `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication; any non-canonical point (prefix, x `>= p`) -> `UFSECP_ERR_BAD_PUBKEY` with `result33_out` cleared |
 | `ufsecp_gpu_frost_verify_partial_batch` | `(ctx, z_i32[], D_i33[], E_i33[], Y_i33[], rho_i32[], lambda_ie32[], negate_R[], negate_key[], n, results_out[]) -> error_t` | Batch FROST partial verification |
 | `ufsecp_gpu_ecrecover_batch` | `(ctx, msgs32[], sigs64[], recids[], n, pubkeys33_out[], valid_out[]) -> error_t` | Batch public-key recovery from recoverable ECDSA signatures |
 | `ufsecp_gpu_zk_knowledge_verify_batch` | `(ctx, proofs64[], pubkeys65[], msgs32[], n, results[]) -> error_t` | Batch ZK knowledge proof verification (PUBLIC) |
@@ -2894,9 +2894,25 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_bip324_aead_decrypt_batch` | `(ctx, keys32[], nonces12[], wire[], sizes[], max_payload, n, plain_out[], valid[]) -> error_t` | Batch BIP-324 ChaCha20-Poly1305 AEAD decrypt (SECRET) |
 | `ufsecp_gpu_zk_ecdsa_snark_witness_batch` | `(ctx, msgs32[], pubs33[], sigs64[], n, witnesses760_out[]) -> error_t` | Batch ECDSA SNARK witness generation — eprint 2025/695 (PUBLIC inputs) |
 | `ufsecp_gpu_zk_schnorr_snark_witness_batch` | `(ctx, msgs32[], pubkeys_x32[], sigs64[], n, witnesses472_out[]) -> error_t` | Batch BIP-340 Schnorr SNARK witness generation (PUBLIC inputs). GPU kernels pending — CPU fallback returns `Unsupported` via virtual dispatch. |
-| `ufsecp_gpu_bip352_scan_batch` | `(ctx, scan_privkey32, spend_pubkey33, tweaks33[], n, prefix64_out[]) -> error_t` | BIP-352 Silent Payment batch scan (single spend key) — returns upper-64-bit x-coordinate prefix per tweak (SECRET-BEARING: scan key sent to GPU). Thin wrapper delegating to `ufsecp_gpu_bip352_scan_batch_multispend` with `n_spend=1`; unchanged output/error semantics. |
+| `ufsecp_gpu_bip352_scan_batch` | `(ctx, scan_privkey32, spend_pubkey33, tweaks33[], n, prefix64_out[]) -> error_t` | BIP-352 Silent Payment batch scan (single spend key) — returns upper-64-bit x-coordinate prefix per tweak (SECRET-BEARING: scan key sent to GPU). Thin wrapper delegating to `ufsecp_gpu_bip352_scan_batch_multispend` with `n_spend=1`; same output/error semantics, including `UFSECP_ERR_BAD_INPUT` for a spend or tweak pubkey with x `>= p`. |
 | `ufsecp_gpu_bip352_scan_batch_multispend` | `(ctx, scan_privkey32, spend_pubkeys33[], n_spend, tweaks33[], n_tweaks, prefix64_out[]) -> error_t` | BIP-352 batch scan across `n_spend` candidate spend keys (issue #335, e.g. base + change-label spend keys). ECDH/tagged-hash/hash×G run once per tweak; one mixed point add per `(tweak, spend)` cell. Row-major `prefix64_out[tweak*n_spend+spend]`; native CUDA/OpenCL/Metal (SECRET-BEARING) |
 | `ufsecp_gpu_set_metal_shader_path` | `(absolute_dir) -> error_t` | Install an explicit, validated, absolute directory to locate the Metal shader library, for loadable-library consumers whose process CWD is unreliable (issue #335). Precedence: this call > `UFSECP_METAL_SHADER_PATH` env var > legacy CWD-relative search. Path-traversal rejection is component-based (a literal `..` path segment), not a raw substring match, so a directory name merely containing two dots (e.g. `v2..final`) is accepted. Behavior is IDENTICAL on Metal and non-Metal builds (validation/storage always run); on a build with no Metal backend the stored value is simply never consulted. |
+
+**Canonical point encodings (NF-2026-00029).** The GPU C ABI checks every
+caller-supplied SEC1 point on the host before dispatch: prefix, and every
+coordinate `< p` (the CPU parser's rule; the GPU kernels would reduce a
+coordinate `>= p` mod p). Entry points that take a batch of points as one
+input (`ecdh_batch`, `hash160_pubkey_batch`, `msm`, `frost_verify_partial_batch`,
+the ZK verifiers, `zk_ecdsa_snark_witness_batch`) return `UFSECP_ERR_BAD_PUBKEY`
+and clear their output; `bip352_scan_batch*` return `UFSECP_ERR_BAD_INPUT`.
+Per-item verifiers (`ecdsa_verify_batch`, `ecdsa_verify_opaque_rows` /
+`_lbtc_rows`, `ecdsa_` / `schnorr_verify_lbtc_columns`, `schnorr_verify_batch`,
+`xonly_validate`, `pubkey_validate`, `commitment_verify`) report an item with a
+non-canonical key (33-byte point, or x-only / internal / tweaked x `>= p`) as
+`0` and leave the other items' verdicts unchanged; the `*_verify_collect`
+variants leave that row's pre-seeded marker in place. The C++ `GpuBackend`
+methods called directly (for example by the libbitcoin direct entry point) do
+not go through this check.
 
 #### BIP-352 CPU utility
 
