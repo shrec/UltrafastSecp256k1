@@ -166,6 +166,10 @@ inline RecoverableSignatureMetal ecdsa_sign_recoverable_metal(
 }
 
 // -- ECDSA recover: Q = r^-1 * (s*R - z*G) -----------------------------------
+// Computed as one dual multiplication u1*G + u2*R with u1 = -z*r^-1 and
+// u2 = s*r^-1 (the same path as ecdsa_recover in secp256k1_extended.h).
+// Every input (r, s, recid, the message hash) is public, so r^-1 uses the
+// variable-time SafeGCD inverse.
 inline bool ecdsa_recover_metal(thread const uchar* msg_hash,
                                  thread const Scalar256& sig_r,
                                  thread const Scalar256& sig_s,
@@ -205,16 +209,15 @@ inline bool ecdsa_recover_metal(thread const uchar* msg_hash,
     if (!lift_x_parity_metal(rx_fe, y_parity, R)) return false;
 
     Scalar256 z_msg = scalar_from_bytes(msg_hash);
-    Scalar256 r_inv = scalar_inverse(sig_r);
+    Scalar256 r_inv = scalar_inv_var(sig_r);
+    Scalar256 z_r_inv = scalar_mul_mod_n(z_msg, r_inv);
+    Scalar256 u1 = scalar_negate(z_r_inv);
+    Scalar256 u2 = scalar_mul_mod_n(sig_s, r_inv);
 
-    JacobianPoint sR = scalar_mul(R, sig_s);
-    JacobianPoint zG = scalar_mul_generator(z_msg);
-
-    // Negate zG
-    zG.y = field_negate(zG.y);
-
-    JacobianPoint sR_minus_zG = point_add(sR, zG);
-    Q = scalar_mul(sR_minus_zG, r_inv);
+    // R has Z == 1 (lift_x_parity_metal): no inversion here.
+    AffinePoint R_aff = jacobian_to_affine_var(R);
+    AffinePoint G = generator_affine();
+    Q = dual_scalar_mul_glv(G, u1, R_aff, u2);
 
     if (Q.infinity) return false;
     return true;

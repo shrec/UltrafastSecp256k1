@@ -638,3 +638,265 @@ inline FieldElement field_inv(thread const FieldElement &a) {
 
     return t;
 }
+
+// =============================================================================
+// Variable-time modular inverse (Bernstein-Yang SafeGCD) -- PUBLIC DATA ONLY
+// =============================================================================
+//   field_inv_var(a)           a^-1 mod p   (defined below)
+//   scalar_inv_var(a)          a^-1 mod n   (secp256k1_extended.h, next to
+//                                            scalar_inverse)
+//   jacobian_to_affine_var(p)  affine form of a PUBLIC point (extended.h)
+//   modinv30_var_impl(...)     the core all of them call
+//
+// !! VARIABLE TIME -- PUBLIC DATA ONLY !!
+// The number of loop iterations depends on the VALUE being inverted. Never
+// call these on a private key, a nonce, a signing share, an ECDH scalar, a
+// BIP-32 / BIP-352 secret, or on the Z coordinate of a point produced by a
+// secret scalar multiplication (k*G, sk*G, sk*P). Signing, ECDH, key
+// generation, provers, every secp256k1_ct_*.h file and the shared affine
+// helpers keep field_inv / scalar_inverse / the ct_* inverses.
+// MSL has no deleted declarations usable as a fence, so the rule is enforced
+// by a source scan in audit/test_regression_opencl_kernel_closure.cpp: these
+// names may not appear in any secp256k1_ct_*.h file, on a preprocessor line,
+// nor inside any function whose name contains sign, ecdh, keygen, derive or
+// prove. A new caller needs its own argument that no secret, or value derived
+// from one, reaches the inversion.
+//
+// Contract (same value as field_inv / scalar_inverse, bit for bit):
+//   - input: any 256-bit value, reduced or not; input and output may alias
+//   - output: canonical, in [0, modulus); 0 when the input is 0 mod modulus
+//   - always terminates: at most MODINV30_MAX_ITERS outer iterations of at
+//     most 30 inner passes each; if the cap were reached the result is 0
+//     (fail closed) -- not reachable for a 256-bit input, see the cap below
+//
+// Algorithm: Bernstein-Yang safegcd ("Fast constant-time gcd computation and
+// modular inversion", 2019), variable-time form, 30 divsteps per batch on
+// 9 signed 30-bit limbs with 64-bit accumulators. Port of the OpenCL code
+// (modinv30_var_impl in src/opencl/kernels/secp256k1_field.cl) and the CUDA
+// code (src/cuda/include/modinv_var.cuh), themselves ports of this library's
+// CPU safegcd30 code, which is adapted from bitcoin-core/secp256k1
+// secp256k1_modinv32_var (src/modinv32_impl.h):
+//   Copyright (c) 2020 Peter Dettman
+//   Distributed under the MIT software license, see
+//   https://www.opensource.org/licenses/mit-license.php.
+// As in the CUDA / OpenCL code: hard cap on the outer loop, table-free 6-bit
+// inner step w = f*g*(f*f-2), f and g always keep 9 limbs, the input is
+// reduced first. Metal-specific: the element is 8 x 32-bit limbs, converted
+// to and from the 9 x 30-bit form here; and the shaders use no signed 64-bit
+// type and no ctz/clz builtin, so the 64-bit accumulators are two's-complement
+// values held in a ulong (wrapping add/multiply are exact; the arithmetic
+// right shift is spelled out in modinv30_asr30) and the trailing-zero count
+// is a five-step branchless binary search.
+// =============================================================================
+
+// 25 * 30 = 750 divsteps. 741 divsteps are proven sufficient for any 256-bit
+// input with delta starting at 1 (Bernstein-Yang, Theorem 11.2); 724 by
+// sipa/safegcd-bounds. bitcoin-core/secp256k1 modinv32_var uses the same 25.
+constant int MODINV30_MAX_ITERS = 25;
+
+// int -> the same signed value as a 64-bit two's-complement word.
+inline ulong modinv30_sext(int a) {
+    return ulong(uint(a)) | ((a < 0) ? (ulong(0xFFFFFFFFu) << 32) : ulong(0));
+}
+
+// acc + a*b, signed 32x32 -> 64, on two's-complement words held in a ulong.
+inline ulong modinv30_mul_add(ulong acc, int a, int b) {
+    return acc + modinv30_sext(a) * modinv30_sext(b);
+}
+
+// Arithmetic right shift by 30 of a two's-complement 64-bit word.
+inline ulong modinv30_asr30(ulong x) {
+    return (x >> 30) | (((x >> 63) != 0) ? (ulong(0xFFFFFFFFu) << 34) : ulong(0));
+}
+
+// Arithmetic right shift by 30 of a 32-bit int (floor division by 2^30).
+inline int modinv30_asr30_i(int v) {
+    return (v < 0) ? ~int(uint(~v) >> 30) : int(uint(v) >> 30);
+}
+
+// Number of trailing zero bits of x. x != 0 (the caller sets a sentinel bit).
+inline int modinv30_ctz(uint x) {
+    int n = 0;
+    uint s;
+    s = ((x & 0xFFFFu) == 0u) ? 16u : 0u; n += int(s); x >>= s;
+    s = ((x & 0xFFu) == 0u)   ? 8u  : 0u; n += int(s); x >>= s;
+    s = ((x & 0xFu) == 0u)    ? 4u  : 0u; n += int(s); x >>= s;
+    s = ((x & 0x3u) == 0u)    ? 2u  : 0u; n += int(s); x >>= s;
+    s = ((x & 0x1u) == 0u)    ? 1u  : 0u; n += int(s);
+    return n;
+}
+
+// 30 divsteps on the low words of f and g. Returns the new eta (= -delta) and
+// writes the transition matrix (u, v, q, r), scaled by 2^30.
+// Bounded for ANY f, g: every pass after the first removes at least one of
+// the 30 steps (f is forced odd by the caller, and g is odd after the shift).
+inline int modinv30_divsteps_30_var(int eta, uint f, uint g,
+                                    thread int &tu, thread int &tv,
+                                    thread int &tq, thread int &tr) {
+    uint u = 1u, v = 0u, q = 0u, r = 1u;
+    int i = 30;
+    while (true) {
+        // strip zero bits of g; the sentinel at bit i stops the count at i
+        const int zeros = modinv30_ctz(g | (0xFFFFFFFFu << i));
+        g >>= zeros; u <<= zeros; v <<= zeros; eta -= zeros; i -= zeros;
+        if (i == 0) break;
+        // eta < 0: (f, g) <- (g, -f), same for the matrix rows (selects)
+        const bool swap = eta < 0;
+        const uint f0 = f, u0 = u, v0 = v;
+        eta = swap ? -eta : eta;
+        f = swap ? g : f0;   g = swap ? (0u - f0) : g;
+        u = swap ? q : u0;   q = swap ? (0u - u0) : q;
+        v = swap ? r : v0;   r = swap ? (0u - v0) : r;
+        // cancel up to 6 low bits of g with a multiple of f (f odd):
+        // g + f*w == g*(f*f-1)^2 == 0 (mod 64)
+        const int limit = (eta + 1) < i ? (eta + 1) : i;
+        const uint m = (0xFFFFFFFFu >> (32 - limit)) & 63u;
+        const uint w = ((f * g) * (f * f - 2u)) & m;
+        g += f * w; q += u * w; r += v * w;
+    }
+    tu = int(u); tv = int(v); tq = int(q); tr = int(r);
+    return eta;
+}
+
+// r8 = (a8 mod M)^-1 mod M, canonical, where M = n when is_n, else p; both
+// arguments are 8 x 32-bit little-endian limbs. 0 if a8 == 0 mod M or if
+// max_iters is reached. Returns the number of outer iterations used. a8 == r8
+// is allowed. max_iters is a parameter only so that a test kernel can
+// exercise the fail-closed path; production callers pass MODINV30_MAX_ITERS.
+// VARIABLE TIME, PUBLIC DATA ONLY (see the block comment above).
+inline int modinv30_var_impl(thread const uint *a8, thread uint *r8,
+                             const bool is_n, const int max_iters) {
+    const uint M30 = 0x3FFFFFFFu;
+
+    // Modulus as 9 signed 30-bit limbs (value = sum ml[i] * 2^(30*i)), its
+    // inverse mod 2^30, and the same modulus as 8 x 32-bit limbs.
+    const int ml[9] = {
+        is_n ? 0x10364141 : -0x3D1,  is_n ? 0x3F497A33 : -4,
+        is_n ? 0x348A03BB : 0,       is_n ? 0x2BB739AB : 0,
+        is_n ? -0x146 : 0,           0, 0, 0, 65536
+    };
+    const uint inv30 = is_n ? 0x2A774EC1u : 0x2DDACACFu;
+    const uint m8[8] = {
+        is_n ? 0xD0364141u : 0xFFFFFC2Fu, is_n ? 0xBFD25E8Cu : 0xFFFFFFFEu,
+        is_n ? 0xAF48A03Bu : 0xFFFFFFFFu, is_n ? 0xBAAEDCE6u : 0xFFFFFFFFu,
+        is_n ? 0xFFFFFFFEu : 0xFFFFFFFFu, 0xFFFFFFFFu,
+        0xFFFFFFFFu,                      0xFFFFFFFFu
+    };
+
+    // x = a >= M ? a - M : a   (M < 2^256 < 2M, so one subtraction is enough)
+    uint xs[8], ts[8];
+    {
+        ulong borrow = 0;
+        for (int i = 0; i < 8; i++) {
+            const ulong dd = ulong(a8[i]) - ulong(m8[i]) - borrow;
+            ts[i] = uint(dd);
+            borrow = dd >> 63;
+        }
+        const uint keep = 0u - uint(borrow);        // all-ones when a < M
+        for (int i = 0; i < 8; i++) xs[i] = (a8[i] & keep) | (ts[i] & ~keep);
+    }
+    const ulong x0 = ulong(xs[0]) | (ulong(xs[1]) << 32);
+    const ulong x1 = ulong(xs[2]) | (ulong(xs[3]) << 32);
+    const ulong x2 = ulong(xs[4]) | (ulong(xs[5]) << 32);
+    const ulong x3 = ulong(xs[6]) | (ulong(xs[7]) << 32);
+
+    // d = 0, e = 1, f = M, g = x
+    int d[9], e[9], f[9], g[9];
+    for (int i = 0; i < 9; i++) { d[i] = 0; e[i] = 0; f[i] = ml[i]; }
+    e[0] = 1;
+    g[0] = int(uint(x0) & M30);
+    g[1] = int(uint(x0 >> 30) & M30);
+    g[2] = int(uint((x0 >> 60) | (x1 << 4)) & M30);
+    g[3] = int(uint(x1 >> 26) & M30);
+    g[4] = int(uint((x1 >> 56) | (x2 << 8)) & M30);
+    g[5] = int(uint(x2 >> 22) & M30);
+    g[6] = int(uint((x2 >> 52) | (x3 << 12)) & M30);
+    g[7] = int(uint(x3 >> 18) & M30);
+    g[8] = int(uint(x3 >> 48));
+
+    int eta = -1;
+    bool done = false;
+    int it = 0;
+    while (it < max_iters) {
+        ++it;
+        int u, v, q, r;
+        // "| 1u": f is always odd, the OR only makes the inner loop bound
+        // independent of that invariant
+        eta = modinv30_divsteps_30_var(eta, uint(f[0]) | 1u, uint(g[0]), u, v, q, r);
+
+        // (d, e) <- (matrix / 2^30) * (d, e) mod M
+        {
+            const int sd = (d[8] < 0) ? -1 : 0, se = (e[8] < 0) ? -1 : 0;
+            int md = (u & sd) + (v & se);
+            int me = (q & sd) + (r & se);
+            ulong cd = modinv30_mul_add(modinv30_mul_add(ulong(0), u, d[0]), v, e[0]);
+            ulong ce = modinv30_mul_add(modinv30_mul_add(ulong(0), q, d[0]), r, e[0]);
+            md -= int((inv30 * uint(cd) + uint(md)) & M30);
+            me -= int((inv30 * uint(ce) + uint(me)) & M30);
+            cd = modinv30_mul_add(cd, ml[0], md);
+            ce = modinv30_mul_add(ce, ml[0], me);
+            cd = modinv30_asr30(cd); ce = modinv30_asr30(ce);   // low 30 bits are zero
+            for (int i = 1; i < 9; i++) {
+                cd = modinv30_mul_add(modinv30_mul_add(cd, u, d[i]), v, e[i]);
+                ce = modinv30_mul_add(modinv30_mul_add(ce, q, d[i]), r, e[i]);
+                cd = modinv30_mul_add(cd, ml[i], md);            // ml[i] == 0: no-op
+                ce = modinv30_mul_add(ce, ml[i], me);
+                d[i - 1] = int(uint(cd) & M30); cd = modinv30_asr30(cd);
+                e[i - 1] = int(uint(ce) & M30); ce = modinv30_asr30(ce);
+            }
+            d[8] = int(uint(cd)); e[8] = int(uint(ce));
+        }
+
+        // (f, g) <- (matrix / 2^30) * (f, g), exact; g_nonzero = OR of the new g
+        int g_nonzero;
+        {
+            ulong cf = modinv30_mul_add(modinv30_mul_add(ulong(0), u, f[0]), v, g[0]);
+            ulong cg = modinv30_mul_add(modinv30_mul_add(ulong(0), q, f[0]), r, g[0]);
+            cf = modinv30_asr30(cf); cg = modinv30_asr30(cg);   // low 30 bits are zero
+            g_nonzero = 0;
+            for (int i = 1; i < 9; i++) {
+                cf = modinv30_mul_add(modinv30_mul_add(cf, u, f[i]), v, g[i]);
+                cg = modinv30_mul_add(modinv30_mul_add(cg, q, f[i]), r, g[i]);
+                f[i - 1] = int(uint(cf) & M30); cf = modinv30_asr30(cf);
+                g[i - 1] = int(uint(cg) & M30); cg = modinv30_asr30(cg);
+                g_nonzero |= g[i - 1];
+            }
+            f[8] = int(uint(cf)); g[8] = int(uint(cg));
+            g_nonzero |= g[8];
+        }
+        if (g_nonzero == 0) { done = true; break; }
+    }
+
+    // normalize d to [0, M), negating first when f == -1
+    {
+        int cond_add = (d[8] < 0) ? -1 : 0;
+        for (int i = 0; i < 9; i++) d[i] += ml[i] & cond_add;
+        const int cond_neg = (f[8] < 0) ? -1 : 0;
+        for (int i = 0; i < 9; i++) d[i] = (d[i] ^ cond_neg) - cond_neg;
+        for (int i = 0; i < 8; i++) { d[i + 1] += modinv30_asr30_i(d[i]); d[i] &= int(M30); }
+        cond_add = (d[8] < 0) ? -1 : 0;
+        for (int i = 0; i < 9; i++) d[i] += ml[i] & cond_add;
+        for (int i = 0; i < 8; i++) { d[i + 1] += modinv30_asr30_i(d[i]); d[i] &= int(M30); }
+    }
+
+    const ulong ok = ulong(0) - ulong(done ? 1u : 0u);   // cap reached -> 0 (fail closed)
+    const ulong d0 = ulong(uint(d[0])), d1 = ulong(uint(d[1])), d2 = ulong(uint(d[2])),
+                d3 = ulong(uint(d[3])), d4 = ulong(uint(d[4])), d5 = ulong(uint(d[5])),
+                d6 = ulong(uint(d[6])), d7 = ulong(uint(d[7])), d8 = ulong(uint(d[8]));
+    const ulong r0 = ok & (d0 | (d1 << 30) | (d2 << 60));
+    const ulong r1 = ok & ((d2 >> 4) | (d3 << 26) | (d4 << 56));
+    const ulong r2 = ok & ((d4 >> 8) | (d5 << 22) | (d6 << 52));
+    const ulong r3 = ok & ((d6 >> 12) | (d7 << 18) | (d8 << 48));
+    r8[0] = uint(r0); r8[1] = uint(r0 >> 32);
+    r8[2] = uint(r1); r8[3] = uint(r1 >> 32);
+    r8[4] = uint(r2); r8[5] = uint(r2 >> 32);
+    r8[6] = uint(r3); r8[7] = uint(r3 >> 32);
+    return it;
+}
+
+// a^-1 mod p. VARIABLE TIME, PUBLIC DATA ONLY (see the block comment above).
+inline FieldElement field_inv_var(thread const FieldElement &a) {
+    FieldElement r;
+    modinv30_var_impl(a.limbs, r.limbs, false, MODINV30_MAX_ITERS);
+    return r;
+}

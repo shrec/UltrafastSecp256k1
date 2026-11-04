@@ -196,6 +196,83 @@ kernel void field_inv_bench(
 }
 
 // =============================================================================
+// Kernel 5e: Variable-time inverse self-check (test hook, public test data)
+// =============================================================================
+// For each 256-bit input a (8 x 32-bit LE limbs, reduced or not) writes 40
+// words at out[tid * 40]:
+//   [0..7]   field_inv_var(a)          [8..15]  field_inv(a)
+//   [16..23] scalar_inv_var(a)         [24..31] scalar_inverse(a)
+//   [32] outer iterations mod p        [33] outer iterations mod n
+//   [34] 1 if the core capped one iteration short returns 0 (mod p)
+//   [35] the same mod n
+//   [36] 1 if a * field_inv_var(a) == 1 mod p, or a == 0 mod p and the
+//        result is 0
+//   [37] the same mod n for scalar_inv_var
+//   [38] 1 if the in-place (aliased) field inversion equals [0..7]
+//   [39] 0
+// Read by test_inv_var in src/metal/tests/metal_extended_test.mm.
+
+kernel void inv_var_check_kernel(
+    device const FieldElement *a_arr  [[buffer(0)]],
+    device uint *out                  [[buffer(1)]],
+    constant uint &count              [[buffer(2)]],
+    uint tid [[thread_position_in_grid]]
+) {
+    if (tid >= count) return;
+    FieldElement a = a_arr[tid];
+    Scalar256 sa;
+    for (int i = 0; i < 8; i++) sa.limbs[i] = a.limbs[i];
+
+    FieldElement fv = field_inv_var(a);
+    FieldElement ff = field_inv(a);
+    Scalar256 sv = scalar_inv_var(sa);
+    Scalar256 sf = scalar_inverse(sa);
+
+    uint r8[8];
+    int it_p = modinv30_var_impl(a.limbs, r8, false, MODINV30_MAX_ITERS);
+    modinv30_var_impl(a.limbs, r8, false, it_p - 1);
+    uint short_p = 0;
+    for (int i = 0; i < 8; i++) short_p |= r8[i];
+    int it_n = modinv30_var_impl(sa.limbs, r8, true, MODINV30_MAX_ITERS);
+    modinv30_var_impl(sa.limbs, r8, true, it_n - 1);
+    uint short_n = 0;
+    for (int i = 0; i < 8; i++) short_n |= r8[i];
+
+    // a * a^-1 == 1, or a == 0 mod M and a^-1 == 0
+    FieldElement fone = field_one();
+    FieldElement fprod = field_mul(a, fv);
+    FieldElement a_mod_p = field_mul(a, fone);          // a reduced mod p
+    bool a_zero_p = field_is_zero(a_mod_p);
+    bool ok_p = a_zero_p ? field_is_zero(fv) : field_eq(fprod, fone);
+    Scalar256 sone;
+    for (int i = 0; i < 8; i++) sone.limbs[i] = 0;
+    sone.limbs[0] = 1;
+    Scalar256 sprod = scalar_mul_mod_n(sa, sv);
+    Scalar256 a_mod_n = scalar_mul_mod_n(sa, sone);     // a reduced mod n
+    bool a_zero_n = scalar256_is_zero(a_mod_n);
+    bool ok_n = a_zero_n ? scalar256_is_zero(sv) : scalar256_eq(sprod, sone);
+
+    FieldElement al = a;
+    modinv30_var_impl(al.limbs, al.limbs, false, MODINV30_MAX_ITERS);
+
+    const uint base = tid * 40u;
+    for (int i = 0; i < 8; i++) {
+        out[base + i]      = fv.limbs[i];
+        out[base + 8 + i]  = ff.limbs[i];
+        out[base + 16 + i] = sv.limbs[i];
+        out[base + 24 + i] = sf.limbs[i];
+    }
+    out[base + 32] = uint(it_p);
+    out[base + 33] = uint(it_n);
+    out[base + 34] = (short_p == 0u) ? 1u : 0u;
+    out[base + 35] = (short_n == 0u) ? 1u : 0u;
+    out[base + 36] = ok_p ? 1u : 0u;
+    out[base + 37] = ok_n ? 1u : 0u;
+    out[base + 38] = field_eq(al, fv) ? 1u : 0u;
+    out[base + 39] = 0u;
+}
+
+// =============================================================================
 // Kernel 6: Chunked Batch Field Inverse
 // =============================================================================
 // ACCELERATION: Each threadgroup handles one chunk of the array.
@@ -781,7 +858,8 @@ kernel void lbtc_commitment_verify(
     JacobianPoint twG = scalar_mul_glv(Gaff, s);             // tweak*G, variable-time
     JacobianPoint Q = jacobian_add(twG, P);                  // tweak*G + P (full add)
     if (Q.infinity != 0) { res[tid] = 0u; return; }
-    AffinePoint Qa = jacobian_to_affine(Q);
+    // Taproot commitment check: the internal key and the tweak are public.
+    AffinePoint Qa = jacobian_to_affine_var(Q);
     thread uchar xb[32];
     thread uchar yb[32];
     field_to_bytes(Qa.x, xb);
@@ -1683,14 +1761,17 @@ inline Scalar256 frost_read_scalar(device const uchar* buf, uint tid)
 
 // Compare two JacobianPoints for equality via affine x bytes + y parity.
 // Returns true if both represent the same curve point.
+// Its only caller is frost_verify_partial_batch: z_i, D_i, E_i, Y_i, rho_i and
+// lambda_i*e are published to the aggregator, so z_i*G and R_i + lambda_i*e*Y_i
+// are public and their Z coordinates take the variable-time inverse.
 inline bool frost_jac_equal(thread const JacobianPoint &a_in,
                              thread const JacobianPoint &b_in)
 {
     if (a_in.infinity && b_in.infinity) return true;
     if (a_in.infinity || b_in.infinity) return false;
 
-    AffinePoint a_aff = jacobian_to_affine(a_in);
-    AffinePoint b_aff = jacobian_to_affine(b_in);
+    AffinePoint a_aff = jacobian_to_affine_var(a_in);
+    AffinePoint b_aff = jacobian_to_affine_var(b_in);
 
     uchar ax[32], ay[32], bx[32], by[32];
     field_to_bytes(a_aff.x, ax);
@@ -2236,8 +2317,9 @@ kernel void ecdsa_snark_witness_batch(
     // pub_aff is a valid non-infinity point (AffinePoint has no infinity field).
 
     // -- witness scalars: z, s_inv, u1, u2 --
+    // Public signature, pubkey and message: variable-time inversions.
     Scalar256 z     = scalar_from_bytes(msg);
-    Scalar256 s_inv = scalar_inverse(sig_s);
+    Scalar256 s_inv = scalar_inv_var(sig_s);
     Scalar256 u1    = scalar_mul_mod_n(z,     s_inv);
     Scalar256 u2    = scalar_mul_mod_n(sig_r, s_inv);
 
@@ -2249,7 +2331,7 @@ kernel void ecdsa_snark_witness_batch(
     if (R.infinity != 0) return;
 
     // -- R affine --
-    AffinePoint R_aff = jacobian_to_affine(R);
+    AffinePoint R_aff = jacobian_to_affine_var(R);
     uchar rx[32], ry[32];
     field_to_bytes(R_aff.x, rx);
     field_to_bytes(R_aff.y, ry);
@@ -2340,8 +2422,10 @@ kernel void ecdsa_snark_witness_batch_compressed(
     JacobianPoint pub_jac;
     if (!lbtc_point_from_compressed(pubkeys33 + tid * 33, pub_jac)) return;
 
-    // Convert Jacobian → Affine for snark witness
-    AffinePoint pub_aff = jacobian_to_affine(pub_jac);
+    // Convert Jacobian → Affine for snark witness. The witness is computed
+    // from a public signature, pubkey and message, so the inversions below
+    // use the variable-time SafeGCD (the parsed key has Z == 1: no inversion).
+    AffinePoint pub_aff = jacobian_to_affine_var(pub_jac);
 
     // Continue with witness computation (same as original kernel from here)
     uchar pub_x_be[32], pub_y_be[32];
@@ -2350,7 +2434,7 @@ kernel void ecdsa_snark_witness_batch_compressed(
 
     // -- witness scalars: z, s_inv, u1, u2 --
     Scalar256 z     = scalar_from_bytes(msg);
-    Scalar256 s_inv = scalar_inverse(sig_s);
+    Scalar256 s_inv = scalar_inv_var(sig_s);
     Scalar256 u1    = scalar_mul_mod_n(z,     s_inv);
     Scalar256 u2    = scalar_mul_mod_n(sig_r, s_inv);
 
@@ -2361,7 +2445,7 @@ kernel void ecdsa_snark_witness_batch_compressed(
     JacobianPoint R   = jacobian_add(u1G, u2Q);
     if (R.infinity != 0) return;
 
-    AffinePoint R_aff = jacobian_to_affine(R);
+    AffinePoint R_aff = jacobian_to_affine_var(R);
     uchar rx[32], ry[32];
     field_to_bytes(R_aff.x, rx);
     field_to_bytes(R_aff.y, ry);
