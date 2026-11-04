@@ -1,5 +1,24 @@
 # Audit Changelog
 
+## 2026-11-04 - BCH batch verify: the Strauss route and its engine differential (issue #466)
+
+**Surface.** `bch_schnorr_batch_verify` now has four routes: single, individual
+(N = 2..4), a dedicated interleaved Strauss (N = 5..48) and Pippenger-short
+(above 48). `batch_route()` picks one; the equation, the weights and the
+pre-MSM rejects are the same on every route.
+
+**Guards** (`exploit_bch_schnorr_batch_forgery`, still blocking):
+- Every route runs at and around both thresholds. The sizes come from the
+  header constants, so a threshold change moves the tests with it.
+- The cancellation pair, the -R twin and one bad entry at every position run on
+  each route.
+- New engine differential, for N in [2, 64] with random scalars and points:
+  the Strauss sum equals pippenger_msm_glv_short + g*G and the separate
+  multiplications, exactly. It also covers zero and small weights, a repeated
+  point, P and -P in one batch, and streams that end early.
+
+Host run: 943/943 checks; batch, Schnorr and BCH ctests 37/37.
+
 ## 2026-11-04 - GPU BCH 2019 Schnorr batch verify: GPU-vs-CPU differential modules (issue #466)
 
 **Surface.** `ufsecp_gpu_bch_schnorr_verify_batch` runs on CUDA, OpenCL and

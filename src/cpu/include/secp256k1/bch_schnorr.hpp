@@ -114,12 +114,76 @@ bool bch_schnorr_batch_verify_identify(const BchSchnorrBatchPointEntry* entries,
 bool bch_schnorr_pubkey_parse(const std::uint8_t pubkey33[33],
                               fast::Point& out) noexcept;
 
+namespace detail {
+
+// -- Batch routing ------------------------------------------------------------
+// One chunk of n signatures is verified by exactly one of these routes:
+//
+//   n == 1                                     kSingle      bch_schnorr_verify
+//   2 <= n < kBchBatchIndividualCutoff         kIndividual  n single verifies
+//   cutoff <= n <= kBchBatchStraussMax         kStrauss     G fixed-base + one
+//                                                           interleaved Strauss
+//                                                           scan over 3n streams
+//   n > kBchBatchStraussMax                    kPippenger   G fixed-base +
+//                                                           pippenger_msm_glv_short
+//
+// Every route computes the same verdict: the AND of the single verifies (see
+// src/cpu/src/bch_schnorr.cpp). The constants only decide speed. A build
+// without the MSM (no SECP256K1_BCH_SCHNORR_HAS_MSM) verifies every n >= 2
+// individually. Exposed here so the forgery audit derives its test sizes from
+// the same values the engine uses.
+//
+// Both values come from one host measurement: i5-14400F, one pinned core,
+// turbo off, every route forced for N = 2..2048, µs/sig including key parse.
+// Individual verifies win for N = 2..4. At N = 4 the Strauss route only ties.
+// Strauss wins for N = 6..48. Pippenger-short ties it at N = 48 and wins from
+// N = 64 on. Re-measure before changing them.
+constexpr std::size_t kBchBatchIndividualCutoff = 5;
+
+// Strauss up to and including this many signatures, Pippenger-short above.
+// Measured with kBchBatchIndividualCutoff, see above.
+constexpr std::size_t kBchBatchStraussMax = 48;
+
+static_assert(kBchBatchIndividualCutoff >= 2,
+              "n == 1 is always the single verifier; the cutoff starts at 2");
+static_assert(kBchBatchStraussMax >= kBchBatchIndividualCutoff,
+              "the Strauss band must not be empty");
+
+enum class BchBatchRoute : int {
+    kSingle = 0,
+    kIndividual = 1,
+    kStrauss = 2,
+    kPippenger = 3,
+};
+
+// The route a chunk of n entries takes in THIS build (n <= 1 -> kSingle).
+BchBatchRoute bch_schnorr_batch_route_for_test(std::size_t n) noexcept;
+
+// -- Test views of the two MSM engines ----------------------------------------
+// Both return, exactly,
+//     g_coeff*G + sum_i full_scalars[i]*full_points[i]
+//               + sum_i short_scalars[i]*short_points[i]
+// through the engine of the named route, the G term on the fixed-base
+// generator path. Short scalars below 2^128 are one unsplit stream (Strauss)
+// or one unsplit bucket point (Pippenger); a "short" scalar of 2^128 or more is
+// GLV-split like a full one by both. Zero scalars are allowed; points must be
+// finite. In a build without the MSM both return the same sum by separate
+// multiplications. The forgery audit compares the two engines directly. Not
+// for production use.
+fast::Point bch_schnorr_strauss_sum_for_test(
+    const fast::Scalar& g_coeff,
+    const fast::Scalar* full_scalars, const fast::Point* full_points, std::size_t n_full,
+    const fast::Scalar* short_scalars, const fast::Point* short_points, std::size_t n_short);
+fast::Point bch_schnorr_pippenger_sum_for_test(
+    const fast::Scalar& g_coeff,
+    const fast::Scalar* full_scalars, const fast::Point* full_points, std::size_t n_full,
+    const fast::Scalar* short_scalars, const fast::Point* short_points, std::size_t n_short);
+
 // -- Test views of the weight derivation --------------------------------------
 // The forgery audit module calls these so it checks the engine's OWN seed and
 // weight functions rather than a model of them (a model is what let the
 // seedless-weight regression of ca0dde78 pass audit/test_batch_randomness.cpp).
 // Not for production use.
-namespace detail {
 
 // SHA256 binding digest over every entry (and seed32 when non-NULL), before
 // the CSPRNG bytes are mixed in. Deterministic.

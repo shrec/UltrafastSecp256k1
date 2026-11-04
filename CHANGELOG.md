@@ -34,18 +34,28 @@ only gains functions (`UFSECP_ABI_VERSION` stays 4).
     `bch_schnorr_batch_verify` and `bch_schnorr_batch_verify_identify`.
   - Single verify checks the Jacobi symbol of `Y*Z` and `x(R)` projectively,
     with no inversion and no square root.
-  - The batch checks one weighted sum with a 3n-point MSM. The weights are
-    bound to every input and mixed with CSPRNG bytes.
+  - The batch checks one weighted sum. The weights are bound to every input
+    and mixed with CSPRNG bytes. The route depends on N:
+    - N = 2..4: individual verifies;
+    - N = 5..48: a dedicated interleaved Strauss. It uses one shared doubling
+      chain, GLV only for the 256-bit coefficients, one unsplit stream per
+      128-bit weight, and affine tables built with a single batch inversion;
+    - above 48: a 3n-point Pippenger with short scalars.
+    The thresholds and the window are measured on the host.
   - C ABI: `ufsecp_bch_schnorr_verify`, `ufsecp_bch_schnorr_batch_verify` and
     `ufsecp_bch_schnorr_batch_identify`. Their error codes match the BIP-340
     functions.
   - The BCHN shim gains `secp256k1_schnorr_verify_batch`, with the contract of
     Knuth PR #826. `docs/SHIM_KNOWN_DIVERGENCES.md` records the s == 0
     rejection.
-  - New audit modules: `exploit_bch_schnorr_batch_forgery` covers cancellation
-    pairs, the R = -R twin, one bad entry at every position, and range and
-    pubkey rejects. `bch_schnorr_differential` checks the single, batch, C ABI
-    and shim surfaces against each other.
+  - New audit modules:
+    - `exploit_bch_schnorr_batch_forgery` covers cancellation pairs, the R = -R
+      twin, one bad entry at every position, range and pubkey rejects, and
+      every route at and around both thresholds. It also checks that the
+      Strauss sum equals the Pippenger sum and separate multiplications,
+      exactly;
+    - `bch_schnorr_differential` checks the single, batch, C ABI and shim
+      surfaces against each other.
   - New harness `bench_bch_schnorr` (`benchmarks/bch/`). It times single,
     batch and C ABI batch verification and, when given Knuth's pinned
     libsecp256k1 fork, the reference single and batch, all on the same inputs.
@@ -53,11 +63,11 @@ only gains functions (`UFSECP_ABI_VERSION` stays 4).
     on each benchmark platform. `docs/BCH_SCHNORR_BATCH_BENCH.md` gives the
     reproduction steps for #466.
   - Measured on an i5-14400F, one pinned core, turbo off, against the pinned
-    reference with default flags
+    reference with default flags, two runs
     (`docs/benchmark_artifacts/bch_schnorr_cpu_vs_knuth_2026-11-04_i5-14400f.json`):
-    - single verify is 2-3% faster;
-    - batch is 1.19-1.22x faster from N = 128 to 2048;
-    - batch is 3-6% slower at N = 8 and 32, where the reference's Strauss wins.
+    - single verify is 2% faster;
+    - batch is faster at every measured N: 1.02x at N = 8, 1.09x at 32,
+      1.19x at 128 and 1.21x at 512 and 2048.
 - **GPU: BCH 2019 Schnorr batch verification (#466).**
   `ufsecp_gpu_bch_schnorr_verify_batch` returns one result per item, with the
   NULL, count and fail-closed contract of `ufsecp_gpu_schnorr_verify_batch`.
