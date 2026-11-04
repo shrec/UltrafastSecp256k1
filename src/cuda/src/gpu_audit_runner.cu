@@ -1227,6 +1227,150 @@ static int audit_ecdsa_wrong_key() {
 #endif
 }
 
+// ECDSA verify decides x(R) mod n == r projectively (X == r*Z^2, or
+// X == (r+n)*Z^2 when r < p - n) instead of inverting R.z. Checks:
+//   (1) valid signature accepts; tampered r / s / msg / key reject;
+//   (2) x(R) >= n branch: fixed vector with x(R) = n + 2, so r = 2 must accept
+//       and r + 1 = 3 must reject (built off-device: pick R with x = n + 2,
+//       choose z, s, then Q = u2^-1 * (R - u1*G) with u1 = z/s, u2 = r/s);
+//   (3) ecdsa_jacobian_x_eq_r_var on Z != 1 Jacobian points, both branches.
+#if !SECP256K1_CUDA_LIMBS_32
+__device__ inline void audit_rx_load_fe(const uint64_t v[4], FieldElement* out) {
+    FieldElement raw;
+    for (int i = 0; i < 4; i++) raw.limbs[i] = v[i];
+#if SECP256K1_CUDA_USE_MONTGOMERY
+    field_to_mont(&raw, out);
+#else
+    *out = raw;
+#endif
+}
+
+// (X:Y:Z) -> (lam^2 X : lam^3 Y : lam Z): same point, different Z.
+__device__ inline void audit_rx_rescale(const JacobianPoint* p, const FieldElement* lam,
+                                        JacobianPoint* out) {
+    FieldElement l2, l3;
+    field_sqr(lam, &l2);
+    field_mul(&l2, lam, &l3);
+    field_mul(&p->x, &l2, &out->x);
+    field_mul(&p->y, &l3, &out->y);
+    field_mul(&p->z, lam, &out->z);
+    out->infinity = p->infinity;
+}
+
+__global__ void audit_ecdsa_verify_rx_kernel(int* result) {
+    // -- (1) valid accept, tampered r / s / msg / key reject --
+    Scalar key, key_other;
+    key.limbs[0] = 0x1D2C3B4A59687706ULL; key.limbs[1] = 0x0123456789ABCDEFULL;
+    key.limbs[2] = 0x0FEDCBA987654321ULL; key.limbs[3] = 0x1122334455667788ULL;
+    key_other = key;
+    key_other.limbs[0] += 1;
+
+    uint8_t msg[32];
+    for (int i = 0; i < 32; i++) msg[i] = (uint8_t)(0x5A ^ (i * 7));
+
+    ECDSASignatureGPU sig;
+    if (!ecdsa_sign(msg, &key, &sig)) { *result = 1; return; }
+    JacobianPoint pub, pub_other;
+    scalar_mul_generator_const(&key, &pub);
+    scalar_mul_generator_const(&key_other, &pub_other);
+    if (!ecdsa_verify(msg, &pub, &sig)) { *result = 2; return; }
+
+    ECDSASignatureGPU bad = sig;
+    bad.r.limbs[0] ^= 1ULL;
+    if (ecdsa_verify(msg, &pub, &bad)) { *result = 3; return; }
+    bad = sig;
+    bad.s.limbs[0] ^= 1ULL;
+    if (ecdsa_verify(msg, &pub, &bad)) { *result = 4; return; }
+    uint8_t msg_bad[32];
+    for (int i = 0; i < 32; i++) msg_bad[i] = msg[i];
+    msg_bad[31] ^= 1;
+    if (ecdsa_verify(msg_bad, &pub, &sig)) { *result = 5; return; }
+    if (ecdsa_verify(msg, &pub_other, &sig)) { *result = 6; return; }
+
+    // -- (2) x(R) = n + 2 >= n: r = 2 accepts, r = 3 rejects --
+    const uint64_t QX[4] = { 0x77AC96902FE2CDBFULL, 0xBFD326EDFC5D0060ULL,
+                             0x542E30F7B59CDC40ULL, 0xFBEC342B73E8DFDAULL };
+    const uint64_t QY[4] = { 0xBE2000413F84D084ULL, 0x0A05FE6887A2500DULL,
+                             0xAF98FBD4FD9776BFULL, 0x8CCE96B4C87E6290ULL };
+    const uint8_t zmsg[32] = {
+        0xA5, 0xA5, 0xA5, 0xA5, 0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x23, 0x45, 0x67,
+        0x89, 0xAB, 0xCD, 0xEF, 0x0F, 0x1E, 0x2D, 0x3C, 0x4B, 0x5A, 0x69, 0x78,
+        0x87, 0x96, 0xA5, 0xB4, 0xC3, 0xD2, 0xE1, 0xF0 };
+    JacobianPoint q;
+    audit_rx_load_fe(QX, &q.x);
+    audit_rx_load_fe(QY, &q.y);
+    field_set_one(&q.z);
+    q.infinity = false;
+
+    ECDSASignatureGPU vs;
+    vs.r.limbs[0] = 2; vs.r.limbs[1] = 0; vs.r.limbs[2] = 0; vs.r.limbs[3] = 0;
+    vs.s.limbs[0] = 0x0011223344556677ULL; vs.s.limbs[1] = 0xFEDCBA9876543210ULL;
+    vs.s.limbs[2] = 0x0123456789ABCDEFULL; vs.s.limbs[3] = 0x1F2E3D4C5B6A7988ULL;
+    if (!ecdsa_verify(zmsg, &q, &vs)) { *result = 7; return; }
+
+    ECDSASignatureGPU vbad = vs;
+    vbad.r.limbs[0] = 3;                       // r + 1
+    if (ecdsa_verify(zmsg, &q, &vbad)) { *result = 8; return; }
+    vbad = vs;
+    vbad.s.limbs[0] += 1;                      // s + 1
+    if (ecdsa_verify(zmsg, &q, &vbad)) { *result = 9; return; }
+    uint8_t zmsg_bad[32];
+    for (int i = 0; i < 32; i++) zmsg_bad[i] = zmsg[i];
+    zmsg_bad[31] ^= 1;                         // z + 1
+    if (ecdsa_verify(zmsg_bad, &q, &vs)) { *result = 10; return; }
+
+    const uint64_t LAM[4] = { 0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL,
+                              0x0F0F0F0F0F0F0F0FULL, 0x7777777777777777ULL };
+    FieldElement lam;
+    audit_rx_load_fe(LAM, &lam);
+    JacobianPoint q_proj;                      // same pubkey, Z != 1
+    audit_rx_rescale(&q, &lam, &q_proj);
+    if (!ecdsa_verify(zmsg, &q_proj, &vs)) { *result = 11; return; }
+
+    // -- (3) the helper itself on Z != 1 points --
+    const uint64_t RX[4] = { 0xBFD25E8CD0364143ULL, 0xBAAEDCE6AF48A03BULL,
+                             0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL };   // n + 2
+    const uint64_t RY[4] = { 0xC6AF9BB9CD962A5CULL, 0x27153254788DD974ULL,
+                             0xCFDA34341568BF11ULL, 0xC94E559D14883E68ULL };
+    JacobianPoint r_aff, r_proj;
+    audit_rx_load_fe(RX, &r_aff.x);
+    audit_rx_load_fe(RY, &r_aff.y);
+    field_set_one(&r_aff.z);
+    r_aff.infinity = false;
+    audit_rx_rescale(&r_aff, &lam, &r_proj);
+    Scalar cand;
+    cand.limbs[0] = 2; cand.limbs[1] = 0; cand.limbs[2] = 0; cand.limbs[3] = 0;
+    if (!ecdsa_jacobian_x_eq_r_var(&r_proj, &cand)) { *result = 12; return; }
+    cand.limbs[0] = 3;
+    if (ecdsa_jacobian_x_eq_r_var(&r_proj, &cand)) { *result = 13; return; }
+
+    // G.x < n and G.x >= p - n: only the X == r*Z^2 candidate applies.
+    JacobianPoint g_proj;
+    audit_rx_rescale(&GENERATOR_JACOBIAN, &lam, &g_proj);
+    cand.limbs[0] = 0x59F2815B16F81798ULL; cand.limbs[1] = 0x029BFCDB2DCE28D9ULL;
+    cand.limbs[2] = 0x55A06295CE870B07ULL; cand.limbs[3] = 0x79BE667EF9DCBBACULL;
+    if (!ecdsa_jacobian_x_eq_r_var(&g_proj, &cand)) { *result = 14; return; }
+    cand.limbs[0] += 1;
+    if (ecdsa_jacobian_x_eq_r_var(&g_proj, &cand)) { *result = 15; return; }
+
+    *result = 0;
+}
+#endif
+
+static int audit_ecdsa_verify_rx() {
+#if SECP256K1_CUDA_LIMBS_32
+    return 0;
+#else
+    int* d_r; int h_r = -1;
+    CUDA_CHECK(cudaMalloc(&d_r, sizeof(int)));
+    audit_ecdsa_verify_rx_kernel<<<1,1>>>(d_r);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(&h_r, d_r, sizeof(int), cudaMemcpyDeviceToHost));
+    cudaFree(d_r);
+    return h_r;
+#endif
+}
+
 // ============================================================================
 // NEW Section 8: Protocol Security
 // ============================================================================
@@ -2305,6 +2449,7 @@ static const GpuAuditModule GPU_MODULES[] = {
     { "ecdsa_roundtrip",   "ECDSA sign roundtrip",                        "signatures", audit_ecdsa_roundtrip, false },
     { "schnorr_roundtrip", "Schnorr/BIP-340 sign roundtrip",             "signatures", audit_schnorr_roundtrip, false },
     { "ecdsa_wrong_key",   "ECDSA verify rejects wrong pubkey",           "signatures", audit_ecdsa_wrong_key, false },
+    { "ecdsa_verify_rx",   "ECDSA verify projective x(R)==r (r+n branch)", "signatures", audit_ecdsa_verify_rx, false },
 
     // Section 3: Batch Operations & Advanced
     { "batch_inv",         "Batch inversion (Montgomery trick)",          "batch_advanced", audit_batch_inversion, false },

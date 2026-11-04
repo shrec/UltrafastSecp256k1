@@ -1394,6 +1394,61 @@ static inline int ecdsa_sign_impl(const uchar msg_hash[32], const Scalar* priv, 
 }
 #endif // !SECP256K1_OPENCL_SCAN_ONLY
 
+// x(R) mod n == r without inverting R.z: projective form of the final ECDSA
+// check, as in libsecp256k1 (secp256k1_gej_eq_x_var plus the r+n case of
+// secp256k1_ecdsa_sig_verify). R = (X:Y:Z) is Jacobian, affine x = X/Z^2 in
+// [0, p). For 0 < r < n, x mod n == r holds iff x == r, or x == r + n, and the
+// second case is only possible when r < p - n. Each candidate c is checked as
+// X == c*Z^2 (mod p).
+// VARIABLE TIME -- PUBLIC DATA ONLY: R and r are signature-verification data.
+// Caller guarantees R is not infinity and 0 < r < n. Verdict-only: routes that
+// output R's affine coordinates (SNARK witness, recovery) keep the inverse.
+static inline int ecdsa_jacobian_x_eq_r_var_impl(const JacobianPoint* R, const Scalar* r) {
+    // p - n = 0x14551231950B75FC4402DA1722FC9BAEE, little-endian 64-bit limbs.
+    const ulong P_MINUS_N[4] = {
+        0x402DA1722FC9BAEEUL, 0x4551231950B75FC4UL, 0x1UL, 0x0UL
+    };
+    const ulong N[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
+
+    FieldElement zz;
+    field_sqr_impl(&zz, &R->z);
+    uchar x_bytes[32];
+    field_to_bytes_impl(&R->x, x_bytes);   // canonical X mod p
+
+    ulong cand[4] = { r->limbs[0], r->limbs[1], r->limbs[2], r->limbs[3] };
+    for (int pass = 0; pass < 2; pass++) {
+        // cand < p in both passes, so it is a canonical field element.
+        FieldElement c, czz;
+        for (int i = 0; i < 4; i++) c.limbs[i] = cand[i];
+        field_mul_impl(&czz, &c, &zz);
+        uchar czz_bytes[32];
+        field_to_bytes_impl(&czz, czz_bytes);
+        int eq = 1;
+        for (int i = 0; i < 32; i++) if (czz_bytes[i] != x_bytes[i]) { eq = 0; break; }
+        if (eq) return 1;
+        if (pass == 1) break;
+
+        // x == r + n is only possible when r < p - n.
+        int lt = 0;
+        for (int i = 3; i >= 0; i--) {
+            if (cand[i] != P_MINUS_N[i]) { lt = (cand[i] < P_MINUS_N[i]) ? 1 : 0; break; }
+        }
+        if (!lt) return 0;
+        // cand = r + n; r < p - n, so r + n < p < 2^256 (no carry out).
+        ulong carry = 0;
+        for (int i = 0; i < 4; i++) {
+            const ulong a  = cand[i];
+            const ulong s1 = a + N[i];
+            const ulong c1 = (s1 < a) ? 1UL : 0UL;
+            const ulong s2 = s1 + carry;
+            const ulong c2 = (s2 < s1) ? 1UL : 0UL;
+            cand[i] = s2;
+            carry = c1 | c2;
+        }
+    }
+    return 0;
+}
+
 static inline int ecdsa_verify_impl(const uchar msg_hash[32], const JacobianPoint* pubkey, const ECDSASignature* sig) {
     if (scalar_is_zero(&sig->r) || scalar_is_zero(&sig->s)) return 0;
 
@@ -1406,7 +1461,8 @@ static inline int ecdsa_verify_impl(const uchar msg_hash[32], const JacobianPoin
     scalar_from_bytes_impl(msg_hash, &z);
 
     // Every input of verification (signature, pubkey, message hash) is public,
-    // so the three inversions below use the variable-time SafeGCD inverses.
+    // so the inversions below use the variable-time SafeGCD inverses; the
+    // final x(R) check is projective and needs no R.z inverse.
     Scalar s_inv;
     scalar_inv_var_impl(&sig->s, &s_inv);
 
@@ -1435,18 +1491,8 @@ static inline int ecdsa_verify_impl(const uchar msg_hash[32], const JacobianPoin
     shamir_double_mul_glv_impl(&G, &u1, &pub_aff, &u2, &R);
     if (point_is_infinity(&R)) return 0;
 
-    // Check R.x mod n == r
-    FieldElement rz_inv, rz_inv2, rx_aff;
-    field_inv_var_impl(&rz_inv, &R.z);
-    field_sqr_impl(&rz_inv2, &rz_inv);
-    field_mul_impl(&rx_aff, &R.x, &rz_inv2);
-
-    uchar rx_bytes[32];
-    field_to_bytes_impl(&rx_aff, rx_bytes);
-    Scalar rx_scalar;
-    scalar_from_bytes_impl(rx_bytes, &rx_scalar);
-
-    return scalar_eq_impl(&rx_scalar, &sig->r);
+    // Check R.x mod n == r on the Jacobian coordinates (no R.z inverse).
+    return ecdsa_jacobian_x_eq_r_var_impl(&R, &sig->r);
 }
 
 // =============================================================================

@@ -1,5 +1,25 @@
 # Audit Changelog
 
+## 2026-11-04 - CUDA and OpenCL: ECDSA verify checks x(R) mod n == r projectively (`ecdsa_jacobian_x_eq_r_var`, module `ecdsa_verify_rx`)
+
+CUDA `ecdsa_verify` (`src/cuda/include/ecdsa.cuh`) and OpenCL `ecdsa_verify_impl`
+(`src/opencl/kernels/secp256k1_extended.cl`) inverted R.z only to compare x(R) mod n with r.
+Both now use the libsecp256k1 projective check (`secp256k1_gej_eq_x_var` plus the r+n case of
+`secp256k1_ecdsa_sig_verify`): for 0 < r < n, accept iff X == r*Z^2 (mod p), or r < p - n
+(p - n = 0x14551231950B75FC4402DA1722FC9BAEE) and X == (r+n)*Z^2. The new helpers are
+`ecdsa_jacobian_x_eq_r_var` (CUDA) and `ecdsa_jacobian_x_eq_r_var_impl` (OpenCL). They run in
+variable time, which is correct because every input is public (CT-VERIFY). Every verdict-only
+ECDSA route goes through these two functions: every CUDA kernel that calls `ecdsa_verify`, and
+every `ecdsa_verify_impl` caller in OpenCL (the verify kernels in `secp256k1_extended.cl` and the
+CT sign-then-verify kernels). The ECDSA SNARK witness and recovery still do the affine conversion,
+because they output R's or Q's coordinates. Verdicts are unchanged. Audit module
+`ecdsa_verify_rx` (CUDA `gpu_audit_runner`, OpenCL `opencl_audit_runner`) checks that a valid
+signature accepts and that a tampered r, s, msg or key rejects. It also checks a fixed vector with
+x(R) = n + 2 >= n: r = 2 accepts, r + 1 = 3 rejects, and s + 1 or z + 1 reject. The vector was
+built off-device as Q = u2^-1 (R - u1 G) and is checked with the pubkey both at Z = 1 and at
+Z != 1. The CUDA module also calls the helper directly on Z != 1 points, covering both
+candidates and the r >= p - n early exit. Throughput: not yet measured; benchmark required.
+
 ## 2026-11-04 - MuSig2: partial signature verification checks only the signer key's real parity (`musig2_partial_verify`, `secp256k1_musig_partial_sig_verify`)
 
 **Root cause (NF-2026-00028).** `secp256k1::musig2_partial_verify` (`src/cpu/src/musig2.cpp`)

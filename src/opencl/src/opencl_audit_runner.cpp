@@ -741,6 +741,87 @@ static int audit_ecdsa_wrong_key() {
     return 0;
 }
 
+// ECDSA verify decides x(R) mod n == r projectively (X == r*Z^2, or
+// X == (r+n)*Z^2 when r < p - n) instead of inverting R.z. Checks:
+//   (1) valid signature accepts; tampered r / s / msg / key reject;
+//   (2) x(R) >= n branch: fixed vector with x(R) = n + 2, so r = 2 must accept
+//       and r + 1 = 3 must reject (built off-device: pick R with x = n + 2,
+//       choose z, s, then Q = u2^-1 * (R - u1*G) with u1 = z/s, u2 = r/s),
+//       with the pubkey both affine (Z = 1) and rescaled to Z != 1.
+static int audit_ecdsa_verify_rx() {
+    if (!g_ext.valid) return -1;
+
+    // -- (1) valid accept, tampered r / s / msg / key reject --
+    Scalar priv = {{0x1D2C3B4A59687706ULL, 0x0123456789ABCDEFULL,
+                    0x0FEDCBA987654321ULL, 0x1122334455667788ULL}};
+    Scalar priv_other = priv;
+    priv_other.limbs[0] += 1;
+    uint8_t msg[32];
+    for (int i = 0; i < 32; i++) msg[i] = (uint8_t)(0x5A ^ (i * 7));
+
+    ExtendedCL::ECDSASig sig;
+    if (!ocl_ecdsa_sign(priv, msg, sig)) return 1;
+    auto pub = ext_generator_mul(priv);
+    auto pub_other = ext_generator_mul(priv_other);
+    if (!ocl_ecdsa_verify(pub, msg, sig)) return 2;
+
+    ExtendedCL::ECDSASig bad = sig;
+    bad.r[0] ^= 1ULL;
+    if (ocl_ecdsa_verify(pub, msg, bad)) return 3;
+    bad = sig;
+    bad.s[0] ^= 1ULL;
+    if (ocl_ecdsa_verify(pub, msg, bad)) return 4;
+    uint8_t msg_bad[32];
+    std::memcpy(msg_bad, msg, 32);
+    msg_bad[31] ^= 1;
+    if (ocl_ecdsa_verify(pub, msg_bad, sig)) return 5;
+    if (ocl_ecdsa_verify(pub_other, msg, sig)) return 6;
+
+    // -- (2) x(R) = n + 2 >= n: r = 2 accepts, r = 3 rejects --
+    const FieldElement qx = {{0x77AC96902FE2CDBFULL, 0xBFD326EDFC5D0060ULL,
+                              0x542E30F7B59CDC40ULL, 0xFBEC342B73E8DFDAULL}};
+    const FieldElement qy = {{0xBE2000413F84D084ULL, 0x0A05FE6887A2500DULL,
+                              0xAF98FBD4FD9776BFULL, 0x8CCE96B4C87E6290ULL}};
+    const uint8_t zmsg[32] = {
+        0xA5, 0xA5, 0xA5, 0xA5, 0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x23, 0x45, 0x67,
+        0x89, 0xAB, 0xCD, 0xEF, 0x0F, 0x1E, 0x2D, 0x3C, 0x4B, 0x5A, 0x69, 0x78,
+        0x87, 0x96, 0xA5, 0xB4, 0xC3, 0xD2, 0xE1, 0xF0 };
+    JacobianPoint q{};
+    q.x = qx;
+    q.y = qy;
+    q.z = fe_from_u64(1);
+
+    ExtendedCL::ECDSASig vs{};
+    vs.r[0] = 2;
+    vs.s[0] = 0x0011223344556677ULL; vs.s[1] = 0xFEDCBA9876543210ULL;
+    vs.s[2] = 0x0123456789ABCDEFULL; vs.s[3] = 0x1F2E3D4C5B6A7988ULL;
+    if (!ocl_ecdsa_verify(q, zmsg, vs)) return 7;
+
+    ExtendedCL::ECDSASig vbad = vs;
+    vbad.r[0] = 3;                             // r + 1
+    if (ocl_ecdsa_verify(q, zmsg, vbad)) return 8;
+    vbad = vs;
+    vbad.s[0] += 1;                            // s + 1
+    if (ocl_ecdsa_verify(q, zmsg, vbad)) return 9;
+    uint8_t zmsg_bad[32];
+    std::memcpy(zmsg_bad, zmsg, 32);
+    zmsg_bad[31] ^= 1;                         // z + 1
+    if (ocl_ecdsa_verify(q, zmsg_bad, vs)) return 10;
+
+    // Same pubkey as (lam^2 X : lam^3 Y : lam), Z != 1.
+    const FieldElement lam = {{0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL,
+                               0x0F0F0F0F0F0F0F0FULL, 0x7777777777777777ULL}};
+    const FieldElement l2 = g_ctx->field_mul(lam, lam);
+    const FieldElement l3 = g_ctx->field_mul(l2, lam);
+    JacobianPoint q_proj{};
+    q_proj.x = g_ctx->field_mul(qx, l2);
+    q_proj.y = g_ctx->field_mul(qy, l3);
+    q_proj.z = lam;
+    if (!ocl_ecdsa_verify(q_proj, zmsg, vs)) return 11;
+    if (ocl_ecdsa_verify(q_proj, zmsg, vbad)) return 12;
+    return 0;
+}
+
 // =============================================================================
 // Section 3: Batch Operations
 // =============================================================================
@@ -2675,6 +2756,7 @@ static const OclAuditModule OCL_MODULES[] = {
     { "ecrecover_rt",      "ECDSA ecrecover roundtrip (+ corrupted sig)", "signatures", audit_ecrecover_roundtrip, false },
     { "schnorr_roundtrip", "Schnorr/BIP-340 sign + verify roundtrip",    "signatures", audit_schnorr_roundtrip, false },
     { "ecdsa_wrong_key",   "ECDSA verify rejects wrong pubkey",          "signatures", audit_ecdsa_wrong_key, false },
+    { "ecdsa_verify_rx",   "ECDSA verify projective x(R)==r (r+n branch)", "signatures", audit_ecdsa_verify_rx, false },
 
     // Section 3: Batch Operations
     { "batch_smul",        "Batch scalar mul generator",                  "batch_advanced", audit_batch_scalar_mul, false },

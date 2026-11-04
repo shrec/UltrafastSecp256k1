@@ -336,6 +336,73 @@ __device__ inline bool ecdsa_sign(
     return true;
 }
 
+// -- ECDSA verify: x(R) mod n == r without inverting R.z ----------------------
+// Projective form of the final ECDSA check, as in libsecp256k1
+// (secp256k1_gej_eq_x_var plus the r+n case of secp256k1_ecdsa_sig_verify).
+// R = (X:Y:Z) is Jacobian with affine x = X/Z^2 in [0, p). For 0 < r < n,
+// x mod n == r holds iff x == r, or x == r + n, and the second case is only
+// possible when r + n < p, i.e. r < p - n. Each candidate c is checked as
+// X == c*Z^2 (mod p), so the verdict needs no field inversion.
+// VARIABLE TIME -- PUBLIC DATA ONLY: R and r are signature-verification data.
+// Caller guarantees R is not infinity and 0 < r < n. Verdict-only: callers
+// that output R's affine coordinates (SNARK witness, recovery) keep the
+// affine conversion.
+__device__ inline bool ecdsa_jacobian_x_eq_r_var(const JacobianPoint* R, const Scalar* r) {
+    // p - n = 0x14551231950B75FC4402DA1722FC9BAEE, little-endian 64-bit limbs.
+    constexpr uint64_t P_MINUS_N[4] = {
+        0x402DA1722FC9BAEEULL, 0x4551231950B75FC4ULL, 0x1ULL, 0x0ULL
+    };
+    constexpr uint64_t N[4] = {
+        0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+        0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL
+    };
+
+    FieldElement zz;
+    field_sqr(&R->z, &zz);
+    uint8_t x_bytes[32];
+    field_to_bytes(&R->x, x_bytes);   // canonical X mod p
+
+    Scalar cand = *r;                 // candidate x: r, then r + n
+    for (int pass = 0; pass < 2; pass++) {
+        // cand < p in both passes, so it is a canonical field element.
+        uint8_t cand_bytes[32];
+        scalar_to_bytes(&cand, cand_bytes);
+        FieldElement c, c_dom, czz;
+        field_from_bytes(cand_bytes, &c);
+#if SECP256K1_CUDA_USE_MONTGOMERY
+        field_to_mont(&c, &c_dom);    // same domain as R's coordinates
+#else
+        c_dom = c;
+#endif
+        field_mul(&c_dom, &zz, &czz);
+        uint8_t czz_bytes[32];
+        field_to_bytes(&czz, czz_bytes);
+        bool eq = true;
+        for (int i = 0; i < 32; i++) eq = eq && (czz_bytes[i] == x_bytes[i]);
+        if (eq) return true;
+        if (pass == 1) break;
+
+        // x == r + n is only possible when r < p - n.
+        bool lt = false;
+        for (int i = 3; i >= 0; i--) {
+            if (cand.limbs[i] != P_MINUS_N[i]) { lt = cand.limbs[i] < P_MINUS_N[i]; break; }
+        }
+        if (!lt) return false;
+        // cand = r + n; r < p - n, so r + n < p < 2^256 (no carry out).
+        uint64_t carry = 0;
+        for (int i = 0; i < 4; i++) {
+            const uint64_t a = cand.limbs[i];
+            const uint64_t s1 = a + N[i];
+            const uint64_t c1 = (s1 < a) ? 1ULL : 0ULL;
+            const uint64_t s2 = s1 + carry;
+            const uint64_t c2 = (s2 < s1) ? 1ULL : 0ULL;
+            cand.limbs[i] = s2;
+            carry = c1 | c2;
+        }
+    }
+    return false;
+}
+
 // -- ECDSA Verify -------------------------------------------------------------
 // Verifies an ECDSA signature against a public key and message hash.
 // Accepts both low-S and high-S signatures.
@@ -379,21 +446,8 @@ __device__ inline bool ecdsa_verify(
 
     if (R_prime.infinity) return false;
 
-    // v = R'.x mod n (convert affine x to scalar). Variable-time inverse: R'.z
-    // is a function of (u1, u2) and the affine public key, all public.
-    FieldElement z_inv, z_inv2, x_affine;
-    field_inv_var(&R_prime.z, &z_inv);
-    field_sqr(&z_inv, &z_inv2);
-    field_mul(&R_prime.x, &z_inv2, &x_affine);
-
-    uint8_t x_bytes[32];
-    field_to_bytes(&x_affine, x_bytes);
-
-    Scalar v;
-    scalar_from_bytes(x_bytes, &v);
-
-    // Check v == r
-    return scalar_eq(&v, &sig->r);
+    // x(R') mod n == r, decided on the Jacobian coordinates (no R'.z inverse).
+    return ecdsa_jacobian_x_eq_r_var(&R_prime, &sig->r);
 }
 
 // ============================================================================
