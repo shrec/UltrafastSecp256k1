@@ -252,6 +252,16 @@
 **Test files:** `audit/test_adversarial_protocol.cpp`, `audit/test_batch_randomness.cpp`
 **GPU:** CUDA batch verify kernels (`src/cuda/include/batch_verify.cuh`) -- parallel per-thread verification
 
+### 14a. BCH 2019 Schnorr verification (3 functions, not BIP-340)
+
+| Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
+|----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
+| `ufsecp_bch_schnorr_verify` | Y | - | Y | Y (BCHN shim) | N/A (public) | - | - | N/A |
+| `ufsecp_bch_schnorr_batch_verify` | Y | - | Y | Y (BCHN shim) | N/A (public) | - | - | N/A |
+| `ufsecp_bch_schnorr_batch_identify` | Y | - | Y | Y (BCHN shim) | N/A (public) | - | - | N/A |
+
+**Test files:** `audit/test_bch_schnorr_differential.cpp`, `audit/test_exploit_bch_schnorr_batch_forgery.cpp`, `audit/test_regression_bch_schnorr_spec.cpp`
+
 ---
 
 ## 15. Multi-Scalar Multiplication (2 functions)

@@ -900,6 +900,46 @@ UFSECP_API ufsecp_error_t ufsecp_ecdsa_batch_identify_invalid(
     size_t* invalid_out, size_t* invalid_count);
 
 /* ===========================================================================
+ * Bitcoin Cash 2019 Schnorr (OP_CHECKSIG / OP_CHECKDATASIG) -- NOT BIP-340
+ * ===========================================================================
+ * Spec: https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/
+ *   sig = r[32] || s[32], e = SHA256(r || pubkey33 || msg32) mod n,
+ *   R = s*G - e*P; valid iff R != O, R.y is a quadratic residue, x(R) == r.
+ * pubkey33 is SEC1 compressed (0x02/0x03 prefix, x < p, on the curve).
+ * Verification only: variable-time over public data.
+ * Errors: NULL_ARG; BAD_PUBKEY (bad prefix, x >= p, off curve);
+ *         BAD_SIG (r >= p, s >= n, s == 0 -- the reference rejects only s >= n;
+ *         s == 0 cannot verify without a discrete log, see
+ *         docs/SHIM_KNOWN_DIVERGENCES.md); VERIFY_FAIL. */
+
+/** Verify one BCH Schnorr signature. Returns UFSECP_OK iff valid. */
+UFSECP_API ufsecp_error_t ufsecp_bch_schnorr_verify(
+    ufsecp_ctx* ctx,
+    const uint8_t msg32[32],
+    const uint8_t sig64[64],
+    const uint8_t pubkey33[33]);
+
+/** BCH Schnorr batch verify: verify N signatures in one call.
+ *  Each entry: [33-byte compressed pubkey | 32-byte msg | 64-byte sig] = 129 bytes.
+ *  Random 128-bit weights bound to every entry plus CSPRNG bytes; the result
+ *  equals the AND of ufsecp_bch_schnorr_verify over the entries.
+ *  n == 0 -> UFSECP_OK. A malformed entry fails the call with BAD_PUBKEY or
+ *  BAD_SIG. Returns UFSECP_OK if ALL valid, else UFSECP_ERR_VERIFY_FAIL. */
+UFSECP_API ufsecp_error_t ufsecp_bch_schnorr_batch_verify(
+    ufsecp_ctx* ctx,
+    const uint8_t* entries, size_t n);
+
+/** BCH Schnorr batch identify: per-entry verdicts.
+ *  Same 129-byte entry layout. results_out: caller-owned, n bytes; on
+ *  UFSECP_OK results_out[i] = 1 if entry i is valid, else 0. Zeroed first, so
+ *  on any error every entry reads as invalid. A malformed entry fails the call
+ *  with BAD_PUBKEY or BAD_SIG. n == 0 -> UFSECP_OK. */
+UFSECP_API ufsecp_error_t ufsecp_bch_schnorr_batch_identify(
+    ufsecp_ctx* ctx,
+    const uint8_t* entries, size_t n,
+    uint8_t* results_out);
+
+/* ===========================================================================
  * SHA-512
  * =========================================================================== */
 

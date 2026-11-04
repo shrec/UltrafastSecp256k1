@@ -44,6 +44,7 @@ set(SECP256K1_SOURCES
     src/multiscalar.cpp    # Multi-scalar multiplication (Strauss/Shamir)
     src/ecdh.cpp           # ECDH key exchange
     src/recovery.cpp       # ECDSA public key recovery
+    src/bch_schnorr.cpp    # BCH 2019 Schnorr verify + batch verify (MSM only with PIPPENGER)
     # Bitcoin consensus layer (always needed for any Bitcoin-family backend)
     src/taproot.cpp        # Taproot (BIP-341/342) key tweaking + tapscript sighash
     src/bip143.cpp         # BIP-143 SegWit v0 sighash
@@ -180,6 +181,11 @@ if(SECP256K1_BUILD_PIPPENGER)
         src/batch_add_affine.cpp # Affine batch addition for sequential ECC search
         src/batch_verify.cpp     # Batch ECDSA/Schnorr verify — calls msm() at N>=96
     )
+    # BCH Schnorr batch verify uses pippenger_msm_glv_short only when it is
+    # built; without this define src/bch_schnorr.cpp verifies batches entry by
+    # entry (same verdict).
+    set_source_files_properties(src/bch_schnorr.cpp PROPERTIES
+        COMPILE_DEFINITIONS SECP256K1_BCH_SCHNORR_HAS_MSM=1)
     message(STATUS "Secp256k1: Pippenger/MSM module: ON")
 else()
     message(STATUS "Secp256k1: Pippenger/MSM module: OFF")

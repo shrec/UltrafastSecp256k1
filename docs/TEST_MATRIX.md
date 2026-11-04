@@ -57,7 +57,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `test_frost_kat.cpp` | -- | FROST t-of-n threshold signing known-answer tests |
 | `test_wycheproof_ecdsa.cpp` | -- | Wycheproof ECDSA: Google Project Wycheproof test vectors |
 | `test_wycheproof_ecdh.cpp` | -- | Wycheproof ECDH: Google Project Wycheproof test vectors |
-| `unified_audit_runner.cpp` | 483 modules (206 non-exploit + 277 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
+| `unified_audit_runner.cpp` | 485 modules (207 non-exploit + 278 exploit PoCs) | Unified audit: all current modules in single binary (includes GPU null-guard paths) |
 
 ### CPU Unit Tests (`src/cpu/tests/`)
 
@@ -109,14 +109,14 @@ lags behind the generated validation surfaces, prefer the generated counts.
 |------|---------|-------|
 | `opencl/tests/test_opencl.cpp` | OpenCL | Kernel correctness |
 | `opencl/tests/opencl_extended_test.cpp` | OpenCL | Extended operations |
-| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 483 modules, 8 sections) |
+| `opencl/src/opencl_audit_runner.cpp` | OpenCL | Unified GPU audit ( 485 modules, 8 sections) |
 | `metal/tests/test_metal_host.cpp` | Metal | Metal shader correctness |
-| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 483 modules, 8 sections) |
+| `metal/src/metal_audit_runner.mm` | Metal | `secp256k1_metal_audit`: unified GPU audit ( 485 modules, 8 sections) |
 | `src/cuda/src/test_ct_smoke.cu` | CUDA | CT smoke tests incl. ZK knowledge + DLEQ prove/verify (9 tests) |
 | `src/cuda/src/gpu_ct_leakage_probe.cu` | CUDA | Fixed-vs-random device-cycle Welch t-test on CT generator and signing kernels with JSON evidence output |
 | `src/cuda/src/test_suite.cu` | CUDA | `cuda_selftest`: kernel correctness, field + scalar + point ops |
 | `src/cuda/src/test_windows_macro_compat.cu` | CUDA/MSVC | `cuda_windows_macro_compat`: compile regression for Windows SDK `small` macro collisions in the public CUDA header |
-| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 483 modules, 8 sections) |
+| `src/cuda/src/gpu_audit_runner.cu` | CUDA | `gpu_audit`: unified GPU audit ( 485 modules, 8 sections) |
 
 | `metal/app/metal_test.mm` | Metal | `secp256k1_metal_test`: shader correctness, compute pipeline |
 | `metal/app/bench_metal.mm` | Metal | `secp256k1_metal_bench_full`: comprehensive Metal benchmark |
@@ -124,6 +124,7 @@ lags behind the generated validation surfaces, prefer the generated counts.
 | `compat/libsecp256k1_shim/tests/test_shim_batch_mt.cpp` | CPU | `shim_batch_mt`: multi-threaded + per-row batch verify — `secp256k1_ecdsa/schnorrsig_verify_batch_mt/_results` MT==single across thread counts {0,1,2,8,64}, per-row results pinpoint injected-invalid rows, n==0/small-n parity, max_threads=1 |
 | `compat/libsecp256k1_shim/tests/test_shim_batch_cancel.cpp` | CPU | `shim_batch_cancel`: external `ufsecp_cancel_token` on every shim batch-verify function — NULL/default-arg parity, non-tripping chunked verdict correctness, immediate + mid-batch cancel → 0 (callback polled across chunk boundary), throwing callback fail-closed, `_results` unreached rows pre-zeroed, n==0 vacuous with token |
 | `compat/libsecp256k1_bchn_shim/tests/test_bchn_schnorr_fail_clear.cpp` | CPU | `bchn_schnorr_fail_clear`: BCHN Schnorr compatibility shim regression proving invalid signing failures clear `sig64` |
+| `compat/libsecp256k1_bchn_shim/tests/test_bchn_schnorr_batch.cpp` | CPU | `bchn_schnorr_batch`: BCHN shim `secp256k1_schnorr_verify_batch` (Knuth PR #826 contract) -- honest 48-entry batch accepts with and without `seed32`, n == 0 returns 1, a NULL sig/msg/pubkey array returns 0, one corrupted signature at every position rejects (n = 3 and n = 48) (issue #466) |
 | `compat/libbitcoin_bridge/tests/test_lbtc_bridge.cpp` | CPU | `lbtc_bridge`: libbitcoin batch script-sig verify (ECDSA/Schnorr) + opaque-key correlation, CPU reference path; multi-threaded `_mt` twins — per-row verdict parity across thread counts {0,1,2,8}, large batch across the 4096 engine chunk, invalid_idx/count, cancellation under `_mt`, degenerate inputs |
 | `compat/libbitcoin_bridge/tests/test_lbtc_consensus_diff.cpp` | GPU (local-only) | `lbtc_consensus_diff`: GPU-vs-CPU consensus differential — every script-sig verdict must match bit-for-bit (ECDSA/Schnorr, mixed corpus). `SKIP_RETURN_CODE 77` (no GPU); runs in `gpu-selfhosted.yml` only |
 | `compat/libbitcoin_bridge/tests/test_lbtc_collect.cpp` | CPU | `lbtc_collect`: in-place collect verify (verdict written into each row's key cell); + `lbtc_collect_smallchunk` recompiles the bridge with a tiny kChunk to straddle chunk boundaries |
@@ -1107,6 +1108,8 @@ ctest --test-dir build-audit -R "exploit" --output-on-failure
 | `regression_batch_dos_cap` | `audit/test_regression_batch_dos_cap.cpp` | RESOURCE-EXHAUSTION (blind-zone #15): batch sign ABI rejects count>kMaxBatchN (1<<20) and count==0 with BAD_INPUT before any count*size allocation (DoS ceiling); small valid batch still succeeds |
 | `regression_abi_invalid_reject` | `audit/test_regression_abi_invalid_reject.cpp` | VALID/INVALID coverage: live ABI reject branches the blocking suite never exercised — ufsecp_seckey_negate (>=n->BAD_KEY), ufsecp_shamir_trick + ufsecp_multi_scalar_mul (scalar>=n->BAD_INPUT, off-curve->BAD_PUBKEY). Wrong-accept trap closed |
 | `regression_bch_schnorr_spec` | `audit/test_regression_bch_schnorr_spec.cpp` | BCH 2019 SCHNORR conformance (issue #374): the BCHN shim violated the spec it is named after and no gate ran it (built only under SECP256K1_BCHN_SHIM_BUILD_TESTS, default OFF, set by no workflow). (0) the nonce was rfc6979_nonce(d,msg) -- the call ct::ecdsa_sign makes -- so one message signed under both schemes reused one k and d=(s1*s2-z)/(r+s1*e) recovered 16/16 private keys; (1) Jacobi(R.y)==1 absent in BOTH signer and verifier, so only 6/16 signatures were valid on a BCH node while our own verifier took all 16; (2) no RFC6979 algo16 "Schnorr+SHA256  " tag, so 0/16 matched BCHN/Libauth bytes. 8 KAT vectors from an independent Python implementation of the spec, -R twin rejection (s'=2ed-s), determinism, and a BCH-vs-ECDSA nonce-collision probe. Fails 4/7 against the pre-fix shim |
+| `exploit_bch_schnorr_batch_forgery` | `audit/test_exploit_bch_schnorr_batch_forgery.cpp` | BCH 2019 Schnorr batch verify (issue #466, exploit_poc): cancellation pair (s1+d, s2-d), one bad entry at every position for sizes 2..64, wrong msg/key/-P, r >= p / off-curve r / -R twin, s >= n / s == 0, bad pubkey encodings; batch == AND of singles, identify == singles; engine seed/weight functions (a_0 = 1, odd a_i < 2^128, entry binding, fresh per call) |
+| `bch_schnorr_differential` | `audit/test_bch_schnorr_differential.cpp` | BCH 2019 Schnorr differential (issue #466): engine (wire + parsed key), delegating BCHN shim and `ufsecp_bch_schnorr_verify` == verbatim pre-delegation shim verifier over valid + 13 mutation classes and the 8 regression_bch_schnorr_spec vectors/twins; `secp256k1_schnorr_verify_batch` (Knuth #826 contract) and `ufsecp_bch_schnorr_batch_verify`/`_identify` == AND of singles, error codes, fail-closed results |
 | `external_anchor_kat` | `audit/test_external_anchor_kat.cpp` | EXTERNAL-ANCHOR KAT (common-mode defence): ufsecp_sha512 vs NIST FIPS 180-4 (""/"abc"); ufsecp_taproot_output_key vs OFFICIAL BIP-341 wallet-test-vectors (scriptPubKey[0] keypath-only, pins H_TapTweak to the Bitcoin spec, not self-derivation) |
 | `regression_metal_snark_readiness` | `audit/test_regression_metal_snark_readiness.cpp` | GitHub #344: Metal ECDSA/Schnorr SNARK witness methods return `GpuError::Device` before dereferencing an uninitialised runtime (MSR-0..3) |
 | `regression_cuda_buffer_raii` | `audit/test_regression_cuda_buffer_raii.cpp` | GitHub #345: CUDA transient batch allocations are RAII-owned before every `CUDA_TRY` early-return point (CBR-0..8) |

@@ -1835,6 +1835,13 @@ def populate_edges(cur: sqlite3.Cursor):
         'exploit_ltcsp_isolation': ['src/cpu/src/ltc/ltc_sp.cpp'],
         # SilentPaymentScanner (BTC equivalent of LtcSpScanner) — same algorithm
         'exploit_bip352_address_collision': ['src/cpu/src/sp_scanner.cpp'],
+        # BCH 2019 Schnorr (issue #466): forgery probe on the engine; the
+        # differential runs the engine, the C ABI wrapper and the BCHN shim
+        'exploit_bch_schnorr_batch_forgery': ['src/cpu/src/bch_schnorr.cpp'],
+        'bch_schnorr_differential': [
+            'src/cpu/src/bch_schnorr.cpp',
+            'src/cpu/src/impl/ufsecp_bch_schnorr.cpp',
+        ],
     }
     for test, files in test_coverage.items():
         for f in files:

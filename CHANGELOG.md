@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [4.7.0] - 2026-11-03
 
 A feature release with faster verification and new CPU and GPU paths. The C ABI
-is unchanged (`UFSECP_ABI_VERSION` stays 4).
+only gains functions (`UFSECP_ABI_VERSION` stays 4).
 
 - **Faster verification:**
   - Schnorr batch verify is faster at 64 signatures and up: it now uses 128-bit
@@ -26,6 +26,27 @@ is unchanged (`UFSECP_ABI_VERSION` stays 4).
 - **A CPU feature view, a measurement kit and Intel SDE CI.**
 
 ### Added
+- **CPU: Bitcoin Cash 2019 Schnorr verification, single and batch (#466).**
+  This is the BCH scheme, not BIP-340: `e = SHA256(r || P33 || m)`, a 33-byte
+  compressed key, and R with a quadratic-residue y
+  (https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/).
+  - `secp256k1/bch_schnorr.hpp` has `bch_schnorr_verify`,
+    `bch_schnorr_batch_verify` and `bch_schnorr_batch_verify_identify`.
+  - Single verify checks the Jacobi symbol of `Y*Z` and `x(R)` projectively,
+    with no inversion and no square root.
+  - The batch checks one weighted sum with a 3n-point MSM. The weights are
+    bound to every input and mixed with CSPRNG bytes.
+  - C ABI: `ufsecp_bch_schnorr_verify`, `ufsecp_bch_schnorr_batch_verify` and
+    `ufsecp_bch_schnorr_batch_identify`. Their error codes match the BIP-340
+    functions.
+  - The BCHN shim gains `secp256k1_schnorr_verify_batch`, with the contract of
+    Knuth PR #826. `docs/SHIM_KNOWN_DIVERGENCES.md` records the s == 0
+    rejection.
+  - New audit modules: `exploit_bch_schnorr_batch_forgery` covers cancellation
+    pairs, the R = -R twin, one bad entry at every position, and range and
+    pubkey rejects. `bch_schnorr_differential` checks the single, batch, C ABI
+    and shim surfaces against each other.
+  - Throughput: not yet measured — benchmark required.
 - **Benchmarks: result-checked GPU verify, ecrecover and hash160 rows, and
   like-for-like CPU recovery rows.** CUDA `gpu_bench_unified` times ECDSA verify,
   BIP-340 verify (x-only), ecrecover, and hash160 of 33- and 65-byte keys. Its

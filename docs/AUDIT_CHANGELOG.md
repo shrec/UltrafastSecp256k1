@@ -1,5 +1,34 @@
 # Audit Changelog
 
+## 2026-11-04 - BCH 2019 Schnorr batch verification: forgery and differential modules (issue #466)
+
+**Surface.** A new verifier, `src/cpu/src/bch_schnorr.cpp`, covers single and
+batch verification of the Bitcoin Cash 2019 Schnorr scheme (not BIP-340). It is
+reached through the C ABI (`ufsecp_bch_schnorr_verify`,
+`ufsecp_bch_schnorr_batch_verify`, `ufsecp_bch_schnorr_batch_identify`) and the
+BCHN shim (`secp256k1_schnorr_verify`, `secp256k1_schnorr_verify_batch`). Every
+input is public, so the verifier is variable-time (CT-VERIFY).
+
+**Guards.**
+- `exploit_bch_schnorr_batch_forgery` (section `exploit_poc`, advisory=false)
+  builds the attacks a weak batch admits:
+  - a cancellation pair whose unweighted sum is O;
+  - the R = -R_valid twin with s' = 2ed - s;
+  - one bad entry at every position for n in 2..64;
+  - message and key swaps;
+  - r >= p, r off the curve, s >= n and s == 0, and bad pubkeys.
+
+  It asserts that the batch result equals the AND of single verifies, and that
+  the weights depend on every input.
+- `bch_schnorr_differential` (section `differential`, advisory=false) checks
+  the C++ engine, the C ABI and the BCHN shim against the shim's verifier from
+  before the delegation. It covers valid signatures and every mutation class,
+  and checks that each batch result equals the AND of its singles.
+
+**Divergence.** s == 0 is rejected up front. The reference reaches the curve
+check instead, but no signature anyone can produce behaves differently
+(`docs/SHIM_KNOWN_DIVERGENCES.md`).
+
 ## 2026-11-04 - OpenCL/Metal CT mixed addition: P + (-P) is the flagged point at infinity (module `ct_add_mixed_neg`)
 
 **Defect.** `ct_point_add_mixed` (`src/opencl/kernels/secp256k1_ct_point.cl`,

@@ -2622,6 +2622,47 @@ backend. `ufsecp.h` is unchanged. The libbitcoin direct `*_opaque_*` /
 same engine functions and inherit the rule too. Public data only (verification);
 no `ct::` or secret path is involved.
 
+### BCH 2019 Schnorr verification (NOT BIP-340)
+
+Bitcoin Cash `OP_CHECKSIG` / `OP_CHECKDATASIG` 64-byte Schnorr, per the
+[2019-05-15 upgrade specification](https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/):
+`sig = r || s`, `e = SHA256(r || pubkey33 || msg32) mod n`, `R = s*G - e*P`;
+valid iff `r < p`, `0 < s < n`, `P != O`, `R != O`, `R.y` is a quadratic residue
+and `x(R) == r`. (`s == 0` is rejected; the reference rejects only `s >= n`, an
+unobservable difference recorded in `docs/SHIM_KNOWN_DIVERGENCES.md`.) Public
+data only: variable-time by design, no `ct::` path. Engine:
+`src/cpu/include/secp256k1/bch_schnorr.hpp`.
+
+| C ABI | Contract |
+|-------|----------|
+| `ufsecp_bch_schnorr_verify(ctx, msg32, sig64, pubkey33)` | `UFSECP_OK` iff valid. `NULL_ARG`; `BAD_PUBKEY` (prefix not `02`/`03`, `x >= p`, off curve); `BAD_SIG` (`r >= p`, `s >= n`, `s == 0`); `VERIFY_FAIL`. |
+| `ufsecp_bch_schnorr_batch_verify(ctx, entries, n)` | Entries `[33-byte pubkey \| 32-byte msg \| 64-byte sig]` = 129 bytes, the BIP-340 batch layout with `pubkey33` in place of `xonly32`. `n == 0` -> `OK`; `n > 2^20` -> `BAD_INPUT`; a malformed entry fails the call with `BAD_PUBKEY` / `BAD_SIG`; otherwise `OK` iff all valid, else `VERIFY_FAIL`. |
+| `ufsecp_bch_schnorr_batch_identify(ctx, entries, n, results_out)` | Same layout; `results_out[i] = 1` if entry `i` is valid, else `0`. Results are zeroed first (fail closed). Same structural errors as the batch call; `OK` once the results are written. |
+
+C++ engine: `bch_schnorr_verify` (wire or pre-parsed key), `bch_schnorr_batch_verify`
+(`BchSchnorrBatchEntry` / `BchSchnorrBatchPointEntry`, optional `seed32`),
+`bch_schnorr_batch_verify_identify`, `bch_schnorr_pubkey_parse`.
+
+- **Single verify:** one dual multiplication, then no field inversion and no square
+  root: the residue test is the Jacobi symbol of `Y*Z` of the Jacobian result and the
+  x test is `r*Z^2 == X`.
+- **Batch:** checks `sum a_i*(s_i*G - e_i*P_i - R_i) == O` with `a_0 = 1` and 128-bit
+  odd `a_i = SHA256(seed || i)`, `seed = SHA256(tag, seed32?, every r||s||pubkey33||msg)`
+  XOR 32 CSPRNG bytes, and `R_i` the residue lift of `r_i`. One `pippenger_msm_glv_short`
+  over `3n` points (the `R_i` terms unsplit) plus one generator multiplication. Below
+  the individual-verify cutoff (27, the BIP-340 value; not yet measured for this path)
+  entries are verified one at a time. The verdict equals the AND of the single
+  verdicts (an all-valid batch is always accepted; any invalid entry is rejected with
+  probability `>= 1 - 2^-127`, one invalid entry with certainty). `n == 0` is valid;
+  `n == 1` is the single verifier. Without `SECP256K1_BUILD_PIPPENGER` every batch is
+  verified entry by entry.
+- **BCHN shim:** `secp256k1_schnorr_verify` delegates to the engine with identical
+  verdicts; `secp256k1_schnorr_verify_batch(ctx, sig64s, msg32s, pubkeys, n, seed32)`
+  (`compat/libsecp256k1_bchn_shim/include/secp256k1_schnorr.h`, Knuth PR #826 contract)
+  returns 1 iff all are valid, 1 for `n == 0`, 0 for NULL arrays with `n > 0`.
+- **Tests:** `exploit_bch_schnorr_batch_forgery`, `bch_schnorr_differential`,
+  `regression_bch_schnorr_spec`.
+
 > **Standard integration surface (CPU):** for drop-in `libsecp256k1` compatibility, prefer the
 > shim batch extension in `compat/libsecp256k1_shim/include/secp256k1_batch.h`
 > (`secp256k1_ecdsa_verify_batch[_mt|_results]` / `secp256k1_schnorrsig_verify_batch[_mt|_results]`),

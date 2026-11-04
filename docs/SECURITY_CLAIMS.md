@@ -2,6 +2,27 @@
 
 **UltrafastSecp256k1 v4.7.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
 
+### 2026-11-04 - BCH 2019 Schnorr verification in the C ABI (issue #466)
+
+Three verify-only functions join the stable ABI: `ufsecp_bch_schnorr_verify`,
+`ufsecp_bch_schnorr_batch_verify` and `ufsecp_bch_schnorr_batch_identify`
+(`src/cpu/src/impl/ufsecp_bch_schnorr.cpp`, engine `src/cpu/src/bch_schnorr.cpp`).
+They implement the Bitcoin Cash 2019-05-15 Schnorr rule, not BIP-340. No input
+is secret, so the engine is variable-time by design (CT-VERIFY). No secret
+enters or leaves these functions, and they allocate no secret-bearing buffer.
+
+**Claim:** each function returns `UFSECP_OK` only for signatures that the BCH
+specification accepts, with one exception: `s == 0` is rejected up front, and no
+producible signature behaves differently (`docs/SHIM_KNOWN_DIVERGENCES.md`). The
+batch accepts only if every entry verifies; an invalid entry is rejected with
+probability at least `1 - 2^-127`, because the weights are bound to every input
+and mixed with fresh CSPRNG bytes. Identify fails closed: on a structural error
+it zeroes every result. Validation: `audit/test_exploit_bch_schnorr_batch_forgery.cpp`
+(cancellation pair, R = -R twin, one bad entry at every position, range and key
+rejects) and `audit/test_bch_schnorr_differential.cpp` (engine, C ABI and BCHN
+shim against each other). Hostile-caller contract: `docs/FFI_HOSTILE_CALLER.md`
+I.5c.
+
 ### 2026-11-04 - MuSig2 partial verify: strict BIP-327 parity with the 33-byte key
 
 This entry supersedes the 2026-06-22 entry below for the paths that hold the

@@ -159,7 +159,7 @@ libfastsecp256k1.3.14.0.dylib       -> current version
 ### Stable ABI Surface
 
 All functions declared with `UFSECP_API` in `include/ufsecp/ufsecp.h` are part of
-the stable ABI. There are **165** such functions (the authoritative list is every
+the stable ABI. There are **168** such functions (the authoritative list is every
 `UFSECP_API`-marked declaration in the header; counts and example names below are
 verified against it by `ci/check_abi_count.py`). Functions carry the `ufsecp_`
 prefix in the header (e.g. `ufsecp_ctx_create`); the short names are used here.
@@ -171,6 +171,7 @@ prefix in the header (e.g. `ufsecp_ctx_create`); the short names are used here.
 | Public key | 9 | `pubkey_create`, `pubkey_create_uncompressed`, `pubkey_parse`, `pubkey_xonly`, `pubkey_add`, `pubkey_negate`, `pubkey_tweak_add`, `pubkey_tweak_mul`, `pubkey_combine` |
 | ECDSA (sign/verify/recover/batch/adaptor) | 15 | `ecdsa_sign`, `ecdsa_verify`, `ecdsa_sig_to_der`, `ecdsa_sig_from_der`, `ecdsa_sign_recoverable`, `ecdsa_recover`, `ecdsa_sign_batch`, `ecdsa_batch_verify`, `ecdsa_batch_verify_mt`, `ecdsa_verify_opaque_rows`, `ecdsa_verify_opaque_rows_mt`, `ecdsa_adaptor_sign`, `ecdsa_adaptor_adapt` |
 | Schnorr (sign/verify/batch/adaptor/msg) | 13 | `schnorr_sign`, `schnorr_verify`, `schnorr_sign_batch`, `schnorr_batch_verify`, `schnorr_batch_verify_mt`, `schnorr_adaptor_sign`, `schnorr_sign_msg`, `schnorr_verify_msg` |
+| BCH 2019 Schnorr (verify/batch, not BIP-340) | 3 | `bch_schnorr_verify`, `bch_schnorr_batch_verify`, `bch_schnorr_batch_identify` |
 | ECDH | 3 | `ecdh`, `ecdh_xonly`, `ecdh_raw` |
 | MuSig2 | 8 | `musig2_key_agg`, `musig2_nonce_gen`, `musig2_nonce_agg`, `musig2_partial_sign`, `musig2_partial_sign_v2`, `musig2_partial_verify`, `musig2_partial_sig_agg` |
 | FROST | 6 | `frost_keygen_begin`, `frost_keygen_finalize`, `frost_sign_nonce_gen`, `frost_sign`, `frost_verify_partial`, `frost_aggregate` |

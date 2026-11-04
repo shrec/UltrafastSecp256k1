@@ -6119,6 +6119,46 @@ set_source_files_properties(
     PROPERTIES INCLUDE_DIRECTORIES
         "${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_bchn_shim/include;${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include")
 
+# BCH 2019 Schnorr batch-verification forgery probe (issue #466): cancellation
+# pair (s1+d, s2-d), one bad entry at every position for sizes 2..64, wrong
+# msg/key, r >= p / off-curve r / R = -R_valid, s >= n / s == 0, bad pubkey,
+# batch == AND of singles, and the engine's own weight/seed functions. Engine
+# API only (src/cpu/src/bch_schnorr.cpp) -- no shim source needed.
+add_executable(test_exploit_bch_schnorr_batch_forgery_standalone
+    test_exploit_bch_schnorr_batch_forgery.cpp)
+audit_target_defaults(test_exploit_bch_schnorr_batch_forgery_standalone)
+target_compile_definitions(test_exploit_bch_schnorr_batch_forgery_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bch_schnorr_batch_forgery
+    COMMAND test_exploit_bch_schnorr_batch_forgery_standalone)
+set_tests_properties(exploit_bch_schnorr_batch_forgery PROPERTIES TIMEOUT 180
+    LABELS "audit;exploit;soundness;bch;schnorr;batch;bchn")
+target_sources(unified_audit_runner PRIVATE test_exploit_bch_schnorr_batch_forgery.cpp)
+
+# BCH 2019 Schnorr differential (issue #466): engine verifier (wire and parsed
+# key), the delegating BCHN shim verifier and the C ABI all equal a verbatim copy
+# of the pre-delegation shim verifier on valid and invalid inputs plus the
+# regression_bch_schnorr_spec vectors; shim/ABI batch == AND of singles. Needs the
+# BCH shim source (compiled into the runner above for regression_bch_schnorr_spec)
+# and its headers, scoped to this source for the same reason as above.
+add_executable(test_bch_schnorr_differential_standalone
+    test_bch_schnorr_differential.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_bchn_shim/src/shim_schnorr_bch.cpp)
+audit_target_defaults(test_bch_schnorr_differential_standalone)
+target_include_directories(test_bch_schnorr_differential_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_bchn_shim/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+target_compile_definitions(test_bch_schnorr_differential_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME bch_schnorr_differential
+    COMMAND test_bch_schnorr_differential_standalone)
+set_tests_properties(bch_schnorr_differential PROPERTIES TIMEOUT 120
+    LABELS "audit;differential;bch;schnorr;batch;bchn;abi")
+target_sources(unified_audit_runner PRIVATE test_bch_schnorr_differential.cpp)
+set_source_files_properties(
+    test_bch_schnorr_differential.cpp
+    TARGET_DIRECTORY unified_audit_runner
+    PROPERTIES INCLUDE_DIRECTORIES
+        "${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_bchn_shim/include;${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include")
+
 # EXTERNAL-ANCHOR KAT — NIST SHA-512 + official BIP-341 vectors (common-mode defence, 2026-06-11)
 add_executable(test_external_anchor_kat_standalone
     test_external_anchor_kat.cpp)

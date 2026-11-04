@@ -2,6 +2,18 @@
 
 **Last updated**: 2026-11-04 | **Version**: 4.7.0
 
+### 2026-11-04 - BCH 2019 Schnorr verification (issue #466): no secret enters the new code
+
+The `src/cpu/src/ufsecp_impl.cpp` change is one line: the unity TU now also
+includes `impl/ufsecp_bch_schnorr.cpp`, the C ABI wrapper of the new
+`src/cpu/src/bch_schnorr.cpp`. Both files are verify-only. Their inputs are the
+signature, the message, the compressed public key and, for the batch, an
+optional caller seed, and all of them are public. The batch weight seed mixes in
+32 CSPRNG bytes. That seed only makes the weights unpredictable when the
+entries are chosen; it is not a key or a nonce. No other line of
+`ufsecp_impl.cpp` changes, and no signing, ECDH, derivation or erase path is
+touched, so no secret is copied, retained or released differently.
+
 ### 2026-11-04 - MuSig2 partial verify with the signer's real parity (d5a2cdf3): secret handling unchanged
 
 `d5a2cdf3` changes only the partial-verify half of `src/cpu/src/musig2.cpp`.
