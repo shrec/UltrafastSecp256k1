@@ -426,20 +426,41 @@ own default flags. For a same-ISA comparison, do one of:
 
 ---
 
-## GPU rows (not available yet)
+## GPU rows (CUDA, OpenCL)
 
-There are no GPU rows for BCH 2019 Schnorr yet. When a GPU BCH verifier
-exists, its rows will come from the end-to-end GPU C ABI harness
-`bench_gpu_abi_batch`
-([`benchmarks/gpu/bench_gpu_abi_batch.cpp`](../benchmarks/gpu/bench_gpu_abi_batch.cpp)).
-That harness times whole `ufsecp_gpu_*` calls and checks every result against
-the CPU. At this commit it has no BCH Schnorr op. Once it does, this section
-will give:
+The GPU verifier is `ufsecp_gpu_bch_schnorr_verify_batch`. Two harnesses time
+it, and both check every result against the CPU verifier:
 
-- the configure flag (`-DSECP256K1_BUILD_CUDA=ON` or `-DSECP256K1_BUILD_OPENCL=ON`);
-- the `--ops` name to pass.
+- `bench_gpu_abi_batch`
+  ([`benchmarks/gpu/bench_gpu_abi_batch.cpp`](../benchmarks/gpu/bench_gpu_abi_batch.cpp))
+  times whole C ABI calls: host-to-device copy, kernel and copy back. Its
+  `ns/call` at small N is the end-to-end latency, and its `ns/item` at large N
+  is the throughput.
+- `gpu_bench_unified` (CUDA only) has a kernel-only `BCH Schnorr verify` row at
+  batch 65536. The difference from the C ABI row at the same N is the transfer
+  and launch overhead.
 
-Until then, do not post GPU numbers for #466.
+Linux, CUDA. Use your GPU's compute capability; for example, 89 is Ada and 120
+is Blackwell:
+
+```bash
+cd ~/bch-bench
+cmake -S UltrafastSecp256k1 -B UltrafastSecp256k1/out/bch-cuda -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DSECP256K1_BUILD_CUDA=ON -DSECP256K1_BUILD_BENCH=ON \
+  -DCMAKE_CUDA_ARCHITECTURES=89 -DSECP256K1_BUILD_TESTS=OFF
+cmake --build UltrafastSecp256k1/out/bch-cuda --target bench_gpu_abi_batch gpu_bench_unified
+./UltrafastSecp256k1/out/bch-cuda/benchmarks/gpu/bench_gpu_abi_batch --backend cuda \
+  --ops bch_schnorr_verify --sizes 2,8,32,128,512,2048,65536 --json bch466_gpu_cuda_abi.json
+./UltrafastSecp256k1/out/bch-cuda/src/cuda/gpu_bench_unified --json bch466_gpu_cuda_kernel.json
+```
+
+Linux, OpenCL: use `-DSECP256K1_BUILD_OPENCL=ON` instead of the CUDA options,
+a separate build directory, and `--backend opencl`. On NVIDIA drivers, the first
+OpenCL run compiles the kernels and can take several minutes; time a second
+run.
+
+Post both JSON files, the GPU model and the driver version. GPU timings do not
+need the CPU pinning above, but close other GPU work first.
 
 ---
 
