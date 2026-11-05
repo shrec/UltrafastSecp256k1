@@ -1,12 +1,13 @@
 // ============================================================================
-// lanes/lanes_verify_kernels.hpp -- per-ISA ECDSA / BIP-340 lane verify kernels
+// lanes/lanes_verify_kernels.hpp -- per-ISA ECDSA / BIP-340 / BCH 2019 Schnorr
+//                                   lane verify kernels
 // ============================================================================
 //
 // make_lane_verify_kernels<F>() builds the LaneVerifyKernels table
 // (lanes_verify_abi.hpp) for one lane field type F. Include it after the F
 // header, only from that ISA's translation unit. Everything has internal
-// linkage. The scalar side (parse, policy, s^-1, lift_x, challenge, fallback)
-// is in lanes_verify.cpp.
+// linkage. The scalar side (parse, policy, s^-1, lift_x / key decompression,
+// challenge, fallback) is in lanes_verify.cpp.
 //
 // PUBLIC DATA ONLY: variable time (CT-VERIFY).
 // ============================================================================
@@ -85,6 +86,52 @@ static void lv_schnorr_group(const detail::LaneVerifyGroup& in, detail::LaneVeri
     out.ok = ok & ~flagged & lg_all_lanes<F>();
 }
 
+// a^((p-1)/2), Euler's criterion: 1 when a is a nonzero quadratic residue,
+// p - 1 when it is not, 0 for a == 0. In binary, (p-1)/2 = 2^255 - 2^31 - 489
+// is 223 ones, 0, 22 ones, 0000, 1, 0, 111, so the chain reuses fe_inverse's
+// blocks x_k = a^(2^k - 1) (field_common.hpp):
+// ((x223 * 2^23 + x22) * 2^5 + 1) * 2^4 + x3 -- 254 squarings and 14
+// multiplications, the same for every lane.
+template <class F>
+static inline F lv_fe_euler(const F& a) noexcept {
+    const F x2 = fe_mul(fe_sqr(a), a);
+    const F x3 = fe_mul(fe_sqr(x2), a);
+    const F x6 = fe_mul(fe_sqr_n(x3, 3), x3);
+    const F x9 = fe_mul(fe_sqr_n(x6, 3), x3);
+    const F x11 = fe_mul(fe_sqr_n(x9, 2), x2);
+    const F x22 = fe_mul(fe_sqr_n(x11, 11), x11);
+    const F x44 = fe_mul(fe_sqr_n(x22, 22), x22);
+    const F x88 = fe_mul(fe_sqr_n(x44, 44), x44);
+    const F x176 = fe_mul(fe_sqr_n(x88, 88), x88);
+    const F x220 = fe_mul(fe_sqr_n(x176, 44), x44);
+    const F x223 = fe_mul(fe_sqr_n(x220, 3), x3);
+    F t = fe_mul(fe_sqr_n(x223, 23), x22);
+    t = fe_mul(fe_sqr_n(t, 5), a);
+    return fe_mul(fe_sqr_n(t, 4), x3);
+}
+
+// BCH 2019 Schnorr: R = s*G - e*P; ok iff R != O, y(R) is a quadratic residue
+// and x(R) == r, decided on the Jacobian R = (X, Y, Z) with no inversion and
+// no affine conversion:
+//   y = Y/Z^3 = (Y*Z) * (Z^-2)^2, so y is a residue iff Y*Z is (Z != 0);
+//   x == r iff X == r*Z^2 (lv_xcheck_bits with the r + n branch off).
+// A finite R has Y != 0 (no point of order 2), so Y*Z != 0 and the criterion
+// gives exactly 1 or p - 1. The x test runs first: a group in which no lane
+// passes it skips the residue chain (variable time over public data).
+template <class F>
+static void lv_bch_group(const detail::LaneVerifyGroup& in, detail::LaneVerifyResult& out) {
+    LaneJac<F> R;
+    const unsigned flagged = lv_dual_mul<F>(R, in);
+    const unsigned finite = ~lg_zero_bits(R.z) & lg_all_lanes<F>();
+    unsigned ok = lv_xcheck_bits(R.x, R.z, in.r, in.rn, 0u) & finite & ~flagged;
+    if (ok != 0u) {
+        const F chi = lv_fe_euler(fe_mul(R.y, R.z));
+        ok &= F::mask_bits(fe_equal(chi, lg_one<F>()));
+    }
+    out.flagged = flagged;
+    out.ok = ok & lg_all_lanes<F>();
+}
+
 template <class F>
 static constexpr detail::LaneVerifyKernels make_lane_verify_kernels(LaneBackend backend) noexcept {
     static_assert(F::kLanes <= detail::kLaneVerifyMaxLanes, "lane count exceeds the verify ABI");
@@ -93,6 +140,7 @@ static constexpr detail::LaneVerifyKernels make_lane_verify_kernels(LaneBackend 
         F::kLanes,
         &lv_ecdsa_group<F>,
         &lv_schnorr_group<F>,
+        &lv_bch_group<F>,
         &lv_ecdsa_xcheck<F>,
     };
 }

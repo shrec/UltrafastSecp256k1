@@ -19,6 +19,7 @@ runs these rows for batch sizes N = 1, 2, 8, 32, 128, 512, 2048 (`--sizes` to ch
 | `ufsecp single` | N x (`bch_schnorr_pubkey_parse` + `bch_schnorr_verify`), one signature at a time |
 | `ufsecp batch` | N x `bch_schnorr_pubkey_parse`, then one `bch_schnorr_batch_verify` |
 | `ufsecp C ABI batch` | one `ufsecp_bch_schnorr_batch_verify` on the 129-byte rows (it parses the keys itself) |
+| `ufsecp lanes <backend>` | N x `bch_schnorr_pubkey_parse`, then one `lanes::bch_schnorr_verify_lanes` with that lane backend (`avx2`, `avx_ifma`, `ifma256`, `ifma512`); one row per available backend, see [The `ufsecp lanes` rows](#the-ufsecp-lanes-rows) |
 | `ref single` | N x (`secp256k1_ec_pubkey_parse` + `secp256k1_schnorr_verify`) |
 | `ref batch` | N x `secp256k1_ec_pubkey_parse`, then one `secp256k1_schnorr_verify_batch` |
 
@@ -26,8 +27,9 @@ Each row reports ns per signature (call time / N), signatures per second, and
 the median, min and max over the timed passes.
 
 - **Same inputs everywhere.** N distinct keys and messages, signed by the
-  harness, laid out once before timing. The two batch rows time the same work:
-  N key parses plus one batch call.
+  harness, laid out once before timing. The batch rows (`ufsecp batch`,
+  `ref batch`, `ufsecp lanes <backend>`) all start with N key parses, then
+  make one call; the lanes call parses the keys a second time (see below).
 - **Cross-library check first.** Before anything is timed, every
   implementation must accept every set, and must reject the same set with one
   signature corrupted. Any disagreement stops the run with exit code 1 and no
@@ -39,10 +41,57 @@ the median, min and max over the timed passes.
   pass length). Outliers are removed by IQR, then the median is taken.
   Everything runs on one thread.
 - **Reference rows are optional.** Without the reference library the harness
-  runs the three `ufsecp` rows only and says so.
+  runs the `ufsecp` rows only (the lane rows included) and says so.
 - The BCHN compatibility shim in this repository
   (`compat/libsecp256k1_bchn_shim`) is never linked into the harness. It
   exports the same `secp256k1_schnorr_*` symbols as the reference.
+
+### The `ufsecp lanes` rows
+
+`ufsecp lanes <backend>` verifies several signatures per SIMD instruction
+stream, one per lane, with
+`secp256k1::lanes::bch_schnorr_verify_lanes`
+([`src/cpu/include/secp256k1/lanes.hpp`](../src/cpu/include/secp256k1/lanes.hpp))
+and that backend passed explicitly. Its verdict is, entry by entry, the one
+`bch_schnorr_verify` returns; an entry the lanes cannot decide goes to the
+scalar verifier. Inside the lanes, R = s*G - e*P is a GLV-split dual
+multiplication, and both checks stay projective: x(R) == r as X == r*Z^2, and
+y(R) a quadratic residue as Euler's criterion on Y*Z. A timed call is
+N x `bch_schnorr_pubkey_parse` (the caller-side step of the other batch rows)
+and one lanes call on the wire-form entries. The lanes call decompresses every
+key again itself, so this row does the key decompression twice.
+
+The harness adds one row per lane backend that is **available**: compiled
+into this build and supported by your CPU, as `UFSECP_CPU_DISABLE` leaves it.
+`cpu_hwinfo` lists them (`dispatch.lanes.available`):
+
+| Backend | Lanes | Instructions | CPUs |
+|---|---|---|---|
+| `ifma512` | 8 | AVX-512F + AVX-512VL + AVX-512 IFMA, zmm | AVX-512 IFMA CPUs: AMD Zen 4 and Zen 5; Intel Ice Lake, Tiger Lake, Sapphire Rapids and later Xeons |
+| `ifma256` | 4 | AVX-512VL + AVX-512 IFMA, ymm | the same CPUs as `ifma512` |
+| `avx_ifma` | 4 | AVX-IFMA (VEX encoded), ymm | AVX-IFMA without AVX-512, for example Intel Sierra Forest; built only when the compiler accepts `-mavxifma` |
+| `avx2` | 4 | AVX2 | any x86-64 CPU with AVX2 |
+
+So on an AVX-512 IFMA machine (Zen 4/5, Ice Lake and later, Sapphire Rapids)
+every N gets `ufsecp lanes ifma512`, `ufsecp lanes ifma256` and
+`ufsecp lanes avx2` rows next to the other rows. The stdout header prints a
+`lane rows:` line, and the JSON lists them in `lanes.bench_rows` and puts
+`lane_backend` on every row.
+
+Before anything is timed, each lane row passes the cross-check like every
+other row. In addition, the lane kernel itself must decide every entry of
+every valid set (`LaneVerifyStats.lane_verified == N`); a row that would time
+the scalar fallback stops the run with exit code 1.
+
+To force or limit the lane rows:
+
+- `UFSECP_LANES=<backend>` (`avx2`, `avx_ifma`, `ifma256`, `ifma512`) keeps
+  only that backend's row when it is available; `UFSECP_LANES=off` drops the
+  lane rows. A value that names nothing available is reported on a `WARNING`
+  line and ignored (every available backend keeps its row). It can never
+  select an instruction set the CPU lacks.
+- `UFSECP_CPU_DISABLE=avx512` (or `ifma`, `avx_ifma`, `avx2`) masks CPU
+  features, which removes the backends that need them.
 
 ## The pinned reference
 
@@ -308,9 +357,13 @@ noted, then `powercfg /setactive scheme_current`.
    another reference commit. The JSON records this project's build flags, but
    not the reference's; those are whatever its configure line said.
 4. If a run printed a `WARNING` line, say so.
-5. If the harness exits 1 with `CROSS-CHECK FAILED`, post its full output
-   instead of timings. That is a correctness report and matters more than any
-   speed comparison.
+5. On a CPU with AVX-512 IFMA (AMD Zen 4 / Zen 5, Intel Ice Lake and later,
+   Sapphire Rapids), the table should have `ufsecp lanes ifma512` and
+   `ufsecp lanes ifma256` rows. If they are missing, say so and attach
+   `cpu_hwinfo --json`.
+6. If the harness exits 1 with `CROSS-CHECK FAILED` (or with `the lane kernel
+   decided ...`), post its full output instead of timings. That is a
+   correctness report and matters more than any speed comparison.
 
 ---
 
@@ -318,36 +371,36 @@ noted, then `powercfg /setactive scheme_current`.
 
 Post every variant as its own set of runs, and say in `--note` which one it is.
 
-### Lane backends (x86-64)
+### One lane backend per run (x86-64)
 
-The lane backends are opt-in SIMD paths for public-data verification. At this
-commit they are wired into the ECDSA and BIP-340 batch verifiers;
-`src/cpu/src/bch_schnorr.cpp` does not select one itself. Comparing runs with
-and without `UFSECP_LANES` shows whether the setting changes the BCH rows on
-your machine.
-
-The JSON's `lanes.verify_backend` is the backend that verification calls get.
-It reads `off` unless `UFSECP_LANES` forces a backend. `lanes.selected` is
-only the field-kernel default pick, which `cpu_hwinfo` also prints; it does not
-mean verification ran on that backend.
-
-List the backends your CPU and build provide:
+The `ufsecp lanes` rows (see [above](#the-ufsecp-lanes-rows)) run by default,
+one per available backend. To post one run per backend instead, for example
+`ifma512` and `ifma256` separately on a Zen 4/5 or Ice Lake+ machine, list the
+backends your CPU and build provide:
 
 ```bash
 cmake --build UltrafastSecp256k1/out/bch-bench --target cpu_hwinfo
 ./UltrafastSecp256k1/out/bch-bench/src/cpu/cpu_hwinfo     # see dispatch.lanes.available
 ```
 
-Then run once for each available backend (`avx2`, `avx_ifma`, `ifma256`, `ifma512`):
+Then run once per backend with `UFSECP_LANES` set to it (`avx2`, `avx_ifma`,
+`ifma256`, `ifma512`), which limits the lane rows to that backend:
 
 ```bash
-UFSECP_LANES=avx2 taskset -c 2 ./UltrafastSecp256k1/out/bch-bench/benchmarks/bch/bench_bch_schnorr \
-  --note "UFSECP_LANES=avx2, <CPU model>, turbo off, taskset -c 2" --json bch466_linux_lanes_avx2.json
+UFSECP_LANES=ifma512 taskset -c 2 ./UltrafastSecp256k1/out/bch-bench/benchmarks/bch/bench_bch_schnorr \
+  --note "UFSECP_LANES=ifma512, <CPU model>, turbo off, taskset -c 2" --json bch466_linux_lanes_ifma512.json
 ```
+
+`UFSECP_LANES` changes only which lane rows run: `bch_schnorr_verify` and
+`bch_schnorr_batch_verify`, and so the other `ufsecp` rows, never use a lane
+backend. The JSON's `lanes.verify_backend` is the backend the ECDSA and BIP-340
+batch verifiers would get; it reads `off` unless `UFSECP_LANES` forces one.
+`lanes.selected` is only the field-kernel default pick, which `cpu_hwinfo` also
+prints.
 
 On Windows the tool is
 `UltrafastSecp256k1\out\bch-bench\src\cpu\Release\cpu_hwinfo.exe`. Set the
-variable with `$env:UFSECP_LANES = 'avx2'` before the run and clear it with
+variable with `$env:UFSECP_LANES = 'ifma512'` before the run and clear it with
 `Remove-Item Env:UFSECP_LANES` afterwards.
 
 ### clang-cl on Windows
@@ -399,11 +452,11 @@ Until then, do not post GPU numbers for #466.
 | `ufsecp` | version, C ABI version string, `git describe` and commit (taken at CMake configure time) |
 | `machine` | CPU model, OS, architecture, CPU affinity, `--pin`, turbo state and its source, governor, threads in the process after the run |
 | `build` | compiler and version (from the compiler itself and from CMake), configuration, flags, `NDEBUG`, optimization |
-| `lanes` | `verify_backend` (what verification calls get; `off` unless forced), the field-kernel compiled / available / selected / requested backends and why, plus `UFSECP_LANES` and `UFSECP_CPU_DISABLE` as set |
+| `lanes` | `verify_backend` (what the ECDSA / BIP-340 batch verifiers get; `off` unless forced), the field-kernel compiled / available / selected / requested backends and why, `bench_rows` (the backends that got a `ufsecp lanes` row, or `none`) and `bench_rows_rule` (every available backend, or only the one `UFSECP_LANES` names), plus `UFSECP_LANES` and `UFSECP_CPU_DISABLE` as set |
 | `reference` | present or not, include dir, header, library, its git commit and whether that matches the pin |
 | `method` | timer, passes, pass target, warm-up, statistic |
-| `cross_check` | sizes and implementations that passed the pre-timing check |
-| `rows[]` | per implementation and N: calls per pass, warm-up calls, passes kept/trimmed, `ns_per_call` and `ns_per_sig` (median, min, max), `sigs_per_sec_median` |
+| `cross_check` | sizes and implementations that passed the pre-timing check; `lanes_rule`, the extra lane-kernel check of the `ufsecp lanes` rows |
+| `rows[]` | per implementation and N: `lane_backend` (the backend of a `ufsecp lanes` row, `null` on every other row), calls per pass, warm-up calls, passes kept/trimmed, `ns_per_call` and `ns_per_sig` (median, min, max), `sigs_per_sec_median` |
 
 `min` and `max` are the fastest and slowest kept pass after IQR trimming.
 
@@ -429,3 +482,6 @@ measurements to cite.
 | Windows `LNK2019` on `__imp_secp256k1_*` | the reference was built as a DLL; rebuild it with `-DBUILD_SHARED_LIBS=OFF` |
 | `WARNING: built without optimization` or `NDEBUG is not defined` | not a Release build; reconfigure with `-DCMAKE_BUILD_TYPE=Release` (or `--config Release`) |
 | exit code 1, `CROSS-CHECK FAILED` | the implementations disagree on a signature set; post the full output (see above) |
+| exit code 1, `the lane kernel decided ... valid entries` | a `ufsecp lanes` row would have timed the scalar fallback instead of the lane kernel; post the full output |
+| no `ufsecp lanes` rows | no lane backend is available (not x86-64, a CPU without AVX2, `UFSECP_CPU_DISABLE`), or `UFSECP_LANES=off`; the `lane rows:` header line and `cpu_hwinfo` say which |
+| `ufsecp lanes ifma512` missing on a Zen 4/5 or Ice Lake+ CPU | the OS does not enable AVX-512 state, the feature is masked by `UFSECP_CPU_DISABLE`, or `UFSECP_LANES` names another backend; check `cpu_hwinfo` (`dispatch.lanes.available`) |

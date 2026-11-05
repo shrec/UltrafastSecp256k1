@@ -1,11 +1,13 @@
 // ============================================================================
-// test_lanes_verify_differential.cpp -- lane-parallel ECDSA / BIP-340 verify
-//                                       against the scalar verifiers
+// test_lanes_verify_differential.cpp -- lane-parallel ECDSA / BIP-340 /
+//                                       BCH 2019 Schnorr verify against the
+//                                       scalar verifiers
 // ============================================================================
 //
 // For every lane backend available on this CPU (forced through the explicit
-// LaneBackend argument), ecdsa_verify_lanes / schnorr_verify_lanes must return,
-// entry by entry, exactly what ecdsa_verify / schnorr_verify return:
+// LaneBackend argument), ecdsa_verify_lanes / schnorr_verify_lanes /
+// bch_schnorr_verify_lanes must return, entry by entry, exactly what
+// ecdsa_verify / schnorr_verify / bch_schnorr_verify return:
 //
 //   * random valid signatures (and the lane kernel, not a fallback, decides
 //     them);
@@ -25,6 +27,15 @@
 //     both signs -- every one decided by the lane kernel, and BIP-340 entries
 //     whose s is such a scalar; the halves must cover negative, zero and
 //     near-2^128 values on both the G and the Q side;
+//   * BCH 2019 Schnorr (bch_schnorr_verify_lanes == bch_schnorr_verify): random
+//     valid signatures under 02 and 03 keys (decided by the lane kernel); every
+//     invalid class -- r, s, message or key corrupted, the key's other root
+//     (prefix flipped), r == p, r >= p, r with no curve point, s == 0, s == n,
+//     s >= n, prefixes 04 and 00, x == p, x >= p, x with no curve point; R
+//     negated (x(R) == r, y(R) not a residue: decided by the lanes, rejected
+//     only by their residue test); R = O (every lane flagged); s at the GLV
+//     corners; all-valid and mixed batches of every size 1 .. max(17, 2W+3);
+//     NULL and n == 0 with stats zeroed;
 //   * backend None (scalar path) and null arguments.
 //
 // Batch integration (secp256k1/batch_verify.hpp, lane path opt-in): with each
@@ -50,11 +61,13 @@
 // named backend into a failure, for runs under Intel SDE.
 //
 // Public data only: verification. Test keys come from ct::generator_mul and
-// test signatures from ct::ecdsa_sign / ct::schnorr_sign.
+// test signatures from ct::ecdsa_sign / ct::schnorr_sign; BCH test signatures
+// from the spec signer in the BCH section (test keys and nonces only).
 // ============================================================================
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <initializer_list>
 #include <cstdio>
@@ -65,6 +78,7 @@
 #include <vector>
 
 #include "secp256k1/batch_verify.hpp"
+#include "secp256k1/bch_schnorr.hpp"
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/sign.hpp"
 #include "secp256k1/ecdsa.hpp"
@@ -74,9 +88,11 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/sha256.hpp"
 
 namespace {
 
+using BchEntry = secp256k1::BchSchnorrBatchEntry;
 using secp256k1::ECDSABatchEntry;
 using secp256k1::ECDSASignature;
 using secp256k1::SchnorrBatchEntry;
@@ -665,6 +681,260 @@ void test_xcheck(LaneBackend b, Rng& rng) {
     check(out[n - 4] == 1 && out[n - 3] == 0 && out[n - 2] == 0, "r + n < p boundary", name, n);
 }
 
+// ---- BCH 2019 Schnorr ------------------------------------------------------------------
+//
+// bch_schnorr_verify_lanes against bch_schnorr_verify (secp256k1/bch_schnorr.hpp,
+// NOT BIP-340): 33-byte SEC1 keys whose prefix picks the y root, e = plain
+// SHA256(r || pubkey33 || msg32) mod n, and y(R) a quadratic residue.
+//
+// The signer is the spec's (upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/),
+// as in audit/test_exploit_bch_schnorr_batch_forgery.cpp: R = k*G with k negated
+// when y(R) is not a quadratic residue, e = SHA256(x(R) || P33 || m) mod n,
+// s = k + e*d. Test keys and nonces only; it is not a signing API.
+
+// p == 3 (mod 4): a nonzero y is a quadratic residue iff sqrt(y)^2 == y.
+bool bch_y_is_residue(const FieldElement& y) {
+    if (y == FieldElement::zero()) return false;
+    const FieldElement t = y.sqrt();
+    return t.square() == y;
+}
+
+Scalar bch_challenge(const std::uint8_t* r32, const std::uint8_t* pub33, const std::uint8_t* msg32) {
+    secp256k1::SHA256 h;
+    h.update(r32, 32);
+    h.update(pub33, 33);
+    h.update(msg32, 32);
+    return Scalar::from_bytes(h.finalize());
+}
+
+void put_bytes(std::uint8_t* dst, const Bytes32& b) { std::memcpy(dst, b.data(), b.size()); }
+
+void put_pubkey(BchEntry& e, const Scalar& d) {
+    const auto pub = gen_mul(d).to_compressed();
+    std::memcpy(e.pubkey.data(), pub.data(), e.pubkey.size());
+}
+
+// Key d signs msg with nonce k. residue_r: the spec signer (valid). Otherwise
+// the other root: R negated, so x(R) is still r but y(R) is not a residue and
+// only the residue test can reject the signature.
+BchEntry bch_signed_entry(const Scalar& d, const Bytes32& msg, Scalar k, bool residue_r) {
+    BchEntry e{};
+    put_pubkey(e, d);
+    e.message = msg;
+    const Point R = gen_mul(k);
+    if (bch_y_is_residue(R.y()) != residue_r) k = k.negate_var();
+    const Bytes32 rx = x_bytes(R);
+    put_bytes(e.signature.data(), rx);
+    const Scalar ev = bch_challenge(rx.data(), e.pubkey.data(), e.message.data());
+    put_bytes(e.signature.data() + 32, (k + ev * d).to_bytes());
+    return e;
+}
+
+BchEntry bch_valid(Rng& rng) {
+    const Scalar d = rng.scalar();
+    const Bytes32 msg = rng.bytes32();
+    return bch_signed_entry(d, msg, rng.scalar(), true);
+}
+
+// R = s*G - e*P = O: s = e*d, r any valid x. Every such lane must be flagged.
+BchEntry bch_infinity(Rng& rng) {
+    const Scalar d = rng.scalar();
+    BchEntry e{};
+    put_pubkey(e, d);
+    e.message = rng.bytes32();
+    const Bytes32 rx = x_bytes(gen_mul(rng.scalar()));
+    put_bytes(e.signature.data(), rx);
+    const Scalar ev = bch_challenge(rx.data(), e.pubkey.data(), e.message.data());
+    put_bytes(e.signature.data() + 32, (ev * d).to_bytes());
+    return e;
+}
+
+constexpr Limbs kP = {0xFFFFFFFEFFFFFC2FULL, 0xFFFFFFFFFFFFFFFFULL, 0xFFFFFFFFFFFFFFFFULL,
+                      0xFFFFFFFFFFFFFFFFULL};
+
+// 4x64 little endian -> 32 bytes big endian.
+Bytes32 be_bytes(const Limbs& l) {
+    Bytes32 b{};
+    for (std::size_t i = 0; i < 4; ++i)
+        for (std::size_t j = 0; j < 8; ++j) b[(3 - i) * 8 + j] = static_cast<std::uint8_t>(l[i] >> (56 - 8 * j));
+    return b;
+}
+
+// Every invalid class, from a valid `base` and `other` (valid, another key).
+// The comment names the path that decides it in the lanes call.
+std::vector<BchEntry> bch_corruptions(const BchEntry& base, const BchEntry& other) {
+    const Bytes32 p_be = be_bytes(kP);
+    const Bytes32 n_be = be_bytes(kN);
+    Bytes32 ff{};
+    ff.fill(0xFF);
+    const Bytes32 off_x = off_curve_x();
+    const Scalar s = Scalar::from_bytes(base.signature.data() + 32);
+    std::vector<BchEntry> out;
+    BchEntry e = base;
+    e.signature[31] ^= 0x01;                         // r: another x (lanes)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.signature.data() + 32, (s + scalar_u64(1)).to_bytes());   // s + 1 (lanes)
+    out.push_back(e);
+    e = base;
+    e.message[3] ^= 0x80;                            // message (lanes)
+    out.push_back(e);
+    e = base;
+    e.pubkey = other.pubkey;                         // another valid key (lanes)
+    out.push_back(e);
+    e = base;
+    e.pubkey[0] ^= 0x01;                             // 02 <-> 03: the other root, key -P (lanes)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.signature.data(), off_x);            // r < p with no curve point (lanes: x test)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.signature.data(), p_be);             // r == p (prep)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.signature.data(), ff);               // r >= p (prep)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.signature.data() + 32, Bytes32{});   // s == 0 (prep)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.signature.data() + 32, n_be);        // s == n (prep)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.signature.data() + 32, ff);          // s >= n (prep)
+    out.push_back(e);
+    e = base;
+    e.pubkey[0] = 0x04;                              // prefix 04 (prep)
+    out.push_back(e);
+    e = base;
+    e.pubkey[0] = 0x00;                              // prefix 00 (prep)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.pubkey.data() + 1, p_be);            // x == p (prep)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.pubkey.data() + 1, ff);              // x >= p (prep)
+    out.push_back(e);
+    e = base;
+    put_bytes(e.pubkey.data() + 1, off_x);           // x with no curve point (prep)
+    out.push_back(e);
+    return out;
+}
+
+bool bch_ref(const BchEntry& e) {
+    return secp256k1::bch_schnorr_verify(e.signature.data(), e.message.data(), e.pubkey.data());
+}
+
+bool bch_lane(const BchEntry* p, std::size_t n, bool* r, LaneBackend b, LaneVerifyStats* s) {
+    return lanes::bch_schnorr_verify_lanes(p, n, r, b, s);
+}
+
+// NULL and n == 0 on backend b: n == 0 -> true whatever the pointers; NULL
+// entries or results with n > 0 -> false, non-NULL results cleared; the stats
+// are zeroed either way.
+void bch_null_args(LaneBackend b, const std::vector<BchEntry>& sample) {
+    const char* name = lanes::lane_backend_name(b);
+    LaneVerifyStats st;
+    st.lane_verified = 7;
+    check(lanes::bch_schnorr_verify_lanes(nullptr, 0, nullptr, b, &st) && st.lane_verified == 0,
+          "bch n == 0 -> true, stats zeroed", name, 0);
+    bool res[2] = {true, true};
+    st.prep_fallback = 7;
+    check(!lanes::bch_schnorr_verify_lanes(nullptr, 2, res, b, &st) && !res[0] && !res[1] &&
+              st.prep_fallback == 0,
+          "bch null entries -> false, results cleared, stats zeroed", name, 0);
+    check(!lanes::bch_schnorr_verify_lanes(sample.data(), 2, nullptr, b), "bch null results -> false", name, 0);
+    check(!lanes::bch_schnorr_verify_lanes(nullptr, 2, nullptr, b), "bch null entries and results -> false",
+          name, 0);
+}
+
+void test_bch(LaneBackend b, Rng& rng) {
+    const char* name = lanes::lane_backend_name(b);
+    const unsigned W = lanes::lane_backend_width(b);
+    LaneVerifyStats st;
+
+    // Random valid, keys of both prefixes, a partial final group: every
+    // verdict from the lane kernel, so its x and residue tests accepted each.
+    std::vector<BchEntry> valid;
+    std::size_t odd_keys = 0;
+    while (valid.size() < 4 * W + 3 || odd_keys == 0 || odd_keys == valid.size()) {
+        valid.push_back(bch_valid(rng));
+        odd_keys += (valid.back().pubkey[0] == 0x03) ? 1u : 0u;
+    }
+    for (std::size_t i = 0; i < valid.size(); ++i)
+        check(bch_ref(valid[i]), "bch test signer output verifies", name, i);
+    compare_batch("bch random valid", valid, b, bch_lane, bch_ref, &st);
+    check(st.lane_verified == valid.size(), "bch valid decided by lanes", name, st.lane_verified);
+
+    // Every invalid class (bch_corruptions), on W + 1 bases.
+    std::vector<BchEntry> bad;
+    for (unsigned i = 0; i < W + 1; ++i) {
+        const auto c = bch_corruptions(valid[i], valid[i + 1]);
+        bad.insert(bad.end(), c.begin(), c.end());
+    }
+    for (std::size_t i = 0; i < bad.size(); ++i)
+        check(!bch_ref(bad[i]), "bch invalid class rejected by bch_schnorr_verify", name, i);
+    compare_batch("bch invalid classes", bad, b, bch_lane, bch_ref, &st);
+    check(st.lane_verified > 0 && st.prep_fallback > 0, "bch invalid classes use both paths", name, 0);
+    const std::size_t bad_lane = st.lane_verified;
+
+    // R negated: x(R) == r but y(R) is not a residue. The lanes decide every
+    // one (so their x test passed it), and only the residue test rejects it.
+    std::vector<BchEntry> neg;
+    for (unsigned i = 0; i < 2 * W + 1; ++i) {
+        const Scalar d = rng.scalar();
+        const Bytes32 msg = rng.bytes32();
+        neg.push_back(bch_signed_entry(d, msg, rng.scalar(), false));
+    }
+    for (std::size_t i = 0; i < neg.size(); ++i)
+        check(!bch_ref(neg[i]), "bch R negated rejected by bch_schnorr_verify", name, i);
+    compare_batch("bch R negated (y(R) not a residue)", neg, b, bch_lane, bch_ref, &st);
+    check(st.lane_verified == neg.size(), "bch R negated decided by lanes", name, st.lane_verified);
+
+    // R = s*G - e*P = O: every lane flagged and re-verified (false).
+    std::vector<BchEntry> inf;
+    for (unsigned i = 0; i < 2 * W + 1; ++i) inf.push_back(bch_infinity(rng));
+    compare_batch("bch R = O", inf, b, bch_lane, bch_ref, &st);
+    check(st.exceptional_fallback == inf.size(), "every bch R = O lane flagged", name, st.exceptional_fallback);
+
+    // s (the G coefficient) at the GLV corners, r an unrelated x: rejections,
+    // still decided by the lanes.
+    bool fits = true;
+    std::vector<BchEntry> edge;
+    for (const Scalar& u : glv_edge_scalars(rng, fits)) {
+        if (u.is_zero()) continue;   // s == 0 is a prep reject, an invalid class above
+        BchEntry e = bch_valid(rng);
+        put_bytes(e.signature.data(), x_bytes(gen_mul(rng.scalar())));
+        put_bytes(e.signature.data() + 32, u.to_bytes());
+        edge.push_back(e);
+    }
+    check(fits, "glv_decompose halves fit 128 bits (the lane slots)", name, 0);
+    compare_batch("bch GLV edge s", edge, b, bch_lane, bch_ref, &st);
+    check(st.lane_verified == edge.size(), "bch GLV edge cases decided by lanes", name, st.lane_verified);
+
+    // n = 1 .. max(17, 2W+3): every partial group of this width. An all-valid
+    // batch (true, decided by the lanes) and a mixed one from every class.
+    std::vector<BchEntry> pool = valid;
+    pool.insert(pool.end(), bad.begin(), bad.end());
+    pool.insert(pool.end(), neg.begin(), neg.end());
+    pool.insert(pool.end(), inf.begin(), inf.end());
+    pool.insert(pool.end(), edge.begin(), edge.end());
+    const unsigned max_n = std::max(17u, 2 * W + 3);
+    for (unsigned n = 1; n <= max_n && n <= valid.size(); ++n) {
+        const std::vector<BchEntry> head(valid.begin(), valid.begin() + static_cast<std::ptrdiff_t>(n));
+        compare_batch("bch valid batch", head, b, bch_lane, bch_ref, &st);
+        check(st.lane_verified == n, "bch valid batch decided by lanes", name, n);
+        std::vector<BchEntry> mix;
+        for (unsigned i = 0; i < n; ++i) mix.push_back(pool[rng.u64() % pool.size()]);
+        compare_batch("bch mixed batch", mix, b, bch_lane, bch_ref, nullptr);
+    }
+
+    bch_null_args(b, valid);
+    std::printf("    [%s] bch: %zu valid (%zu with an 03 key), %zu invalid (%zu in lanes), %zu R negated, "
+                "%zu R = O, %zu GLV edge\n",
+                name, valid.size(), odd_keys, bad.size(), bad_lane, neg.size(), inf.size(), edge.size());
+}
+
 void test_scalar_backend_and_args(Rng& rng) {
     std::vector<ECDSABatchEntry> ev;
     std::vector<SchnorrBatchEntry> sv;
@@ -680,12 +950,23 @@ void test_scalar_backend_and_args(Rng& rng) {
     compare_batch("schnorr backend None", sv, LaneBackend::None, schnorr_lane, schnorr_ref, &st);
     check(st.scalar_only == sv.size(), "None -> scalar path", "off", st.scalar_only);
 
+    // BCH 2019 Schnorr on the scalar path: valid, one corrupted s, and every
+    // invalid class of bch_corruptions().
+    std::vector<BchEntry> bv;
+    for (int i = 0; i < 5; ++i) bv.push_back(bch_valid(rng));
+    bv[1].signature[40] ^= 0x04;
+    const auto bc = bch_corruptions(bv[3], bv[4]);
+    bv.insert(bv.end(), bc.begin(), bc.end());
+    compare_batch("bch backend None", bv, LaneBackend::None, bch_lane, bch_ref, &st);
+    check(st.scalar_only == bv.size(), "None -> scalar path", "off", st.scalar_only);
+
     bool res[2] = {true, true};
     check(lanes::ecdsa_verify_lanes(nullptr, 0, nullptr, LaneBackend::None), "n == 0 -> true", "off", 0);
     check(!lanes::ecdsa_verify_lanes(nullptr, 2, res, LaneBackend::None) && !res[0] && !res[1],
           "null entries -> false, results cleared", "off", 0);
     check(!lanes::schnorr_verify_lanes(sv.data(), 2, nullptr, LaneBackend::None), "null results -> false",
           "off", 0);
+    bch_null_args(LaneBackend::None, bv);
 }
 
 constexpr LaneBackend kBackends[] = {LaneBackend::Avx2x4, LaneBackend::AvxIfma256x4, LaneBackend::Ifma256x4,
@@ -1032,7 +1313,7 @@ long parse_require(const char* arg) {
 
 // 0 = pass, 1 = fail, kSkipCode = no lane backend (and none required).
 int run_lanes_verify_differential(unsigned required_mask) {
-    std::printf("  lanes verify differential (ECDSA + BIP-340 vs scalar verifiers)\n");
+    std::printf("  lanes verify differential (ECDSA + BIP-340 + BCH 2019 Schnorr vs scalar verifiers)\n");
     const unsigned avail = lanes::available_lane_backends();
     Rng rng(0x5ECB256C0FFEE001ULL);
     test_scalar_backend_and_args(rng);
@@ -1051,6 +1332,7 @@ int run_lanes_verify_differential(unsigned required_mask) {
         test_ecdsa(b, rng);
         test_schnorr(b, rng);
         test_glv_split(b, rng);
+        test_bch(b, rng);
         test_batch_integration(b, rng);
         std::printf("    [%s] width %u: %s\n", lanes::lane_backend_name(b), lanes::lane_backend_width(b),
                     g_failures == before ? "PASS" : "FAIL");

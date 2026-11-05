@@ -48,8 +48,9 @@
 namespace secp256k1 {
 
 struct CpuFeatures;
-struct ECDSABatchEntry;     // secp256k1/batch_verify.hpp
-struct SchnorrBatchEntry;   // secp256k1/batch_verify.hpp
+struct ECDSABatchEntry;       // secp256k1/batch_verify.hpp
+struct SchnorrBatchEntry;     // secp256k1/batch_verify.hpp
+struct BchSchnorrBatchEntry;  // secp256k1/bch_schnorr.hpp
 
 namespace lanes {
 
@@ -178,14 +179,19 @@ const LaneFieldKernels* lane_field_kernels(LaneBackend b) noexcept;
 // per lane, and write each verdict to results[i]. The verdict is, bit for bit,
 // the one the scalar verifier returns for that entry:
 //
-//   ecdsa_verify_lanes   == ecdsa_verify(e.msg_hash, e.public_key, e.signature)
-//   schnorr_verify_lanes == schnorr_verify(e.pubkey_x.data(), e.message.data(), e.signature)
+//   ecdsa_verify_lanes       == ecdsa_verify(e.msg_hash, e.public_key, e.signature)
+//   schnorr_verify_lanes     == schnorr_verify(e.pubkey_x.data(), e.message.data(), e.signature)
+//   bch_schnorr_verify_lanes == bch_schnorr_verify(e.signature.data(), e.message.data(),
+//                                                  e.pubkey.data())
 //
 // Parse and policy are the scalar functions' own (ECDSA: infinity key, r == 0
 // or s == 0 rejected, high-S accepted; BIP-340: s == 0, r >= p, x >= p and
-// non-residue x rejected). An entry the lane path cannot represent (one of
-// those rejects, an off-curve ECDSA key, u1 == 0, e == 0) is decided by the
-// scalar verifier. Inside the lanes, R = u1*G + u2*Q is a per-lane dual scalar
+// non-residue x rejected; BCH 2019: r >= p, s == 0, s >= n, a key prefix other
+// than 02/03, x >= p and an x with no curve point rejected). An entry the lane
+// path cannot represent (one of those rejects, an off-curve ECDSA key, a GLV
+// half wider than the lane slots) is decided by the scalar verifier. Zero
+// coefficients (ECDSA u1 == 0, Schnorr e == 0) stay in the lanes.
+// Inside the lanes, R = u1*G + u2*Q is a per-lane dual scalar
 // multiplication (src/cpu/src/lanes/group_lanes.hpp); a lane whose group
 // operations hit an exceptional case (equal or opposite operands, infinity) is
 // flagged and re-verified with the scalar function. A trailing partial group
@@ -210,6 +216,15 @@ bool ecdsa_verify_lanes(const ECDSABatchEntry* entries, std::size_t n, bool* res
 
 bool schnorr_verify_lanes(const SchnorrBatchEntry* entries, std::size_t n, bool* results,
                           LaneBackend backend, LaneVerifyStats* stats = nullptr) noexcept;
+
+// BCH 2019 Schnorr (secp256k1/bch_schnorr.hpp; NOT BIP-340). The entries are in
+// wire form: the lanes path decompresses each 33-byte key itself (the root
+// whose parity the 02/03 prefix names), hashes e = SHA256(r || pubkey33 ||
+// msg32) mod n, and tests y(R) for a quadratic residue projectively (Euler's
+// criterion on Y*Z) next to X == r*Z^2. Called only directly: the BCH batch
+// verifiers (bch_schnorr_batch_verify and its twins) do not dispatch to it.
+bool bch_schnorr_verify_lanes(const BchSchnorrBatchEntry* entries, std::size_t n, bool* results,
+                              LaneBackend backend, LaneVerifyStats* stats = nullptr) noexcept;
 
 // ---- Batch-verify opt-in -----------------------------------------------------
 //

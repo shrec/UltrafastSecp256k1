@@ -68,6 +68,27 @@ only gains functions (`UFSECP_ABI_VERSION` stays 4).
     - single verify is 2% faster;
     - batch is faster at every measured N: 1.02x at N = 8, 1.09x at 32,
       1.19x at 128 and 1.21x at 512 and 2048.
+- **CPU lanes: BCH 2019 Schnorr verification, several signatures per SIMD
+  stream (#466; Knuth PR #825's AVX-512 IFMA approach).**
+  `lanes::bch_schnorr_verify_lanes` (`secp256k1/lanes.hpp`) runs on every lane
+  backend: AVX2 x4, AVX-IFMA x4, IFMA256 x4 and AVX-512 IFMA x8. It is opt-in:
+  pass a backend, or set `UFSECP_LANES`.
+  - The scalar side decompresses the key, computes the plain-SHA-256 challenge
+    and the GLV split. The new `lv_bch_group` kernel runs the dual
+    multiplication, a lane-parallel Euler criterion on Y*Z (254 squarings and
+    14 multiplications), and the projective x check.
+  - Prep rejects and flagged lanes get the scalar verdict, so every result
+    equals `bch_schnorr_verify`.
+  - `lanes_verify_differential` covers BCH on every available backend: valid
+    signatures, every invalid class, R negated, R = O, GLV edges and partial
+    groups. The SDE workflow runs it under emulated Tiger Lake, Sapphire Rapids
+    (ifma512 and ifma256 required) and Sierra Forest (avx_ifma).
+  - `bench_bch_schnorr` gains a cross-checked `ufsecp lanes <backend>` row for
+    each available backend.
+  - On the i5-14400F (AVX2 only), the AVX2 lane row is slower than scalar
+    verify, because AVX2 has no 52-bit multiply. The IFMA backends cannot run
+    on this host, so their speed is not yet measured (benchmark required on an
+    AVX-512 IFMA CPU).
 - **GPU: BCH 2019 Schnorr batch verification (#466).**
   `ufsecp_gpu_bch_schnorr_verify_batch` returns one result per item, with the
   NULL, count and fail-closed contract of `ufsecp_gpu_schnorr_verify_batch`.

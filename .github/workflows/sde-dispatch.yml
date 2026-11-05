@@ -1,6 +1,7 @@
 # ===========================================================================
-# SDE Dispatch -- the CPU feature view, the dispatch tests and (when it
-# exists) the lane backends test, run on emulated Intel CPUs
+# SDE Dispatch -- the CPU feature view, the dispatch tests, (when it exists)
+# the lane backends test and the lane verify differential, run on emulated
+# Intel CPUs
 # ===========================================================================
 #
 # WHY THIS EXISTS
@@ -16,15 +17,19 @@
 # WHAT IT PROVES
 # Correctness and dispatch only: cpu_hwinfo decodes the emulated CPU, the
 # dispatch tests pass on it, and test_field_lanes (when the tree has it) passes
-# natively, on every emulated CPU, and with each lane backend required. SDE is an
+# natively, on every emulated CPU, and with each lane backend required. The lane
+# verify differential (test_lanes_verify_differential_standalone: ECDSA, BIP-340
+# and BCH 2019 Schnorr lane verification entry by entry equal to the scalar
+# verifiers) passes natively and on every emulated CPU, with ifma512 and ifma256
+# required under -spr and avx_ifma under -srf (when built). SDE is an
 # emulator, so nothing here says anything about speed. Speed is measured on real
 # hardware with tools/measure_cpu_variants.py (docs/MEASUREMENT_KIT.md), and a
 # variant becomes a default only from such a measurement.
 #
 # WHEN IT RUNS
-# On push to dev when src/cpu/** or the CMake files change, and by hand
-# (workflow_dispatch). It is not a pull_request check: emulation is slow, and the
-# path filter keeps it off unrelated pushes.
+# On push to dev when src/cpu/**, the lane verify differential or the CMake
+# files change, and by hand (workflow_dispatch). It is not a pull_request check:
+# emulation is slow, and the path filter keeps it off unrelated pushes.
 # ===========================================================================
 
 name: SDE Dispatch
@@ -34,6 +39,7 @@ on:
     branches: [dev]
     paths:
       - 'src/cpu/**'
+      - 'audit/test_lanes_verify_differential.cpp'
       - 'CMakeLists.txt'
       - 'CMakePresets.json'
       - 'cmake/**'
@@ -52,7 +58,10 @@ jobs:
   sde:
     name: SDE / tgl spr srf
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    # Headroom for the lane verify differential: one more build target (with the
+    # C ABI library it links) and one emulated run per chip. Each step keeps its
+    # own 25-minute limit below.
+    timeout-minutes: 120
     env:
       BUILD_DIR: out/cpu-release
 
@@ -105,7 +114,7 @@ jobs:
             -DSECP256K1_BUILD_EXAMPLES=OFF \
             -DSECP256K1_ENABLE_OPENMP=OFF
 
-      - name: Build (cpu_hwinfo, test_cpu_features_standalone, test_field_lanes when present)
+      - name: Build (cpu_hwinfo, test_cpu_features_standalone, test_lanes_verify_differential_standalone, test_field_lanes when present)
         run: |
           targets="cpu_hwinfo test_cpu_features_standalone"
           # test_field_lanes arrives with the lane backends: build it only when this tree has it.
@@ -115,13 +124,22 @@ jobs:
           else
             echo "test_field_lanes is not in this tree: the lane steps are skipped"
           fi
+          # The lane verify differential (audit CTest lanes_verify_differential: ECDSA,
+          # BIP-340 and BCH 2019 Schnorr lanes against the scalar verifiers) is in this
+          # tree, so a configuration without its target is an error, not a skip.
+          if ninja -C "$BUILD_DIR" -t targets all | grep -Eq '^([^:]*/)?test_lanes_verify_differential_standalone:'; then
+            targets="$targets test_lanes_verify_differential_standalone"
+          else
+            echo "::error::test_lanes_verify_differential_standalone is not a target of $BUILD_DIR"
+            exit 1
+          fi
           # shellcheck disable=SC2086  # $targets is a deliberate word list
           cmake --build "$BUILD_DIR" -j"$(nproc)" --target $targets
 
       # The binaries run in place (not copied): the build tree is where they find their libraries.
       - name: Locate the binaries
         run: |
-          for pair in CPU_HWINFO:cpu_hwinfo TEST_CPU_FEATURES:test_cpu_features_standalone TEST_FIELD_LANES:test_field_lanes; do
+          for pair in CPU_HWINFO:cpu_hwinfo TEST_CPU_FEATURES:test_cpu_features_standalone TEST_FIELD_LANES:test_field_lanes TEST_LANES_VERIFY:test_lanes_verify_differential_standalone; do
             var="${pair%%:*}"
             tool="${pair##*:}"
             path="$(find "$PWD/$BUILD_DIR" -type f -name "$tool" -perm -u+x -print -quit)"
@@ -135,11 +153,20 @@ jobs:
         run: |
           : "${CPU_HWINFO:?cpu_hwinfo was not built}"
           : "${TEST_CPU_FEATURES:?test_cpu_features_standalone was not built}"
+          : "${TEST_LANES_VERIFY:?test_lanes_verify_differential_standalone was not built}"
           "$CPU_HWINFO"
           "$CPU_HWINFO" --json > hwinfo-native.json
           "$TEST_CPU_FEATURES"
           if [ -n "${TEST_FIELD_LANES:-}" ]; then
             "$TEST_FIELD_LANES"
+          fi
+          # 77: no lane backend on this CPU (the emulated runs below still cover them).
+          rc=0
+          "$TEST_LANES_VERIFY" || rc=$?
+          if [ "$rc" -eq 77 ]; then
+            echo "no lane backend on the runner's CPU: native lanes verify differential skipped"
+          elif [ "$rc" -ne 0 ]; then
+            exit "$rc"
           fi
 
       - name: Run under Intel SDE (-tgl, -spr, -srf)
@@ -147,6 +174,7 @@ jobs:
           set +e   # run every chip and every test, then fail once at the end
           : "${CPU_HWINFO:?cpu_hwinfo was not built}"
           : "${TEST_CPU_FEATURES:?test_cpu_features_standalone was not built}"
+          : "${TEST_LANES_VERIFY:?test_lanes_verify_differential_standalone was not built}"
           SDE="$SDE_PATH/sde64"
           failed=0
           step() {
@@ -186,6 +214,28 @@ jobs:
                   ;;
               esac
             fi
+            # Lane verify differential: ECDSA, BIP-340 and BCH 2019 Schnorr lanes against
+            # the scalar verifiers. One run already covers every lane backend the emulated
+            # CPU has (avx2 included); --require makes a missing IFMA backend a failure.
+            case "$chip" in
+              spr)
+                step "test_lanes_verify_differential --require=ifma512,ifma256 under -spr" \
+                  "$SDE" -spr -- "$TEST_LANES_VERIFY" --require=ifma512,ifma256
+                ;;
+              srf)
+                # avx_ifma is built only when the compiler supports it; cpu_hwinfo lists what exists here.
+                if python3 tools/measure_cpu_variants.py --print-lanes "hwinfo-$chip.json" | grep -qx avx_ifma; then
+                  step "test_lanes_verify_differential --require=avx_ifma under -srf" \
+                    "$SDE" -srf -- "$TEST_LANES_VERIFY" --require=avx_ifma
+                else
+                  echo "the avx_ifma lane backend is not built here: lanes verify runs without --require=avx_ifma"
+                  step "test_lanes_verify_differential under -srf" "$SDE" -srf -- "$TEST_LANES_VERIFY"
+                fi
+                ;;
+              *)
+                step "test_lanes_verify_differential under -$chip" "$SDE" "-$chip" -- "$TEST_LANES_VERIFY"
+                ;;
+            esac
             echo "::endgroup::"
           done
           exit "$failed"

@@ -2577,6 +2577,9 @@ The engine can verify several signatures per SIMD instruction stream with
 `secp256k1::lanes::ecdsa_verify_lanes` / `schnorr_verify_lanes`
 (`secp256k1/lanes.hpp`; backends `avx2`, `avx_ifma`, `ifma256`, `ifma512`).
 They return, entry by entry, the verdict of `ecdsa_verify` / `schnorr_verify`.
+(The BCH 2019 Schnorr twin, `bch_schnorr_verify_lanes`, is described under
+[BCH 2019 Schnorr verification](#bch-2019-schnorr-verification-not-bip-340);
+no batch API dispatches to it.)
 The batch APIs use them **only when a backend was chosen explicitly**. A lane
 variant becomes a default only after a `bench_unified` measurement on real
 hardware, so with no explicit choice every batch path runs the scalar code it
@@ -2660,8 +2663,22 @@ C++ engine: `bch_schnorr_verify` (wire or pre-parsed key), `bch_schnorr_batch_ve
   verdicts; `secp256k1_schnorr_verify_batch(ctx, sig64s, msg32s, pubkeys, n, seed32)`
   (`compat/libsecp256k1_bchn_shim/include/secp256k1_schnorr.h`, Knuth PR #826 contract)
   returns 1 iff all are valid, 1 for `n == 0`, 0 for NULL arrays with `n > 0`.
+- **Lanes (C++ only):** `secp256k1::lanes::bch_schnorr_verify_lanes(entries, n, results,
+  backend, stats = nullptr)` (`secp256k1/lanes.hpp`) verifies a `BchSchnorrBatchEntry`
+  array several signatures per SIMD instruction stream on an explicit `LaneBackend`
+  (`Avx2x4`, `AvxIfma256x4`, `Ifma256x4`, `Ifma512x8`; `None` or a backend this CPU
+  lacks runs the scalar verifier). `results[i] == bch_schnorr_verify(entry i)` for every
+  `i` and the return value is their AND; `n == 0` returns `true`; NULL `entries` or
+  `results` with `n > 0` returns `false` (non-NULL `results` cleared). Malformed entries
+  and lanes the group arithmetic flags as exceptional get the scalar verdict;
+  `LaneVerifyStats` counts each path. The kernel keeps both tests projective
+  (`X == r*Z^2`, Euler's criterion on `Y*Z`). `bch_schnorr_batch_verify` and the C ABI
+  do not dispatch to it. Timed by the `ufsecp lanes <backend>` rows of
+  `bench_bch_schnorr` ([BCH_SCHNORR_BATCH_BENCH.md](BCH_SCHNORR_BATCH_BENCH.md));
+  throughput: not yet measured.
 - **Tests:** `exploit_bch_schnorr_batch_forgery`, `bch_schnorr_differential`,
-  `regression_bch_schnorr_spec`.
+  `regression_bch_schnorr_spec`, `lanes_verify_differential` (the lanes path, every
+  available backend).
 
 > **Standard integration surface (CPU):** for drop-in `libsecp256k1` compatibility, prefer the
 > shim batch extension in `compat/libsecp256k1_shim/include/secp256k1_batch.h`

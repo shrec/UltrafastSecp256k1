@@ -1,5 +1,25 @@
 # Audit Changelog
 
+## 2026-11-05 - BCH 2019 Schnorr lane verify joins lanes_verify_differential (issue #466)
+
+**Surface.** `lanes::bch_schnorr_verify_lanes` with the new `lv_bch_group`
+kernel, on every lane backend: AVX2, AVX-IFMA, IFMA256 and AVX-512 IFMA. The
+residue test is a lane-parallel Euler criterion on Y*Z. Every input is public
+(CT-VERIFY).
+
+**Guards.**
+- `lanes_verify_differential` (blocking) checks BCH on every available backend
+  and on `LaneBackend::None`, against `bch_schnorr_verify` entry by entry:
+  valid signatures with 02 and 03 keys, every invalid class, R negated, R = O,
+  GLV edges, partial groups for n = 1..17, NULL and n == 0, and the stats
+  counters.
+- `--require=<backends>` makes a missing backend a failure.
+  `.github/workflows/sde-dispatch.yml` runs the test under SDE -tgl, -spr
+  (ifma512 and ifma256 required) and -srf (avx_ifma).
+
+**Host run** (i5-14400F, AVX2 only): 2562 checks, 0 failures; `--require=ifma512`
+fails as expected. The IFMA backends are proven only by the SDE CI job.
+
 ## 2026-11-04 - BCH batch verify: the Strauss route and its engine differential (issue #466)
 
 **Surface.** `bch_schnorr_batch_verify` now has four routes: single, individual

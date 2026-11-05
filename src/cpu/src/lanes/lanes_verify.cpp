@@ -1,14 +1,16 @@
 // ============================================================================
-// lanes/lanes_verify.cpp -- ECDSA / BIP-340 verification, several signatures
-//                           per SIMD instruction stream (scalar side)
+// lanes/lanes_verify.cpp -- ECDSA / BIP-340 / BCH 2019 Schnorr verification,
+//                           several signatures per SIMD instruction stream
+//                           (scalar side)
 // ============================================================================
 //
 // Generic code: compiled with the library's normal flags, never with an ISA
 // flag (src/cpu/CMakeLists.txt gives it only the SECP256K1_LANES_HAVE_* macros).
 // It does everything that is not lane arithmetic -- parse and policy exactly as
-// ecdsa_verify / schnorr_verify, s^-1 by one batch inversion per group, the
-// affine pubkey by one batch normalisation per group, BIP-340 lift_x and
-// challenge, and the GLV split of both coefficients (glv_decompose: u = a +
+// ecdsa_verify / schnorr_verify / bch_schnorr_verify, s^-1 by one batch
+// inversion per group, the affine pubkey by one batch normalisation per group,
+// BIP-340 lift_x, the BCH 33-byte key decompression, the BIP-340 and BCH
+// challenges, and the GLV split of both coefficients (glv_decompose: u = a +
 // b*lambda with |a|, |b| < 2^128, so the lanes run about half the doublings)
 // -- and hands plain arrays to the per-ISA kernel
 // (lanes_verify_kernels.hpp) through the table lanes_tables.hpp declares. Any
@@ -28,12 +30,14 @@
 #include <cstring>
 
 #include "secp256k1/batch_verify.hpp"
+#include "secp256k1/bch_schnorr.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/field.hpp"
 #include "secp256k1/glv.hpp"
 #include "secp256k1/point.hpp"
 #include "secp256k1/scalar.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/sha256.hpp"
 #include "lanes_tables.hpp"
 
 namespace secp256k1::lanes {
@@ -170,6 +174,10 @@ bool ecdsa_scalar(const ECDSABatchEntry& e) noexcept {
 
 bool schnorr_scalar(const SchnorrBatchEntry& e) noexcept {
     return schnorr_verify(e.pubkey_x.data(), e.message.data(), e.signature);
+}
+
+bool bch_scalar(const BchSchnorrBatchEntry& e) noexcept {
+    return bch_schnorr_verify(e.signature.data(), e.message.data(), e.pubkey.data());
 }
 
 bool bad_args(const void* entries, std::size_t n, bool* results, LaneVerifyStats* stats) noexcept {
@@ -362,6 +370,104 @@ bool schnorr_verify_lanes(const SchnorrBatchEntry* entries, std::size_t n, bool*
             const std::size_t i = lane_entry[l];
             if ((res.flagged >> l) & 1u) {
                 results[i] = schnorr_scalar(entries[i]);
+                ++st.exceptional_fallback;
+            } else {
+                results[i] = ((res.ok >> l) & 1u) != 0;
+                ++st.lane_verified;
+            }
+        }
+    }
+    if (stats) *stats = st;
+    return all_true(results, n);
+}
+
+// BCH 2019 Schnorr (bch_schnorr.hpp; NOT BIP-340). Three differences from
+// schnorr_verify_lanes: the key is a 33-byte SEC1 encoding whose prefix picks
+// the y root, the challenge is plain SHA-256 (no tag) over r || pubkey33 ||
+// msg32, and the kernel tests y(R) for a quadratic residue, not for parity.
+bool bch_schnorr_verify_lanes(const BchSchnorrBatchEntry* entries, std::size_t n, bool* results,
+                              LaneBackend backend, LaneVerifyStats* stats) noexcept {
+    if (n == 0) {
+        if (stats) *stats = LaneVerifyStats{};
+        return true;
+    }
+    if (bad_args(entries, n, results, stats)) return false;
+
+    LaneVerifyStats st;
+    const LaneVerifyKernels* k = verify_kernels(backend);
+    if (k == nullptr) {
+        for (std::size_t i = 0; i < n; ++i) results[i] = bch_scalar(entries[i]);
+        st.scalar_only = n;
+        if (stats) *stats = st;
+        return all_true(results, n);
+    }
+
+    const unsigned width = k->lanes;
+    for (std::size_t off = 0; off < n; off += width) {
+        const std::size_t m = (n - off < width) ? (n - off) : std::size_t{width};
+        LaneVerifyGroup g{};
+        std::size_t lane_entry[kLaneVerifyMaxLanes];
+        unsigned used = 0;
+        for (std::size_t j = 0; j < m; ++j) {
+            const std::size_t i = off + j;
+            const BchSchnorrBatchEntry& e = entries[i];
+            const std::uint8_t* const sig = e.signature.data();
+            const std::uint8_t* const pub = e.pubkey.data();
+            // bch_schnorr_verify's rejects, cheapest first (each one is a false
+            // verdict, so the order changes no result): r >= p; s >= n or
+            // s == 0; then the key: prefix not 02/03, x >= p, x^3 + 7 not a
+            // square.
+            std::uint64_t rl[4];
+            be32_to_limbs(sig, rl);
+            Scalar s;
+            bool prep_ok = lt256(rl, kP) && Scalar::parse_bytes_strict(sig + 32, s) && !s.is_zero();
+            if (prep_ok) prep_ok = pub[0] == 0x02 || pub[0] == 0x03;
+            FieldElement px;
+            if (prep_ok) prep_ok = FieldElement::parse_bytes_strict(pub + 1, px);
+            FieldElement py;
+            if (prep_ok) {
+                // y = sqrt(x^3 + 7), rejected when x^3 + 7 is not a square; of
+                // the two roots, the one whose parity the prefix names (02
+                // even, 03 odd), as bch_schnorr_pubkey_parse does.
+                const FieldElement y2 = px.square() * px + FieldElement::from_uint64(7);
+                py = y2.sqrt();
+                prep_ok = (py.square() == y2);
+                if (prep_ok && ((py.limbs()[0] & 1u) != 0) != (pub[0] == 0x03)) py = py.negate();
+            }
+            Scalar neg_e;
+            if (prep_ok) {
+                // e = SHA256(r || pubkey33 || msg32) mod n: plain SHA-256, not a tagged hash.
+                secp256k1::SHA256 h;
+                h.update(sig, 32);
+                h.update(pub, 33);
+                h.update(e.message.data(), 32);
+                neg_e = Scalar::from_bytes(h.finalize()).negate_var();   // public; e == 0 only zeroes the Q halves
+            }
+            if (!prep_ok) {
+                results[i] = bch_scalar(e);
+                ++st.prep_fallback;
+                continue;
+            }
+            if (!put_glv(g, used, s, neg_e)) {   // u1 = s, u2 = -e
+                results[i] = bch_scalar(e);
+                ++st.exceptional_fallback;
+                continue;
+            }
+            put4(g.qx + 4 * used, px.limbs());
+            put4(g.qy + 4 * used, py.limbs());
+            std::memcpy(g.r + 4 * used, rl, 32);
+            std::memcpy(g.rn + 4 * used, rl, 32);   // unused (rn_ok == 0), still a valid lane input
+            lane_entry[used++] = i;
+        }
+        if (used == 0) continue;
+        pad_group(g, used, width);
+
+        LaneVerifyResult res{};
+        k->bch_group(g, res);
+        for (unsigned l = 0; l < used; ++l) {
+            const std::size_t i = lane_entry[l];
+            if ((res.flagged >> l) & 1u) {
+                results[i] = bch_scalar(entries[i]);
                 ++st.exceptional_fallback;
             } else {
                 results[i] = ((res.ok >> l) & 1u) != 0;

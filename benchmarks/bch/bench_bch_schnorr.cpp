@@ -13,6 +13,14 @@
 //                       bch_schnorr_batch_verify over the parsed entries
 //   ufsecp C ABI batch  one ufsecp_bch_schnorr_batch_verify on the 129-byte
 //                       rows (the call parses the keys itself)
+//   ufsecp lanes <b>    N x bch_schnorr_pubkey_parse, then one
+//                       lanes::bch_schnorr_verify_lanes with backend <b>
+//                       (avx2, avx_ifma, ifma256, ifma512) on the wire-form
+//                       entries, which decompresses each key again itself.
+//                       One row per available backend; UFSECP_LANES naming
+//                       an available backend limits the rows to it ("off":
+//                       none). Before timing, the lane kernel must decide
+//                       every entry of every valid set (exit 1 otherwise).
 //   ref single          N x (secp256k1_ec_pubkey_parse + secp256k1_schnorr_verify)
 //   ref batch           N x secp256k1_ec_pubkey_parse, then one
 //                       secp256k1_schnorr_verify_batch
@@ -89,6 +97,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -428,6 +437,9 @@ public:
     virtual bool run() = 0;
     // Extra context for a failure message.
     virtual std::string detail() const { return std::string(); }
+    // The lane backend a "ufsecp lanes" row runs on (its LaneBackend name);
+    // nullptr for every other row.
+    virtual const char* lane_backend() const { return nullptr; }
 };
 
 class UfsecpSingle final : public Impl {
@@ -478,6 +490,56 @@ public:
 private:
     SetView set_;
     std::vector<BchSchnorrBatchPointEntry> entries_;
+};
+
+// N x bch_schnorr_pubkey_parse, then one lanes::bch_schnorr_verify_lanes call
+// with an explicit backend over the wire-form entries: the caller-side steps
+// of the "ufsecp batch" row. bch_schnorr_verify_lanes decompresses every key
+// again itself (BchSchnorrBatchEntry carries the 33-byte encoding), so this
+// row includes each key's decompression twice.
+class UfsecpLanes final : public Impl {
+public:
+    explicit UfsecpLanes(secp256k1::lanes::LaneBackend b)
+        : backend_(b), label_(std::string("ufsecp lanes ") + secp256k1::lanes::lane_backend_name(b)) {}
+    const char* name() const override { return label_.c_str(); }
+    const char* lib() const override { return "ufsecp"; }
+    const char* api() const override { return "lanes"; }
+    const char* lane_backend() const override { return secp256k1::lanes::lane_backend_name(backend_); }
+    void prepare(const SetView& set) override {
+        set_ = set;
+        entries_.assign(set.n, secp256k1::BchSchnorrBatchEntry{});
+        points_.assign(set.n, Point{});
+        results_.reset(new bool[set.n]());
+        for (std::size_t i = 0; i < set.n; ++i) {
+            std::memcpy(entries_[i].pubkey.data(), set.pub + i * kPubLen, kPubLen);
+            std::memcpy(entries_[i].message.data(), set.msg + i * kMsgLen, kMsgLen);
+            std::memcpy(entries_[i].signature.data(), set.sig + i * kSigLen, kSigLen);
+        }
+    }
+    bool run() override {
+        bool parsed = true;
+        for (std::size_t i = 0; i < set_.n; ++i) {
+            parsed = secp256k1::bch_schnorr_pubkey_parse(set_.pub + i * kPubLen, points_[i]) && parsed;
+        }
+        const bool all = secp256k1::lanes::bch_schnorr_verify_lanes(entries_.data(), entries_.size(),
+                                                                    results_.get(), backend_, &stats_);
+        return parsed && all;
+    }
+    std::string detail() const override {
+        return " (lane kernel decided " + std::to_string(stats_.lane_verified) + " of " +
+               std::to_string(set_.n) + " entries)";
+    }
+    // Counters of the last run() (LaneVerifyStats, secp256k1/lanes.hpp).
+    const secp256k1::lanes::LaneVerifyStats& stats() const { return stats_; }
+
+private:
+    secp256k1::lanes::LaneBackend backend_;
+    std::string label_;
+    SetView set_;
+    std::vector<secp256k1::BchSchnorrBatchEntry> entries_;
+    std::vector<Point> points_;
+    std::unique_ptr<bool[]> results_;
+    secp256k1::lanes::LaneVerifyStats stats_;
 };
 
 #if defined(UFSECP_BCH_BENCH_HAVE_CABI)
@@ -629,6 +691,7 @@ struct Row {
     const char* label = "";
     const char* lib = "";
     const char* api = "";
+    const char* lane_backend = nullptr;  // "ufsecp lanes" rows: the LaneBackend name
     std::size_t n = 0;
     int calls_per_pass = 0;
     int warmup_calls = 0;
@@ -682,6 +745,7 @@ bool measure(Impl& im, const SetView& set, const Options& o, Row& row) {
     row.label = im.name();
     row.lib = im.lib();
     row.api = im.api();
+    row.lane_backend = im.lane_backend();
     row.n = set.n;
     row.calls_per_pass = iters;
     row.warmup_calls = warm;
@@ -963,6 +1027,25 @@ std::string lane_list(unsigned mask) {
     return s.empty() ? std::string("none") : s;
 }
 
+// The backends that get a "ufsecp lanes <backend>" row: every available one
+// (compiled into this build and supported by the masked CPU view, so
+// UFSECP_CPU_DISABLE removes some), or only the one UFSECP_LANES names when it
+// names an available backend ("off": none). A value that names nothing
+// available is ignored here; main() prints a WARNING for it.
+std::vector<secp256k1::lanes::LaneBackend> lane_row_backends() {
+    namespace lanes = secp256k1::lanes;
+    const lanes::LaneSelection& sel = lanes::lane_selection();
+    const unsigned avail = lanes::available_lane_backends();
+    std::vector<lanes::LaneBackend> out;
+    for (unsigned b = 1; b < lanes::kLaneBackendCount; ++b) {
+        const auto be = static_cast<lanes::LaneBackend>(b);
+        if ((avail & lanes::lane_backend_bit(be)) == 0u) continue;
+        if (sel.reason == lanes::LaneSelectionReason::Forced && be != sel.backend) continue;
+        out.push_back(be);
+    }
+    return out;
+}
+
 // ---- JSON --------------------------------------------------------------------
 
 std::string jstr(const std::string& s) {
@@ -1008,6 +1091,8 @@ struct Report {
     std::string compiler;
     std::string lanes_compiled, lanes_available, lanes_selected, lanes_requested, lanes_reason;
     std::string lanes_verify;  // what verification calls get: "off" unless forced
+    std::string lanes_rows;       // backends with a "ufsecp lanes <backend>" row, or "none"
+    std::string lanes_rows_rule;  // how they were chosen (lane_row_backends())
     std::string env_lanes, env_cpu_disable;
     bool ref_present = false;
     std::string ref_pin_match;
@@ -1059,6 +1144,9 @@ bool write_json(const std::string& path, const Options& o, const Report& r) {
     j += "    \"reason\": " + jstr(r.lanes_reason) + ",\n";
     j += "    \"verify_backend\": " + jstr(r.lanes_verify) + ",\n";
     j += "    \"verify_backend_note\": \"lanes::lane_verify_backend(): the backend verification calls get (off unless UFSECP_LANES forces one); 'selected' is the field-kernel default pick\",\n";
+    j += "    \"bench_rows\": " + jstr(r.lanes_rows) + ",\n";
+    j += "    \"bench_rows_rule\": " + jstr(r.lanes_rows_rule) + ",\n";
+    j += "    \"bench_rows_note\": \"one 'ufsecp lanes <backend>' row per listed backend, each calling lanes::bch_schnorr_verify_lanes with that backend explicitly; UFSECP_LANES naming an available backend limits the rows to it ('off': none), UFSECP_CPU_DISABLE removes backends from 'available'\",\n";
     j += "    \"env_UFSECP_LANES\": " + jopt(r.env_lanes) + ",\n";
     j += "    \"env_UFSECP_CPU_DISABLE\": " + jopt(r.env_cpu_disable) + "\n";
     j += "  },\n";
@@ -1085,6 +1173,7 @@ bool write_json(const std::string& path, const Options& o, const Report& r) {
     j += "  \"cross_check\": {\n";
     j += "    \"passed\": true,\n";
     j += "    \"rule\": \"before timing, every implementation accepts every valid set and rejects the same set with signature N/2 corrupted (s := s + 1 mod n)\",\n";
+    j += "    \"lanes_rule\": \"before timing, for every 'ufsecp lanes' row the lane kernel itself decides every entry of every valid set (LaneVerifyStats.lane_verified == N)\",\n";
     j += "    \"sizes\": [";
     for (std::size_t i = 0; i < o.sizes.size(); ++i) {
         j += (i ? ", " : "") + std::to_string(o.sizes[i]);
@@ -1100,6 +1189,7 @@ bool write_json(const std::string& path, const Options& o, const Report& r) {
     for (std::size_t i = 0; i < r.rows.size(); ++i) {
         const Row& w = r.rows[i];
         j += "    {\"impl\": " + jstr(w.label) + ", \"lib\": " + jstr(w.lib) + ", \"api\": " + jstr(w.api);
+        j += ", \"lane_backend\": " + (w.lane_backend != nullptr ? jstr(w.lane_backend) : std::string("null"));
         j += ", \"n\": " + std::to_string(w.n) + ", \"status\": \"ok\"";
         j += ", \"calls_per_pass\": " + std::to_string(w.calls_per_pass);
         j += ", \"warmup_calls\": " + std::to_string(w.warmup_calls);
@@ -1132,7 +1222,7 @@ bool write_json(const std::string& path, const Options& o, const Report& r) {
 }
 
 void print_row(const Row& w) {
-    std::printf("%7zu  %-19s %13.1f %12.1f %12.1f %13.0f   %d x %d\n", w.n, w.label,
+    std::printf("%7zu  %-21s %13.1f %12.1f %12.1f %13.0f   %d x %d\n", w.n, w.label,
                 per_sig(w.call.median_ns, w.n), per_sig(w.call.min_ns, w.n),
                 per_sig(w.call.max_ns, w.n), sigs_per_sec(w.call.median_ns, w.n), w.calls_per_pass,
                 w.passes);
@@ -1168,6 +1258,12 @@ int main(int argc, char** argv) {
         rep.lanes_reason = lanes::lane_selection_reason(sel.reason);
         // lanes_verify.cpp is compiled on every platform (None where nothing applies).
         rep.lanes_verify = lanes::lane_backend_name(lanes::lane_verify_backend());
+        unsigned row_mask = 0;
+        for (const lanes::LaneBackend b : lane_row_backends()) row_mask |= lanes::lane_backend_bit(b);
+        rep.lanes_rows = lane_list(row_mask);
+        rep.lanes_rows_rule = (sel.reason == lanes::LaneSelectionReason::Forced)
+                                  ? "only the backend UFSECP_LANES names"
+                                  : "every available backend";
     }
     rep.env_lanes = env_value("UFSECP_LANES");
     rep.env_cpu_disable = env_value("UFSECP_CPU_DISABLE");
@@ -1196,6 +1292,12 @@ int main(int argc, char** argv) {
                 o.pin ? " (--pin)" : "", rep.machine.turbo.c_str());
     std::printf("  lanes:     verify backend %s; field default pick %s (%s)\n", rep.lanes_verify.c_str(),
                 rep.lanes_selected.c_str(), rep.lanes_reason.c_str());
+    std::printf("  lane rows: %s (%s)\n", rep.lanes_rows.c_str(), rep.lanes_rows_rule.c_str());
+    if (!rep.env_lanes.empty() &&
+        secp256k1::lanes::lane_selection().reason != secp256k1::lanes::LaneSelectionReason::Forced) {
+        std::printf("  WARNING: UFSECP_LANES=%s was not applied (%s); lane rows for every available backend\n",
+                    rep.env_lanes.c_str(), rep.lanes_reason.c_str());
+    }
 #if defined(UFSECP_BCH_BENCH_HAVE_REF)
     std::printf("  reference: %s, header %s, commit %s\n", UFSECP_BCH_BENCH_REF_LIBRARY,
                 UFSECP_BCH_BENCH_REF_HEADER,
@@ -1242,6 +1344,12 @@ int main(int argc, char** argv) {
     UfsecpAbiBatch u_abi(abi.ctx);
     impls.push_back(&u_abi);
 #endif
+    // One "ufsecp lanes <backend>" row per backend lane_row_backends() picks.
+    std::vector<std::unique_ptr<UfsecpLanes>> lane_impls;
+    for (const secp256k1::lanes::LaneBackend b : lane_row_backends()) {
+        lane_impls.push_back(std::make_unique<UfsecpLanes>(b));
+        impls.push_back(lane_impls.back().get());
+    }
 #if defined(UFSECP_BCH_BENCH_HAVE_REF)
     RefContext ref;
     if (ref.ctx == nullptr) {
@@ -1268,9 +1376,30 @@ int main(int argc, char** argv) {
                 "with one corrupted signature rejected\n",
                 impls.size(), o.sizes.size());
 
+    // A lanes row must time the lane kernel, not the scalar fallback: on every
+    // valid set the kernel itself decides every entry.
+    for (const std::size_t n : o.sizes) {
+        for (const auto& li : lane_impls) {
+            li->prepare(view_of(f, n));
+            const bool accepted = li->run();
+            if (!accepted || li->stats().lane_verified != n) {
+                std::fprintf(stderr,
+                             "[bench_bch_schnorr] %s, N=%zu: the lane kernel decided %zu of %zu valid "
+                             "entries; nothing was timed\n",
+                             li->name(), n, li->stats().lane_verified, n);
+                return 1;
+            }
+        }
+    }
+    if (!lane_impls.empty()) {
+        std::printf("lanes check: %zu lane backend(s) x %zu sizes -- the lane kernel decided every entry "
+                    "of every valid set\n",
+                    lane_impls.size(), o.sizes.size());
+    }
+
     frequency_warmup(f, o.freq_warmup_ms);
 
-    std::printf("\n%7s  %-19s %13s %12s %12s %13s   %s\n", "N", "implementation", "ns/sig median",
+    std::printf("\n%7s  %-21s %13s %12s %12s %13s   %s\n", "N", "implementation", "ns/sig median",
                 "min", "max", "sig/s", "calls x passes");
     std::fflush(stdout);
     for (const std::size_t n : o.sizes) {

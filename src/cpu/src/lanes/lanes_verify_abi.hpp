@@ -2,9 +2,10 @@
 // lanes/lanes_verify_abi.hpp -- plain-data interface of the lane verify kernels
 // ============================================================================
 //
-// The scalar side of lane verification (parsing, policy, s^-1, lift_x, the
-// BIP-340 challenge, scalar fallback) lives in the generic translation unit
-// lanes_verify.cpp, compiled with the library's normal flags. The lane side
+// The scalar side of lane verification (parsing, policy, s^-1, lift_x and the
+// BCH key decompression, the BIP-340 and BCH challenges, scalar fallback)
+// lives in the generic translation unit lanes_verify.cpp, compiled with the
+// library's normal flags. The lane side
 // (group_lanes.hpp, lanes_verify_kernels.hpp) lives in the per-ISA TUs. They
 // exchange only the plain arrays below, so no library header with inline
 // functions is ever compiled with ISA flags (see field_common.hpp for why that
@@ -39,7 +40,8 @@ struct LaneVerifyGroup {
     alignas(64) std::uint64_t qx[4 * kLaneVerifyMaxLanes];  // affine Q, on the curve
     alignas(64) std::uint64_t qy[4 * kLaneVerifyMaxLanes];
     // ECDSA: r (< n) and, where rn_ok bit l is set, r + n (< p).
-    // Schnorr: r (< p) in `r`; `rn` and rn_ok unused.
+    // Schnorr (BIP-340 and BCH 2019): r (< p) in `r`; `rn` (a copy of r) and
+    // rn_ok (0) unused.
     alignas(64) std::uint64_t r[4 * kLaneVerifyMaxLanes];
     alignas(64) std::uint64_t rn[4 * kLaneVerifyMaxLanes];
     unsigned rn_ok;
@@ -58,6 +60,11 @@ struct LaneVerifyKernels {
     void (*ecdsa_group)(const LaneVerifyGroup& in, LaneVerifyResult& out);
     // R = u1*G + u2*Q (u1 = s, u2 = -e); ok iff R != O, y(R) even, x(R) == r.
     void (*schnorr_group)(const LaneVerifyGroup& in, LaneVerifyResult& out);
+    // BCH 2019 Schnorr: R = u1*G + u2*Q (u1 = s, u2 = -e); ok iff R != O,
+    // y(R) is a quadratic residue and x(R) == r. Both tests run on the
+    // Jacobian R without an inversion: the residue test is Euler's criterion
+    // on Y*Z, the x test X == r*Z^2.
+    void (*bch_group)(const LaneVerifyGroup& in, LaneVerifyResult& out);
     // The ECDSA projective x-compare alone, on arbitrary X, Z (any 256-bit
     // values), for the test: bit l = X == r*Z^2 || (rn_ok_l && X == rn*Z^2).
     unsigned (*ecdsa_xcheck)(const std::uint64_t* X, const std::uint64_t* Z, const std::uint64_t* r,
