@@ -1358,7 +1358,41 @@ int test_lanes_verify_differential_run() {
 }
 
 #ifdef STANDALONE_TEST
+#if defined(__unix__)
+#include <unistd.h>
+// UFSECP_LANES is caller-controlled: a rejected value is warned about but never
+// echoed to stderr (log injection). Must run before anything reads the cached
+// selection; an unknown token keeps the default pick, so the run below is the
+// same as with the variable unset. Skipped when CI already forces a backend.
+static int check_lanes_env_not_echoed() {
+    if (std::getenv("UFSECP_LANES") != nullptr) return 0;
+    if (setenv("UFSECP_LANES", "zz\x1b[2Jinjected%n", 1) != 0) return 0;
+    std::FILE* cap = std::tmpfile();
+    if (cap == nullptr) { unsetenv("UFSECP_LANES"); return 0; }
+    std::fflush(stderr);
+    const int saved = dup(fileno(stderr));
+    dup2(fileno(cap), fileno(stderr));
+    (void)secp256k1::lanes::selected_lane_backend();
+    std::fflush(stderr);
+    dup2(saved, fileno(stderr));
+    close(saved);
+    unsetenv("UFSECP_LANES");
+    char buf[512] = {};
+    std::rewind(cap);
+    (void)std::fread(buf, 1, sizeof(buf) - 1, cap);
+    std::fclose(cap);
+    const bool warned = std::strstr(buf, "UFSECP_LANES") != nullptr;
+    const bool echoed = std::strstr(buf, "injected") != nullptr;
+    std::printf("  lanes env: rejected value %s, %s\n", warned ? "warned" : "NOT warned",
+                echoed ? "ECHOED" : "not echoed");
+    return (warned && !echoed) ? 0 : 1;
+}
+#else
+static int check_lanes_env_not_echoed() { return 0; }
+#endif
+
 int main(int argc, char** argv) {
+    if (check_lanes_env_not_echoed() != 0) return 1;
     unsigned required = 0;
     for (int i = 1; i < argc; ++i) {
         const char* a = argv[i];

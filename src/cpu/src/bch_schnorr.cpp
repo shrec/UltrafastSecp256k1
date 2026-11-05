@@ -86,8 +86,9 @@ detail::BchBatchRoute batch_route(std::size_t n) noexcept {
 constexpr std::size_t kBchBatchMaxChunk =
     static_cast<std::size_t>(std::numeric_limits<std::uint32_t>::max());
 
+#if !defined(SECP256K1_FAST_52BIT)
 // Quadratic-residue test on a public field element. Zero is not a residue
-// (Jacobi(0) == 0, never 1).
+// (Jacobi(0) == 0, never 1). Only the non-52-bit verifier tail calls it.
 bool fe_is_qr_var(const FieldElement& v) noexcept {
 #if defined(SECP256K1_BCH_SCHNORR_FE52_JACOBI)
     return fast::FieldElement52::from_fe(v).jacobi_var() == 1;
@@ -97,6 +98,7 @@ bool fe_is_qr_var(const FieldElement& v) noexcept {
     return t.square() == v;
 #endif
 }
+#endif
 
 // e = SHA256(r[32] || compressed33(P) || msg32) mod n.
 Scalar bch_challenge(const std::uint8_t* r32, const std::uint8_t* pub33,

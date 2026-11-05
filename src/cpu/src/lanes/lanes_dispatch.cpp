@@ -165,9 +165,10 @@ const LaneSelection& lane_selection() noexcept {
     static const LaneSelection sel = [] {
         const char* env = std::getenv("UFSECP_LANES");
         const LaneSelection s = resolve_lane_selection(env, available_lane_backends());
+        // The raw environment value is never echoed (log injection).
         if (s.reason == LaneSelectionReason::Unavailable ||
             s.reason == LaneSelectionReason::UnknownToken) {
-            std::fprintf(stderr, "ufsecp: UFSECP_LANES=%s: %s (selected: %s)\n", env,
+            std::fprintf(stderr, "ufsecp: UFSECP_LANES: %s (selected: %s)\n",
                          lane_selection_reason(s.reason), lane_backend_name(s.backend));
         }
         return s;

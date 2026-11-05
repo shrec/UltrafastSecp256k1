@@ -1,5 +1,20 @@
 # Audit Changelog
 
+## 2026-11-05 - Dev CI fixes after the issue #466 push
+
+- **UFSECP_LANES no longer echoes the raw value.** A rejected value was printed
+  to stderr verbatim. SonarCloud flagged this as log injection (S5145). The
+  warning now prints only the reason and the selected backend. The standalone
+  `lanes_verify_differential` sets a hostile value (an escape sequence and
+  `%n`), captures stderr, and fails if the value appears in it. The check is
+  skipped when `UFSECP_LANES` is already set.
+- **`exploit_bch_schnorr_batch_forgery` gets 600 s instead of 180 s.** It takes
+  5.6 s in Release and 116 s alone under Debug ASan+UBSan, and it timed out on
+  the loaded sanitizer runner. 600 s matches the other batch soundness probes.
+- **`bch_schnorr.cpp` builds again with `-Werror`.** `fe_is_qr_var` is compiled
+  only where the non-52-bit verifier tail calls it. The 52-bit build reported
+  it as an unused function.
+
 ## 2026-11-05 - BCH 2019 Schnorr lane verify joins lanes_verify_differential (issue #466)
 
 **Surface.** `lanes::bch_schnorr_verify_lanes` with the new `lv_bch_group`

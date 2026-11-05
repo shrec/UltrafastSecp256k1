@@ -6130,7 +6130,9 @@ audit_target_defaults(test_exploit_bch_schnorr_batch_forgery_standalone)
 target_compile_definitions(test_exploit_bch_schnorr_batch_forgery_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_bch_schnorr_batch_forgery
     COMMAND test_exploit_bch_schnorr_batch_forgery_standalone)
-set_tests_properties(exploit_bch_schnorr_batch_forgery PROPERTIES TIMEOUT 180
+# 5.6 s in Release; 116 s alone under Debug ASan+UBSan, past 180 s on the
+# loaded sanitizer runner -- same 600 s budget as the other batch soundness probes.
+set_tests_properties(exploit_bch_schnorr_batch_forgery PROPERTIES TIMEOUT 600
     LABELS "audit;exploit;soundness;bch;schnorr;batch;bchn")
 target_sources(unified_audit_runner PRIVATE test_exploit_bch_schnorr_batch_forgery.cpp)
 
