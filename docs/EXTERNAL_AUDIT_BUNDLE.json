@@ -200,7 +200,7 @@
           {
             "findings": [
               {
-                "message": "Graph is fresh (built: 2026-11-05T04:37:22)",
+                "message": "Graph is fresh (built: 2026-11-06T04:38:12)",
                 "severity": "PASS"
               }
             ],
@@ -394,11 +394,11 @@
           {
             "findings": [
               {
-                "message": "Mutation report age: 204.9 days (threshold: 14)",
+                "message": "Mutation report age: 205.9 days (threshold: 14)",
                 "severity": "INFO"
               },
               {
-                "message": "Mutation report is stale (204.9 > 14 days) \u2014 rerun recommended",
+                "message": "Mutation report is stale (205.9 > 14 days) \u2014 rerun recommended",
                 "severity": "WARN"
               }
             ],
@@ -646,19 +646,19 @@
                 "severity": "PASS"
               },
               {
-                "message": "INT-CROSS-LIBSECP [warning]: last_verified 150d ago (> 45d freshness SLO)",
+                "message": "INT-CROSS-LIBSECP [warning]: last_verified 151d ago (> 45d freshness SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "INT-DER-BLOCK704789 [warning]: last_verified 145d ago (> 60d freshness SLO)",
+                "message": "INT-DER-BLOCK704789 [warning]: last_verified 146d ago (> 60d freshness SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "INT-ECDSA-CACHE-SAMEX [warning]: last_verified 145d ago (> 60d freshness SLO)",
+                "message": "INT-ECDSA-CACHE-SAMEX [warning]: last_verified 146d ago (> 60d freshness SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "INT-SCHNORR-VERIFY [warning]: last_verified 145d ago (> 60d freshness SLO)",
+                "message": "INT-SCHNORR-VERIFY [warning]: last_verified 146d ago (> 60d freshness SLO)",
                 "severity": "WARN"
               },
               {
@@ -702,7 +702,7 @@
                 "severity": "PASS"
               },
               {
-                "message": "FUZZ-MUSIG2-FROST-STATEFUL [warning]: campaign evidence last_verified 154d ago (> 120d SLO)",
+                "message": "FUZZ-MUSIG2-FROST-STATEFUL [warning]: campaign evidence last_verified 155d ago (> 120d SLO)",
                 "severity": "WARN"
               },
               {
@@ -724,19 +724,19 @@
                 "severity": "PASS"
               },
               {
-                "message": "GPU-CUDA-PUBLIC-DATA [warning]: last_verified 145d ago (> 90d SLO)",
+                "message": "GPU-CUDA-PUBLIC-DATA [warning]: last_verified 146d ago (> 90d SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "GPU-OPENCL-PUBLIC-DATA [warning]: last_verified 145d ago (> 90d SLO)",
+                "message": "GPU-OPENCL-PUBLIC-DATA [warning]: last_verified 146d ago (> 90d SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "GPU-METAL-PUBLIC-DATA [warning]: last_verified 145d ago (> 90d SLO)",
+                "message": "GPU-METAL-PUBLIC-DATA [warning]: last_verified 146d ago (> 90d SLO)",
                 "severity": "WARN"
               },
               {
-                "message": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md) \u2014 last_verified 188d ago (past 120d)",
+                "message": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md) \u2014 last_verified 189d ago (past 120d)",
                 "severity": "INFO"
               },
               {
@@ -748,7 +748,7 @@
                 "severity": "INFO"
               },
               {
-                "message": "GPU-CONTEXT-THREAD-SAFETY [warning]: last_verified 148d ago (> 120d SLO)",
+                "message": "GPU-CONTEXT-THREAD-SAFETY [warning]: last_verified 149d ago (> 120d SLO)",
                 "severity": "WARN"
               }
             ],
@@ -802,27 +802,27 @@
           "value": {
             "dirty": false,
             "ref": "dev",
-            "sha": "8f0927c3feb202d5ec1cce157f72296df56d33c0",
-            "short": "8f0927c3fe"
+            "sha": "76082eb0ab17c0cd2857ad1cc3f451d283ac46f9",
+            "short": "76082eb0ab"
           }
         },
-        "generated_at": "2026-11-05T04:38:42.048418+00:00",
+        "generated_at": "2026-11-06T04:40:31.187750+00:00",
         "platform": "Linux",
         "provenance": {
           "build_flags": {
             "available": false,
             "reason": "no CMakeCache.txt found"
           },
-          "collected_at": "2026-11-05T04:38:42.048330+00:00",
+          "collected_at": "2026-11-06T04:40:31.187656+00:00",
           "git": {
             "dirty": false,
             "ref": "dev",
-            "sha": "8f0927c3feb202d5ec1cce157f72296df56d33c0",
-            "short": "8f0927c3fe"
+            "sha": "76082eb0ab17c0cd2857ad1cc3f451d283ac46f9",
+            "short": "76082eb0ab"
           },
           "platform": {
             "machine": "x86_64",
-            "python": "3.12.15",
+            "python": "3.12.16",
             "release": "7.0.0-1017-azure",
             "system": "Linux"
           },
@@ -839,7 +839,7 @@
           },
           "version": "4.7.0"
         },
-        "run_id": "audit_gate-8f0927c3fe-20261105T043842",
+        "run_id": "audit_gate-76082eb0ab-20261106T044031",
         "runner": "audit_gate",
         "schema_version": "1.0.0",
         "sections": [
@@ -994,7 +994,7 @@
               {
                 "check_id": "p6__graph_freshness",
                 "severity": "pass",
-                "title": "Graph is fresh (built: 2026-11-05T04:37:22)"
+                "title": "Graph is fresh (built: 2026-11-06T04:38:12)"
               }
             ],
             "name": "P6: Graph Freshness",
@@ -1229,12 +1229,12 @@
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "info",
-                "title": "Mutation report age: 204.9 days (threshold: 14)"
+                "title": "Mutation report age: 205.9 days (threshold: 14)"
               },
               {
                 "check_id": "p2__mutation_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "Mutation report is stale (204.9 > 14 days) \u2014 rerun recommended"
+                "title": "Mutation report is stale (205.9 > 14 days) \u2014 rerun recommended"
               }
             ],
             "name": "P2: Mutation Evidence Freshness",
@@ -1529,22 +1529,22 @@
               {
                 "check_id": "g-13__integration_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "INT-CROSS-LIBSECP [warning]: last_verified 150d ago (> 45d freshness SLO)"
+                "title": "INT-CROSS-LIBSECP [warning]: last_verified 151d ago (> 45d freshness SLO)"
               },
               {
                 "check_id": "g-13__integration_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "INT-DER-BLOCK704789 [warning]: last_verified 145d ago (> 60d freshness SLO)"
+                "title": "INT-DER-BLOCK704789 [warning]: last_verified 146d ago (> 60d freshness SLO)"
               },
               {
                 "check_id": "g-13__integration_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "INT-ECDSA-CACHE-SAMEX [warning]: last_verified 145d ago (> 60d freshness SLO)"
+                "title": "INT-ECDSA-CACHE-SAMEX [warning]: last_verified 146d ago (> 60d freshness SLO)"
               },
               {
                 "check_id": "g-13__integration_evidence_freshness",
                 "severity": "advisory:medium",
-                "title": "INT-SCHNORR-VERIFY [warning]: last_verified 145d ago (> 60d freshness SLO)"
+                "title": "INT-SCHNORR-VERIFY [warning]: last_verified 146d ago (> 60d freshness SLO)"
               },
               {
                 "check_id": "g-13__integration_evidence_freshness",
@@ -1596,7 +1596,7 @@
               {
                 "check_id": "g-15__fuzz_campaign_evidence",
                 "severity": "advisory:medium",
-                "title": "FUZZ-MUSIG2-FROST-STATEFUL [warning]: campaign evidence last_verified 154d ago (> 120d SLO)"
+                "title": "FUZZ-MUSIG2-FROST-STATEFUL [warning]: campaign evidence last_verified 155d ago (> 120d SLO)"
               },
               {
                 "check_id": "g-15__fuzz_campaign_evidence",
@@ -1622,22 +1622,22 @@
               {
                 "check_id": "g-16__gpu/hardware_evidence",
                 "severity": "advisory:medium",
-                "title": "GPU-CUDA-PUBLIC-DATA [warning]: last_verified 145d ago (> 90d SLO)"
+                "title": "GPU-CUDA-PUBLIC-DATA [warning]: last_verified 146d ago (> 90d SLO)"
               },
               {
                 "check_id": "g-16__gpu/hardware_evidence",
                 "severity": "advisory:medium",
-                "title": "GPU-OPENCL-PUBLIC-DATA [warning]: last_verified 145d ago (> 90d SLO)"
+                "title": "GPU-OPENCL-PUBLIC-DATA [warning]: last_verified 146d ago (> 90d SLO)"
               },
               {
                 "check_id": "g-16__gpu/hardware_evidence",
                 "severity": "advisory:medium",
-                "title": "GPU-METAL-PUBLIC-DATA [warning]: last_verified 145d ago (> 90d SLO)"
+                "title": "GPU-METAL-PUBLIC-DATA [warning]: last_verified 146d ago (> 90d SLO)"
               },
               {
                 "check_id": "g-16__gpu/hardware_evidence",
                 "severity": "info",
-                "title": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md) \u2014 last_verified 188d ago (past 120d)"
+                "title": "GPU-SCHNORR-SNARK-FALLBACK: documented residual RR-005 (RESIDUAL_RISK_REGISTER.md) \u2014 last_verified 189d ago (past 120d)"
               },
               {
                 "check_id": "g-16__gpu/hardware_evidence",
@@ -1652,7 +1652,7 @@
               {
                 "check_id": "g-16__gpu/hardware_evidence",
                 "severity": "advisory:medium",
-                "title": "GPU-CONTEXT-THREAD-SAFETY [warning]: last_verified 148d ago (> 120d SLO)"
+                "title": "GPU-CONTEXT-THREAD-SAFETY [warning]: last_verified 149d ago (> 120d SLO)"
               }
             ],
             "name": "G-16: GPU/Hardware Evidence",
@@ -1717,8 +1717,8 @@
       "passing": true,
       "required": true,
       "returncode": 0,
-      "stderr_sha256": "735b4c44239a4b223c38b4a9192462889ea099d02024d4b0f790fcdf6a9049a9",
-      "stdout_sha256": "914fa5a70818258ffc5e27f573ec0b7ba14502636301bfafe614cc2fa57c628f"
+      "stderr_sha256": "78fe6cb989d52e63a5ee07c14d252c84cf8e78d485b43df55cd96208a3101ca3",
+      "stdout_sha256": "9fda176f80d766d2d8394b69695af6fbf02f1ee12b44dc1eeee0803a179b2ba0"
     },
     {
       "name": "audit_gap_report_strict",
@@ -2020,13 +2020,13 @@
         "gates_skipped": 0,
         "gates_total": 8,
         "overall_pass": true,
-        "timestamp": "2026-11-05T04:38:45.156915+00:00"
+        "timestamp": "2026-11-06T04:40:35.218937+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "5c1fda56e5316791effffaec79999ea1b238dc61919c433dde3d65fc1487e4b8"
+      "stdout_sha256": "9908d7e9f83f32a3e7d8c626265c6014cc6261eb4e9b6a9b23558eabe5f202ea"
     },
     {
       "name": "supply_chain_gate",
@@ -2072,26 +2072,26 @@
         "checks_total": 5,
         "failing_checks": [],
         "overall_pass": true,
-        "timestamp": "2026-11-05T04:38:45.201853+00:00"
+        "timestamp": "2026-11-06T04:40:35.272195+00:00"
       },
       "passing": true,
       "required": true,
       "returncode": 0,
       "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "stdout_sha256": "51b0ed56efc80e380f26dd0b86a54d9d93ce89a9fb4065b78589cf3eee90360b"
+      "stdout_sha256": "d33959b2f1d3e3bd30e823d2416d0590fe9441d30de01e8f5b481ca23f0bcab5"
     }
   ],
-  "generated_at": "2026-11-05T04:38:45.223731+00:00",
+  "generated_at": "2026-11-06T04:40:35.296469+00:00",
   "git": {
     "branch": "dev",
-    "commit": "8f0927c3feb202d5ec1cce157f72296df56d33c0",
+    "commit": "76082eb0ab17c0cd2857ad1cc3f451d283ac46f9",
     "dirty": true
   },
   "repo_root": "/home/runner/work/UltrafastSecp256k1/UltrafastSecp256k1",
   "runtime": {
     "machine": "x86_64",
     "platform": "Linux-7.0.0-1017-azure-x86_64-with-glibc2.39",
-    "python": "3.12.15"
+    "python": "3.12.16"
   },
   "schema_version": "1.0.0",
   "summary": {
