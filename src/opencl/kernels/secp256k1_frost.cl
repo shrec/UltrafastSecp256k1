@@ -54,7 +54,11 @@ static inline void frost_scalar_from_global(const __global uchar* bytes32,
 // -----------------------------------------------------------------------------
 // Convert a JacobianPoint to affine x bytes (big-endian) and y-parity.
 // Returns 0 if the point is at infinity, 1 on success.
-// Uses field_inv_impl to normalize Z if Z != 1.
+// Uses the variable-time field_inv_var_impl to normalize Z if Z != 1. Its only
+// caller is frost_verify_partial, whose points (z_i*G and R_i + lambda_i_e*Y_i)
+// are built from public partial-signature data only: z_i, D_i, E_i, Y_i, rho_i
+// and lambda_i*e are all published to the aggregator. A signer must not call
+// this helper.
 // -----------------------------------------------------------------------------
 static inline int frost_jac_to_affine_bytes(const JacobianPoint* p,
                                       uchar x_out[32],
@@ -74,7 +78,7 @@ static inline int frost_jac_to_affine_bytes(const JacobianPoint* p,
         y_aff = p->y;
     } else {
         FieldElement z_inv, z_inv2, z_inv3;
-        field_inv_impl(&z_inv, &p->z);
+        field_inv_var_impl(&z_inv, &p->z);
         field_sqr_impl(&z_inv2, &z_inv);
         field_mul_impl(&z_inv3, &z_inv2, &z_inv);
         field_mul_impl(&x_aff, &p->x, &z_inv2);

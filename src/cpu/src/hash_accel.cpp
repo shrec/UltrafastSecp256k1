@@ -22,6 +22,7 @@
 
 #include "secp256k1/hash_accel.hpp"
 #include "secp256k1/sha256.hpp"
+#include "secp256k1/cpu_features.hpp"
 
 #include <cstring>
 
@@ -52,32 +53,9 @@ namespace secp256k1::hash {
 // Feature Detection -- cached (CPUID is expensive: ~100+ cycles per call)
 // ============================================================================
 
-#ifdef SECP256K1_X86_TARGET
-static struct CpuFeatures {
-    bool sha_ni;
-    bool avx2;
-    bool avx512;
-
-    CpuFeatures() noexcept {
-    #ifdef _MSC_VER
-        int info[4];
-        __cpuidex(info, 7, 0);
-        sha_ni = (info[1] & (1 << 29)) != 0;
-        avx2   = (info[1] & (1 << 5))  != 0;
-        avx512 = (info[1] & (1 << 16)) != 0;
-    #elif defined(__GNUC__) || defined(__clang__)
-        unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
-        if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
-            sha_ni = (ebx & (1 << 29)) != 0;
-            avx2   = (ebx & (1 << 5))  != 0;
-            avx512 = (ebx & (1 << 16)) != 0;
-        } else {
-            sha_ni = avx2 = avx512 = false;
-        }
-    #endif
-    }
-} const g_cpu_features;
-#endif
+// The probe itself lives in secp256k1/cpu_features.hpp (one cached, maskable
+// view shared by every dispatcher). Masking (UFSECP_CPU_DISABLE) can only move
+// these onto the portable scalar path -- never onto a path the CPU lacks.
 
 bool sha_ni_available() noexcept {
 #if defined(__has_feature)
@@ -88,7 +66,7 @@ bool sha_ni_available() noexcept {
   #endif
 #endif
 #ifdef SECP256K1_X86_TARGET
-    return g_cpu_features.sha_ni;
+    return secp256k1::cpu_features().sha_ni;
 #else
     return false;
 #endif
@@ -96,7 +74,7 @@ bool sha_ni_available() noexcept {
 
 bool avx2_available() noexcept {
 #ifdef SECP256K1_X86_TARGET
-    return g_cpu_features.avx2;
+    return secp256k1::cpu_features().avx2;
 #else
     return false;
 #endif
@@ -104,7 +82,7 @@ bool avx2_available() noexcept {
 
 bool avx512_available() noexcept {
 #ifdef SECP256K1_X86_TARGET
-    return g_cpu_features.avx512;
+    return secp256k1::cpu_features().avx512f;
 #else
     return false;
 #endif

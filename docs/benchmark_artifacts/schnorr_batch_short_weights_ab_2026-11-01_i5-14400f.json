@@ -1,0 +1,667 @@
+{
+  "report_type": "schnorr_batch_short_weights_ab",
+  "generated_by": "bench_unified --suite extended --json <file>; per-run JSON parsed by a script, no number typed by hand",
+  "date": "2026-11-01",
+  "cpu": "Intel(R) Core(TM) i5-14400F",
+  "compiler": "GCC 14.2.0 (/usr/bin/c++), audit preset flags: -O3 -march=native -flto -ffat-lto-objects -fopenmp (identical build.ninja for both binaries)",
+  "conditions": {
+    "pinning": "taskset -c 2",
+    "scaling_governor_cpu2": "powersave",
+    "intel_pstate_no_turbo": "0",
+    "note": "no root in the worker sandbox: governor could not be set to performance and turbo could not be disabled, so this is NOT a canonical bench_unified run; the A/B claim rests only on non-overlapping ranges of alternating runs on the same machine"
+  },
+  "method": "base (task base commit 14e803b2) and new (this change) bench_unified binaries built from the same build.ninja, run alternately base,new,base,new,... 5 whole-binary runs each; ns_per_op_runs lists per-run values in run order; each value is bench_unified's own 11-pass IQR median",
+  "what_changed": "schnorr_batch_verify: BIP-340 batch weights a_0 = 1, a_i = 128-bit odd; R terms enter the MSM unsplit, only a_i*e_i is GLV-split; one Pippenger pass over 3N points (pippenger_msm_glv_short) instead of msm() over 4N; kSchnorrBatchIndividualCutoff 38 -> 27",
+  "bench_invocation": "taskset -c 2 /lib64/ld-linux-x86-64.so.2 bench_unified --suite extended --json <file>",
+  "binary_sha256": {
+    "base": "d2c9b4f24e788c4efd16af25eda8a2aed54271a0c0b05110869d7ae5ae1c693d",
+    "new": "6d98209985f71caa763eaf1244f1a809ecd67d7f45e7b7d4ca8c002b1e233f80"
+  },
+  "bench_unified_json_header": {
+    "generated_by": "bench_unified --json",
+    "date": "2026-11-01",
+    "cpu": "Intel(R) Core(TM) i5-14400F",
+    "compiler": "GCC 14.2.0",
+    "arch": "x86-64",
+    "timer": "RDTSCP",
+    "tsc_ghz": 2.496,
+    "passes": 11,
+    "warmup": 500,
+    "pool_size": 64,
+    "turbo": "enabled",
+    "run_mode": "full"
+  },
+  "runs_per_tag": 5,
+  "tags": [
+    "base",
+    "new"
+  ],
+  "note_rows_below_cutoff": "N=4 and N=16 are below both cutoffs (38 before, 27 after) and run per-signature verification in both binaries",
+  "rows": [
+    {
+      "row": "schnorr_batch_verify(N=4)",
+      "base": {
+        "ns_per_op_runs": [
+          74961.88,
+          120512.99,
+          156149.86,
+          83999.7,
+          84169.34
+        ],
+        "median": 84169.34,
+        "min": 74961.88,
+        "max": 156149.86
+      },
+      "new": {
+        "ns_per_op_runs": [
+          90477.04,
+          84650.66,
+          85264.57,
+          86098.19,
+          84512.98
+        ],
+        "median": 85264.57,
+        "min": 84512.98,
+        "max": 90477.04
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": 1.3
+    },
+    {
+      "row": "schnorr_batch_verify(N=16)",
+      "base": {
+        "ns_per_op_runs": [
+          299192.67,
+          338832.7,
+          490650.89,
+          337525.43,
+          335611.75
+        ],
+        "median": 337525.43,
+        "min": 299192.67,
+        "max": 490650.89
+      },
+      "new": {
+        "ns_per_op_runs": [
+          355075.93,
+          337979.24,
+          350225.21,
+          336310.92,
+          340842.64
+        ],
+        "median": 340842.64,
+        "min": 336310.92,
+        "max": 355075.93
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": 0.98
+    },
+    {
+      "row": "schnorr_batch_verify(N=64)",
+      "base": {
+        "ns_per_op_runs": [
+          1164590.92,
+          1289273.41,
+          1668069.72,
+          1281483.97,
+          1282061.45
+        ],
+        "median": 1282061.45,
+        "min": 1164590.92,
+        "max": 1668069.72
+      },
+      "new": {
+        "ns_per_op_runs": [
+          1100581.53,
+          1098383.65,
+          1110396.28,
+          1099050.42,
+          1097118.66
+        ],
+        "median": 1099050.42,
+        "min": 1097118.66,
+        "max": 1110396.28
+      },
+      "ranges": "no overlap, faster",
+      "median_change_pct": -14.27
+    },
+    {
+      "row": "schnorr_batch_verify(N=128)",
+      "base": {
+        "ns_per_op_runs": [
+          1933207.84,
+          2988654.16,
+          2536956.27,
+          2094032.23,
+          2063548.97
+        ],
+        "median": 2094032.23,
+        "min": 1933207.84,
+        "max": 2988654.16
+      },
+      "new": {
+        "ns_per_op_runs": [
+          1749575.06,
+          1701433.22,
+          1712616.54,
+          1704320.35,
+          1699398.69
+        ],
+        "median": 1704320.35,
+        "min": 1699398.69,
+        "max": 1749575.06
+      },
+      "ranges": "no overlap, faster",
+      "median_change_pct": -18.61
+    },
+    {
+      "row": "schnorr_batch_verify(N=192)",
+      "base": {
+        "ns_per_op_runs": [
+          2695859.29,
+          5151579.14,
+          5015885.36,
+          4219920.07,
+          2977219.13
+        ],
+        "median": 4219920.07,
+        "min": 2695859.29,
+        "max": 5151579.14
+      },
+      "new": {
+        "ns_per_op_runs": [
+          2327284.54,
+          2293440.93,
+          2293170.83,
+          2485026.4,
+          2308395.5
+        ],
+        "median": 2308395.5,
+        "min": 2293170.83,
+        "max": 2485026.4
+      },
+      "ranges": "no overlap, faster",
+      "median_change_pct": -45.3
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=4)",
+      "base": {
+        "ns_per_op_runs": [
+          77628.6,
+          89415.25,
+          110396.12,
+          86155.39,
+          86448.2
+        ],
+        "median": 86448.2,
+        "min": 77628.6,
+        "max": 110396.12
+      },
+      "new": {
+        "ns_per_op_runs": [
+          95065.63,
+          86468.81,
+          106313.27,
+          95466.12,
+          86165.29
+        ],
+        "median": 95065.63,
+        "min": 86165.29,
+        "max": 106313.27
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": 9.97
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=16)",
+      "base": {
+        "ns_per_op_runs": [
+          318655.1,
+          356189.51,
+          567424.78,
+          350737.44,
+          356671.05
+        ],
+        "median": 356189.51,
+        "min": 318655.1,
+        "max": 567424.78
+      },
+      "new": {
+        "ns_per_op_runs": [
+          352629.35,
+          345805.43,
+          409539.68,
+          346102.73,
+          345342.49
+        ],
+        "median": 346102.73,
+        "min": 345342.49,
+        "max": 409539.68
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": -2.83
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=64)",
+      "base": {
+        "ns_per_op_runs": [
+          1108886.05,
+          1126437.07,
+          1473849.15,
+          1110035.32,
+          1197941.22
+        ],
+        "median": 1126437.07,
+        "min": 1108886.05,
+        "max": 1473849.15
+      },
+      "new": {
+        "ns_per_op_runs": [
+          1034672.21,
+          941402.46,
+          942348.55,
+          941244.77,
+          935512.52
+        ],
+        "median": 941402.46,
+        "min": 935512.52,
+        "max": 1034672.21
+      },
+      "ranges": "no overlap, faster",
+      "median_change_pct": -16.43
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=128)",
+      "base": {
+        "ns_per_op_runs": [
+          1875289.7,
+          2629741.14,
+          3121935.54,
+          1950494.51,
+          1895670.0
+        ],
+        "median": 1950494.51,
+        "min": 1875289.7,
+        "max": 3121935.54
+      },
+      "new": {
+        "ns_per_op_runs": [
+          1539622.87,
+          1539480.57,
+          1560637.12,
+          2087428.97,
+          1541670.4
+        ],
+        "median": 1541670.4,
+        "min": 1539480.57,
+        "max": 2087428.97
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": -20.96
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=192)",
+      "base": {
+        "ns_per_op_runs": [
+          2630069.7,
+          2645212.41,
+          4459993.42,
+          5288941.04,
+          2700515.72
+        ],
+        "median": 2700515.72,
+        "min": 2630069.7,
+        "max": 5288941.04
+      },
+      "new": {
+        "ns_per_op_runs": [
+          2133090.97,
+          2133696.5,
+          2136229.3,
+          2147383.29,
+          2147009.39
+        ],
+        "median": 2136229.3,
+        "min": 2133090.97,
+        "max": 2147383.29
+      },
+      "ranges": "no overlap, faster",
+      "median_change_pct": -20.9
+    }
+  ],
+  "window_sweep_us_per_msm": {
+    "harness": "copy of candidate pippenger.cpp with pippenger_short_window forced to c, linked ahead of the candidate libfastsecp256k1.a; every c gated on equality with pippenger_msm_glv over the same terms; taskset -c 2; median of 7 reps (sweep1) / 5 reps (sweep2)",
+    "runs": {
+      "sweep1": [
+        {
+          "N": 39,
+          "m": 117,
+          "us_per_msm": {
+            "c=5": 594.6,
+            "c=6": 636.5,
+            "c=7": 585.7,
+            "c=8": 729.3,
+            "c=9": 996.0,
+            "c=10": 1519.5
+          },
+          "best_c": 7
+        },
+        {
+          "N": 48,
+          "m": 144,
+          "us_per_msm": {
+            "c=5": 662.3,
+            "c=6": 736.3,
+            "c=7": 660.7,
+            "c=8": 770.3,
+            "c=9": 1137.7,
+            "c=10": 1565.8
+          },
+          "best_c": 7
+        },
+        {
+          "N": 64,
+          "m": 192,
+          "us_per_msm": {
+            "c=5": 820.4,
+            "c=6": 868.4,
+            "c=7": 821.5,
+            "c=8": 887.1,
+            "c=9": 1165.5,
+            "c=10": 1661.0
+          },
+          "best_c": 5
+        },
+        {
+          "N": 96,
+          "m": 288,
+          "us_per_msm": {
+            "c=5": 1160.8,
+            "c=6": 1120.9,
+            "c=7": 1031.3,
+            "c=8": 1132.4,
+            "c=9": 1356.4,
+            "c=10": 1830.7
+          },
+          "best_c": 7
+        },
+        {
+          "N": 128,
+          "m": 384,
+          "us_per_msm": {
+            "c=5": 1445.6,
+            "c=6": 1361.6,
+            "c=7": 1253.9,
+            "c=8": 1374.1,
+            "c=9": 1578.1,
+            "c=10": 2124.9
+          },
+          "best_c": 7
+        },
+        {
+          "N": 192,
+          "m": 576,
+          "us_per_msm": {
+            "c=5": 2059.3,
+            "c=6": 1942.3,
+            "c=7": 1707.3,
+            "c=8": 1882.5,
+            "c=9": 2053.3,
+            "c=10": 2502.7
+          },
+          "best_c": 7
+        }
+      ],
+      "sweep2": [
+        {
+          "N": 192,
+          "m": 576,
+          "us_per_msm": {
+            "c=6": 1866.4,
+            "c=7": 1691.9,
+            "c=8": 1765.2,
+            "c=9": 1974.7,
+            "c=10": 2460.9,
+            "c=11": 3229.1
+          },
+          "best_c": 7
+        },
+        {
+          "N": 256,
+          "m": 768,
+          "us_per_msm": {
+            "c=6": 2372.5,
+            "c=7": 2431.3,
+            "c=8": 2234.3,
+            "c=9": 2560.0,
+            "c=10": 2867.2,
+            "c=11": 3668.7
+          },
+          "best_c": 8
+        },
+        {
+          "N": 512,
+          "m": 1536,
+          "us_per_msm": {
+            "c=6": 4477.1,
+            "c=7": 4198.0,
+            "c=8": 3842.5,
+            "c=9": 4213.5,
+            "c=10": 4506.4,
+            "c=11": 5268.1
+          },
+          "best_c": 8
+        },
+        {
+          "N": 1024,
+          "m": 3072,
+          "us_per_msm": {
+            "c=6": 8321.2,
+            "c=7": 7806.7,
+            "c=8": 7071.8,
+            "c=9": 7267.1,
+            "c=10": 7315.3,
+            "c=11": 8217.8
+          },
+          "best_c": 8
+        },
+        {
+          "N": 2048,
+          "m": 6144,
+          "us_per_msm": {
+            "c=6": 16292.5,
+            "c=7": 16055.3,
+            "c=8": 13594.2,
+            "c=9": 13306.5,
+            "c=10": 12135.5,
+            "c=11": 12629.7
+          },
+          "best_c": 10
+        },
+        {
+          "N": 4096,
+          "m": 12288,
+          "us_per_msm": {
+            "c=6": 32738.8,
+            "c=7": 31801.1,
+            "c=8": 27212.6,
+            "c=9": 25586.2,
+            "c=10": 23435.1,
+            "c=11": 24464.9
+          },
+          "best_c": 10
+        }
+      ]
+    }
+  },
+  "cutoff_sweep_us_per_sig": {
+    "harness": "copy of candidate batch_verify.cpp with kSchnorrBatchIndividualCutoff = 1 (MSM path forced), individual = loop of schnorr_verify; taskset -c 2; median of 7 reps; microseconds per signature",
+    "columns": [
+      "N",
+      "individual",
+      "msm",
+      "cached_individual",
+      "cached_msm"
+    ],
+    "runs": {
+      "cutoff1": [
+        [
+          16,
+          20.62,
+          25.79,
+          21.01,
+          21.83
+        ],
+        [
+          24,
+          20.62,
+          20.78,
+          20.25,
+          22.14
+        ],
+        [
+          28,
+          20.24,
+          19.96,
+          19.65,
+          16.99
+        ],
+        [
+          32,
+          20.87,
+          18.49,
+          19.82,
+          18.04
+        ],
+        [
+          36,
+          23.73,
+          18.77,
+          20.51,
+          16.21
+        ],
+        [
+          40,
+          19.89,
+          16.69,
+          19.57,
+          15.65
+        ],
+        [
+          44,
+          20.04,
+          17.22,
+          21.77,
+          14.66
+        ],
+        [
+          48,
+          20.67,
+          15.78,
+          20.76,
+          14.67
+        ],
+        [
+          56,
+          20.54,
+          15.48,
+          20.73,
+          16.9
+        ],
+        [
+          64,
+          22.02,
+          16.25,
+          20.43,
+          12.97
+        ],
+        [
+          96,
+          20.68,
+          13.76,
+          20.56,
+          12.43
+        ]
+      ],
+      "cutoff2": [
+        [
+          16,
+          20.58,
+          22.15,
+          19.39,
+          24.08
+        ],
+        [
+          24,
+          20.13,
+          19.68,
+          21.45,
+          19.92
+        ],
+        [
+          28,
+          19.68,
+          18.2,
+          21.5,
+          19.05
+        ],
+        [
+          32,
+          20.08,
+          18.17,
+          21.55,
+          16.87
+        ],
+        [
+          36,
+          21.03,
+          19.37,
+          21.69,
+          17.68
+        ],
+        [
+          40,
+          20.84,
+          18.33,
+          21.72,
+          16.97
+        ],
+        [
+          44,
+          21.5,
+          18.19,
+          21.8,
+          15.91
+        ],
+        [
+          48,
+          21.48,
+          16.98,
+          21.72,
+          15.78
+        ],
+        [
+          56,
+          20.28,
+          16.55,
+          20.89,
+          13.74
+        ],
+        [
+          64,
+          20.93,
+          16.5,
+          21.46,
+          14.49
+        ],
+        [
+          96,
+          22.77,
+          15.27,
+          22.21,
+          13.2
+        ]
+      ]
+    }
+  }
+}

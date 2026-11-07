@@ -1,0 +1,18 @@
+[package]
+name = "ufsecp-core"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Experimental native Rust public arithmetic backend for UltrafastSecp256k1"
+publish = false
+
+[[example]]
+name = "cuda_probe"
+crate-type = ["cdylib"]
+
+[workspace]
+
+[target.'cfg(not(target_arch = "nvptx64"))'.dev-dependencies]
+num-bigint = "0.4"
+secp256k1 = "0.33.1"
+cudarc = { version = "0.19.9", features = ["cuda-12000"] }

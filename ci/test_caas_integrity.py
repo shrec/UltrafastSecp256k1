@@ -351,6 +351,62 @@ def test_evidence_governance_mixed_key_validation():
     )
 
 
+def test_evidence_governance_ci_record_without_secret():
+    """CAAS-KEY-5: without CAAS_HMAC_KEY (a local checkout, a fork PR) a record the
+    refresh lane signed in CI with the secret cannot be checked; it is reported as
+    unverified, not as tamper. A local record with a bad signature is still tamper."""
+    gov_path = SCRIPT_DIR / "evidence_governance.py"
+    if not gov_path.exists():
+        return
+
+    old_key = os.environ.pop("CAAS_HMAC_KEY", None)
+    try:
+        mod = load_module(gov_path)
+    finally:
+        if old_key is not None:
+            os.environ["CAAS_HMAC_KEY"] = old_key
+    if mod is None or not mod._HMAC_KEY_IS_DEFAULT:
+        check(False, "CAAS-KEY-5: evidence_governance loads with the public key")
+        return
+
+    def rec(who, signed_by_ci, key):
+        r = {"who": who, "what": "w", "when": "2026-11-02T00:00:00+00:00",
+             "commit": "32cb040431ac30a18b9191b702ecc29cb23f806d", "binary_hash": "n/a",
+             "verdict": "pass", "reason": "r", "signed_by_ci": signed_by_ci}
+        r["signature"] = mod._compute_hmac_with_key(r, key)
+        return r
+
+    local = rec("local", False, mod._HMAC_KEY_DEFAULT_BYTES)
+    ci_signed = rec("ci", True, b"secret-this-checkout-does-not-hold")
+    forged_local = rec("forged", False, b"not-the-public-key")
+
+    def validate(records):
+        old_chain_file = mod.EVIDENCE_CHAIN_FILE
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                chain_file = Path(tmpdir) / "EVIDENCE_CHAIN.json"
+                chain_file.write_text(json.dumps({"version": 1, "records": records}),
+                                      encoding="utf-8")
+                mod.EVIDENCE_CHAIN_FILE = chain_file
+                return mod.validate_chain()
+        finally:
+            mod.EVIDENCE_CHAIN_FILE = old_chain_file
+
+    ok = validate([local, ci_signed])
+    check(
+        ok.get("chain_valid") is True and ok.get("ci_signed_unverified_records") == [1]
+        and ok.get("tampered_records") == [],
+        "CAAS-KEY-5: a CI-signed record is unverified, not tamper, without the secret",
+        f"unexpected result: {ok}",
+    )
+    bad = validate([local, ci_signed, forged_local])
+    check(
+        bad.get("chain_valid") is False and bad.get("tampered_records") == [2],
+        "CAAS-KEY-6: a local record with a bad signature is still tamper without the secret",
+        f"unexpected result: {bad}",
+    )
+
+
 # ============================================================================
 # CAAS-003: ci_gate_detect hard-profile classification precedence
 # ============================================================================
@@ -628,6 +684,7 @@ def main():
     test_evidence_governance_hmac_reason()
     test_hmac_key_env_override()
     test_evidence_governance_mixed_key_validation()
+    test_evidence_governance_ci_record_without_secret()
     test_ci_gate_detect_hard_profile_precedence()
     test_ci_gate_detect_push_uses_before_sha_not_base()
     test_external_bundle_commit_mismatch_blocks()

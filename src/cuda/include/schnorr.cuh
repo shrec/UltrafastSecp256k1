@@ -298,9 +298,10 @@ __device__ inline bool schnorr_verify(
 
     if (R.infinity) return false;
 
-    // Convert R to affine
+    // Convert R to affine. Variable-time inverse: R = s*G - e*P is a function
+    // of the signature, the challenge and the x-only public key, all public.
     FieldElement rz_inv, rz_inv2, rz_inv3, rx_aff, ry_aff;
-    field_inv(&R.z, &rz_inv);
+    field_inv_var(&R.z, &rz_inv);
     field_sqr(&rz_inv, &rz_inv2);
     field_mul(&rz_inv, &rz_inv2, &rz_inv3);
     field_mul(&R.x, &rz_inv2, &rx_aff);
@@ -538,7 +539,7 @@ __device__ inline bool schnorr_verify_xonly(
     if (R.infinity) return false;
 
     FieldElement rz_inv, rz_inv2, rz_inv3, rx_aff, ry_aff;
-    field_inv(&R.z, &rz_inv);
+    field_inv_var(&R.z, &rz_inv);          // R = s*G - e*P: function of public (s, e, P)
     field_sqr(&rz_inv, &rz_inv2);
     field_mul(&rz_inv, &rz_inv2, &rz_inv3);
     field_mul(&R.x, &rz_inv2, &rx_aff);

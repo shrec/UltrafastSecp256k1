@@ -1,6 +1,6 @@
 Pod::Spec.new do |s|
   s.name         = "UltrafastSecp256k1"
-  s.version      = "4.6.2"
+  s.version      = "4.7.0"
   s.summary      = "Ultra high-performance secp256k1 elliptic curve cryptography"
   s.description  = <<-DESC
     Hardware-accelerated secp256k1 library with ARM64 inline assembly,

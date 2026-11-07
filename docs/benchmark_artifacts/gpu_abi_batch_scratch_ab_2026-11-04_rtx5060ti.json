@@ -1,0 +1,1534 @@
+{
+  "report_type": "ab_gpu-abi-batch-scratch",
+  "generated_by": "abi_ab.sh driving bench_gpu_abi_batch --json (every number copied from the harness JSON)",
+  "date": "2026-11-04T16:42:05.797658+00:00",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "gpu": "NVIDIA GeForce RTX 5060 Ti, driver 580.196.07",
+  "invocation": "bench_gpu_abi_batch --backend <cuda|opencl> --json <file> (defaults: --passes 11 --warmup 2, sizes 1,16,256,4096,65536)",
+  "forms": {
+    "before": "src/gpu/src/gpu_backend_{cuda.cu,opencl.cpp} at HEAD 784c9a75 (per-call device allocations)",
+    "after": "the same two files with grow-only per-backend device scratch (gpu-abi-scratch-buffers-v2)"
+  },
+  "method": "one run of each binary; same build dirs and bench source, only the two backend TUs differ; each row is the median of 11 timed passes",
+  "verdict_rule": "faster iff after_max < before_min; slower iff after_min > before_max; else overlap",
+  "after_binaries": {
+    "cuda": {
+      "path": "out/cuda-release-5060ti/benchmarks/gpu/bench_gpu_abi_batch",
+      "sha256": "a875682d88b552a1d3798b1e9c532ec2458a74cd56fc27cb873c9825a70605c9"
+    },
+    "opencl": {
+      "path": "out/opencl-release/benchmarks/gpu/bench_gpu_abi_batch",
+      "sha256": "7f517622ee4d5aa098866c1b386c1e77fa81923adb7153274a508e580b455759"
+    }
+  },
+  "backends": {
+    "cuda": {
+      "rows": [
+        {
+          "op": "ecdsa_verify",
+          "batch": 1,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 884631,
+            "min_ns_per_call": 882779,
+            "max_ns_per_call": 897452,
+            "median_ns_per_item": 884631.0,
+            "items_per_sec": 1130.4
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 885966,
+            "min_ns_per_call": 882110,
+            "max_ns_per_call": 900053,
+            "median_ns_per_item": 885966.0,
+            "items_per_sec": 1128.7
+          },
+          "median_delta_pct": 0.15,
+          "verdict": "overlap"
+        },
+        {
+          "op": "ecdsa_verify",
+          "batch": 16,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 920332,
+            "min_ns_per_call": 918929,
+            "max_ns_per_call": 930011,
+            "median_ns_per_item": 57520.75,
+            "items_per_sec": 17385.0
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 916468,
+            "min_ns_per_call": 914398,
+            "max_ns_per_call": 926438,
+            "median_ns_per_item": 57279.25,
+            "items_per_sec": 17458.3
+          },
+          "median_delta_pct": -0.42,
+          "verdict": "overlap"
+        },
+        {
+          "op": "ecdsa_verify",
+          "batch": 256,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 967769,
+            "min_ns_per_call": 963578,
+            "max_ns_per_call": 971061,
+            "median_ns_per_item": 3780.348,
+            "items_per_sec": 264525.9
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 968058,
+            "min_ns_per_call": 964669,
+            "max_ns_per_call": 970088,
+            "median_ns_per_item": 3781.477,
+            "items_per_sec": 264447.0
+          },
+          "median_delta_pct": 0.03,
+          "verdict": "overlap"
+        },
+        {
+          "op": "ecdsa_verify",
+          "batch": 4096,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1029848,
+            "min_ns_per_call": 1017633,
+            "max_ns_per_call": 1046994,
+            "median_ns_per_item": 251.428,
+            "items_per_sec": 3977286.0
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1020533,
+            "min_ns_per_call": 1017150,
+            "max_ns_per_call": 1040042,
+            "median_ns_per_item": 249.154,
+            "items_per_sec": 4013589.0
+          },
+          "median_delta_pct": -0.9,
+          "verdict": "overlap"
+        },
+        {
+          "op": "ecdsa_verify",
+          "batch": 65536,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 10543139,
+            "min_ns_per_call": 10509953,
+            "max_ns_per_call": 10734828,
+            "median_ns_per_item": 160.876,
+            "items_per_sec": 6215985.6
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdsa_verify",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 10949237,
+            "min_ns_per_call": 10664621,
+            "max_ns_per_call": 11086760,
+            "median_ns_per_item": 167.072,
+            "items_per_sec": 5985439.9
+          },
+          "median_delta_pct": 3.85,
+          "verdict": "overlap"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 1,
+          "before": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 809098,
+            "min_ns_per_call": 806447,
+            "max_ns_per_call": 820937,
+            "median_ns_per_item": 809098.0,
+            "items_per_sec": 1235.9
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 809406,
+            "min_ns_per_call": 808123,
+            "max_ns_per_call": 814726,
+            "median_ns_per_item": 809406.0,
+            "items_per_sec": 1235.5
+          },
+          "median_delta_pct": 0.04,
+          "verdict": "overlap"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 16,
+          "before": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 838963,
+            "min_ns_per_call": 837958,
+            "max_ns_per_call": 840328,
+            "median_ns_per_item": 52435.188,
+            "items_per_sec": 19071.2
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 840813,
+            "min_ns_per_call": 839695,
+            "max_ns_per_call": 853375,
+            "median_ns_per_item": 52550.812,
+            "items_per_sec": 19029.2
+          },
+          "median_delta_pct": 0.22,
+          "verdict": "overlap"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 256,
+          "before": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 883673,
+            "min_ns_per_call": 877793,
+            "max_ns_per_call": 897602,
+            "median_ns_per_item": 3451.848,
+            "items_per_sec": 289699.9
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 888208,
+            "min_ns_per_call": 883077,
+            "max_ns_per_call": 890463,
+            "median_ns_per_item": 3469.562,
+            "items_per_sec": 288220.8
+          },
+          "median_delta_pct": 0.51,
+          "verdict": "overlap"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 4096,
+          "before": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 950847,
+            "min_ns_per_call": 947207,
+            "max_ns_per_call": 956653,
+            "median_ns_per_item": 232.14,
+            "items_per_sec": 4307738.3
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 947464,
+            "min_ns_per_call": 944013,
+            "max_ns_per_call": 970393,
+            "median_ns_per_item": 231.314,
+            "items_per_sec": 4323119.4
+          },
+          "median_delta_pct": -0.36,
+          "verdict": "overlap"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 65536,
+          "before": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 10222318,
+            "min_ns_per_call": 10138454,
+            "max_ns_per_call": 10249060,
+            "median_ns_per_item": 155.98,
+            "items_per_sec": 6411070.4
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "schnorr_verify",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 10254808,
+            "min_ns_per_call": 10177954,
+            "max_ns_per_call": 10463905,
+            "median_ns_per_item": 156.476,
+            "items_per_sec": 6390758.4
+          },
+          "median_delta_pct": 0.32,
+          "verdict": "overlap"
+        },
+        {
+          "op": "hash160",
+          "batch": 1,
+          "before": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 52527,
+            "min_ns_per_call": 50299,
+            "max_ns_per_call": 55113,
+            "median_ns_per_item": 52527.0,
+            "items_per_sec": 19037.8
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 11323,
+            "min_ns_per_call": 10998,
+            "max_ns_per_call": 11483,
+            "median_ns_per_item": 11323.0,
+            "items_per_sec": 88315.8
+          },
+          "median_delta_pct": -78.44,
+          "verdict": "faster"
+        },
+        {
+          "op": "hash160",
+          "batch": 16,
+          "before": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 54756,
+            "min_ns_per_call": 50503,
+            "max_ns_per_call": 63129,
+            "median_ns_per_item": 3422.25,
+            "items_per_sec": 292205.4
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 11392,
+            "min_ns_per_call": 11186,
+            "max_ns_per_call": 11702,
+            "median_ns_per_item": 712.0,
+            "items_per_sec": 1404494.4
+          },
+          "median_delta_pct": -79.19,
+          "verdict": "faster"
+        },
+        {
+          "op": "hash160",
+          "batch": 256,
+          "before": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 55735,
+            "min_ns_per_call": 55168,
+            "max_ns_per_call": 56557,
+            "median_ns_per_item": 217.715,
+            "items_per_sec": 4593164.1
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 16878,
+            "min_ns_per_call": 16644,
+            "max_ns_per_call": 17386,
+            "median_ns_per_item": 65.93,
+            "items_per_sec": 15167673.9
+          },
+          "median_delta_pct": -69.72,
+          "verdict": "faster"
+        },
+        {
+          "op": "hash160",
+          "batch": 4096,
+          "before": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 94455,
+            "min_ns_per_call": 86044,
+            "max_ns_per_call": 99976,
+            "median_ns_per_item": 23.06,
+            "items_per_sec": 43364565.1
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 60631,
+            "min_ns_per_call": 47800,
+            "max_ns_per_call": 65961,
+            "median_ns_per_item": 14.802,
+            "items_per_sec": 67556200.6
+          },
+          "median_delta_pct": -35.81,
+          "verdict": "faster"
+        },
+        {
+          "op": "hash160",
+          "batch": 65536,
+          "before": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 651886,
+            "min_ns_per_call": 637778,
+            "max_ns_per_call": 665546,
+            "median_ns_per_item": 9.947,
+            "items_per_sec": 100532915.3
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "hash160",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 547224,
+            "min_ns_per_call": 541734,
+            "max_ns_per_call": 578685,
+            "median_ns_per_item": 8.35,
+            "items_per_sec": 119760829.2
+          },
+          "median_delta_pct": -16.06,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 1,
+          "before": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 795981,
+            "min_ns_per_call": 794585,
+            "max_ns_per_call": 802944,
+            "median_ns_per_item": 795981.0,
+            "items_per_sec": 1256.3
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 754746,
+            "min_ns_per_call": 754044,
+            "max_ns_per_call": 755107,
+            "median_ns_per_item": 754746.0,
+            "items_per_sec": 1324.9
+          },
+          "median_delta_pct": -5.18,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 16,
+          "before": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 799934,
+            "min_ns_per_call": 798845,
+            "max_ns_per_call": 800936,
+            "median_ns_per_item": 49995.875,
+            "items_per_sec": 20001.7
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 754839,
+            "min_ns_per_call": 754393,
+            "max_ns_per_call": 757373,
+            "median_ns_per_item": 47177.438,
+            "items_per_sec": 21196.6
+          },
+          "median_delta_pct": -5.64,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 256,
+          "before": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 810682,
+            "min_ns_per_call": 808092,
+            "max_ns_per_call": 837921,
+            "median_ns_per_item": 3166.727,
+            "items_per_sec": 315783.5
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 768704,
+            "min_ns_per_call": 767702,
+            "max_ns_per_call": 770828,
+            "median_ns_per_item": 3002.75,
+            "items_per_sec": 333028.1
+          },
+          "median_delta_pct": -5.18,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 4096,
+          "before": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 863895,
+            "min_ns_per_call": 852311,
+            "max_ns_per_call": 878852,
+            "median_ns_per_item": 210.912,
+            "items_per_sec": 4741316.9
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 813295,
+            "min_ns_per_call": 803653,
+            "max_ns_per_call": 818516,
+            "median_ns_per_item": 198.558,
+            "items_per_sec": 5036302.9
+          },
+          "median_delta_pct": -5.86,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 65536,
+          "before": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 7888206,
+            "min_ns_per_call": 7831257,
+            "max_ns_per_call": 8195279,
+            "median_ns_per_item": 120.364,
+            "items_per_sec": 8308099.5
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "generator_mul",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 7735213,
+            "min_ns_per_call": 7699061,
+            "max_ns_per_call": 7759465,
+            "median_ns_per_item": 118.03,
+            "items_per_sec": 8472423.4
+          },
+          "median_delta_pct": -1.94,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdh",
+          "batch": 1,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1423044,
+            "min_ns_per_call": 1420771,
+            "max_ns_per_call": 1445594,
+            "median_ns_per_item": 1423044.0,
+            "items_per_sec": 702.7
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1367676,
+            "min_ns_per_call": 1367257,
+            "max_ns_per_call": 1371915,
+            "median_ns_per_item": 1367676.0,
+            "items_per_sec": 731.2
+          },
+          "median_delta_pct": -3.89,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdh",
+          "batch": 16,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1423313,
+            "min_ns_per_call": 1419595,
+            "max_ns_per_call": 1430222,
+            "median_ns_per_item": 88957.062,
+            "items_per_sec": 11241.4
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1368632,
+            "min_ns_per_call": 1367930,
+            "max_ns_per_call": 1370093,
+            "median_ns_per_item": 85539.5,
+            "items_per_sec": 11690.5
+          },
+          "median_delta_pct": -3.84,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdh",
+          "batch": 256,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1430449,
+            "min_ns_per_call": 1430016,
+            "max_ns_per_call": 1444323,
+            "median_ns_per_item": 5587.691,
+            "items_per_sec": 178964.8
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1379510,
+            "min_ns_per_call": 1377121,
+            "max_ns_per_call": 1380936,
+            "median_ns_per_item": 5388.711,
+            "items_per_sec": 185573.1
+          },
+          "median_delta_pct": -3.56,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdh",
+          "batch": 4096,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1525158,
+            "min_ns_per_call": 1516984,
+            "max_ns_per_call": 1537956,
+            "median_ns_per_item": 372.353,
+            "items_per_sec": 2685623.4
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1461864,
+            "min_ns_per_call": 1455479,
+            "max_ns_per_call": 1467460,
+            "median_ns_per_item": 356.9,
+            "items_per_sec": 2801902.2
+          },
+          "median_delta_pct": -4.15,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdh",
+          "batch": 65536,
+          "before": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 16742891,
+            "min_ns_per_call": 16615526,
+            "max_ns_per_call": 16869358,
+            "median_ns_per_item": 255.476,
+            "items_per_sec": 3914258.3
+          },
+          "after": {
+            "backend": "CUDA",
+            "op": "ecdh",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 16542128,
+            "min_ns_per_call": 16467079,
+            "max_ns_per_call": 16719243,
+            "median_ns_per_item": 252.413,
+            "items_per_sec": 3961763.6
+          },
+          "median_delta_pct": -1.2,
+          "verdict": "overlap"
+        }
+      ]
+    },
+    "opencl": {
+      "rows": [
+        {
+          "op": "ecdsa_verify",
+          "batch": 1,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 830263,
+            "min_ns_per_call": 829037,
+            "max_ns_per_call": 846230,
+            "median_ns_per_item": 830263.0,
+            "items_per_sec": 1204.4
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 788198,
+            "min_ns_per_call": 785107,
+            "max_ns_per_call": 796773,
+            "median_ns_per_item": 788198.0,
+            "items_per_sec": 1268.7
+          },
+          "median_delta_pct": -5.07,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdsa_verify",
+          "batch": 16,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 852555,
+            "min_ns_per_call": 849338,
+            "max_ns_per_call": 862776,
+            "median_ns_per_item": 53284.688,
+            "items_per_sec": 18767.1
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 812959,
+            "min_ns_per_call": 810290,
+            "max_ns_per_call": 813511,
+            "median_ns_per_item": 50809.938,
+            "items_per_sec": 19681.2
+          },
+          "median_delta_pct": -4.64,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdsa_verify",
+          "batch": 256,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1285507,
+            "min_ns_per_call": 1268187,
+            "max_ns_per_call": 1315080,
+            "median_ns_per_item": 5021.512,
+            "items_per_sec": 199143.2
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1248728,
+            "min_ns_per_call": 1232364,
+            "max_ns_per_call": 1256680,
+            "median_ns_per_item": 4877.844,
+            "items_per_sec": 205008.6
+          },
+          "median_delta_pct": -2.86,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdsa_verify",
+          "batch": 4096,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1375681,
+            "min_ns_per_call": 1364937,
+            "max_ns_per_call": 1416363,
+            "median_ns_per_item": 335.86,
+            "items_per_sec": 2977434.4
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1298082,
+            "min_ns_per_call": 1286946,
+            "max_ns_per_call": 1303140,
+            "median_ns_per_item": 316.915,
+            "items_per_sec": 3155424.7
+          },
+          "median_delta_pct": -5.64,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdsa_verify",
+          "batch": 65536,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 11640383,
+            "min_ns_per_call": 11512639,
+            "max_ns_per_call": 11834222,
+            "median_ns_per_item": 177.618,
+            "items_per_sec": 5630055.3
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdsa_verify",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 11087565,
+            "min_ns_per_call": 10989721,
+            "max_ns_per_call": 11256302,
+            "median_ns_per_item": 169.183,
+            "items_per_sec": 5910765.8
+          },
+          "median_delta_pct": -4.75,
+          "verdict": "faster"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 1,
+          "before": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 830004,
+            "min_ns_per_call": 826573,
+            "max_ns_per_call": 840875,
+            "median_ns_per_item": 830004.0,
+            "items_per_sec": 1204.8
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 790190,
+            "min_ns_per_call": 789415,
+            "max_ns_per_call": 801106,
+            "median_ns_per_item": 790190.0,
+            "items_per_sec": 1265.5
+          },
+          "median_delta_pct": -4.8,
+          "verdict": "faster"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 16,
+          "before": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 854247,
+            "min_ns_per_call": 852479,
+            "max_ns_per_call": 857826,
+            "median_ns_per_item": 53390.438,
+            "items_per_sec": 18729.9
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 818253,
+            "min_ns_per_call": 815223,
+            "max_ns_per_call": 818735,
+            "median_ns_per_item": 51140.812,
+            "items_per_sec": 19553.9
+          },
+          "median_delta_pct": -4.21,
+          "verdict": "faster"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 256,
+          "before": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1279137,
+            "min_ns_per_call": 1273612,
+            "max_ns_per_call": 1290552,
+            "median_ns_per_item": 4996.629,
+            "items_per_sec": 200134.9
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1238375,
+            "min_ns_per_call": 1236340,
+            "max_ns_per_call": 1246819,
+            "median_ns_per_item": 4837.402,
+            "items_per_sec": 206722.5
+          },
+          "median_delta_pct": -3.19,
+          "verdict": "faster"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 4096,
+          "before": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1371012,
+            "min_ns_per_call": 1363099,
+            "max_ns_per_call": 1398981,
+            "median_ns_per_item": 334.72,
+            "items_per_sec": 2987574.1
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1319286,
+            "min_ns_per_call": 1307697,
+            "max_ns_per_call": 1329474,
+            "median_ns_per_item": 322.091,
+            "items_per_sec": 3104709.7
+          },
+          "median_delta_pct": -3.77,
+          "verdict": "faster"
+        },
+        {
+          "op": "schnorr_verify",
+          "batch": 65536,
+          "before": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 12240509,
+            "min_ns_per_call": 12146122,
+            "max_ns_per_call": 12573110,
+            "median_ns_per_item": 186.775,
+            "items_per_sec": 5354025.7
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "schnorr_verify",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 11689440,
+            "min_ns_per_call": 11576482,
+            "max_ns_per_call": 11824919,
+            "median_ns_per_item": 178.367,
+            "items_per_sec": 5606427.7
+          },
+          "median_delta_pct": -4.5,
+          "verdict": "faster"
+        },
+        {
+          "op": "hash160",
+          "batch": 1,
+          "before": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 57554,
+            "min_ns_per_call": 56298,
+            "max_ns_per_call": 66814,
+            "median_ns_per_item": 57554.0,
+            "items_per_sec": 17375.0
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 19584,
+            "min_ns_per_call": 19287,
+            "max_ns_per_call": 20518,
+            "median_ns_per_item": 19584.0,
+            "items_per_sec": 51062.1
+          },
+          "median_delta_pct": -65.97,
+          "verdict": "faster"
+        },
+        {
+          "op": "hash160",
+          "batch": 16,
+          "before": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 56377,
+            "min_ns_per_call": 55213,
+            "max_ns_per_call": 61891,
+            "median_ns_per_item": 3523.562,
+            "items_per_sec": 283803.7
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 22502,
+            "min_ns_per_call": 19548,
+            "max_ns_per_call": 25441,
+            "median_ns_per_item": 1406.375,
+            "items_per_sec": 711047.9
+          },
+          "median_delta_pct": -60.09,
+          "verdict": "faster"
+        },
+        {
+          "op": "hash160",
+          "batch": 256,
+          "before": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 59665,
+            "min_ns_per_call": 59239,
+            "max_ns_per_call": 61625,
+            "median_ns_per_item": 233.066,
+            "items_per_sec": 4290622.6
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 22778,
+            "min_ns_per_call": 22223,
+            "max_ns_per_call": 23439,
+            "median_ns_per_item": 88.977,
+            "items_per_sec": 11238914.7
+          },
+          "median_delta_pct": -61.82,
+          "verdict": "faster"
+        },
+        {
+          "op": "hash160",
+          "batch": 4096,
+          "before": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 97321,
+            "min_ns_per_call": 94571,
+            "max_ns_per_call": 102855,
+            "median_ns_per_item": 23.76,
+            "items_per_sec": 42087524.8
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 60192,
+            "min_ns_per_call": 52090,
+            "max_ns_per_call": 62585,
+            "median_ns_per_item": 14.695,
+            "items_per_sec": 68048910.2
+          },
+          "median_delta_pct": -38.15,
+          "verdict": "faster"
+        },
+        {
+          "op": "hash160",
+          "batch": 65536,
+          "before": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 737194,
+            "min_ns_per_call": 722008,
+            "max_ns_per_call": 813190,
+            "median_ns_per_item": 11.249,
+            "items_per_sec": 88899258.5
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "hash160",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 603101,
+            "min_ns_per_call": 586122,
+            "max_ns_per_call": 609518,
+            "median_ns_per_item": 9.203,
+            "items_per_sec": 108665049.5
+          },
+          "median_delta_pct": -18.19,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 1,
+          "before": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 917485,
+            "min_ns_per_call": 915524,
+            "max_ns_per_call": 923646,
+            "median_ns_per_item": 917485.0,
+            "items_per_sec": 1089.9
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 899245,
+            "min_ns_per_call": 898955,
+            "max_ns_per_call": 901028,
+            "median_ns_per_item": 899245.0,
+            "items_per_sec": 1112.0
+          },
+          "median_delta_pct": -1.99,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 16,
+          "before": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 964642,
+            "min_ns_per_call": 963263,
+            "max_ns_per_call": 966178,
+            "median_ns_per_item": 60290.125,
+            "items_per_sec": 16586.5
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 942156,
+            "min_ns_per_call": 941877,
+            "max_ns_per_call": 950397,
+            "median_ns_per_item": 58884.75,
+            "items_per_sec": 16982.3
+          },
+          "median_delta_pct": -2.33,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 256,
+          "before": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1129581,
+            "min_ns_per_call": 1128667,
+            "max_ns_per_call": 1139763,
+            "median_ns_per_item": 4412.426,
+            "items_per_sec": 226632.7
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1125367,
+            "min_ns_per_call": 1123219,
+            "max_ns_per_call": 1127884,
+            "median_ns_per_item": 4395.965,
+            "items_per_sec": 227481.3
+          },
+          "median_delta_pct": -0.37,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 4096,
+          "before": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1487878,
+            "min_ns_per_call": 1471524,
+            "max_ns_per_call": 1568570,
+            "median_ns_per_item": 363.251,
+            "items_per_sec": 2752913.9
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1398221,
+            "min_ns_per_call": 1393973,
+            "max_ns_per_call": 1402201,
+            "median_ns_per_item": 341.363,
+            "items_per_sec": 2929436.8
+          },
+          "median_delta_pct": -6.03,
+          "verdict": "faster"
+        },
+        {
+          "op": "generator_mul",
+          "batch": 65536,
+          "before": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 13166903,
+            "min_ns_per_call": 13080190,
+            "max_ns_per_call": 13515903,
+            "median_ns_per_item": 200.911,
+            "items_per_sec": 4977328.4
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "generator_mul",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 11877674,
+            "min_ns_per_call": 11749081,
+            "max_ns_per_call": 12061219,
+            "median_ns_per_item": 181.239,
+            "items_per_sec": 5517578.6
+          },
+          "median_delta_pct": -9.79,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdh",
+          "batch": 1,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 672875,
+            "min_ns_per_call": 670737,
+            "max_ns_per_call": 676041,
+            "median_ns_per_item": 672875.0,
+            "items_per_sec": 1486.2
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 1,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 633715,
+            "min_ns_per_call": 631046,
+            "max_ns_per_call": 635496,
+            "median_ns_per_item": 633715.0,
+            "items_per_sec": 1578.0
+          },
+          "median_delta_pct": -5.82,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdh",
+          "batch": 16,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1246351,
+            "min_ns_per_call": 1244788,
+            "max_ns_per_call": 1247982,
+            "median_ns_per_item": 77896.938,
+            "items_per_sec": 12837.5
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 16,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1208552,
+            "min_ns_per_call": 1205505,
+            "max_ns_per_call": 1209655,
+            "median_ns_per_item": 75534.5,
+            "items_per_sec": 13239.0
+          },
+          "median_delta_pct": -3.03,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdh",
+          "batch": 256,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1992758,
+            "min_ns_per_call": 1986165,
+            "max_ns_per_call": 2010971,
+            "median_ns_per_item": 7784.211,
+            "items_per_sec": 128465.2
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 256,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 1955742,
+            "min_ns_per_call": 1950914,
+            "max_ns_per_call": 1976259,
+            "median_ns_per_item": 7639.617,
+            "items_per_sec": 130896.6
+          },
+          "median_delta_pct": -1.86,
+          "verdict": "faster"
+        },
+        {
+          "op": "ecdh",
+          "batch": 4096,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 2569956,
+            "min_ns_per_call": 2536365,
+            "max_ns_per_call": 2580919,
+            "median_ns_per_item": 627.431,
+            "items_per_sec": 1593801.6
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 4096,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 2560594,
+            "min_ns_per_call": 2538922,
+            "max_ns_per_call": 2571714,
+            "median_ns_per_item": 625.145,
+            "items_per_sec": 1599628.8
+          },
+          "median_delta_pct": -0.36,
+          "verdict": "overlap"
+        },
+        {
+          "op": "ecdh",
+          "batch": 65536,
+          "before": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 23131160,
+            "min_ns_per_call": 22804233,
+            "max_ns_per_call": 24032742,
+            "median_ns_per_item": 352.953,
+            "items_per_sec": 2833234.5
+          },
+          "after": {
+            "backend": "OpenCL",
+            "op": "ecdh",
+            "batch": 65536,
+            "status": "ok",
+            "passes": 11,
+            "median_ns_per_call": 24227396,
+            "min_ns_per_call": 23989806,
+            "max_ns_per_call": 24481207,
+            "median_ns_per_item": 369.681,
+            "items_per_sec": 2705036.9
+          },
+          "median_delta_pct": 4.74,
+          "verdict": "overlap"
+        }
+      ]
+    }
+  }
+}

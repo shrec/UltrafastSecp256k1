@@ -1,8 +1,8 @@
 {
   "version": 1,
   "description": "Tamper-resistant evidence chain for audit verdicts",
-  "last_updated": "2026-05-11T23:49:44.237411+00:00",
-  "records_count": 8,
+  "last_updated": "2026-11-07T04:40:25.674971+00:00",
+  "records_count": 15,
   "records": [
     {
       "who": "security_autonomy_check.py",
@@ -99,6 +99,90 @@
       "reason": "Correctly disclosed as early-development; no false hardware-validation claims",
       "signed_by_ci": false,
       "signature": "c5a5191ca8426fba28adba10fa49880f9160ccb000d6e5a1e25b9d36993a37ae"
+    },
+    {
+      "who": "caas-evidence-refresh",
+      "what": "nightly-evidence-refresh",
+      "when": "2026-11-02T17:02:59.758020+00:00",
+      "commit": "5cf2d4bb74312145fa9af6673badc5ad3e492c38",
+      "run_id": "41485761385",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "automated-nightly-2026-11-02",
+      "signed_by_ci": true,
+      "signature": "7cd29495292d8d123379dd9801826bc644dad4574331972ecae1d8706f4f5f69"
+    },
+    {
+      "who": "caas-evidence-refresh",
+      "what": "nightly-evidence-refresh",
+      "when": "2026-11-02T18:34:23.462851+00:00",
+      "commit": "9df529d7de08620df729c951d931b01f28490b1b",
+      "run_id": "41500931327",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "automated-nightly-2026-11-02",
+      "signed_by_ci": true,
+      "signature": "b137ffc689006e26b075f05ad632f7ea7df91e006c659ac71bd04fc0c6d33b05"
+    },
+    {
+      "who": "caas-evidence-refresh",
+      "what": "nightly-evidence-refresh",
+      "when": "2026-11-03T04:40:01.470099+00:00",
+      "commit": "80b08d5ad77b88cb6eefff7c63eb7780309b2d8c",
+      "run_id": "41579084529",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "automated-nightly-2026-11-03",
+      "signed_by_ci": true,
+      "signature": "63a53b63a9b537702e1e8cb3da42af95107440998504cc9bd4f57f64d7d5bdf3"
+    },
+    {
+      "who": "caas-evidence-refresh",
+      "what": "nightly-evidence-refresh",
+      "when": "2026-11-04T04:40:52.390756+00:00",
+      "commit": "80b08d5ad77b88cb6eefff7c63eb7780309b2d8c",
+      "run_id": "41774192803",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "automated-nightly-2026-11-04",
+      "signed_by_ci": true,
+      "signature": "f03cd2b9d829643694cd9ca375a94d9d498b0f9da590a443699817d7a70f32df"
+    },
+    {
+      "who": "caas-evidence-refresh",
+      "what": "nightly-evidence-refresh",
+      "when": "2026-11-05T04:38:53.529069+00:00",
+      "commit": "80b08d5ad77b88cb6eefff7c63eb7780309b2d8c",
+      "run_id": "41968787779",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "automated-nightly-2026-11-05",
+      "signed_by_ci": true,
+      "signature": "a6d080004bd859daa64663ba8a1c0e29137f6c8352e98dc8c89fe75867c748bb"
+    },
+    {
+      "who": "caas-evidence-refresh",
+      "what": "nightly-evidence-refresh",
+      "when": "2026-11-06T04:40:45.986953+00:00",
+      "commit": "80b08d5ad77b88cb6eefff7c63eb7780309b2d8c",
+      "run_id": "42163457919",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "automated-nightly-2026-11-06",
+      "signed_by_ci": true,
+      "signature": "ccc2089c493515cb592d316e105921d741d650d99f3ce6b173b0445d44b1a59e"
+    },
+    {
+      "who": "caas-evidence-refresh",
+      "what": "nightly-evidence-refresh",
+      "when": "2026-11-07T04:40:25.674778+00:00",
+      "commit": "80b08d5ad77b88cb6eefff7c63eb7780309b2d8c",
+      "run_id": "42339140968",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "automated-nightly-2026-11-07",
+      "signed_by_ci": true,
+      "signature": "b559ff17373e509485e9aedd649a6932dab34d883fa498fad88c88c034d172c2"
     }
   ]
 }

@@ -22,12 +22,12 @@ fn main() {
     io::stdin().read_to_string(&mut buf).unwrap();
     let req: Req = serde_json::from_str(&buf).unwrap();
     let sk_bytes = hex::decode(&req.sk_hex).unwrap();
-    let sk = SigningKey::from_bytes(sk_bytes.as_slice().into()).unwrap();
+    let sk = SigningKey::from_slice(&sk_bytes).unwrap();
     let pk = sk.verifying_key();
 
     match req.op.as_str() {
         "pubkey" => {
-            let compressed = pk.to_encoded_point(true);
+            let compressed = pk.to_sec1_point(true);
             let result_hex = hex::encode(compressed.as_bytes());
             println!("{}", serde_json::to_string(&Resp { result_hex }).unwrap());
         }

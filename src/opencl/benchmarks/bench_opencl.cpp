@@ -33,6 +33,7 @@ struct BenchResult {
     std::string name;
     double ns_per_op;
     double ops_per_sec;
+    bool valid = true;  // false when the row's results were not all accepted
 };
 
 // Batch benchmark helper: warmup, then measure over multiple iterations
@@ -74,7 +75,62 @@ void print_result(const BenchResult& r) {
     } else {
         std::cout << "  (" << std::setprecision(0) << r.ops_per_sec << " /s)";
     }
+    if (!r.valid) std::cout << "  INVALID";
     std::cout << "\n";
+}
+
+// Set when any checked row fails; main() then exits non-zero.
+static bool g_bench_invalid = false;
+
+// Enqueue `kern` warmup + iters times. Returns the measured nanoseconds of the
+// `iters` launches; *err receives the first OpenCL error (enqueue or finish).
+static double time_kernel_ns(cl_command_queue q, cl_kernel kern, std::size_t gsz, std::size_t lsz,
+                             int warmup, int iters, cl_int* err) {
+    cl_int e = CL_SUCCESS;
+    for (int i = 0; i < warmup && e == CL_SUCCESS; ++i)
+        e = clEnqueueNDRangeKernel(q, kern, 1, nullptr, &gsz, &lsz, 0, nullptr, nullptr);
+    if (e == CL_SUCCESS) e = clFinish(q);
+    auto t0 = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < iters && e == CL_SUCCESS; ++i)
+        e = clEnqueueNDRangeKernel(q, kern, 1, nullptr, &gsz, &lsz, 0, nullptr, nullptr);
+    if (e == CL_SUCCESS) e = clFinish(q);
+    auto t1 = std::chrono::high_resolution_clock::now();
+    *err = e;
+    return static_cast<double>(std::chrono::duration_cast<std::chrono::nanoseconds>(t1 - t0).count());
+}
+
+// Timed row for a kernel that writes one int per item into `res` (non-zero =
+// accepted / succeeded). `res` is zeroed first so a kernel that never runs, or
+// stale results from an earlier row, cannot count as accepted. After timing,
+// the buffer is read back and the accept count printed; the row is INVALID
+// unless every item was accepted and no OpenCL call failed.
+static BenchResult bench_checked_row(const char* name, cl_command_queue q, cl_kernel kern,
+                                     cl_mem res, std::size_t n, std::size_t gsz, std::size_t lsz,
+                                     int warmup, int iters) {
+    std::vector<int> host(n, 0);
+    cl_int e = clEnqueueWriteBuffer(q, res, CL_TRUE, 0, n * sizeof(int), host.data(),
+                                    0, nullptr, nullptr);
+    double ns = 0.0;
+    if (e == CL_SUCCESS) ns = time_kernel_ns(q, kern, gsz, lsz, warmup, iters, &e);
+    std::size_t accepted = 0;
+    if (e == CL_SUCCESS) {
+        e = clEnqueueReadBuffer(q, res, CL_TRUE, 0, n * sizeof(int), host.data(),
+                                0, nullptr, nullptr);
+        if (e == CL_SUCCESS)
+            for (int v : host) accepted += (v != 0) ? 1u : 0u;
+    }
+    const double ops = static_cast<double>(n) * iters;
+    BenchResult r = {name, ns > 0.0 ? ns / ops : 0.0, ns > 0.0 ? ops / (ns * 1e-9) : 0.0};
+    r.valid = (e == CL_SUCCESS && accepted == n);
+    print_result(r);
+    std::cout << "      accepted " << accepted << "/" << n;
+    if (e != CL_SUCCESS) std::cout << "  (OpenCL error " << e << ")";
+    if (!r.valid) {
+        std::cout << "  -> INVALID: timing is not a measurement of " << name;
+        g_bench_invalid = true;
+    }
+    std::cout << "\n";
+    return r;
 }
 
 int main(int argc, char* argv[]) {
@@ -795,7 +851,10 @@ int main(int argc, char* argv[]) {
             if (sig_err != CL_SUCCESS) {
                 char log[8192] = {};
                 clGetProgramBuildInfo(ext_prog, sig_dev, CL_PROGRAM_BUILD_LOG, sizeof(log), log, nullptr);
-                std::cout << "\n[SKIP] Extended CL build failed:\n" << log << "\n";
+                // The kernel source was found, so a build failure is a defect
+                // (e.g. a missing #include next to the binary), not a skip.
+                std::cout << "\n[INVALID] Extended CL build failed:\n" << log << "\n";
+                g_bench_invalid = true;
                 clReleaseProgram(ext_prog);
             } else {
                 cl_kernel k_ecdsa_sign   = clCreateKernel(ext_prog, "ecdsa_sign",   &sig_err);
@@ -804,7 +863,8 @@ int main(int argc, char* argv[]) {
                 cl_kernel k_schnorr_verify = clCreateKernel(ext_prog, "schnorr_verify", &sig_err);
 
                 if (!k_ecdsa_sign || !k_ecdsa_verify || !k_schnorr_sign || !k_schnorr_verify) {
-                    std::cout << "\n[SKIP] Signature kernel creation failed\n";
+                    std::cout << "\n[INVALID] Signature kernel creation failed\n";
+                    g_bench_invalid = true;
                     if (k_ecdsa_sign)     clReleaseKernel(k_ecdsa_sign);
                     if (k_ecdsa_verify)   clReleaseKernel(k_ecdsa_verify);
                     if (k_schnorr_sign)   clReleaseKernel(k_schnorr_sign);
@@ -878,97 +938,54 @@ int main(int argc, char* argv[]) {
                                                sig_batch * sizeof(int), nullptr, &sig_err);
                 clFinish(sig_q);
 
-                // Pre-sign once so verify kernels have valid signatures
-                clSetKernelArg(k_ecdsa_sign, 0, sizeof(cl_mem), &d_msg);
-                clSetKernelArg(k_ecdsa_sign, 1, sizeof(cl_mem), &d_priv);
-                clSetKernelArg(k_ecdsa_sign, 2, sizeof(cl_mem), &d_ecdsa_sig);
-                clSetKernelArg(k_ecdsa_sign, 3, sizeof(cl_mem), &d_ok);
-                clSetKernelArg(k_ecdsa_sign, 4, sizeof(cl_uint), &sig_cnt);
-                clEnqueueNDRangeKernel(sig_q, k_ecdsa_sign, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
+                // Every row clears its result buffer, runs, then reads it back and
+                // prints the accept count. Previously nothing was read back, so a
+                // verify kernel that rejected every item (or never launched)
+                // reported an impossible ns/op as if it were a measurement.
+                // Each sign row runs before its verify row and produces the
+                // signatures that verify row checks; d_res is cleared between the
+                // ECDSA and Schnorr verify rows so stale accepts cannot carry over.
+                cl_int sig_arg_err = CL_SUCCESS;
+                auto sig_arg = [&](cl_kernel k, cl_uint i, std::size_t sz, const void* v) {
+                    cl_int e = clSetKernelArg(k, i, sz, v);
+                    if (e != CL_SUCCESS && sig_arg_err == CL_SUCCESS) sig_arg_err = e;
+                };
+                sig_arg(k_ecdsa_sign, 0, sizeof(cl_mem), &d_msg);
+                sig_arg(k_ecdsa_sign, 1, sizeof(cl_mem), &d_priv);
+                sig_arg(k_ecdsa_sign, 2, sizeof(cl_mem), &d_ecdsa_sig);
+                sig_arg(k_ecdsa_sign, 3, sizeof(cl_mem), &d_ok);
+                sig_arg(k_ecdsa_sign, 4, sizeof(cl_uint), &sig_cnt);
 
-                clSetKernelArg(k_schnorr_sign, 0, sizeof(cl_mem), &d_msg);
-                clSetKernelArg(k_schnorr_sign, 1, sizeof(cl_mem), &d_priv);
-                clSetKernelArg(k_schnorr_sign, 2, sizeof(cl_mem), &d_aux);
-                clSetKernelArg(k_schnorr_sign, 3, sizeof(cl_mem), &d_schnorr_sig);
-                clSetKernelArg(k_schnorr_sign, 4, sizeof(cl_mem), &d_ok);
-                clSetKernelArg(k_schnorr_sign, 5, sizeof(cl_uint), &sig_cnt);
-                clEnqueueNDRangeKernel(sig_q, k_schnorr_sign, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
-                clFinish(sig_q);
+                sig_arg(k_ecdsa_verify, 0, sizeof(cl_mem), &d_msg);
+                sig_arg(k_ecdsa_verify, 1, sizeof(cl_mem), &d_pub_jac);
+                sig_arg(k_ecdsa_verify, 2, sizeof(cl_mem), &d_ecdsa_sig);
+                sig_arg(k_ecdsa_verify, 3, sizeof(cl_mem), &d_res);
+                sig_arg(k_ecdsa_verify, 4, sizeof(cl_uint), &sig_cnt);
+
+                sig_arg(k_schnorr_sign, 0, sizeof(cl_mem), &d_msg);
+                sig_arg(k_schnorr_sign, 1, sizeof(cl_mem), &d_priv);
+                sig_arg(k_schnorr_sign, 2, sizeof(cl_mem), &d_aux);
+                sig_arg(k_schnorr_sign, 3, sizeof(cl_mem), &d_schnorr_sig);
+                sig_arg(k_schnorr_sign, 4, sizeof(cl_mem), &d_ok);
+                sig_arg(k_schnorr_sign, 5, sizeof(cl_uint), &sig_cnt);
+
+                sig_arg(k_schnorr_verify, 0, sizeof(cl_mem), &d_pub_x);
+                sig_arg(k_schnorr_verify, 1, sizeof(cl_mem), &d_msg);
+                sig_arg(k_schnorr_verify, 2, sizeof(cl_mem), &d_schnorr_sig);
+                sig_arg(k_schnorr_verify, 3, sizeof(cl_mem), &d_res);
+                sig_arg(k_schnorr_verify, 4, sizeof(cl_uint), &sig_cnt);
 
                 int sw = 3, si = 8;
 
-                // ECDSA Sign
-                {
-                    for (int i = 0; i < sw; ++i)
-                        clEnqueueNDRangeKernel(sig_q, k_ecdsa_sign, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
-                    clFinish(sig_q);
-                    auto t0 = std::chrono::high_resolution_clock::now();
-                    for (int i = 0; i < si; ++i)
-                        clEnqueueNDRangeKernel(sig_q, k_ecdsa_sign, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
-                    clFinish(sig_q);
-                    auto t1 = std::chrono::high_resolution_clock::now();
-                    double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
-                    double ops = static_cast<double>(sig_batch) * si;
-                    BenchResult r = {"ECDSA Sign", ns/ops, ops/(ns*1e-9)};
-                    print_result(r); results.push_back(r);
-                }
-
-                // ECDSA Verify
-                clSetKernelArg(k_ecdsa_verify, 0, sizeof(cl_mem), &d_msg);
-                clSetKernelArg(k_ecdsa_verify, 1, sizeof(cl_mem), &d_pub_jac);
-                clSetKernelArg(k_ecdsa_verify, 2, sizeof(cl_mem), &d_ecdsa_sig);
-                clSetKernelArg(k_ecdsa_verify, 3, sizeof(cl_mem), &d_res);
-                clSetKernelArg(k_ecdsa_verify, 4, sizeof(cl_uint), &sig_cnt);
-                {
-                    for (int i = 0; i < sw; ++i)
-                        clEnqueueNDRangeKernel(sig_q, k_ecdsa_verify, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
-                    clFinish(sig_q);
-                    auto t0 = std::chrono::high_resolution_clock::now();
-                    for (int i = 0; i < si; ++i)
-                        clEnqueueNDRangeKernel(sig_q, k_ecdsa_verify, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
-                    clFinish(sig_q);
-                    auto t1 = std::chrono::high_resolution_clock::now();
-                    double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
-                    double ops = static_cast<double>(sig_batch) * si;
-                    BenchResult r = {"ECDSA Verify", ns/ops, ops/(ns*1e-9)};
-                    print_result(r); results.push_back(r);
-                }
-
-                // Schnorr Sign
-                {
-                    for (int i = 0; i < sw; ++i)
-                        clEnqueueNDRangeKernel(sig_q, k_schnorr_sign, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
-                    clFinish(sig_q);
-                    auto t0 = std::chrono::high_resolution_clock::now();
-                    for (int i = 0; i < si; ++i)
-                        clEnqueueNDRangeKernel(sig_q, k_schnorr_sign, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
-                    clFinish(sig_q);
-                    auto t1 = std::chrono::high_resolution_clock::now();
-                    double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
-                    double ops = static_cast<double>(sig_batch) * si;
-                    BenchResult r = {"Schnorr Sign", ns/ops, ops/(ns*1e-9)};
-                    print_result(r); results.push_back(r);
-                }
-
-                // Schnorr Verify
-                clSetKernelArg(k_schnorr_verify, 0, sizeof(cl_mem), &d_pub_x);
-                clSetKernelArg(k_schnorr_verify, 1, sizeof(cl_mem), &d_msg);
-                clSetKernelArg(k_schnorr_verify, 2, sizeof(cl_mem), &d_schnorr_sig);
-                clSetKernelArg(k_schnorr_verify, 3, sizeof(cl_mem), &d_res);
-                clSetKernelArg(k_schnorr_verify, 4, sizeof(cl_uint), &sig_cnt);
-                {
-                    for (int i = 0; i < sw; ++i)
-                        clEnqueueNDRangeKernel(sig_q, k_schnorr_verify, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
-                    clFinish(sig_q);
-                    auto t0 = std::chrono::high_resolution_clock::now();
-                    for (int i = 0; i < si; ++i)
-                        clEnqueueNDRangeKernel(sig_q, k_schnorr_verify, 1, nullptr, &sig_gsz, &sig_lsz, 0, nullptr, nullptr);
-                    clFinish(sig_q);
-                    auto t1 = std::chrono::high_resolution_clock::now();
-                    double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
-                    double ops = static_cast<double>(sig_batch) * si;
-                    BenchResult r = {"Schnorr Verify", ns/ops, ops/(ns*1e-9)};
-                    print_result(r); results.push_back(r);
+                if (sig_arg_err != CL_SUCCESS) {
+                    std::cout << "  [INVALID] signature clSetKernelArg failed (OpenCL error "
+                              << sig_arg_err << ")\n";
+                    g_bench_invalid = true;
+                } else {
+                    results.push_back(bench_checked_row("ECDSA Sign",     sig_q, k_ecdsa_sign,     d_ok,  sig_batch, sig_gsz, sig_lsz, sw, si));
+                    results.push_back(bench_checked_row("ECDSA Verify",   sig_q, k_ecdsa_verify,   d_res, sig_batch, sig_gsz, sig_lsz, sw, si));
+                    results.push_back(bench_checked_row("Schnorr Sign",   sig_q, k_schnorr_sign,   d_ok,  sig_batch, sig_gsz, sig_lsz, sw, si));
+                    results.push_back(bench_checked_row("Schnorr Verify", sig_q, k_schnorr_verify, d_res, sig_batch, sig_gsz, sig_lsz, sw, si));
                 }
 
                 // Cleanup device buffers
@@ -1123,109 +1140,63 @@ int main(int argc, char* argv[]) {
                                                       zk_batch*sizeof(JacobianPoint), zk_Q.data(), &zk_err);
                     clFinish(zk_q);
 
-                    // Pre-run prove once so verify kernels have valid proofs
-                    clSetKernelArg(k_kp, 0, sizeof(cl_mem), &d_sec);
-                    clSetKernelArg(k_kp, 1, sizeof(cl_mem), &d_pub);
-                    clSetKernelArg(k_kp, 2, sizeof(cl_mem), &d_base);
-                    clSetKernelArg(k_kp, 3, sizeof(cl_mem), &d_zmsg);
-                    clSetKernelArg(k_kp, 4, sizeof(cl_mem), &d_zaux);
-                    clSetKernelArg(k_kp, 5, sizeof(cl_mem), &d_kproof);
-                    clSetKernelArg(k_kp, 6, sizeof(cl_mem), &d_zok);
-                    clSetKernelArg(k_kp, 7, sizeof(cl_uint), &zk_cnt);
-                    clEnqueueNDRangeKernel(zk_q, k_kp, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
+                    // Each row clears d_zok, runs, then reads it back: a row whose
+                    // kernel failed to launch or rejected any item is INVALID.
+                    // Every verify row runs after its prove row, so it checks the
+                    // proofs that row produced.
+                    cl_int zk_arg_err = CL_SUCCESS;
+                    auto zk_arg = [&](cl_kernel k, cl_uint i, std::size_t sz, const void* v) {
+                        cl_int e = clSetKernelArg(k, i, sz, v);
+                        if (e != CL_SUCCESS && zk_arg_err == CL_SUCCESS) zk_arg_err = e;
+                    };
+                    zk_arg(k_kp, 0, sizeof(cl_mem), &d_sec);
+                    zk_arg(k_kp, 1, sizeof(cl_mem), &d_pub);
+                    zk_arg(k_kp, 2, sizeof(cl_mem), &d_base);
+                    zk_arg(k_kp, 3, sizeof(cl_mem), &d_zmsg);
+                    zk_arg(k_kp, 4, sizeof(cl_mem), &d_zaux);
+                    zk_arg(k_kp, 5, sizeof(cl_mem), &d_kproof);
+                    zk_arg(k_kp, 6, sizeof(cl_mem), &d_zok);
+                    zk_arg(k_kp, 7, sizeof(cl_uint), &zk_cnt);
 
-                    clSetKernelArg(k_dp, 0, sizeof(cl_mem), &d_sec);
-                    clSetKernelArg(k_dp, 1, sizeof(cl_mem), &d_G);
-                    clSetKernelArg(k_dp, 2, sizeof(cl_mem), &d_H);
-                    clSetKernelArg(k_dp, 3, sizeof(cl_mem), &d_P);
-                    clSetKernelArg(k_dp, 4, sizeof(cl_mem), &d_Q);
-                    clSetKernelArg(k_dp, 5, sizeof(cl_mem), &d_zaux);
-                    clSetKernelArg(k_dp, 6, sizeof(cl_mem), &d_dproof);
-                    clSetKernelArg(k_dp, 7, sizeof(cl_mem), &d_zok);
-                    clSetKernelArg(k_dp, 8, sizeof(cl_uint), &zk_cnt);
-                    clEnqueueNDRangeKernel(zk_q, k_dp, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
-                    clFinish(zk_q);
+                    zk_arg(k_kv, 0, sizeof(cl_mem), &d_kproof);
+                    zk_arg(k_kv, 1, sizeof(cl_mem), &d_pub);
+                    zk_arg(k_kv, 2, sizeof(cl_mem), &d_base);
+                    zk_arg(k_kv, 3, sizeof(cl_mem), &d_zmsg);
+                    zk_arg(k_kv, 4, sizeof(cl_mem), &d_zok);
+                    zk_arg(k_kv, 5, sizeof(cl_uint), &zk_cnt);
+
+                    zk_arg(k_dp, 0, sizeof(cl_mem), &d_sec);
+                    zk_arg(k_dp, 1, sizeof(cl_mem), &d_G);
+                    zk_arg(k_dp, 2, sizeof(cl_mem), &d_H);
+                    zk_arg(k_dp, 3, sizeof(cl_mem), &d_P);
+                    zk_arg(k_dp, 4, sizeof(cl_mem), &d_Q);
+                    zk_arg(k_dp, 5, sizeof(cl_mem), &d_zaux);
+                    zk_arg(k_dp, 6, sizeof(cl_mem), &d_dproof);
+                    zk_arg(k_dp, 7, sizeof(cl_mem), &d_zok);
+                    zk_arg(k_dp, 8, sizeof(cl_uint), &zk_cnt);
+
+                    zk_arg(k_dv, 0, sizeof(cl_mem), &d_dproof);
+                    zk_arg(k_dv, 1, sizeof(cl_mem), &d_G);
+                    zk_arg(k_dv, 2, sizeof(cl_mem), &d_H);
+                    zk_arg(k_dv, 3, sizeof(cl_mem), &d_P);
+                    zk_arg(k_dv, 4, sizeof(cl_mem), &d_Q);
+                    zk_arg(k_dv, 5, sizeof(cl_mem), &d_zok);
+                    zk_arg(k_dv, 6, sizeof(cl_uint), &zk_cnt);
 
                     int zw = 3, zi = 8;
                     std::cout << "\n" << std::string(60, '=') << "\n";
                     std::cout << "ZK Proofs (kernel-only, batch=" << zk_batch << "):\n";
                     std::cout << std::string(60, '-') << "\n";
 
-                    // Knowledge Prove
-                    {
-                        for (int i = 0; i < zw; ++i)
-                            clEnqueueNDRangeKernel(zk_q, k_kp, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
-                        clFinish(zk_q);
-                        auto t0 = std::chrono::high_resolution_clock::now();
-                        for (int i = 0; i < zi; ++i)
-                            clEnqueueNDRangeKernel(zk_q, k_kp, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
-                        clFinish(zk_q);
-                        auto t1 = std::chrono::high_resolution_clock::now();
-                        double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
-                        double ops = static_cast<double>(zk_batch) * zi;
-                        BenchResult r = {"ZK Kn Prove", ns/ops, ops/(ns*1e-9)};
-                        print_result(r); results.push_back(r);
-                    }
-
-                    // Knowledge Verify
-                    clSetKernelArg(k_kv, 0, sizeof(cl_mem), &d_kproof);
-                    clSetKernelArg(k_kv, 1, sizeof(cl_mem), &d_pub);
-                    clSetKernelArg(k_kv, 2, sizeof(cl_mem), &d_base);
-                    clSetKernelArg(k_kv, 3, sizeof(cl_mem), &d_zmsg);
-                    clSetKernelArg(k_kv, 4, sizeof(cl_mem), &d_zok);
-                    clSetKernelArg(k_kv, 5, sizeof(cl_uint), &zk_cnt);
-                    {
-                        for (int i = 0; i < zw; ++i)
-                            clEnqueueNDRangeKernel(zk_q, k_kv, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
-                        clFinish(zk_q);
-                        auto t0 = std::chrono::high_resolution_clock::now();
-                        for (int i = 0; i < zi; ++i)
-                            clEnqueueNDRangeKernel(zk_q, k_kv, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
-                        clFinish(zk_q);
-                        auto t1 = std::chrono::high_resolution_clock::now();
-                        double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
-                        double ops = static_cast<double>(zk_batch) * zi;
-                        BenchResult r = {"ZK Kn Verify", ns/ops, ops/(ns*1e-9)};
-                        print_result(r); results.push_back(r);
-                    }
-
-                    // DLEQ Prove
-                    {
-                        for (int i = 0; i < zw; ++i)
-                            clEnqueueNDRangeKernel(zk_q, k_dp, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
-                        clFinish(zk_q);
-                        auto t0 = std::chrono::high_resolution_clock::now();
-                        for (int i = 0; i < zi; ++i)
-                            clEnqueueNDRangeKernel(zk_q, k_dp, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
-                        clFinish(zk_q);
-                        auto t1 = std::chrono::high_resolution_clock::now();
-                        double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
-                        double ops = static_cast<double>(zk_batch) * zi;
-                        BenchResult r = {"ZK DLEQ Prove", ns/ops, ops/(ns*1e-9)};
-                        print_result(r); results.push_back(r);
-                    }
-
-                    // DLEQ Verify
-                    clSetKernelArg(k_dv, 0, sizeof(cl_mem), &d_dproof);
-                    clSetKernelArg(k_dv, 1, sizeof(cl_mem), &d_G);
-                    clSetKernelArg(k_dv, 2, sizeof(cl_mem), &d_H);
-                    clSetKernelArg(k_dv, 3, sizeof(cl_mem), &d_P);
-                    clSetKernelArg(k_dv, 4, sizeof(cl_mem), &d_Q);
-                    clSetKernelArg(k_dv, 5, sizeof(cl_mem), &d_zok);
-                    clSetKernelArg(k_dv, 6, sizeof(cl_uint), &zk_cnt);
-                    {
-                        for (int i = 0; i < zw; ++i)
-                            clEnqueueNDRangeKernel(zk_q, k_dv, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
-                        clFinish(zk_q);
-                        auto t0 = std::chrono::high_resolution_clock::now();
-                        for (int i = 0; i < zi; ++i)
-                            clEnqueueNDRangeKernel(zk_q, k_dv, 1, nullptr, &zk_gsz, &zk_lsz, 0, nullptr, nullptr);
-                        clFinish(zk_q);
-                        auto t1 = std::chrono::high_resolution_clock::now();
-                        double ns = std::chrono::duration_cast<std::chrono::nanoseconds>(t1-t0).count();
-                        double ops = static_cast<double>(zk_batch) * zi;
-                        BenchResult r = {"ZK DLEQ Verify", ns/ops, ops/(ns*1e-9)};
-                        print_result(r); results.push_back(r);
+                    if (zk_arg_err != CL_SUCCESS) {
+                        std::cout << "  [INVALID] ZK clSetKernelArg failed (OpenCL error "
+                                  << zk_arg_err << ")\n";
+                        g_bench_invalid = true;
+                    } else {
+                        results.push_back(bench_checked_row("ZK Kn Prove",    zk_q, k_kp, d_zok, zk_batch, zk_gsz, zk_lsz, zw, zi));
+                        results.push_back(bench_checked_row("ZK Kn Verify",   zk_q, k_kv, d_zok, zk_batch, zk_gsz, zk_lsz, zw, zi));
+                        results.push_back(bench_checked_row("ZK DLEQ Prove",  zk_q, k_dp, d_zok, zk_batch, zk_gsz, zk_lsz, zw, zi));
+                        results.push_back(bench_checked_row("ZK DLEQ Verify", zk_q, k_dv, d_zok, zk_batch, zk_gsz, zk_lsz, zw, zi));
                     }
 
                     // Cleanup
@@ -1253,6 +1224,13 @@ int main(int argc, char* argv[]) {
         print_result(r);
     }
     std::cout << std::string(60, '=') << "\n";
+    if (g_bench_invalid) {
+        // Fail closed: a row whose results were not all accepted is not a
+        // measurement, so the run must not look like a successful benchmark.
+        std::cout << "\nBenchmark INVALID: at least one row did not verify/succeed on every item "
+                     "(see the accepted counts above).\n";
+        return 1;
+    }
     std::cout << "\nBenchmark complete!\n";
     return 0;
 }

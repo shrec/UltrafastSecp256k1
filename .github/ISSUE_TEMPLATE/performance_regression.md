@@ -12,8 +12,8 @@ assignees: ''
 - Compiler: [e.g. Clang 21, GCC 14]
 - Backend: [CPU / CUDA / Metal / OpenCL]
 - Architecture: [x86-64 / ARM64 / RISC-V]
-- Library version (current): [e.g. v4.6.2, commit abc1234]
-- Library version (baseline): [e.g. v4.6.2, commit def5678]
+- Library version (current): [e.g. v4.7.0, commit abc1234]
+- Library version (baseline): [e.g. v4.7.0, commit def5678]
 
 **Regression summary**
 Which operation(s) regressed, and by how much?

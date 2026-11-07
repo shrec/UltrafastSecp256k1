@@ -1,0 +1,102 @@
+{
+ "report_type": "opencl_verify_kernel_ab",
+ "generated_by": "bench_verify.py (source inline below): pyopencl, kernel-only, every number measured by the script, none typed by hand",
+ "date": "2026-11-04",
+ "device": "NVIDIA GeForce RTX 5060 Ti",
+ "driver": "NVIDIA OpenCL 580.196.07",
+ "method": "secp256k1_extended.cl built as the GPU backend builds it (-cl-std=CL1.2 -cl-fast-relaxed-math -cl-mad-enable); batch 65536 made from 512 distinct valid signatures produced by a pure-Python secp256k1 reference; 3 warmup launches then 11 timed launches per kernel (local size 256); a row is reported only if every result is valid",
+ "base": {
+  "kernels": "src/opencl/kernels at 022e06d3 (Fermat inverses)"
+ },
+ "new": {
+  "kernels": "src/opencl/kernels at 85556c45 (d84eb5f4: variable-time SafeGCD inverses)"
+ },
+ "rows": {
+  "ecdsa_verify": {
+   "accepted_base": 65536,
+   "accepted_new": 65536,
+   "of": 65536,
+   "base": {
+    "median": 230.59696996341472,
+    "min": 230.47573893819617,
+    "max": 233.20758035794142,
+    "runs": [
+     230.5887454312483,
+     230.58561726685411,
+     230.6961057740864,
+     230.47573893819617,
+     230.59696996341472,
+     230.75524957505422,
+     230.78051736291627,
+     230.74279731361003,
+     233.20758035794142,
+     230.56233189322484,
+     230.5186921347513
+    ]
+   },
+   "new": {
+    "median": 143.73849488436008,
+    "min": 143.58250410850815,
+    "max": 143.92533920215556,
+    "runs": [
+     143.62171985027317,
+     143.6469414528574,
+     143.61349531810674,
+     143.82931556866652,
+     143.82960511483134,
+     143.92533920215556,
+     143.58250410850815,
+     143.72943102358704,
+     143.73849488436008,
+     143.7467194165265,
+     143.91667235713612
+    ]
+   },
+   "verdict": "improvement"
+  },
+  "schnorr_verify": {
+   "accepted_base": 65536,
+   "accepted_new": 65536,
+   "of": 65536,
+   "base": {
+    "median": 183.98408485609252,
+    "min": 182.3639523834686,
+    "max": 184.51013161779883,
+    "runs": [
+     184.42759674996978,
+     184.51013161779883,
+     184.3307648741188,
+     184.11286983877062,
+     183.89137323993054,
+     183.98408485609252,
+     184.0137322517421,
+     182.58317613373265,
+     182.3639523834686,
+     182.45666488780898,
+     182.52214051273086
+    ]
+   },
+   "new": {
+    "median": 156.09699932639387,
+    "min": 152.16900628445273,
+    "max": 159.29026719874173,
+    "runs": [
+     159.23907437098705,
+     159.2633056546333,
+     159.2131351202397,
+     159.29026719874173,
+     159.2311100750976,
+     156.09699932639387,
+     152.3003234638054,
+     152.16900628445273,
+     152.34126227170464,
+     152.36898853743241,
+     152.3629151733985
+    ]
+   },
+   "verdict": "improvement"
+  }
+ },
+ "bench_source_sha256": "1a273c11ecadb0c6788c3981769886598ab4d30f7e1c92e71cb6e443b2ee7d5f",
+ "bench_source": "#!/usr/bin/env python3\n\"\"\"Kernel-only OpenCL ECDSA / BIP-340 verify timing on valid, Python-made signatures.\n\nUsage: bench_verify.py <kernel_dir> <label> <out.json>\nBuilds secp256k1_extended.cl from <kernel_dir> exactly as the GPU backend does,\ntimes the ecdsa_verify and schnorr_verify kernels (median of 11 launches after\n3 warmups) over a batch of 65536 entries made from 512 distinct valid\nsignatures, and refuses to report a time unless every result is \"valid\".\n\"\"\"\nimport hashlib, json, random, statistics, sys, time\nimport numpy as np\nimport pyopencl as cl\n\nP = 2**256 - 2**32 - 977\nN = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141\nG = (0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798,\n     0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8)\n\n\ndef jadd(a, b):  # Jacobian + affine, simple (not CT; test data only)\n    if a is None: return (b[0], b[1], 1)\n    X1, Y1, Z1 = a; x2, y2 = b\n    Z1Z1 = Z1 * Z1 % P; U2 = x2 * Z1Z1 % P; S2 = y2 * Z1 * Z1Z1 % P\n    H = (U2 - X1) % P; R = (S2 - Y1) % P\n    if H == 0:\n        return jdbl(a) if R == 0 else None\n    HH = H * H % P; HHH = H * HH % P; V = X1 * HH % P\n    X3 = (R * R - HHH - 2 * V) % P\n    return (X3, (R * (V - X3) - Y1 * HHH) % P, Z1 * H % P)\n\n\ndef jdbl(a):\n    X, Y, Z = a\n    S = 4 * X * Y * Y % P; M = 3 * X * X % P\n    X3 = (M * M - 2 * S) % P\n    return (X3, (M * (S - X3) - 8 * Y**4) % P, 2 * Y * Z % P)\n\n\ndef mul(k, pt=G):\n    r = None\n    for bit in bin(k)[2:]:\n        if r is not None: r = jdbl(r)\n        if bit == \"1\": r = jadd(r, pt)\n    zi = pow(r[2], -1, P)\n    return (r[0] * zi * zi % P, r[1] * zi * zi * zi % P)\n\n\ndef limbs(v): return [(v >> (64 * i)) & (2**64 - 1) for i in range(4)]\n\n\ndef tagged(tag, data):\n    t = hashlib.sha256(tag.encode()).digest()\n    return hashlib.sha256(t + t + data).digest()\n\n\ndef main():\n    kdir, label, outp = sys.argv[1], sys.argv[2], sys.argv[3]\n    rng = random.Random(2026)\n    M = 512; BATCH = 65536\n    msgs, pubs, esigs, xs, ssigs = [], [], [], [], []\n    for i in range(M):\n        d = rng.randrange(1, N); m = hashlib.sha256(i.to_bytes(4, \"big\")).digest()\n        Q = mul(d); z = int.from_bytes(m, \"big\") % N\n        k = rng.randrange(1, N); r = mul(k)[0] % N; s = pow(k, -1, N) * (z + r * d) % N\n        msgs.append(m); pubs.append(Q); esigs.append((r, s))\n        # BIP-340\n        dd = d if Q[1] % 2 == 0 else N - d\n        kk = rng.randrange(1, N); R = mul(kk)\n        if R[1] % 2: kk = N - kk\n        rx = R[0].to_bytes(32, \"big\"); px = Q[0].to_bytes(32, \"big\")\n        e = int.from_bytes(tagged(\"BIP0340/challenge\", rx + px + m), \"big\") % N\n        ssigs.append((rx, (kk + e * dd) % N)); xs.append(px)\n    idx = [i % M for i in range(BATCH)]\n    msg_arr = np.frombuffer(b\"\".join(msgs[i] for i in idx), dtype=np.uint8).copy()\n    # JacobianPoint: x, y, z (4 ulong each), uint infinity, uint pad[7] -> 128 bytes\n    jac = np.zeros((BATCH, 16), dtype=np.uint64)\n    for j, i in enumerate(idx):\n        Q = pubs[i]; jac[j, 0:4] = limbs(Q[0]); jac[j, 4:8] = limbs(Q[1]); jac[j, 8:12] = limbs(1)\n    esig = np.array([limbs(esigs[i][0]) + limbs(esigs[i][1]) for i in idx], dtype=np.uint64)\n    xs_arr = np.frombuffer(b\"\".join(xs[i] for i in idx), dtype=np.uint8).copy()\n    ss = np.zeros((BATCH, 64), dtype=np.uint8)\n    for j, i in enumerate(idx):\n        ss[j, 0:32] = np.frombuffer(ssigs[i][0], dtype=np.uint8)\n        ss[j, 32:64] = np.array(limbs(ssigs[i][1]), dtype=np.uint64).view(np.uint8)\n\n    ctx = cl.create_some_context(interactive=False); q = cl.CommandQueue(ctx)\n    src = open(f\"{kdir}/secp256k1_extended.cl\").read()\n    t0 = time.time()\n    prg = cl.Program(ctx, src).build(options=[\"-cl-std=CL1.2\", \"-cl-fast-relaxed-math\", \"-cl-mad-enable\", \"-I\", kdir])\n    build_s = time.time() - t0\n    mf = cl.mem_flags\n    dm = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=msg_arr)\n    dj = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=jac)\n    de = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=esig)\n    dx = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=xs_arr)\n    dsb = cl.Buffer(ctx, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=ss)\n    res = np.zeros(BATCH, dtype=np.int32); dr = cl.Buffer(ctx, mf.READ_WRITE, res.nbytes)\n    out = {\"label\": label, \"kernel_dir\": kdir, \"batch\": BATCH, \"distinct_signatures\": M,\n           \"build_seconds\": round(build_s, 1), \"device\": ctx.devices[0].name, \"rows\": {}}\n    for name, args in ((\"ecdsa_verify\", (dm, dj, de, dr)), (\"schnorr_verify\", (dx, dm, dsb, dr))):\n        k = cl.Kernel(prg, name)\n        k.set_args(*args, np.uint32(BATCH))\n        times = []\n        for rep in range(14):\n            cl.enqueue_fill_buffer(q, dr, np.int32(0), 0, res.nbytes); q.finish()\n            t = time.perf_counter(); cl.enqueue_nd_range_kernel(q, k, (BATCH,), (256,)); q.finish()\n            if rep >= 3: times.append((time.perf_counter() - t) * 1e9 / BATCH)\n        cl.enqueue_copy(q, res, dr); q.finish()\n        acc = int((res == 1).sum())\n        out[\"rows\"][name] = {\"accepted\": acc, \"of\": BATCH,\n                             \"ns_per_op_median\": statistics.median(times) if acc == BATCH else None,\n                             \"ns_per_op_runs\": times if acc == BATCH else None}\n        print(f\"{label} {name}: accepted {acc}/{BATCH}, median {statistics.median(times):.2f} ns/op\", flush=True)\n    json.dump(out, open(outp, \"w\"), indent=1)\n\n\nif __name__ == \"__main__\":\n    main()\n"
+}

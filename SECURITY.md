@@ -4,7 +4,7 @@
 
 | Version | Supported |
 |---------|-----------|
-| 4.6.x  | [OK] Active |
+| 4.7.x  | [OK] Active |
 | 4.0.x  | [!] Critical fixes only (upgrade to 4.1.x recommended) |
 | 3.20.x  | [!] Critical fixes only |
 | < 3.20  | [FAIL] Unsupported |
@@ -79,7 +79,7 @@ For auditors and security researchers, the following documents are available:
 | Document | Purpose |
 |----------|---------|
 | [AUDIT_GUIDE.md](AUDIT_GUIDE.md) | **Start here** -- Auditor navigation, checklist, reproduction commands |
-| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit report (v4.6.2 baseline; test suite significantly restructured since -- see below) |
+| [AUDIT_REPORT.md](AUDIT_REPORT.md) | Internal audit report (v4.7.0 baseline; test suite significantly restructured since -- see below) |
 | [THREAT_MODEL.md](THREAT_MODEL.md) | Layer-by-layer risk + attack surface analysis |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Technical architecture for auditors |
 | [docs/CT_VERIFICATION.md](docs/CT_VERIFICATION.md) | Constant-time methodology, dudect, known limitations |
@@ -311,7 +311,8 @@ Summary of scope:
 We appreciate responsible disclosure. Contributors who report valid security issues will be credited in the changelog (unless they prefer anonymity).
 
 - **Damir** — GHSA-c7q2-gv3g-rgxm: ECDSA adaptor pre-signature soundness (missing DLEQ binding of `r` to the adaptor point), reported with a working PoC and fixed in `src/cpu/src/adaptor.cpp` (DLEQ-bound construction). CVE request pending.
+- **Gleb Lizunov ([@hokvo](https://github.com/hokvo))** — the GPU C ABI accepted point encodings with a coordinate `>= p` that the CPU path rejects (CPU/GPU verdict mismatch, no forgery). Fixed in the shared GPU input check in `src/cpu/src/ufsecp_gpu_impl.cpp` (2026-11-02). The same report showed that the MuSig2 core test held no official BIP-327 vectors, that the C header described `ufsecp_musig2_key_agg` input as x-only, and that the session blob's trust boundary was undocumented; all three were fixed the same day.
 
 ---
 
-*UltrafastSecp256k1 v4.6.2 -- Security Policy*
+*UltrafastSecp256k1 v4.7.0 -- Security Policy*

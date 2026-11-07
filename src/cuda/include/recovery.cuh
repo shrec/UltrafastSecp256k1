@@ -205,6 +205,10 @@ __device__ inline bool ecdsa_recover(
 {
     if (recid < 0 || recid > 3) return false;
     if (scalar_is_zero(&sig->r) || scalar_is_zero(&sig->s)) return false;
+    // r >= n or s >= n is not a valid compact signature (the CPU parser and
+    // ecdsa_verify reject it); the host hands raw limbs to this kernel
+    // (bytes_to_ecdsa_sig, no parse), so reject here instead of reducing mod n.
+    if (scalar_ge(&sig->r, ORDER) || scalar_ge(&sig->s, ORDER)) return false;
 
     // Step 1: Reconstruct R.x field element
     // If recid bit 1 is set, R.x = r + n (extremely rare)
@@ -254,34 +258,57 @@ __device__ inline bool ecdsa_recover(
     JacobianPoint R;
     if (!lift_x_field(&rx_fe, y_parity, &R)) return false;
 
-    // Step 3: Recover public key Q = r^-^1 * (s*R - z*G)
+    // Step 3: Q = r^-1 * (s*R - z*G) = u1*G + u2*R with u1 = -z*r^-1 and
+    // u2 = s*r^-1. Every input (r, s, recid, message hash) is public and R is
+    // lifted from r, so r^-1, the Shamir table inversion and the final Q.z
+    // inversion are variable time (same contract as ecdsa_verify).
     Scalar z;
     scalar_from_bytes(msg_hash, &z);
 
     Scalar r_inv;
-    scalar_inverse(&sig->r, &r_inv);
+    scalar_inv_var(&sig->r, &r_inv);
 
-    // s * R
-    JacobianPoint sR;
-    scalar_mul(&R, &sig->s, &sR);
+    Scalar zr, u1, u2;
+    scalar_mul_mod_n(&z, &r_inv, &zr);
+    scalar_negate(&zr, &u1);
+    scalar_mul_mod_n(&sig->s, &r_inv, &u2);
 
-    // z * G
-    JacobianPoint zG;
-    scalar_mul(&GENERATOR_JACOBIAN, &z, &zG);
+    // One GLV Shamir dual multiplication (R has Z = 1 from lift_x_field).
+    JacobianPoint Qj;
+    shamir_double_mul_glv(&GENERATOR_JACOBIAN, &u1, &R, &u2, &Qj);
+    if (Qj.infinity) { *Q = Qj; return false; }
 
-    // Negate zG (negate Y)
-    FieldElement fzero;
-    field_set_zero(&fzero);
-    field_sub(&fzero, &zG.y, &zG.y);
+    // The Shamir loop adds without the P == +-Q checks. An input whose true
+    // result is the point at infinity (R = c*G with z = c*s, crafted from
+    // public data) or an exceptional doubling leaves Z = 0 with the infinity
+    // flag clear, and Z = 0 is sticky. Recompute exactly with two single
+    // multiplications and the complete jacobian_add in that case only.
+    bool z_is_zero = true;
+    {
+        uint8_t zb[32];
+        field_to_bytes(&Qj.z, zb);
+        for (int i = 0; i < 32; i++) if (zb[i] != 0) z_is_zero = false;
+    }
+    if (z_is_zero) {
+        JacobianPoint uR;
+        scalar_mul(&R, &u2, &uR);
+        if (scalar_is_zero(&u1)) {
+            Qj = uR;
+        } else {
+            JacobianPoint uG;
+            scalar_mul(&GENERATOR_JACOBIAN, &u1, &uG);
+            jacobian_add(&uG, &uR, &Qj);
+        }
+        if (Qj.infinity) { *Q = Qj; return false; }
+    }
 
-    // sR - zG = sR + (-zG)
-    JacobianPoint sR_minus_zG;
-    jacobian_add(&sR, &zG, &sR_minus_zG);
-
-    // Q = r_inv * (sR - zG)
-    scalar_mul(&sR_minus_zG, &r_inv, Q);
-
-    if (Q->infinity) return false;
+    // One affine conversion; Q is returned with Z = 1.
+    FieldElement qx, qy;
+    if (!jacobian_to_affine_var(&Qj, &qx, &qy)) return false;
+    Q->x = qx;
+    Q->y = qy;
+    field_set_one(&Q->z);
+    Q->infinity = false;
     return true;
 }
 

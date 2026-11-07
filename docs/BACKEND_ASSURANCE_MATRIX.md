@@ -666,6 +666,23 @@ A kernel being present internally does not imply a public API exists for it.
 | `ufsecp_gpu_zk_ecdsa_snark_witness_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_zk_schnorr_snark_witness_batch` | Y | - | Y | Y | Y |
 | `ufsecp_gpu_bip352_scan_batch_multispend` ² | Y | - | Y | Y | Y |
+| `ufsecp_gpu_bch_schnorr_verify_batch` ³ | Y | - | Y | Y | Y ³ |
+
+³ **Bitcoin Cash 2019 Schnorr batch verify (issue #466), NOT BIP-340.** CPU
+reference: `ufsecp_bch_schnorr_verify` / `secp256k1::bch_schnorr_verify`. One
+thread per signature, variable-time on public data: SEC1 decompression, the
+97-byte SHA-256 challenge (two blocks), GLV Shamir `s*G - e*P`, a quadratic-residue
+test on `Y*Z` and the projective `X == r*Z^2` check -- no field inversion.
+Kernels: CUDA `bch_schnorr_verify_batch_kernel` (`src/cuda/include/bch_schnorr.cuh`),
+OpenCL `bch_schnorr_verify_batch` (`secp256k1_extended.cl`), Metal
+`bch_schnorr_verify_batch` (`secp256k1_kernels.metal`, a line-for-line mirror of
+OpenCL). Non-canonical keys (x >= p) are masked invalid per item by the C ABI.
+Evidence: `audit/test_gpu_ops_equivalence.cpp` (GPU vs CPU per item, valid and
+every invalid class, mixed batch), `gpu_audit_runner` / `opencl_audit_runner`
+module `bch_schnorr_diff`. **Metal is code-complete but NOT runtime-verified**:
+Metal is not compiled on the Linux hosts. Throughput: not yet measured --
+benchmark required (`bench_gpu_abi_batch --ops bch_schnorr_verify` for end-to-end,
+`gpu_bench_unified` row "BCH Schnorr verify" for kernel-only).
 
 ¹ Several GPU public API functions accept private or secret key material:
 `ufsecp_gpu_ecdh_batch`, `ufsecp_gpu_bip352_scan_batch(_multispend)`,
@@ -921,6 +938,7 @@ through `ufsecp_gpu.h`.
 | Pedersen commitment | Y | Y | Y | `bulletproof_verify_batch` internals |
 | Keccak-256 / `eth_address` | Y | Y | Y | internal Ethereum address derivation |
 | BIP-32 derive child | Y | - | Y | internal HD key derivation (app use) |
+| Variable-time inverse (`field_inv_var`, `scalar_inv_var`, `jacobian_to_affine_var`; public data only) | Y | - | - | internal to the CUDA verify paths (ECDSA / Schnorr verify, ecrecover, ECDSA SNARK witness, DLEQ / knowledge / FROST partial verify); not a `GpuBackend` operation. OpenCL and Metal have no port: their verifiers keep the Fermat inverse. Operation parity is unchanged and value parity holds, because the results are bit-identical to `field_inv` / `scalar_inverse` (`gpu_audit_runner` module `inv_var_diff`; `docs/AUDIT_CHANGELOG.md` 2026-10-02) |
 
 ---
 
@@ -962,6 +980,26 @@ their respective `apply_endomorphism_impl` implementations.
 - **Metal runtime caveat:** Fixed code is code-complete but NOT runtime-verified
   on this Linux host (Metal requires Apple hardware). Owner validation on real
   Apple hardware is needed before promotion to HIGH assurance.
+
+### CT mixed addition P + (-P) — Metal + OpenCL (fixed 2026-11-04)
+
+**Bug:** `ct_point_add_mixed` in Metal (`secp256k1_ct_point.h`) and OpenCL
+(`secp256k1_ct_point.cl`) had a constant-time select for P == Q, but none for
+P == -Q. That sum came back as Z = 0 with the infinity flag clear, a value every
+later addition and doubling treats as a finite point. Now the flag is set and
+the coordinates are the canonical infinity, using masks only (`5f61a31c`).
+
+- **CUDA and CPU:** not affected. `ct_point.cuh` and the CPU `ct::` code use
+  complete formulas.
+- **Reach:** the CT `ct_scalar_mul_point` and `ct_generator_mul_*`, which serve
+  signing nonces, pubkey creation, ECDH and CT ZK prove. Random scalars reach
+  the case with negligible probability. No input that reaches it through those
+  callers has been constructed.
+- **Test:** OpenCL `opencl_audit_runner` module `ct_add_mixed_neg`. With the old
+  kernel it fails for 23 of 23 points; with the fix it passes.
+  `metal_extended_test.mm` mirrors the checks.
+- **Metal runtime caveat:** code-complete, not runtime-verified on this Linux
+  host.
 
 ### OpenCL generator w4 table storage optimization — production (2026-07-12)
 

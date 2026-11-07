@@ -1,0 +1,98 @@
+{
+  "report_type": "cuda_hash160_kernel_ab",
+  "generated_by": "bench.cu (the harness of cuda_hash160_unrolled_ab_2026-11-02, source inline below) driven by an inline loop; numbers parsed from its output, none typed by hand",
+  "date": "2026-11-03",
+  "gpu": "NVIDIA GeForce RTX 5060 Ti",
+  "cuda": "13.2",
+  "arch": "sm_120",
+  "method": "base = src/cuda/include/hash160.cuh at fd79ffab, new = the same header with sha256_65 (card gpu-hash160-sha256-65-regs); hash160_pubkey with a runtime length, one thread per key, 256 threads/block, n = 2^22 device-resident random keys, 100 launches timed with cudaEvent per run; order alternates per round; 5 runs each",
+  "what_changed": "registers-only two-block sha256_65 for 65-byte keys; 33-byte and other lengths unchanged",
+  "ptxas_kernel": {
+    "base": {
+      "stack_frame_bytes": 128,
+      "registers": 56
+    },
+    "new": {
+      "stack_frame_bytes": 128,
+      "registers": 56
+    }
+  },
+  "header_sha256": {
+    "base": "e38b739203bcdf76a9a22d84b4b7ca3464024228cbb0381176f8f7eca379ea99",
+    "new": "2756ce1304a9193bd5c444fa1cce1a92912b4f3e98dfaf88b1bd544b22b50c64"
+  },
+  "binary_sha256": {
+    "base": "7b5bcc89a4fc6c35f6db7cf71091e5422b0bec29fa1983a6683872e29f2592de",
+    "new": "d3a308572b7ab476c01f5765d55d4fb7ed305b577bb95d7552b2bd5622329a8f"
+  },
+  "bench_source_sha256": "10352d7c81a9d0f6db886f67bcf468bbb9d891aeb86bcfc9f9562956c0175d36",
+  "bench_source": "#include \"hash160.cuh\"\n#include <cstdio>\n#include <cstdlib>\n#include <vector>\n#include <cstring>\nusing namespace secp256k1::cuda;\n__global__ void k(const uint8_t* in, int len, uint8_t* out, int n){\n  int i=blockIdx.x*blockDim.x+threadIdx.x; if(i<n) hash160_pubkey(in+(size_t)i*len,(size_t)len,out+(size_t)i*20);\n}\nint main(int argc,char**argv){\n  int len=atoi(argv[1]); int n=1<<22; int reps=atoi(argv[2]);\n  std::vector<uint8_t> h((size_t)n*len); uint64_t x=88172645463325252ULL;\n  for(auto&b:h){x^=x<<13;x^=x>>7;x^=x<<17;b=(uint8_t)x;}\n  // known vector: generator compressed pubkey\n  static const uint8_t G[33]={0x02,0x79,0xBE,0x66,0x7E,0xF9,0xDC,0xBB,0xAC,0x55,0xA0,0x62,0x95,0xCE,0x87,0x0B,0x07,0x02,0x9B,0xFC,0xDB,0x2D,0xCE,0x28,0xD9,0x59,0xF2,0x81,0x5B,0x16,0xF8,0x17,0x98};\n  if(len==33) memcpy(h.data(),G,33);\n  uint8_t *din,*dout; cudaMalloc(&din,h.size()); cudaMalloc(&dout,(size_t)n*20);\n  cudaMemcpy(din,h.data(),h.size(),cudaMemcpyHostToDevice);\n  k<<<(n+255)/256,256>>>(din,len,dout,n); cudaDeviceSynchronize();\n  cudaEvent_t a,b; cudaEventCreate(&a); cudaEventCreate(&b);\n  cudaEventRecord(a); for(int r=0;r<reps;++r) k<<<(n+255)/256,256>>>(din,len,dout,n); cudaEventRecord(b); cudaEventSynchronize(b);\n  float ms; cudaEventElapsedTime(&ms,a,b);\n  std::vector<uint8_t> o((size_t)n*20); cudaMemcpy(o.data(),dout,o.size(),cudaMemcpyDeviceToHost);\n  uint64_t fnv=1469598103934665603ULL; for(auto c:o){fnv^=c;fnv*=1099511628211ULL;}\n  printf(\"len=%d n=%d reps=%d ns_per_hash=%.4f digest=%016llx first=\",len,n,reps,ms*1e6/((double)n*reps),(unsigned long long)fnv);\n  for(int i=0;i<20;++i)printf(\"%02x\",o[i]); printf(\" err=%s\\n\",cudaGetErrorString(cudaGetLastError()));\n}\n",
+  "runs_per_tag": 5,
+  "rows": [
+    {
+      "pubkey_len": 33,
+      "base": {
+        "rounds": [
+          0.3259,
+          0.3259,
+          0.3259,
+          0.3257,
+          0.3259
+        ],
+        "median": 0.3259,
+        "min": 0.3257,
+        "max": 0.3259,
+        "spread_pct": 0.06136851795030177
+      },
+      "new": {
+        "rounds": [
+          0.3237,
+          0.3239,
+          0.3239,
+          0.3238,
+          0.3238
+        ],
+        "median": 0.3238,
+        "min": 0.3237,
+        "max": 0.3239,
+        "spread_pct": 0.06176652254479108
+      },
+      "verdict": "improvement",
+      "new_over_base_median": 0.9935563056152192,
+      "output_digest": "5a318dc4c405a4bb"
+    },
+    {
+      "pubkey_len": 65,
+      "base": {
+        "rounds": [
+          0.6197,
+          0.6132,
+          0.6192,
+          0.6113,
+          0.6191
+        ],
+        "median": 0.6191,
+        "min": 0.6113,
+        "max": 0.6197,
+        "spread_pct": 1.3568082700694677
+      },
+      "new": {
+        "rounds": [
+          0.536,
+          0.5352,
+          0.5361,
+          0.5359,
+          0.5364
+        ],
+        "median": 0.536,
+        "min": 0.5352,
+        "max": 0.5364,
+        "spread_pct": 0.22388059701492138
+      },
+      "verdict": "improvement",
+      "new_over_base_median": 0.8657728961395575,
+      "output_digest": "54033f6b8b94ce6a"
+    }
+  ],
+  "verdict_rule": "improvement iff new_max < base_min; regression iff new_min > base_max; else inconclusive"
+}

@@ -259,6 +259,34 @@ UFSECP_API ufsecp_error_t ufsecp_gpu_schnorr_verify_batch(
     size_t count,
     uint8_t* out_results);
 
+/** Batch Bitcoin Cash 2019 Schnorr verification (NOT BIP-340).
+ *
+ *  PUBLIC-DATA operation; the kernels are variable-time by design.
+ *  Rule (https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/), per item:
+ *    fail if r >= p, s >= n or s == 0, or the key is not a canonical SEC1
+ *    compressed point (prefix 02/03, x < p, on the curve);
+ *    e = SHA256(r || pubkey33 || msg32) mod n;  R = s*G - e*P;
+ *    fail if R = O, if R.y is not a quadratic residue, or if x(R) != r.
+ *  out_results[i] equals ufsecp_bch_schnorr_verify(msg_i, sig_i, pub_i) == OK.
+ *  Same NULL / count == 0 / fail-closed semantics as
+ *  ufsecp_gpu_schnorr_verify_batch; a non-canonical key makes only its own item
+ *  invalid. Backends: CUDA, OpenCL, Metal (Metal not runtime-verified on Linux).
+ *
+ *  @param ctx           GPU context.
+ *  @param msgs32        Input: count * 32 bytes (message hashes).
+ *  @param pubkeys33     Input: count * 33 bytes (SEC1 compressed public keys).
+ *  @param sigs64        Input: count * 64 bytes (r || s, big-endian).
+ *  @param count         Number of items.
+ *  @param out_results   Output: count bytes (1 = valid, 0 = invalid per item).
+ *  @return UFSECP_OK if batch processed (check out_results for per-item). */
+UFSECP_API ufsecp_error_t ufsecp_gpu_bch_schnorr_verify_batch(
+    ufsecp_gpu_ctx* ctx,
+    const uint8_t* msgs32,
+    const uint8_t* pubkeys33,
+    const uint8_t* sigs64,
+    size_t count,
+    uint8_t* out_results);
+
 /** Batch libbitcoin ECDSA COLUMN (Structure-of-Arrays) verification.
  *
  *  PUBLIC-DATA operation. Column sibling of ufsecp_gpu_ecdsa_verify_lbtc_rows:

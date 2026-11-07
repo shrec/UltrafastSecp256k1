@@ -44,6 +44,10 @@
 #include "secp256k1/ct/point.hpp"
 #include "secp256k1/ct/scalar.hpp"
 #include "secp256k1/detail/secure_erase.hpp"
+#include "secp256k1/bch_schnorr.hpp"
+
+#include <cstdint>
+#include <vector>
 
 using namespace secp256k1::fast;
 
@@ -58,6 +62,16 @@ static Point pubkey_data_to_point(const unsigned char data[64]) noexcept {
     FieldElement x = FieldElement::from_bytes(xb);
     FieldElement y = FieldElement::from_bytes(yb);
     return Point::from_affine(x, y);
+}
+
+// The point plus the 33 bytes the BCH challenge hashes: prefix from the Y
+// parity in data[63] (layout [x:32][y:32], big-endian), then the x bytes as
+// stored -- exactly the bytes bch_schnorr_e() hashes for the signer.
+static Point pubkey_data_to_compressed(const unsigned char data[64],
+                                       std::uint8_t out33[33]) noexcept {
+    out33[0] = (data[63] & 1u) ? 0x03 : 0x02;
+    std::memcpy(out33 + 1, data, 32);
+    return pubkey_data_to_point(data);
 }
 
 // BCH Schnorr hash: SHA256(R.x[32] || P_compressed[33] || msg[32])
@@ -201,50 +215,45 @@ int secp256k1_schnorr_verify(
     if (!ctx) return 0;  // fail-closed: NULL context is invalid
     if (!sig64 || !msg32 || !pubkey) return 0;
 
+    // Delegates to the engine's BCH verifier (src/cpu/src/bch_schnorr.cpp):
+    // the same rule this function used to inline -- strict s (s >= n and
+    // s == 0 rejected), P != O, e = SHA256(r || P_compressed || msg),
+    // R = s*G - e*P != O, Jacobi(R.y) == 1, x(R) == r -- evaluated without an
+    // inversion or a square root. Verdicts are identical; pinned by
+    // audit/test_bch_schnorr_differential.cpp against a copy of the old body.
+    // Public-data path, variable-time by design (CLAUDE.md CT-VERIFY).
     try {
-        std::array<uint8_t, 32> rx{}, sb{}, msg{};
-        std::memcpy(rx.data(),  sig64,      32);
-        std::memcpy(sb.data(),  sig64 + 32, 32);
-        std::memcpy(msg.data(), msg32,      32);
+        std::uint8_t pub33[33];
+        Point const P = pubkey_data_to_compressed(pubkey->data, pub33);
+        return secp256k1::bch_schnorr_verify(sig64, msg32, P, pub33) ? 1 : 0;
+    } catch (const std::exception&) { return 0; }
+      catch (...) { std::terminate(); }
+}
 
-        // COMPAT-010: strict parse rejects s >= n (from_bytes silently reduces).
-        // s is a public signature component — VT is_zero() is correct for verify.
-        Scalar s;
-        if (!Scalar::parse_bytes_strict(sb.data(), s) || s.is_zero()) return 0;
+int secp256k1_schnorr_verify_batch(
+    const secp256k1_context* ctx,
+    const unsigned char* const* sig64s,
+    const unsigned char* const* msg32s,
+    const secp256k1_pubkey* const* pubkeys,
+    size_t n,
+    const unsigned char* seed32)
+{
+    if (!ctx) return 0;  // fail-closed: NULL context is invalid
+    if (n == 0) return 1;  // empty batch: vacuously valid
+    if (!sig64s || !msg32s || !pubkeys) return 0;
 
-        auto P = pubkey_data_to_point(pubkey->data);
-        if (P.is_infinity()) return 0;
-
-        // Y-parity from pubkey->data[63] (last byte of Y, layout: [x:32][y:32]).
-        // Avoids to_uncompressed() Jacobian→affine conversion (~940ns) for one bit.
-        bool const p_y_odd = (pubkey->data[63] & 1u) != 0;
-
-        // e = SHA256(R.x || P_compressed || msg)
-        auto e = bch_schnorr_e(rx, pubkey->data, p_y_odd, msg);
-
-        // R_check = s*G + (-e)*P  via Shamir's wNAF trick (SHIM-004 fix).
-        // dual_scalar_mul_gen_point(a, b, Q) = a*G + b*Q using interleaved
-        // wNAF — ~1.5× faster than two separate scalar_mul calls.
-        auto neg_e   = e.negate();
-        auto R_check = Point::dual_scalar_mul_gen_point(s, neg_e, P);
-        if (R_check.is_infinity()) return 0;
-
-        // Spec verification step 10: fail if Jacobi(R'.y) != 1. Omitting it
-        // makes the verifier accept BOTH R and -R for the same r -- half of all
-        // candidate signatures -- where BCHN and Libauth accept only one.
-        //
-        // Verify is a public-data path, so a variable-time test is correct
-        // here (CLAUDE.md CT-VERIFY). It costs one field sqrt per verify.
-        {
-            FieldElement const ry = R_check.y();
-            if (ry == FieldElement::zero()) return 0;   // Jacobi(0) == 0, never 1
-            FieldElement const rt = ry.sqrt();
-            if (!(rt.square() == ry)) return 0;
+    try {
+        std::vector<secp256k1::BchSchnorrBatchPointEntry> batch(n);
+        for (size_t i = 0; i < n; ++i) {
+            if (!sig64s[i] || !msg32s[i] || !pubkeys[i]) return 0;
+            batch[i].point = pubkey_data_to_compressed(pubkeys[i]->data,
+                                                       batch[i].pubkey33.data());
+            std::memcpy(batch[i].message.data(), msg32s[i], 32);
+            std::memcpy(batch[i].signature.data(), sig64s[i], 64);
         }
-
-        // Valid iff R_check.x == rx
-        auto rx_check = R_check.x().to_bytes();
-        return (std::memcmp(rx_check.data(), rx.data(), 32) == 0) ? 1 : 0;
+        // Verdict == AND of secp256k1_schnorr_verify over the entries; seed32
+        // is extra entropy only, mixed in on top of the engine's CSPRNG bytes.
+        return secp256k1::bch_schnorr_batch_verify(batch.data(), n, seed32) ? 1 : 0;
     } catch (const std::exception&) { return 0; }
       catch (...) { std::terminate(); }
 }

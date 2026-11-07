@@ -2487,6 +2487,104 @@ static bool test_msm_op(bool verbose) {
     return ok;
 }
 
+// ============================================================================
+// Variable-time inverse (modinv_var.cuh): field_inv_var / scalar_inv_var
+// ============================================================================
+// Not built in a Montgomery build: the vectors are plain field elements and
+// field_inv_var there only forwards to field_inv. Selftest prints the skip.
+#if !SECP256K1_CUDA_USE_MONTGOMERY
+#include "modinv_var_vectors.inc"
+
+// One thread per vector; all vectors of one modulus go in a single launch so
+// that lanes with different iteration counts (1, 17, 18, 19, 20) share warps.
+//   r        public function, separate output
+//   r_alias  public function, in place (a == r)
+//   r_cap10  core with the iteration cap forced to 10 (fail-closed path)
+//   iters    outer iterations used with the real cap
+__global__ void kernel_modinv_var_vectors(const uint64_t* a, uint64_t* r, uint64_t* r_alias,
+                                          uint64_t* r_cap10, int* iters, int is_scalar, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+    const uint64_t* in = a + 4 * idx;
+    uint64_t tmp[4];
+    if (is_scalar) {
+        Scalar x, y;
+        for (int j = 0; j < 4; ++j) x.limbs[j] = in[j];
+        scalar_inv_var(&x, &y);
+        scalar_inv_var(&x, &x);
+        for (int j = 0; j < 4; ++j) { r[4 * idx + j] = y.limbs[j]; r_alias[4 * idx + j] = x.limbs[j]; }
+        iters[idx] = modinv30::inverse_var<modinv30::ModN>(in, tmp, modinv30::MODINV30_MAX_ITERS);
+        (void)modinv30::inverse_var<modinv30::ModN>(in, r_cap10 + 4 * idx, 10);
+    } else {
+        FieldElement x, y;
+        for (int j = 0; j < 4; ++j) x.limbs[j] = in[j];
+        field_inv_var(&x, &y);
+        field_inv_var(&x, &x);
+        for (int j = 0; j < 4; ++j) { r[4 * idx + j] = y.limbs[j]; r_alias[4 * idx + j] = x.limbs[j]; }
+        iters[idx] = modinv30::inverse_var<modinv30::ModP>(in, tmp, modinv30::MODINV30_MAX_ITERS);
+        (void)modinv30::inverse_var<modinv30::ModP>(in, r_cap10 + 4 * idx, 10);
+    }
+}
+
+static bool test_modinv_var_vectors(bool verbose) {
+    if (verbose) std::cout << "\nVariable-time inverse vectors (field_inv_var, scalar_inv_var):\n";
+    bool ok = true;
+    const int total = (int)(sizeof(MODINV_VAR_VECTORS) / sizeof(MODINV_VAR_VECTORS[0]));
+
+    for (int is_scalar = 0; is_scalar < 2; ++is_scalar) {
+        std::vector<const ModinvVarVector*> rows;
+        for (int i = 0; i < total; ++i)
+            if ((MODINV_VAR_VECTORS[i].mod == 'N') == (is_scalar == 1)) rows.push_back(&MODINV_VAR_VECTORS[i]);
+        const int n = (int)rows.size();
+        if (n == 0) { ok = false; continue; }
+
+        const size_t bytes = (size_t)n * 4 * sizeof(uint64_t);
+        std::vector<uint64_t> h_a(4 * n), h_r(4 * n), h_alias(4 * n), h_cap(4 * n);
+        std::vector<int> h_it(n);
+        for (int i = 0; i < n; ++i) std::memcpy(&h_a[4 * i], rows[i]->a, 4 * sizeof(uint64_t));
+
+        uint64_t *d_a, *d_r, *d_alias, *d_cap; int* d_it;
+        cudaMalloc(&d_a, bytes); cudaMalloc(&d_r, bytes); cudaMalloc(&d_alias, bytes);
+        cudaMalloc(&d_cap, bytes); cudaMalloc(&d_it, n * sizeof(int));
+        cudaMemcpy(d_a, h_a.data(), bytes, cudaMemcpyHostToDevice);
+        kernel_modinv_var_vectors<<<(n + 255) / 256, 256>>>(d_a, d_r, d_alias, d_cap, d_it, is_scalar, n);
+        if (cudaDeviceSynchronize() != cudaSuccess) ok = false;
+        cudaMemcpy(h_r.data(), d_r, bytes, cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_alias.data(), d_alias, bytes, cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_cap.data(), d_cap, bytes, cudaMemcpyDeviceToHost);
+        cudaMemcpy(h_it.data(), d_it, n * sizeof(int), cudaMemcpyDeviceToHost);
+        cudaFree(d_a); cudaFree(d_r); cudaFree(d_alias); cudaFree(d_cap); cudaFree(d_it);
+
+        static const uint64_t zero[4] = {0, 0, 0, 0};
+        int bad = 0, max_it = 0;
+        for (int i = 0; i < n; ++i) {
+            const ModinvVarVector& v = *rows[i];
+            // with the cap at 10 the result must be the inverse if 10 iterations
+            // were enough and exactly zero otherwise (never a wrong non-zero value)
+            const uint64_t* want_cap = (v.iters <= 10) ? v.inv : zero;
+            const bool row_ok =
+                std::memcmp(&h_r[4 * i], v.inv, 32) == 0 &&
+                std::memcmp(&h_alias[4 * i], v.inv, 32) == 0 &&
+                std::memcmp(&h_cap[4 * i], want_cap, 32) == 0 &&
+                h_it[i] == v.iters;
+            max_it = std::max(max_it, h_it[i]);
+            if (!row_ok) {
+                ++bad;
+                if (verbose) std::cout << "    FAIL: " << v.mod << " " << v.label
+                                       << " (iters " << h_it[i] << ", want " << v.iters << ")\n";
+            }
+        }
+        if (bad != 0) ok = false;
+        if (verbose) std::cout << "    " << (is_scalar ? "scalar_inv_var" : "field_inv_var ") << ": "
+                               << (n - bad) << "/" << n << " vectors, max outer iterations " << max_it << "\n";
+    }
+
+    if (verbose) std::cout << (ok ? "    PASS\n" : "    FAIL\n");
+    return ok;
+}
+
+#endif // !SECP256K1_CUDA_USE_MONTGOMERY
+
 #endif // !SECP256K1_CUDA_LIMBS_32
 
 bool Selftest(bool verbose) {
@@ -2635,6 +2733,14 @@ bool Selftest(bool verbose) {
 
     total++;
     if (test_msm_op(verbose)) passed++;
+
+#if !SECP256K1_CUDA_USE_MONTGOMERY
+    total++;
+    if (test_modinv_var_vectors(verbose)) passed++;
+#else
+    if (verbose) std::cout << "\nVariable-time inverse vectors: SKIPPED (Montgomery build; the vectors are"
+                              " plain field elements)\n";
+#endif
 #endif
     
     if (verbose) {

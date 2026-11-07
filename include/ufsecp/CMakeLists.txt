@@ -185,6 +185,12 @@ elseif(TARGET ufsecp_shared)
     add_library(ufsecp::ufsecp ALIAS ufsecp_shared)
 endif()
 
+# End-to-end GPU C ABI batch benchmark (bench_gpu_abi_batch). Added here, not
+# from src/gpu, because it links the ufsecp targets created just above.
+if(SECP256K1_BUILD_BENCH AND TARGET secp256k1_gpu_host)
+    add_subdirectory("${ULTRAFAST_ROOT}/benchmarks/gpu" "${CMAKE_BINARY_DIR}/benchmarks/gpu")
+endif()
+
 # Legacy libbitcoin C-ABI bridge benchmark. The top-level
 # SECP256K1_BUILD_LIBBITCOIN_BENCH option is the single source of truth; this
 # C-ABI subdirectory only adds the legacy bench when the bridge is also enabled.

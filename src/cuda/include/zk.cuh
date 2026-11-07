@@ -278,8 +278,20 @@ __device__ inline bool dleq_verify_device(
     affine_to_compressed(&H->x, &H->y, h_comp);
     affine_to_compressed(&P->x, &P->y, p_comp);
     affine_to_compressed(&Q->x, &Q->y, q_comp);
-    point_to_compressed(&R1, r1_comp);
-    point_to_compressed(&R2, r2_comp);
+    // R1 and R2 are functions of the proof and of the four public points, so
+    // their affine conversion is variable time. Same bytes as
+    // point_to_compressed, which also leaves the buffer untouched for infinity.
+    {
+        FieldElement ax, ay;
+        if (jacobian_to_affine_var(&R1, &ax, &ay)) {
+            r1_comp[0] = field_is_odd(&ay) ? 0x03 : 0x02;
+            field_to_bytes(&ax, r1_comp + 1);
+        }
+        if (jacobian_to_affine_var(&R2, &ax, &ay)) {
+            r2_comp[0] = field_is_odd(&ay) ? 0x03 : 0x02;
+            field_to_bytes(&ax, r2_comp + 1);
+        }
+    }
 
     // e_check = H("ZK/dleq" || G || H || P || Q || R1 || R2)
     uint8_t buf[33 * 6];
@@ -709,7 +721,7 @@ __device__ inline bool range_verify_full_device(
         acc[0] = x_rounds[0];
         for (int j = 1; j < BP_LOG2; ++j) scalar_mul_mod_n(&acc[j-1], &x_rounds[j], &acc[j]);
         Scalar inv_acc;
-        scalar_inverse(&acc[BP_LOG2 - 1], &inv_acc);
+        scalar_inv_var(&acc[BP_LOG2 - 1], &inv_acc);   // public Fiat-Shamir challenges
         for (int j = BP_LOG2 - 1; j >= 1; --j) {
             scalar_mul_mod_n(&inv_acc, &acc[j-1], &x_inv_rounds[j]);
             scalar_mul_mod_n(&inv_acc, &x_rounds[j], &inv_acc);
@@ -719,7 +731,7 @@ __device__ inline bool range_verify_full_device(
 
     // Compute y_inv and y_inv powers
     Scalar y_inv;
-    scalar_inverse(&y, &y_inv);
+    scalar_inv_var(&y, &y_inv);                    // public Fiat-Shamir challenge
     Scalar y_inv_powers[BP_BITS];
     y_inv_powers[0].limbs[0] = 1; y_inv_powers[0].limbs[1] = 0;
     y_inv_powers[0].limbs[2] = 0; y_inv_powers[0].limbs[3] = 0;
@@ -750,7 +762,7 @@ __device__ inline bool range_verify_full_device(
         acc[0] = s_coeff[0];
         for (int i = 1; i < BP_BITS; ++i) scalar_mul_mod_n(&acc[i-1], &s_coeff[i], &acc[i]);
         Scalar inv_acc;
-        scalar_inverse(&acc[BP_BITS - 1], &inv_acc);
+        scalar_inv_var(&acc[BP_BITS - 1], &inv_acc);   // products of public challenges
         for (int i = BP_BITS - 1; i >= 1; --i) {
             scalar_mul_mod_n(&inv_acc, &acc[i-1], &s_inv[i]);
             scalar_mul_mod_n(&inv_acc, &s_coeff[i], &inv_acc);
@@ -1040,7 +1052,7 @@ __device__ inline bool range_verify_warp_device(
             acc[0] = smem->x_rounds[0];
             for (int j = 1; j < BP_LOG2; ++j) scalar_mul_mod_n(&acc[j-1], &smem->x_rounds[j], &acc[j]);
             Scalar inv_acc;
-            scalar_inverse(&acc[BP_LOG2 - 1], &inv_acc);
+            scalar_inv_var(&acc[BP_LOG2 - 1], &inv_acc);   // public Fiat-Shamir challenges
             for (int j = BP_LOG2 - 1; j >= 1; --j) {
                 scalar_mul_mod_n(&inv_acc, &acc[j-1], &smem->x_inv_rounds[j]);
                 scalar_mul_mod_n(&inv_acc, &smem->x_rounds[j], &inv_acc);
@@ -1050,7 +1062,7 @@ __device__ inline bool range_verify_warp_device(
 
         // y_inv and y_inv_powers
         Scalar y_inv;
-        scalar_inverse(&y, &y_inv);
+        scalar_inv_var(&y, &y_inv);                // public Fiat-Shamir challenge
         smem->y_inv_powers[0].limbs[0] = 1; smem->y_inv_powers[0].limbs[1] = 0;
         smem->y_inv_powers[0].limbs[2] = 0; smem->y_inv_powers[0].limbs[3] = 0;
         for (int i = 1; i < BP_BITS; ++i)
@@ -1078,7 +1090,7 @@ __device__ inline bool range_verify_warp_device(
             acc[0] = smem->s_coeff[0];
             for (int i = 1; i < BP_BITS; ++i) scalar_mul_mod_n(&acc[i-1], &smem->s_coeff[i], &acc[i]);
             Scalar inv_acc;
-            scalar_inverse(&acc[BP_BITS - 1], &inv_acc);
+            scalar_inv_var(&acc[BP_BITS - 1], &inv_acc);   // products of public challenges
             for (int i = BP_BITS - 1; i >= 1; --i) {
                 scalar_mul_mod_n(&inv_acc, &acc[i-1], &smem->s_inv[i]);
                 scalar_mul_mod_n(&inv_acc, &smem->s_coeff[i], &inv_acc);
@@ -1415,7 +1427,7 @@ __device__ inline bool range_verify_warp_precomp_impl(
             acc[0] = smem->x_rounds[0];
             for (int j = 1; j < BP_LOG2; ++j) scalar_mul_mod_n(&acc[j-1], &smem->x_rounds[j], &acc[j]);
             Scalar inv_acc;
-            scalar_inverse(&acc[BP_LOG2 - 1], &inv_acc);
+            scalar_inv_var(&acc[BP_LOG2 - 1], &inv_acc);   // public Fiat-Shamir challenges
             for (int j = BP_LOG2 - 1; j >= 1; --j) {
                 scalar_mul_mod_n(&inv_acc, &acc[j-1], &smem->x_inv_rounds[j]);
                 scalar_mul_mod_n(&inv_acc, &smem->x_rounds[j], &inv_acc);
@@ -1424,7 +1436,7 @@ __device__ inline bool range_verify_warp_precomp_impl(
         }
 
         Scalar y_inv;
-        scalar_inverse(&y, &y_inv);
+        scalar_inv_var(&y, &y_inv);                // public Fiat-Shamir challenge
         smem->y_inv_powers[0].limbs[0] = 1; smem->y_inv_powers[0].limbs[1] = 0;
         smem->y_inv_powers[0].limbs[2] = 0; smem->y_inv_powers[0].limbs[3] = 0;
         for (int i = 1; i < BP_BITS; ++i)
@@ -1450,7 +1462,7 @@ __device__ inline bool range_verify_warp_precomp_impl(
             acc[0] = smem->s_coeff[0];
             for (int i = 1; i < BP_BITS; ++i) scalar_mul_mod_n(&acc[i-1], &smem->s_coeff[i], &acc[i]);
             Scalar inv_acc;
-            scalar_inverse(&acc[BP_BITS - 1], &inv_acc);
+            scalar_inv_var(&acc[BP_BITS - 1], &inv_acc);   // products of public challenges
             for (int i = BP_BITS - 1; i >= 1; --i) {
                 scalar_mul_mod_n(&inv_acc, &acc[i-1], &smem->s_inv[i]);
                 scalar_mul_mod_n(&inv_acc, &smem->s_coeff[i], &inv_acc);
@@ -1761,7 +1773,7 @@ __device__ inline bool range_verify_warp_lut4_device(
             acc[0] = smem->x_rounds[0];
             for (int j = 1; j < BP_LOG2; ++j) scalar_mul_mod_n(&acc[j-1], &smem->x_rounds[j], &acc[j]);
             Scalar inv_acc;
-            scalar_inverse(&acc[BP_LOG2 - 1], &inv_acc);
+            scalar_inv_var(&acc[BP_LOG2 - 1], &inv_acc);   // public Fiat-Shamir challenges
             for (int j = BP_LOG2 - 1; j >= 1; --j) {
                 scalar_mul_mod_n(&inv_acc, &acc[j-1], &smem->x_inv_rounds[j]);
                 scalar_mul_mod_n(&inv_acc, &smem->x_rounds[j], &inv_acc);
@@ -1770,7 +1782,7 @@ __device__ inline bool range_verify_warp_lut4_device(
         }
 
         Scalar y_inv;
-        scalar_inverse(&y, &y_inv);
+        scalar_inv_var(&y, &y_inv);                // public Fiat-Shamir challenge
         smem->y_inv_powers[0].limbs[0] = 1; smem->y_inv_powers[0].limbs[1] = 0;
         smem->y_inv_powers[0].limbs[2] = 0; smem->y_inv_powers[0].limbs[3] = 0;
         for (int i = 1; i < BP_BITS; ++i)
@@ -1796,7 +1808,7 @@ __device__ inline bool range_verify_warp_lut4_device(
             acc[0] = smem->s_coeff[0];
             for (int i = 1; i < BP_BITS; ++i) scalar_mul_mod_n(&acc[i-1], &smem->s_coeff[i], &acc[i]);
             Scalar inv_acc;
-            scalar_inverse(&acc[BP_BITS - 1], &inv_acc);
+            scalar_inv_var(&acc[BP_BITS - 1], &inv_acc);   // products of public challenges
             for (int i = BP_BITS - 1; i >= 1; --i) {
                 scalar_mul_mod_n(&inv_acc, &acc[i-1], &smem->s_inv[i]);
                 scalar_mul_mod_n(&inv_acc, &smem->s_coeff[i], &inv_acc);
@@ -2091,7 +2103,7 @@ __device__ inline bool range_verify_warp_lut4_p1par_device(
         scalar_mul_mod_n(&acc[BP_LOG2 - 1], &smem->y_val, &acc[BP_LOG2]);
 
         Scalar inv_acc;
-        scalar_inverse(&acc[BP_LOG2], &inv_acc);
+        scalar_inv_var(&acc[BP_LOG2], &inv_acc);   // public Fiat-Shamir challenges
 
         // Extract y_inv (last element)
         Scalar y_inv;

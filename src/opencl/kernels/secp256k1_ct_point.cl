@@ -199,15 +199,25 @@ static inline void ct_point_add_mixed(const CTJacobianPoint* p, const CTAffinePo
 
     // Handle degenerate cases via CT select:
     // If h==0 && rr==0: P==Q, should double
+    // If h==0 && rr!=0: P==-Q, the sum is the point at infinity. The formula
+    // above then gives z3 = 2*z1*h = 0, so the result must carry the infinity
+    // flag (and canonical infinity coordinates), or the Z = 0 value would be
+    // treated as a finite point by every later addition.
+    // Masks are full 64-bit (0 or ~0), the same width as CTJacobianPoint.infinity.
     ulong h_zero = ct_field_is_zero(&h);
     ulong rr_zero = ct_field_is_zero(&rr);
     ulong same_point = h_zero & rr_zero;
+    ulong neg_point = h_zero & ~rr_zero & ~p->infinity & ~q->infinity;
 
-    CTJacobianPoint dbl_result;
     // Only compute double if needed (always computed for CT)
     CTJacobianPoint p_dbl;
     ct_point_dbl(p, &p_dbl);
     ct_point_cmov(r, &p_dbl, same_point & ~p->infinity & ~q->infinity);
+
+    // If P == -Q, result = O
+    CTJacobianPoint inf;
+    ct_point_set_infinity(&inf);
+    ct_point_cmov(r, &inf, neg_point);
 
     // If P is infinity, result = Q (as Jacobian)
     CTJacobianPoint q_jac;
@@ -220,8 +230,8 @@ static inline void ct_point_add_mixed(const CTJacobianPoint* p, const CTAffinePo
     // If Q is infinity, result = P
     ct_point_cmov(r, p, q->infinity);
 
-    // Final infinity flag
-    r->infinity = p->infinity & q->infinity;
+    // Final infinity flag: O + O, or P + (-P)
+    r->infinity = (p->infinity & q->infinity) | neg_point;
 }
 
 // ---------------------------------------------------------------------------
@@ -265,58 +275,31 @@ static inline void ct_scalar_mul_point(const CTJacobianPoint* p, const Scalar* k
     }
     table_a[0].infinity = ~(ulong)0;
 
-    // Compute 1P..15P in Jacobian
+    // table_a[1] = P in affine, then 1P..15P = P, P+P, 2P+P, ... by CT mixed adds
+    FieldElement z_inv_0, z_inv2_0, z_inv3_0;
+    ct_field_inv(&z_inv_0, &p->z);
+    field_sqr_impl(&z_inv2_0, &z_inv_0);
+    field_mul_impl(&z_inv3_0, &z_inv_0, &z_inv2_0);
+    field_mul_impl(&table_a[1].x, &p->x, &z_inv2_0);
+    field_mul_impl(&table_a[1].y, &p->y, &z_inv3_0);
+    table_a[1].infinity = p->infinity;
+
     CTJacobianPoint jac_pts[15];
     jac_pts[0] = *p;
     for (int i = 1; i < 15; ++i)
-        ct_point_add_mixed(&jac_pts[i - 1], &table_a[1], &jac_pts[i]);  // placeholder
+        ct_point_add_mixed(&jac_pts[i - 1], &table_a[1], &jac_pts[i]);
 
-    // Batch invert Z coords
+    // Batch invert Z and convert 1P..15P to affine
     FieldElement z_vals[15], z_inv_vals[15];
     for (int i = 0; i < 15; ++i) z_vals[i] = jac_pts[i].z;
     ct_batch_field_inv(z_vals, z_inv_vals, 15);
-
-    // Convert to affine
     for (int i = 0; i < 15; ++i) {
-        FieldElement z_inv2, z_inv3;
-        field_sqr_impl(&z_inv2, &z_inv_vals[i]);
-        field_mul_impl(&z_inv3, &z_inv_vals[i], &z_inv2);
-        field_mul_impl(&table_a[i + 1].x, &jac_pts[i].x, &z_inv2);
-        field_mul_impl(&table_a[i + 1].y, &jac_pts[i].y, &z_inv3);
+        FieldElement zi2, zi3;
+        field_sqr_impl(&zi2, &z_inv_vals[i]);
+        field_mul_impl(&zi3, &z_inv_vals[i], &zi2);
+        field_mul_impl(&table_a[i + 1].x, &jac_pts[i].x, &zi2);
+        field_mul_impl(&table_a[i + 1].y, &jac_pts[i].y, &zi3);
         table_a[i + 1].infinity = jac_pts[i].infinity;
-    }
-
-    // Fix: recompute multiples using table_a[1] for sequential adds
-    // We need to redo this properly: 1P=p, 2P=P+P, 3P=2P+P, etc.
-    {
-        CTJacobianPoint acc;
-        acc.x = p->x; acc.y = p->y; acc.z = p->z; acc.infinity = p->infinity;
-        jac_pts[0] = acc;
-        // Convert P to affine for table_a[1]
-        FieldElement z_inv2_0, z_inv3_0, z_inv_0;
-        ct_field_inv(&z_inv_0, &p->z);
-        field_sqr_impl(&z_inv2_0, &z_inv_0);
-        field_mul_impl(&z_inv3_0, &z_inv_0, &z_inv2_0);
-        field_mul_impl(&table_a[1].x, &p->x, &z_inv2_0);
-        field_mul_impl(&table_a[1].y, &p->y, &z_inv3_0);
-        table_a[1].infinity = p->infinity;
-
-        // Build 2P..15P
-        for (int i = 1; i < 15; ++i) {
-            ct_point_add_mixed(&jac_pts[i - 1], &table_a[1], &jac_pts[i]);
-        }
-
-        // Batch invert and convert
-        for (int i = 0; i < 15; ++i) z_vals[i] = jac_pts[i].z;
-        ct_batch_field_inv(z_vals, z_inv_vals, 15);
-        for (int i = 0; i < 15; ++i) {
-            FieldElement zi2, zi3;
-            field_sqr_impl(&zi2, &z_inv_vals[i]);
-            field_mul_impl(&zi3, &z_inv_vals[i], &zi2);
-            field_mul_impl(&table_a[i + 1].x, &jac_pts[i].x, &zi2);
-            field_mul_impl(&table_a[i + 1].y, &jac_pts[i].y, &zi3);
-            table_a[i + 1].infinity = jac_pts[i].infinity;
-        }
     }
 
     // Build endomorphism table: phi(P) = (beta*x, y)

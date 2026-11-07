@@ -419,6 +419,16 @@ static inline void scalar_inverse_impl(const Scalar* a, Scalar* r) {
     *r = result;
 }
 
+// r = a^-1 mod n via the variable-time Bernstein-Yang SafeGCD core
+// (modinv30_var_impl in secp256k1_field.cl). Same value as scalar_inverse_impl
+// for every 256-bit input (reduced or not); 0 for a == 0 mod n.
+// VARIABLE TIME, PUBLIC DATA ONLY: never on a private key, nonce, signing
+// share, ECDH scalar or BIP-32 / BIP-352 secret; see the block comment above
+// modinv30_var_impl for the full rule and how it is enforced.
+static inline void scalar_inv_var_impl(const Scalar* a, Scalar* r) {
+    (void)modinv30_var_impl(a->limbs, r->limbs, 1, MODINV30_MAX_ITERS);
+}
+
 // Scalar is even: test bit 0
 static inline int scalar_is_even_impl(const Scalar* s) {
     return (s->limbs[0] & 1UL) == 0;
@@ -789,7 +799,14 @@ static inline void shamir_double_mul_glv_impl(
         return;
     }
 
-    // Batch inversion: Montgomery's trick — 1 field_inv for 11 Z values
+    // Batch inversion: Montgomery's trick — 1 field_inv for 11 Z values.
+    // Variable-time SafeGCD inverse: every caller of this helper works on
+    // public points and public scalars (ecdsa_verify_impl,
+    // schnorr_verify_impl, lbtc_commitment_verify, ecdsa_snark_witness_impl and
+    // the public-key recovery ecdsa_recover_impl in this file; knowledge / DLEQ
+    // proof verification in secp256k1_zk.cl), and
+    // these Z values are sums of the public table points. A signer, ECDH or
+    // prover must not call this helper.
     FieldElement prefix[11];
     prefix[0] = jc[0].z;
     for (int i = 1; i < 11; i++) {
@@ -797,7 +814,7 @@ static inline void shamir_double_mul_glv_impl(
     }
 
     FieldElement inv_prod;
-    field_inv_impl(&inv_prod, &prefix[10]);
+    field_inv_var_impl(&inv_prod, &prefix[10]);
 
     FieldElement z_inv[11];
     for (int i = 10; i > 0; --i) {
@@ -1378,6 +1395,61 @@ static inline int ecdsa_sign_impl(const uchar msg_hash[32], const Scalar* priv, 
 }
 #endif // !SECP256K1_OPENCL_SCAN_ONLY
 
+// x(R) mod n == r without inverting R.z: projective form of the final ECDSA
+// check, as in libsecp256k1 (secp256k1_gej_eq_x_var plus the r+n case of
+// secp256k1_ecdsa_sig_verify). R = (X:Y:Z) is Jacobian, affine x = X/Z^2 in
+// [0, p). For 0 < r < n, x mod n == r holds iff x == r, or x == r + n, and the
+// second case is only possible when r < p - n. Each candidate c is checked as
+// X == c*Z^2 (mod p).
+// VARIABLE TIME -- PUBLIC DATA ONLY: R and r are signature-verification data.
+// Caller guarantees R is not infinity and 0 < r < n. Verdict-only: routes that
+// output R's affine coordinates (SNARK witness, recovery) keep the inverse.
+static inline int ecdsa_jacobian_x_eq_r_var_impl(const JacobianPoint* R, const Scalar* r) {
+    // p - n = 0x14551231950B75FC4402DA1722FC9BAEE, little-endian 64-bit limbs.
+    const ulong P_MINUS_N[4] = {
+        0x402DA1722FC9BAEEUL, 0x4551231950B75FC4UL, 0x1UL, 0x0UL
+    };
+    const ulong N[4] = { ORDER_N0, ORDER_N1, ORDER_N2, ORDER_N3 };
+
+    FieldElement zz;
+    field_sqr_impl(&zz, &R->z);
+    uchar x_bytes[32];
+    field_to_bytes_impl(&R->x, x_bytes);   // canonical X mod p
+
+    ulong cand[4] = { r->limbs[0], r->limbs[1], r->limbs[2], r->limbs[3] };
+    for (int pass = 0; pass < 2; pass++) {
+        // cand < p in both passes, so it is a canonical field element.
+        FieldElement c, czz;
+        for (int i = 0; i < 4; i++) c.limbs[i] = cand[i];
+        field_mul_impl(&czz, &c, &zz);
+        uchar czz_bytes[32];
+        field_to_bytes_impl(&czz, czz_bytes);
+        int eq = 1;
+        for (int i = 0; i < 32; i++) if (czz_bytes[i] != x_bytes[i]) { eq = 0; break; }
+        if (eq) return 1;
+        if (pass == 1) break;
+
+        // x == r + n is only possible when r < p - n.
+        int lt = 0;
+        for (int i = 3; i >= 0; i--) {
+            if (cand[i] != P_MINUS_N[i]) { lt = (cand[i] < P_MINUS_N[i]) ? 1 : 0; break; }
+        }
+        if (!lt) return 0;
+        // cand = r + n; r < p - n, so r + n < p < 2^256 (no carry out).
+        ulong carry = 0;
+        for (int i = 0; i < 4; i++) {
+            const ulong a  = cand[i];
+            const ulong s1 = a + N[i];
+            const ulong c1 = (s1 < a) ? 1UL : 0UL;
+            const ulong s2 = s1 + carry;
+            const ulong c2 = (s2 < s1) ? 1UL : 0UL;
+            cand[i] = s2;
+            carry = c1 | c2;
+        }
+    }
+    return 0;
+}
+
 static inline int ecdsa_verify_impl(const uchar msg_hash[32], const JacobianPoint* pubkey, const ECDSASignature* sig) {
     if (scalar_is_zero(&sig->r) || scalar_is_zero(&sig->s)) return 0;
 
@@ -1389,8 +1461,11 @@ static inline int ecdsa_verify_impl(const uchar msg_hash[32], const JacobianPoin
     Scalar z;
     scalar_from_bytes_impl(msg_hash, &z);
 
+    // Every input of verification (signature, pubkey, message hash) is public,
+    // so the inversions below use the variable-time SafeGCD inverses; the
+    // final x(R) check is projective and needs no R.z inverse.
     Scalar s_inv;
-    scalar_inverse_impl(&sig->s, &s_inv);
+    scalar_inv_var_impl(&sig->s, &s_inv);
 
     Scalar u1, u2;
     scalar_mul_mod_n_impl(&z, &s_inv, &u1);
@@ -1405,7 +1480,7 @@ static inline int ecdsa_verify_impl(const uchar msg_hash[32], const JacobianPoin
         pub_aff.x = pubkey->x; pub_aff.y = pubkey->y;
     } else {
         FieldElement pz_inv, pz_inv2, pz_inv3;
-        field_inv_impl(&pz_inv, &pubkey->z);
+        field_inv_var_impl(&pz_inv, &pubkey->z);
         field_sqr_impl(&pz_inv2, &pz_inv);
         field_mul_impl(&pz_inv3, &pz_inv2, &pz_inv);
         field_mul_impl(&pub_aff.x, &pubkey->x, &pz_inv2);
@@ -1417,18 +1492,8 @@ static inline int ecdsa_verify_impl(const uchar msg_hash[32], const JacobianPoin
     shamir_double_mul_glv_impl(&G, &u1, &pub_aff, &u2, &R);
     if (point_is_infinity(&R)) return 0;
 
-    // Check R.x mod n == r
-    FieldElement rz_inv, rz_inv2, rx_aff;
-    field_inv_impl(&rz_inv, &R.z);
-    field_sqr_impl(&rz_inv2, &rz_inv);
-    field_mul_impl(&rx_aff, &R.x, &rz_inv2);
-
-    uchar rx_bytes[32];
-    field_to_bytes_impl(&rx_aff, rx_bytes);
-    Scalar rx_scalar;
-    scalar_from_bytes_impl(rx_bytes, &rx_scalar);
-
-    return scalar_eq_impl(&rx_scalar, &sig->r);
+    // Check R.x mod n == r on the Jacobian coordinates (no R.z inverse).
+    return ecdsa_jacobian_x_eq_r_var_impl(&R, &sig->r);
 }
 
 // =============================================================================
@@ -1686,8 +1751,10 @@ static inline int schnorr_verify_impl(const uchar pubkey_x[32], const uchar msg[
     shamir_double_mul_glv_impl(&G, &sig->s, &p_aff, &neg_e, &Rpt);
     if (point_is_infinity(&Rpt)) return 0;
 
+    // R = s*G - e*P is built from public data only (signature, x-only pubkey,
+    // message): variable-time SafeGCD inverse.
     FieldElement rz_inv, rz_inv2, rz_inv3, rx_aff, ry_aff;
-    field_inv_impl(&rz_inv, &Rpt.z);
+    field_inv_var_impl(&rz_inv, &Rpt.z);
     field_sqr_impl(&rz_inv2, &rz_inv);
     field_mul_impl(&rz_inv3, &rz_inv2, &rz_inv);
     field_mul_impl(&rx_aff, &Rpt.x, &rz_inv2);
@@ -1917,6 +1984,10 @@ static inline int ecdsa_recover_impl(const uchar msg_hash[32], const ECDSASignat
                                 int recid, JacobianPoint* Q) {
     if (recid < 0 || recid > 3) return 0;
     if (scalar_is_zero(&sig->r) || scalar_is_zero(&sig->s)) return 0;
+    // r >= n or s >= n is not a valid compact signature (the CPU parser and
+    // every ecdsa_verify route reject it); the kernel receives raw limbs, so
+    // reject here instead of reducing a non-canonical scalar mod n.
+    if (lbtc_scalar_ge_order(&sig->r) || lbtc_scalar_ge_order(&sig->s)) return 0;
 
     // Reconstruct R.x
     FieldElement rx_fe;
@@ -1954,45 +2025,65 @@ static inline int ecdsa_recover_impl(const uchar msg_hash[32], const ECDSASignat
     JacobianPoint Rpt;
     if (!lift_x_field_impl(&rx_fe, y_parity, &Rpt)) return 0;
 
-    // Q = r⁻¹ * (s*R - z*G)
+    // Q = r^-1 * (s*R - z*G) = u1*G + u2*R,  u1 = -z*r^-1,  u2 = s*r^-1.
+    // Public-key recovery: r, s, msg_hash and recid are public signature data,
+    // R is lifted from r and Q is built only from them, so r^-1, the Shamir
+    // table inversion and the final Q.z inversion are variable-time SafeGCD.
     Scalar z;
     scalar_from_bytes_impl(msg_hash, &z);
 
     Scalar r_inv;
-    scalar_inverse_impl(&sig->r, &r_inv);
+    scalar_inv_var_impl(&sig->r, &r_inv);
 
-    // s*R  (need affine for scalar_mul_impl)
-    FieldElement pz_inv, pz_inv2, pz_inv3;
-    field_inv_impl(&pz_inv, &Rpt.z);
-    field_sqr_impl(&pz_inv2, &pz_inv);
-    field_mul_impl(&pz_inv3, &pz_inv2, &pz_inv);
+    Scalar zr, u1, u2;
+    scalar_mul_mod_n_impl(&z, &r_inv, &zr);
+    scalar_negate_impl(&zr, &u1);
+    scalar_mul_mod_n_impl(&sig->s, &r_inv, &u2);
+
+    // lift_x_field_impl returns R with Z = 1, so (x, y) is already affine.
     AffinePoint r_aff;
-    field_mul_impl(&r_aff.x, &Rpt.x, &pz_inv2);
-    field_mul_impl(&r_aff.y, &Rpt.y, &pz_inv3);
-
-    JacobianPoint sR;
-    scalar_mul_glv_impl(&sR, &sig->s, &r_aff);
+    r_aff.x = Rpt.x;
+    r_aff.y = Rpt.y;
 
     AffinePoint G; get_generator(&G);
-    JacobianPoint zG;
-    scalar_mul_glv_impl(&zG, &z, &G);
+    JacobianPoint Qj;
+    shamir_double_mul_glv_impl(&G, &u1, &r_aff, &u2, &Qj);
 
-    point_negate_y(&zG);
-    JacobianPoint sR_minus_zG;
-    point_add_impl(&sR_minus_zG, &sR, &zG);
+    // The Shamir loop adds without the P == +-Q checks, so an input whose true
+    // result is the point at infinity (R = c*G with z = c*s, crafted from
+    // public data) or an exceptional final doubling ends with Z = 0. Recompute
+    // exactly with two single multiplications and the complete point_add_impl
+    // in that case only; a genuine infinity is then rejected.
+    int qz_zero = point_is_infinity(&Qj);
+    if (!qz_zero) {
+        uchar qzb[32];
+        field_to_bytes_impl(&Qj.z, qzb);
+        qz_zero = 1;
+        for (int i = 0; i < 32; i++) if (qzb[i] != 0) qz_zero = 0;
+    }
+    if (qz_zero) {
+        JacobianPoint uR;
+        scalar_mul_glv_impl(&uR, &u2, &r_aff);
+        if (scalar_is_zero(&u1)) {
+            Qj = uR;
+        } else {
+            JacobianPoint uG;
+            scalar_mul_glv_impl(&uG, &u1, &G);
+            point_add_impl(&Qj, &uG, &uR);
+        }
+        if (point_is_infinity(&Qj)) return 0;
+    }
 
-    // Convert to affine for final scalar_mul
+    // One affine conversion; Q is returned with Z = 1.
     FieldElement qz_inv, qz_inv2, qz_inv3;
-    field_inv_impl(&qz_inv, &sR_minus_zG.z);
+    field_inv_var_impl(&qz_inv, &Qj.z);
     field_sqr_impl(&qz_inv2, &qz_inv);
     field_mul_impl(&qz_inv3, &qz_inv2, &qz_inv);
-    AffinePoint diff_aff;
-    field_mul_impl(&diff_aff.x, &sR_minus_zG.x, &qz_inv2);
-    field_mul_impl(&diff_aff.y, &sR_minus_zG.y, &qz_inv3);
-
-    scalar_mul_glv_impl(Q, &r_inv, &diff_aff);
-
-    if (point_is_infinity(Q)) return 0;
+    field_mul_impl(&Q->x, &Qj.x, &qz_inv2);
+    field_mul_impl(&Q->y, &Qj.y, &qz_inv3);
+    Q->z.limbs[0] = 1; Q->z.limbs[1] = 0; Q->z.limbs[2] = 0; Q->z.limbs[3] = 0;
+    Q->infinity = 0;
+    for (int i = 0; i < 7; ++i) Q->pad[i] = 0;
     return 1;
 }
 
@@ -2174,6 +2265,108 @@ __kernel void ecdsa_verify_compressed(
     ECDSASignature sig;
     int ok = lbtc_parse_compact_signature(signatures + gid * 64, &sig);
     results[gid] = ok ? ecdsa_verify_impl(msg, &pub, &sig) : 0;
+}
+
+/* ---------------------------------------------------------------------------
+ * Bitcoin Cash 2019 Schnorr verification (NOT BIP-340)
+ *   https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/
+ * CPU reference: secp256k1::bch_schnorr_verify. Per item:
+ *   fail if r >= p, s >= n or s == 0, or the 33-byte key does not decompress;
+ *   e = SHA256(r || pubkey33 || msg32) mod n  (97 bytes = two blocks);
+ *   R = s*G - e*P (GLV Shamir); fail if R = O, if R.y is not a quadratic
+ *   residue (tested on Y*Z: y = (Y*Z)/Z^4), or if X != r*Z^2.
+ * No field inversion. VARIABLE TIME -- PUBLIC DATA ONLY (CT-VERIFY).
+ * Mirrored line for line in src/metal/shaders/secp256k1_kernels.metal.
+ * ------------------------------------------------------------------------- */
+static inline int bch_field_eq_var_impl(const FieldElement* a, const FieldElement* b) {
+    uchar ab[32], bb[32];
+    field_to_bytes_impl(a, ab);
+    field_to_bytes_impl(b, bb);
+    uint diff = 0;
+    for (int i = 0; i < 32; i++) diff |= (uint)(ab[i] ^ bb[i]);
+    return diff == 0 ? 1 : 0;
+}
+
+static inline int bch_schnorr_verify_impl(__global const uchar* sig64,
+                                          __global const uchar* msg32,
+                                          __global const uchar* pub33) {
+    // r < p; r as a canonical field element for the projective x check.
+    if (!lbtc_be32_lt_field_p(sig64)) return 0;
+    FieldElement r_fe;
+    for (int limb = 0; limb < 4; ++limb) {
+        ulong v = 0;
+        const int base = (3 - limb) * 8;
+        for (int j = 0; j < 8; ++j) v = (v << 8) | (ulong)sig64[base + j];
+        r_fe.limbs[limb] = v;
+    }
+
+    // 0 < s < n.
+    Scalar s;
+    if (!lbtc_parse_compact_scalar(sig64 + 32, &s)) return 0;
+
+    // Canonical compressed key (prefix 02/03, x < p, on the curve); Z = 1.
+    JacobianPoint P;
+    if (!lbtc_point_from_compressed(pub33, &P)) return 0;
+
+    // e = SHA256(r || pubkey33 || msg32) mod n. Bit length 776 = 0x0308.
+    SHA256Ctx hctx;
+    sha256_init(&hctx);
+    uchar block[64];
+    for (int i = 0; i < 32; i++) block[i]      = sig64[i];
+    for (int i = 0; i < 32; i++) block[32 + i] = pub33[i];
+    sha256_compress(&hctx, block);
+    block[0] = pub33[32];
+    for (int i = 0; i < 32; i++) block[1 + i] = msg32[i];
+    block[33] = 0x80;
+    for (int i = 34; i < 62; i++) block[i] = 0;
+    block[62] = 0x03;
+    block[63] = 0x08;
+    sha256_compress(&hctx, block);
+    uchar e_hash[32];
+    for (int i = 0; i < 8; i++) {
+        e_hash[i * 4]     = (uchar)(hctx.h[i] >> 24);
+        e_hash[i * 4 + 1] = (uchar)(hctx.h[i] >> 16);
+        e_hash[i * 4 + 2] = (uchar)(hctx.h[i] >> 8);
+        e_hash[i * 4 + 3] = (uchar)(hctx.h[i]);
+    }
+    Scalar e, neg_e;
+    scalar_from_bytes_impl(e_hash, &e);
+    scalar_negate_impl(&e, &neg_e);
+
+    // R = s*G - e*P.
+    AffinePoint G; get_generator(&G);
+    AffinePoint p_aff; p_aff.x = P.x; p_aff.y = P.y;
+    JacobianPoint R;
+    shamir_double_mul_glv_impl(&G, &s, &p_aff, &neg_e, &R);
+    if (point_is_infinity(&R)) return 0;
+
+    // R.y quadratic residue: sqrt(Y*Z)^2 == Y*Z (Y != 0 for a finite point).
+    FieldElement yz, root, sq;
+    field_mul_impl(&yz, &R.y, &R.z);
+    field_sqrt_impl(&yz, &root);
+    field_sqr_impl(&sq, &root);
+    if (!bch_field_eq_var_impl(&sq, &yz)) return 0;
+
+    // x(R) == r  <=>  X == r*Z^2.
+    FieldElement zz, rzz;
+    field_sqr_impl(&zz, &R.z);
+    field_mul_impl(&rzz, &r_fe, &zz);
+    return bch_field_eq_var_impl(&rzz, &R.x);
+}
+
+/* One work-item per signature; results[i] = 1 valid / 0 invalid. */
+__kernel void bch_schnorr_verify_batch(
+    __global const uchar* msgs32,
+    __global const uchar* pubkeys33,
+    __global const uchar* sigs64,
+    __global int* results,
+    const uint count
+) {
+    uint gid = get_global_id(0);
+    if (gid >= count) return;
+    const ulong i = (ulong)gid;
+    results[gid] = bch_schnorr_verify_impl(sigs64 + i * 64, msgs32 + i * 32,
+                                           pubkeys33 + i * 33);
 }
 
 __kernel void ecdsa_verify_lbtc_rows(
@@ -2414,8 +2607,10 @@ __kernel void lbtc_commitment_verify(
     if (point_is_infinity(&Q)) { results[gid] = 0; return; }
     // Inline Jacobian -> affine (jacobian_to_affine_impl lives in secp256k1_zk.cl,
     // which is NOT part of this translation unit); mirror ecdsa_verify_impl.
+    // Q = tweak*G + P is built from the public internal key and public tweak,
+    // so its Z is inverted with the variable-time SafeGCD inverse.
     FieldElement zinv, z2, z3, ax, ay;
-    field_inv_impl(&zinv, &Q.z);
+    field_inv_var_impl(&zinv, &Q.z);
     field_sqr_impl(&z2, &zinv);
     field_mul_impl(&z3, &z2, &zinv);
     field_mul_impl(&ax, &Q.x, &z2);
@@ -2827,7 +3022,7 @@ static inline void ecdsa_snark_witness_impl(
         pub_aff.y = pubkey->y;
     } else {
         FieldElement pz_inv, pz_inv2, pz_inv3;
-        field_inv_impl(&pz_inv,  &pubkey->z);
+        field_inv_var_impl(&pz_inv,  &pubkey->z);   /* pubkey is public */
         field_sqr_impl(&pz_inv2, &pz_inv);
         field_mul_impl(&pz_inv3, &pz_inv2, &pz_inv);
         field_mul_impl(&pub_aff.x, &pubkey->x, &pz_inv2);
@@ -2841,7 +3036,7 @@ static inline void ecdsa_snark_witness_impl(
     scalar_from_bytes_impl(msg_hash, &z);
 
     Scalar s_inv;
-    scalar_inverse_impl(&sig->s, &s_inv);
+    scalar_inv_var_impl(&sig->s, &s_inv);   /* s is public signature data */
     scalar_to_bytes_impl(&s_inv, out->s_inv);
 
     Scalar u1, u2;
@@ -2858,9 +3053,9 @@ static inline void ecdsa_snark_witness_impl(
     shamir_double_mul_glv_impl(&G, &u1, &pub_aff, &u2, &R);
     if (point_is_infinity(&R)) return;
 
-    /* ---- R affine x, y ---- */
+    /* ---- R affine x, y (R = u1*G + u2*Q is public: VT SafeGCD inverse) ---- */
     FieldElement rz_inv, rz_inv2, rz_inv3, rx_aff, ry_aff;
-    field_inv_impl(&rz_inv,  &R.z);
+    field_inv_var_impl(&rz_inv,  &R.z);
     field_sqr_impl(&rz_inv2, &rz_inv);
     field_mul_impl(&rz_inv3, &rz_inv2, &rz_inv);
     field_mul_impl(&rx_aff,  &R.x,     &rz_inv2);

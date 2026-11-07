@@ -623,3 +623,51 @@ unsupported API.
   (`bip327_sign_verify_vectors`) verifies the official infinity-aggregate `valid` case;
   `audit/test_regression_musig2_infinity_nonce.cpp` covers the R=b·G / R=G unit cases.
   Listed here only to record that the earlier fail-closed rejection was corrected.
+
+### secp256k1_musig_partial_sig_verify — signer key parity (CONFORMANT, not a divergence)
+
+- **Behavior:** Matches BIP-327 `PartialSigVerify` / libsecp256k1. The shim passes the
+  signer's 33-byte compressed key (with its real Y parity) to the core
+  `musig2_partial_verify` overload, which checks only `s*G == R_eff + e*a_i*g*gacc*P_i`
+  for that parity. The negated-key-term partial signature
+  `s' = k1 + b*k2 - e*a_i*g*gacc*d_i` returns 0, as upstream.
+- **History:** Before NF-2026-00028 the shim dropped the parity and called the x-only
+  core overload, which accepts either parity, so it returned 1 for that forged partial
+  signature where upstream returns 0 (the aggregate is then invalid and blame attribution
+  fails). That divergence was undocumented; it is fixed, not waived.
+- **Not affected:** the native C ABI `ufsecp_musig2_partial_verify` keeps its x-only key
+  argument and stays parity-lenient by contract (see docs/API_REFERENCE.md, MuSig2).
+- **Test:** `audit/test_regression_musig2_session_token.cpp`
+  (`test_negated_key_term_rejected`): the shim and the core 33-byte overload reject the
+  forged partial signature, the honest partial signatures still verify, and the
+  aggregate built with the forgery fails BIP-340 verification.
+
+## secp256k1_schnorr_verify / secp256k1_schnorr_verify_batch (BCHN shim, BCH 2019 Schnorr) — s == 0
+- **Upstream behavior:** The 2019-05-15 BCH Schnorr specification (and BCHN's
+  `secp256k1_schnorr_verify`) rejects only `s >= n`; `s == 0` proceeds to
+  `R = -e*P` and fails unless `x(R) == r` with a residue `y`.
+- **Shim behavior:** `s == 0` is rejected up front, by the single verifier, the
+  batch verifier (`secp256k1_schnorr_verify_batch`) and the engine/C ABI
+  (`bch_schnorr_verify`, `ufsecp_bch_schnorr_*`, where it is `UFSECP_ERR_BAD_SIG`).
+- **Reason:** Kept from the pre-existing shim (COMPAT-010 strict parse). The case is
+  unobservable: a signature with `s == 0` verifies only if `r == x(-e(r)*P)`, which
+  needs `r` to be a fixed point of a hash-dependent map on the curve — finding one
+  is a discrete-log-hard search, so no producible signature is treated differently.
+- **Impact:** None for any signature anyone can produce. A hand-built `s == 0`
+  vector returns 0 here, which the reference would also return in practice.
+- **Test:** `audit/test_bch_schnorr_differential.cpp` (`bch_schnorr_differential`,
+  `s == 0` mutation class on every surface) and
+  `audit/test_exploit_bch_schnorr_batch_forgery.cpp` (`[s-range]`).
+
+## secp256k1_schnorr_verify_batch (BCHN shim) — added API
+- **Upstream behavior:** BCHN's secp256k1 has no BCH Schnorr batch verifier; the
+  function follows the contract proposed in Knuth PR #826.
+- **Shim behavior:** Returns 1 iff all `n` signatures verify (exactly the AND of
+  `secp256k1_schnorr_verify`, an invalid entry rejected with probability
+  `>= 1 - 2^-127`); `n == 0` returns 1; a NULL context, a NULL array or a NULL element
+  with `n > 0` returns 0. `seed32` may be NULL and only adds entropy on top of the
+  engine's CSPRNG bytes.
+- **Reason:** Additive API for batch validation (issue #466).
+- **Impact:** None on existing callers.
+- **Test:** `audit/test_bch_schnorr_differential.cpp` (`test_shim_batch`) and
+  `compat/libsecp256k1_bchn_shim/tests/test_bchn_schnorr_batch.cpp`.
