@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-11-10T04:40:42.766176+00:00",
-  "commit": "914ca8978a7776c582a6d24a9d68ec6c96c8c361",
+  "timestamp": "2026-11-11T04:39:50.450184+00:00",
+  "commit": "d321498ae8cc245698cffaf7e05b31cff3c77ced",
   "overall_pass": true,
   "drills_total": 3,
   "drills_passed": 3,
-  "drill_response_time_seconds": 0.44,
+  "drill_response_time_seconds": 0.43,
   "injections": [
     {
       "drill": "key_compromise",
@@ -36,7 +36,7 @@
       "injected_fault": "known-weak / out-of-range private keys (zero, n, n+1, all-ones)",
       "detection_gate": "ufsecp pubkey() ABI boundary (strict scalar parse)",
       "detected": true,
-      "elapsed_seconds": 0.41,
+      "elapsed_seconds": 0.4,
       "weak_keys_tested": 4,
       "results": [
         {
