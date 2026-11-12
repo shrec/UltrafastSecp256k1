@@ -13,7 +13,7 @@
     "ref-napi": "^3.0.3"
   },
   "devDependencies": {
-    "koffi": "^3.3.5"
+    "koffi": "^3.3.7"
   },
   "keywords": [
     "secp256k1",
