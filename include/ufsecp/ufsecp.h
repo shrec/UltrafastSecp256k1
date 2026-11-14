@@ -900,6 +900,46 @@ UFSECP_API ufsecp_error_t ufsecp_ecdsa_batch_identify_invalid(
     size_t* invalid_out, size_t* invalid_count);
 
 /* ===========================================================================
+ * Bitcoin Cash 2019 Schnorr (OP_CHECKSIG / OP_CHECKDATASIG) -- NOT BIP-340
+ * ===========================================================================
+ * Spec: https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/
+ *   sig = r[32] || s[32], e = SHA256(r || pubkey33 || msg32) mod n,
+ *   R = s*G - e*P; valid iff R != O, R.y is a quadratic residue, x(R) == r.
+ * pubkey33 is SEC1 compressed (0x02/0x03 prefix, x < p, on the curve).
+ * Verification only: variable-time over public data.
+ * Errors: NULL_ARG; BAD_PUBKEY (bad prefix, x >= p, off curve);
+ *         BAD_SIG (r >= p, s >= n, s == 0 -- the reference rejects only s >= n;
+ *         s == 0 cannot verify without a discrete log, see
+ *         docs/SHIM_KNOWN_DIVERGENCES.md); VERIFY_FAIL. */
+
+/** Verify one BCH Schnorr signature. Returns UFSECP_OK iff valid. */
+UFSECP_API ufsecp_error_t ufsecp_bch_schnorr_verify(
+    ufsecp_ctx* ctx,
+    const uint8_t msg32[32],
+    const uint8_t sig64[64],
+    const uint8_t pubkey33[33]);
+
+/** BCH Schnorr batch verify: verify N signatures in one call.
+ *  Each entry: [33-byte compressed pubkey | 32-byte msg | 64-byte sig] = 129 bytes.
+ *  Random 128-bit weights bound to every entry plus CSPRNG bytes; the result
+ *  equals the AND of ufsecp_bch_schnorr_verify over the entries.
+ *  n == 0 -> UFSECP_OK. A malformed entry fails the call with BAD_PUBKEY or
+ *  BAD_SIG. Returns UFSECP_OK if ALL valid, else UFSECP_ERR_VERIFY_FAIL. */
+UFSECP_API ufsecp_error_t ufsecp_bch_schnorr_batch_verify(
+    ufsecp_ctx* ctx,
+    const uint8_t* entries, size_t n);
+
+/** BCH Schnorr batch identify: per-entry verdicts.
+ *  Same 129-byte entry layout. results_out: caller-owned, n bytes; on
+ *  UFSECP_OK results_out[i] = 1 if entry i is valid, else 0. Zeroed first, so
+ *  on any error every entry reads as invalid. A malformed entry fails the call
+ *  with BAD_PUBKEY or BAD_SIG. n == 0 -> UFSECP_OK. */
+UFSECP_API ufsecp_error_t ufsecp_bch_schnorr_batch_identify(
+    ufsecp_ctx* ctx,
+    const uint8_t* entries, size_t n,
+    uint8_t* results_out);
+
+/* ===========================================================================
  * SHA-512
  * =========================================================================== */
 
@@ -938,7 +978,8 @@ UFSECP_API ufsecp_error_t ufsecp_multi_scalar_mul(
 #define UFSECP_MUSIG2_SECNONCE_LEN   64  /**< secret nonce (2 x 32 bytes) */
 
 /** Aggregate public keys for MuSig2.
- *  pubkeys: n * 32 bytes (x-only). keyagg_out: opaque context.
+ *  pubkeys: n * 33-byte compressed public keys (BIP-327 plain public keys).
+ *  keyagg_out: opaque context.
  *  The current fixed-size keyagg/session format supports 2 to 3 participants. */
 UFSECP_API ufsecp_error_t ufsecp_musig2_key_agg(
     ufsecp_ctx* ctx,
@@ -970,7 +1011,13 @@ UFSECP_API ufsecp_error_t ufsecp_musig2_nonce_agg(
  *  keyagg must be a valid opaque context previously produced by ufsecp_musig2_key_agg.
  *  session_out binds the participant count from keyagg and must later be paired
  *  with exactly the same signer set arity during partial signing, verification,
- *  and aggregation. */
+ *  and aggregation.
+ *
+ *  SESSION TRUST BOUNDARY: session_out is signer-local state. Each signer must
+ *  produce it here from the aggregate nonce it received and the message it
+ *  intends to sign. ufsecp_musig2_partial_sign_v2 signs with the b and e stored
+ *  in it without re-deriving them, so a session blob received from a coordinator
+ *  or peer must NEVER be used for signing. */
 UFSECP_API ufsecp_error_t ufsecp_musig2_start_sign_session(
     ufsecp_ctx* ctx,
     const uint8_t aggnonce[UFSECP_MUSIG2_AGGNONCE_LEN],
@@ -1016,6 +1063,14 @@ UFSECP_API ufsecp_error_t ufsecp_musig2_partial_sign(
  *  If they do not match, the function returns UFSECP_ERR_BAD_KEY.
  *  IMPORTANT: secnonce is zeroed on ALL exit paths (including validation failure)
  *  to prevent nonce reuse even when the wrong signer_index is supplied.
+ *
+ *  SESSION TRUST BOUNDARY: the session blob is signer-local state. This function
+ *  signs with the nonce coefficient b and challenge e stored in the
+ *  session and does NOT re-derive them (same contract as libsecp256k1's
+ *  secp256k1_musig_session from secp256k1_musig_nonce_process). Each signer must
+ *  produce the session itself with ufsecp_musig2_start_sign_session, from the
+ *  aggregate nonce it received and the message it intends to sign. A session
+ *  blob received from a coordinator or any other peer must NEVER be passed in.
  *
  *  @param pubkeys  Array of n compressed public keys (33 bytes each), in the same
  *                  order that was passed to ufsecp_musig2_key_agg.  Must not be NULL. */

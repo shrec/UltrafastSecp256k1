@@ -27,6 +27,7 @@
 #include "batch_inversion.cuh"
 #include "ecdsa.cuh"
 #include "schnorr.cuh"
+#include "bch_schnorr.cuh"
 #include "recovery.cuh"
 #include "msm.cuh"
 #include "hash160.cuh"
@@ -42,6 +43,10 @@
 #include "secp256k1/point.hpp"
 #include "secp256k1/ecdsa.hpp"
 #include "secp256k1/schnorr.hpp"
+#include "secp256k1/recovery.hpp"
+#include "secp256k1/bch_schnorr.hpp"
+#include "secp256k1/sha256.hpp"
+#include <array>
 #endif
 
 #include <cuda_runtime.h>
@@ -718,6 +723,137 @@ static int audit_cpu_gpu_differential_ecdsa() {
     secp256k1::ECDSASignature cpu_sig{cpu_r, cpu_s};
     return secp256k1::ecdsa_verify(msg_arr, cpu_pk, cpu_sig) ? 0 : 1;
 }
+
+// ----------------------------------------------------------------------------
+// Differential: Bitcoin Cash 2019 Schnorr verify (bch_schnorr.cuh) against the
+// CPU reference secp256k1::bch_schnorr_verify. Valid signatures are built on
+// the CPU from random test scalars (public test vectors, not production
+// signing): R = k*G, e = SHA256(r || P33 || m), s = e*x +/- k, and the CPU
+// verifier picks the sign whose R has a quadratic-residue y; the other sign is
+// kept as the "R negated" invalid case. Every item's GPU verdict must equal
+// the CPU verdict, and the CPU verdict must equal the built-in expectation.
+// ----------------------------------------------------------------------------
+__global__ void audit_bch_schnorr_verify_kernel(
+    const uint8_t* msgs, const uint8_t* pubs, const uint8_t* sigs,
+    uint8_t* results, int count)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < count) {
+        const size_t k = static_cast<size_t>(i);
+        results[i] = bch_schnorr_verify_device(sigs + k * 64, msgs + k * 32, pubs + k * 33) ? 1 : 0;
+    }
+}
+
+static int audit_cpu_gpu_differential_bch_schnorr() {
+    namespace cpu = secp256k1::fast;
+    static const uint8_t P_BE[32] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,0xFF,0xFF,0xFC,0x2F};
+    static const uint8_t N_BE[32] = {
+        0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFF,0xFE,
+        0xBA,0xAE,0xDC,0xE6,0xAF,0x48,0xA0,0x3B,0xBF,0xD2,0x5E,0x8C,0xD0,0x36,0x41,0x41};
+
+    std::mt19937_64 rng(0xBC2019ULL);
+    auto rand32 = [&](uint8_t out[32]) {
+        for (int w = 0; w < 4; ++w) {
+            const uint64_t v = rng();
+            for (int b = 0; b < 8; ++b) out[w * 8 + b] = static_cast<uint8_t>(v >> (8 * b));
+        }
+        out[0] &= 0x7F;   // < n
+        out[31] |= 1;     // != 0
+    };
+
+    std::vector<uint8_t> msgs, pubs, sigs, expect;
+    auto push = [&](const uint8_t* m, const uint8_t* p, const uint8_t* s, uint8_t exp) {
+        msgs.insert(msgs.end(), m, m + 32);
+        pubs.insert(pubs.end(), p, p + 33);
+        sigs.insert(sigs.end(), s, s + 64);
+        expect.push_back(exp);
+    };
+
+    constexpr int kKeys = 32;
+    for (int t = 0; t < kKeys; ++t) {
+        std::array<uint8_t, 32> xa{}, ka{}, ea{};
+        uint8_t m[32];
+        rand32(xa.data()); rand32(ka.data()); rand32(m);
+        const auto x  = cpu::Scalar::from_bytes(xa);
+        const auto kk = cpu::Scalar::from_bytes(ka);
+        const auto P33 = cpu::Point::generator().scalar_mul(x).to_compressed();
+        const auto R33 = cpu::Point::generator().scalar_mul(kk).to_compressed();
+
+        uint8_t chal[97];
+        std::memcpy(chal, R33.data() + 1, 32);
+        std::memcpy(chal + 32, P33.data(), 33);
+        std::memcpy(chal + 65, m, 32);
+        const auto eh = secp256k1::SHA256::hash(chal, sizeof(chal));
+        std::memcpy(ea.data(), eh.data(), 32);
+        const auto ex = cpu::Scalar::from_bytes(ea) * x;
+        const auto s_pos = (ex + kk).to_bytes();
+        const auto s_neg = (ex - kk).to_bytes();
+
+        uint8_t sp[64], sn[64];
+        std::memcpy(sp, R33.data() + 1, 32); std::memcpy(sp + 32, s_pos.data(), 32);
+        std::memcpy(sn, R33.data() + 1, 32); std::memcpy(sn + 32, s_neg.data(), 32);
+        const bool okp = secp256k1::bch_schnorr_verify(sp, m, P33.data());
+        const bool okn = secp256k1::bch_schnorr_verify(sn, m, P33.data());
+        if (okp == okn) {
+            std::fprintf(stderr, "bch_schnorr_diff: CPU accepted %s sign candidate (t=%d)\n",
+                         okp ? "both" : "neither", t);
+            return 1;
+        }
+        const uint8_t* good = okp ? sp : sn;
+        push(m, P33.data(), good, 1);
+        push(m, P33.data(), okp ? sn : sp, 0);                      // R negated: non-residue y
+
+        uint8_t bad[64]; uint8_t mb[32]; uint8_t pb[33];
+        std::memcpy(bad, good, 64); bad[t % 32] ^= 0x01;             // r corrupted
+        push(m, P33.data(), bad, 0);
+        std::memcpy(bad, good, 64); bad[32 + (t % 32)] ^= 0x01;      // s corrupted
+        push(m, P33.data(), bad, 0);
+        std::memcpy(mb, m, 32); mb[t % 32] ^= 0x80;                  // message corrupted
+        push(mb, P33.data(), good, 0);
+        std::memcpy(pb, P33.data(), 33); pb[1 + (t % 32)] ^= 0x02;   // key x corrupted
+        push(m, pb, good, 0);
+        switch (t % 6) {
+        case 0: std::memcpy(bad, good, 64); std::memcpy(bad, P_BE, 32);      push(m, P33.data(), bad, 0); break; // r = p
+        case 1: std::memcpy(bad, good, 64); std::memcpy(bad + 32, N_BE, 32); push(m, P33.data(), bad, 0); break; // s = n
+        case 2: std::memcpy(bad, good, 64); std::memset(bad + 32, 0, 32);    push(m, P33.data(), bad, 0); break; // s = 0
+        case 3: std::memcpy(pb, P33.data(), 33); pb[0] = 0x05;               push(m, pb, good, 0);        break; // bad prefix
+        case 4: std::memcpy(pb, P33.data(), 33); std::memcpy(pb + 1, P_BE, 32); push(m, pb, good, 0);     break; // x = p
+        default: std::memcpy(pb, P33.data(), 33); pb[0] ^= 0x01;             push(m, pb, good, 0);        break; // -P
+        }
+    }
+
+    const int n = static_cast<int>(expect.size());
+    uint8_t *d_m = nullptr, *d_p = nullptr, *d_s = nullptr, *d_r = nullptr;
+    std::vector<uint8_t> h_r(static_cast<size_t>(n), 0xEE);
+    CUDA_CHECK(cudaMalloc(&d_m, msgs.size()));
+    CUDA_CHECK(cudaMalloc(&d_p, pubs.size()));
+    CUDA_CHECK(cudaMalloc(&d_s, sigs.size()));
+    CUDA_CHECK(cudaMalloc(&d_r, static_cast<size_t>(n)));
+    CUDA_CHECK(cudaMemcpy(d_m, msgs.data(), msgs.size(), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_p, pubs.data(), pubs.size(), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_s, sigs.data(), sigs.size(), cudaMemcpyHostToDevice));
+    audit_bch_schnorr_verify_kernel<<<(n + 63) / 64, 64>>>(d_m, d_p, d_s, d_r, n);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(h_r.data(), d_r, static_cast<size_t>(n), cudaMemcpyDeviceToHost));
+    cudaFree(d_m); cudaFree(d_p); cudaFree(d_s); cudaFree(d_r);
+
+    int mismatches = 0;
+    for (int i = 0; i < n; ++i) {
+        const size_t k = static_cast<size_t>(i);
+        const uint8_t cpu_ok = secp256k1::bch_schnorr_verify(
+            sigs.data() + k * 64, msgs.data() + k * 32, pubs.data() + k * 33) ? 1 : 0;
+        if (h_r[k] != cpu_ok || cpu_ok != expect[k]) {
+            if (mismatches < 8)
+                std::fprintf(stderr, "bch_schnorr_diff[%d]: GPU=%d CPU=%d expected=%d\n",
+                             i, h_r[k], cpu_ok, expect[k]);
+            ++mismatches;
+        }
+    }
+    return mismatches == 0 ? 0 : 1;
+}
 #endif  // !SECP256K1_CUDA_LIMBS_32
 
 #else  // !HAVE_CPU_LIB
@@ -741,6 +877,169 @@ static int audit_cpu_gpu_differential_gen_mul() {
     return 0;
 }
 #endif  // HAVE_CPU_LIB
+
+// ----------------------------------------------------------------------------
+// Differential: variable-time inverse (modinv_var.cuh) against the Fermat
+// inverses field_inv / scalar_inverse, on the GPU.
+// ----------------------------------------------------------------------------
+// Not built in a Montgomery build: the product check below expects the plain
+// value 1, and field_inv_var there only forwards to field_inv.
+#if !SECP256K1_CUDA_LIMBS_32 && !SECP256K1_CUDA_USE_MONTGOMERY
+__device__ __forceinline__ uint64_t audit_splitmix64(uint64_t x) {
+    x += 0x9E3779B97F4A7C15ULL;
+    x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ULL;
+    x = (x ^ (x >> 27)) * 0x94D049BB133111EBULL;
+    return x ^ (x >> 31);
+}
+
+// Element idx < n_edge is read from the host edge list; the rest is a
+// deterministic pseudo-random 256-bit value derived from (seed, idx), with
+// every 16th one forced >= modulus (unreduced input).
+// stats[0] = var != Fermat (raw limbs), stats[1] = a * var is not 1 (or not 0
+// when a == 0 mod m), stats[2] = elements checked.
+__global__ void audit_inv_var_diff_kernel(const uint64_t* edge, int n_edge, uint64_t seed,
+                                          int is_scalar, int count, unsigned int* stats) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+    uint64_t a[4];
+    if (idx < n_edge) {
+        for (int j = 0; j < 4; ++j) a[j] = edge[4 * idx + j];
+    } else {
+        for (int j = 0; j < 4; ++j) a[j] = audit_splitmix64(seed + 4ULL * (uint64_t)idx + (uint64_t)j);
+        if ((idx & 15) == 15) {
+            a[3] = ~0ULL; a[2] = ~0ULL;                                   // >= n
+            if (!is_scalar) { a[1] = ~0ULL; a[0] |= 0xFFFFFFFF00000000ULL; }  // >= p
+        }
+    }
+    bool same, prod_ok;
+    if (is_scalar) {
+        Scalar x, ref, var, prod;
+        for (int j = 0; j < 4; ++j) x.limbs[j] = a[j];
+        scalar_inverse(&x, &ref);
+        scalar_inv_var(&x, &var);
+        scalar_mul_mod_n(&x, &var, &prod);
+        same = scalar_eq(&ref, &var);
+        const uint64_t want = scalar_is_zero(&ref) ? 0ULL : 1ULL;
+        prod_ok = prod.limbs[0] == want && (prod.limbs[1] | prod.limbs[2] | prod.limbs[3]) == 0;
+    } else {
+        FieldElement x, ref, var, prod;
+        for (int j = 0; j < 4; ++j) x.limbs[j] = a[j];
+        field_inv(&x, &ref);
+        field_inv_var(&x, &var);
+        field_mul(&x, &var, &prod);
+        same = field_eq(&ref, &var);
+        const uint64_t want = field_is_zero(&ref) ? 0ULL : 1ULL;
+        prod_ok = prod.limbs[0] == want && (prod.limbs[1] | prod.limbs[2] | prod.limbs[3]) == 0;
+    }
+    if (!same) atomicAdd(&stats[0], 1u);
+    if (!prod_ok) atomicAdd(&stats[1], 1u);
+    atomicAdd(&stats[2], 1u);
+}
+
+// r = a + b / a - b on 4 little-endian 64-bit limbs (host, edge list only)
+static void audit_u256_add(const uint64_t* a, const uint64_t* b, uint64_t* r) {
+    uint64_t c = 0;
+    for (int i = 0; i < 4; ++i) {
+        const uint64_t s = a[i] + b[i], c1 = s < a[i];
+        r[i] = s + c; c = c1 | (r[i] < s);
+    }
+}
+static void audit_u256_sub(const uint64_t* a, const uint64_t* b, uint64_t* r) {
+    uint64_t c = 0;
+    for (int i = 0; i < 4; ++i) {
+        const uint64_t d = a[i] - b[i], c1 = a[i] < b[i];
+        r[i] = d - c; c = c1 | (d < c);
+    }
+}
+
+// t = k^-1 mod m for a small k (2 <= k <= 64; m is an odd prime):
+// t = (j*m + 1) / k for the j in [1, k) that makes the division exact, so
+// t*k == 1 (mod m) by construction. Returns false if no j does (cannot happen
+// for a prime m; the caller fails the module instead of testing fewer inputs).
+static bool audit_small_inverse(const uint64_t* m, uint32_t k, uint64_t* t) {
+    for (uint32_t j = 1; j < k; ++j) {
+        uint32_t num[9], q[9];                       // j*m + 1, quotient; 32-bit limbs
+        uint64_t c = 1;
+        for (int i = 0; i < 8; ++i) {
+            c += (uint64_t)j * (uint32_t)(m[i / 2] >> (32 * (i & 1)));
+            num[i] = (uint32_t)c; c >>= 32;
+        }
+        num[8] = (uint32_t)c;
+        uint64_t rem = 0;
+        for (int i = 8; i >= 0; --i) {
+            const uint64_t cur = (rem << 32) | num[i];
+            q[i] = (uint32_t)(cur / k); rem = cur % k;
+        }
+        if (rem != 0) continue;
+        for (int i = 0; i < 4; ++i) t[i] = (uint64_t)q[2 * i] | ((uint64_t)q[2 * i + 1] << 32);
+        return q[8] == 0;
+    }
+    return false;
+}
+
+// Edge inputs for modulus m: 0, 1..3, m-1..m-3, 2^k, m-2^k, the unreduced
+// values m, m+1..m+3, m+2^k (k < 32), 2^256-1..2^256-4, and the inputs whose
+// inverse is small (2^-1 .. 64^-1), which random inputs never reach. An empty
+// list means the host failed to build it.
+static std::vector<uint64_t> audit_inv_var_edge_inputs(const uint64_t* m) {
+    std::vector<uint64_t> v;
+    auto push = [&v](const uint64_t* x) { v.insert(v.end(), x, x + 4); };
+    const uint64_t zero[4] = {0, 0, 0, 0};
+    const uint64_t ones[4] = {~0ULL, ~0ULL, ~0ULL, ~0ULL};
+    uint64_t t[4];
+    push(zero); push(ones); push(m);
+    for (uint64_t s = 1; s <= 3; ++s) {
+        const uint64_t small[4] = {s, 0, 0, 0};
+        push(small);
+        audit_u256_sub(m, small, t); push(t);
+        audit_u256_add(m, small, t); push(t);
+        audit_u256_sub(ones, small, t); push(t);
+    }
+    for (int k = 0; k < 256; ++k) {
+        uint64_t pw[4] = {0, 0, 0, 0};
+        pw[k / 64] = 1ULL << (k % 64);
+        push(pw);
+        audit_u256_sub(m, pw, t); push(t);
+        if (k < 32) { audit_u256_add(m, pw, t); push(t); }
+    }
+    // inputs whose inverse is small: (m+1)/2 = 2^-1, then 3^-1 .. 64^-1
+    for (uint32_t k = 2; k <= 64; ++k) {
+        if (!audit_small_inverse(m, k, t)) return {};
+        push(t);
+    }
+    return v;
+}
+
+// field_inv_var == field_inv and scalar_inv_var == scalar_inverse on the edge
+// list plus 2^22 pseudo-random inputs per modulus, and a * inv(a) == 1.
+static int audit_inv_var_differential() {
+    static const uint64_t MOD_P[4] = {0xFFFFFFFEFFFFFC2FULL, ~0ULL, ~0ULL, ~0ULL};
+    static const uint64_t MOD_N[4] = {0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+                                      0xFFFFFFFFFFFFFFFEULL, ~0ULL};
+    const int n_random = 1 << 22;
+    for (int is_scalar = 0; is_scalar < 2; ++is_scalar) {
+        const std::vector<uint64_t> edge = audit_inv_var_edge_inputs(is_scalar ? MOD_N : MOD_P);
+        if (edge.empty()) return 1;                 // the host could not build the list
+        const int n_edge = (int)(edge.size() / 4);
+        const int count = n_edge + n_random;
+        const uint64_t seed = is_scalar ? 0xA5A5A5A500000000ULL : 0x5A5A5A5A00000000ULL;
+
+        uint64_t* d_edge; unsigned int* d_stats;
+        unsigned int h_stats[3] = {0, 0, 0};
+        CUDA_CHECK(cudaMalloc(&d_edge, edge.size() * sizeof(uint64_t)));
+        CUDA_CHECK(cudaMalloc(&d_stats, sizeof(h_stats)));
+        CUDA_CHECK(cudaMemcpy(d_edge, edge.data(), edge.size() * sizeof(uint64_t), cudaMemcpyHostToDevice));
+        CUDA_CHECK(cudaMemset(d_stats, 0, sizeof(h_stats)));
+        audit_inv_var_diff_kernel<<<(count + 255) / 256, 256>>>(d_edge, n_edge, seed, is_scalar, count, d_stats);
+        CUDA_CHECK(cudaDeviceSynchronize());
+        CUDA_CHECK(cudaMemcpy(h_stats, d_stats, sizeof(h_stats), cudaMemcpyDeviceToHost));
+        cudaFree(d_edge); cudaFree(d_stats);
+
+        if (h_stats[0] != 0 || h_stats[1] != 0 || h_stats[2] != (unsigned int)count) return 1;
+    }
+    return 0;
+}
+#endif // !SECP256K1_CUDA_LIMBS_32 && !SECP256K1_CUDA_USE_MONTGOMERY
 
 // Section 5: Memory safety -- device allocation stress
 static int audit_device_memory_stress() {
@@ -1064,6 +1363,150 @@ static int audit_ecdsa_wrong_key() {
 #endif
 }
 
+// ECDSA verify decides x(R) mod n == r projectively (X == r*Z^2, or
+// X == (r+n)*Z^2 when r < p - n) instead of inverting R.z. Checks:
+//   (1) valid signature accepts; tampered r / s / msg / key reject;
+//   (2) x(R) >= n branch: fixed vector with x(R) = n + 2, so r = 2 must accept
+//       and r + 1 = 3 must reject (built off-device: pick R with x = n + 2,
+//       choose z, s, then Q = u2^-1 * (R - u1*G) with u1 = z/s, u2 = r/s);
+//   (3) ecdsa_jacobian_x_eq_r_var on Z != 1 Jacobian points, both branches.
+#if !SECP256K1_CUDA_LIMBS_32
+__device__ inline void audit_rx_load_fe(const uint64_t v[4], FieldElement* out) {
+    FieldElement raw;
+    for (int i = 0; i < 4; i++) raw.limbs[i] = v[i];
+#if SECP256K1_CUDA_USE_MONTGOMERY
+    field_to_mont(&raw, out);
+#else
+    *out = raw;
+#endif
+}
+
+// (X:Y:Z) -> (lam^2 X : lam^3 Y : lam Z): same point, different Z.
+__device__ inline void audit_rx_rescale(const JacobianPoint* p, const FieldElement* lam,
+                                        JacobianPoint* out) {
+    FieldElement l2, l3;
+    field_sqr(lam, &l2);
+    field_mul(&l2, lam, &l3);
+    field_mul(&p->x, &l2, &out->x);
+    field_mul(&p->y, &l3, &out->y);
+    field_mul(&p->z, lam, &out->z);
+    out->infinity = p->infinity;
+}
+
+__global__ void audit_ecdsa_verify_rx_kernel(int* result) {
+    // -- (1) valid accept, tampered r / s / msg / key reject --
+    Scalar key, key_other;
+    key.limbs[0] = 0x1D2C3B4A59687706ULL; key.limbs[1] = 0x0123456789ABCDEFULL;
+    key.limbs[2] = 0x0FEDCBA987654321ULL; key.limbs[3] = 0x1122334455667788ULL;
+    key_other = key;
+    key_other.limbs[0] += 1;
+
+    uint8_t msg[32];
+    for (int i = 0; i < 32; i++) msg[i] = (uint8_t)(0x5A ^ (i * 7));
+
+    ECDSASignatureGPU sig;
+    if (!ecdsa_sign(msg, &key, &sig)) { *result = 1; return; }
+    JacobianPoint pub, pub_other;
+    scalar_mul_generator_const(&key, &pub);
+    scalar_mul_generator_const(&key_other, &pub_other);
+    if (!ecdsa_verify(msg, &pub, &sig)) { *result = 2; return; }
+
+    ECDSASignatureGPU bad = sig;
+    bad.r.limbs[0] ^= 1ULL;
+    if (ecdsa_verify(msg, &pub, &bad)) { *result = 3; return; }
+    bad = sig;
+    bad.s.limbs[0] ^= 1ULL;
+    if (ecdsa_verify(msg, &pub, &bad)) { *result = 4; return; }
+    uint8_t msg_bad[32];
+    for (int i = 0; i < 32; i++) msg_bad[i] = msg[i];
+    msg_bad[31] ^= 1;
+    if (ecdsa_verify(msg_bad, &pub, &sig)) { *result = 5; return; }
+    if (ecdsa_verify(msg, &pub_other, &sig)) { *result = 6; return; }
+
+    // -- (2) x(R) = n + 2 >= n: r = 2 accepts, r = 3 rejects --
+    const uint64_t QX[4] = { 0x77AC96902FE2CDBFULL, 0xBFD326EDFC5D0060ULL,
+                             0x542E30F7B59CDC40ULL, 0xFBEC342B73E8DFDAULL };
+    const uint64_t QY[4] = { 0xBE2000413F84D084ULL, 0x0A05FE6887A2500DULL,
+                             0xAF98FBD4FD9776BFULL, 0x8CCE96B4C87E6290ULL };
+    const uint8_t zmsg[32] = {
+        0xA5, 0xA5, 0xA5, 0xA5, 0xDE, 0xAD, 0xBE, 0xEF, 0x01, 0x23, 0x45, 0x67,
+        0x89, 0xAB, 0xCD, 0xEF, 0x0F, 0x1E, 0x2D, 0x3C, 0x4B, 0x5A, 0x69, 0x78,
+        0x87, 0x96, 0xA5, 0xB4, 0xC3, 0xD2, 0xE1, 0xF0 };
+    JacobianPoint q;
+    audit_rx_load_fe(QX, &q.x);
+    audit_rx_load_fe(QY, &q.y);
+    field_set_one(&q.z);
+    q.infinity = false;
+
+    ECDSASignatureGPU vs;
+    vs.r.limbs[0] = 2; vs.r.limbs[1] = 0; vs.r.limbs[2] = 0; vs.r.limbs[3] = 0;
+    vs.s.limbs[0] = 0x0011223344556677ULL; vs.s.limbs[1] = 0xFEDCBA9876543210ULL;
+    vs.s.limbs[2] = 0x0123456789ABCDEFULL; vs.s.limbs[3] = 0x1F2E3D4C5B6A7988ULL;
+    if (!ecdsa_verify(zmsg, &q, &vs)) { *result = 7; return; }
+
+    ECDSASignatureGPU vbad = vs;
+    vbad.r.limbs[0] = 3;                       // r + 1
+    if (ecdsa_verify(zmsg, &q, &vbad)) { *result = 8; return; }
+    vbad = vs;
+    vbad.s.limbs[0] += 1;                      // s + 1
+    if (ecdsa_verify(zmsg, &q, &vbad)) { *result = 9; return; }
+    uint8_t zmsg_bad[32];
+    for (int i = 0; i < 32; i++) zmsg_bad[i] = zmsg[i];
+    zmsg_bad[31] ^= 1;                         // z + 1
+    if (ecdsa_verify(zmsg_bad, &q, &vs)) { *result = 10; return; }
+
+    const uint64_t LAM[4] = { 0x0123456789ABCDEFULL, 0xFEDCBA9876543210ULL,
+                              0x0F0F0F0F0F0F0F0FULL, 0x7777777777777777ULL };
+    FieldElement lam;
+    audit_rx_load_fe(LAM, &lam);
+    JacobianPoint q_proj;                      // same pubkey, Z != 1
+    audit_rx_rescale(&q, &lam, &q_proj);
+    if (!ecdsa_verify(zmsg, &q_proj, &vs)) { *result = 11; return; }
+
+    // -- (3) the helper itself on Z != 1 points --
+    const uint64_t RX[4] = { 0xBFD25E8CD0364143ULL, 0xBAAEDCE6AF48A03BULL,
+                             0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL };   // n + 2
+    const uint64_t RY[4] = { 0xC6AF9BB9CD962A5CULL, 0x27153254788DD974ULL,
+                             0xCFDA34341568BF11ULL, 0xC94E559D14883E68ULL };
+    JacobianPoint r_aff, r_proj;
+    audit_rx_load_fe(RX, &r_aff.x);
+    audit_rx_load_fe(RY, &r_aff.y);
+    field_set_one(&r_aff.z);
+    r_aff.infinity = false;
+    audit_rx_rescale(&r_aff, &lam, &r_proj);
+    Scalar cand;
+    cand.limbs[0] = 2; cand.limbs[1] = 0; cand.limbs[2] = 0; cand.limbs[3] = 0;
+    if (!ecdsa_jacobian_x_eq_r_var(&r_proj, &cand)) { *result = 12; return; }
+    cand.limbs[0] = 3;
+    if (ecdsa_jacobian_x_eq_r_var(&r_proj, &cand)) { *result = 13; return; }
+
+    // G.x < n and G.x >= p - n: only the X == r*Z^2 candidate applies.
+    JacobianPoint g_proj;
+    audit_rx_rescale(&GENERATOR_JACOBIAN, &lam, &g_proj);
+    cand.limbs[0] = 0x59F2815B16F81798ULL; cand.limbs[1] = 0x029BFCDB2DCE28D9ULL;
+    cand.limbs[2] = 0x55A06295CE870B07ULL; cand.limbs[3] = 0x79BE667EF9DCBBACULL;
+    if (!ecdsa_jacobian_x_eq_r_var(&g_proj, &cand)) { *result = 14; return; }
+    cand.limbs[0] += 1;
+    if (ecdsa_jacobian_x_eq_r_var(&g_proj, &cand)) { *result = 15; return; }
+
+    *result = 0;
+}
+#endif
+
+static int audit_ecdsa_verify_rx() {
+#if SECP256K1_CUDA_LIMBS_32
+    return 0;
+#else
+    int* d_r; int h_r = -1;
+    CUDA_CHECK(cudaMalloc(&d_r, sizeof(int)));
+    audit_ecdsa_verify_rx_kernel<<<1,1>>>(d_r);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(&h_r, d_r, sizeof(int), cudaMemcpyDeviceToHost));
+    cudaFree(d_r);
+    return h_r;
+#endif
+}
+
 // ============================================================================
 // NEW Section 8: Protocol Security
 // ============================================================================
@@ -1217,6 +1660,160 @@ __global__ void audit_ecdsa_recovery_kernel(int* result) {
     *result = 0;
 }
 
+#if !SECP256K1_CUDA_LIMBS_32
+// One thread per (message, signature, recid) through ecdsa_recover, the device
+// function behind ecdsa_recover_batch_kernel. Each slot starts as infinity.
+__global__ void audit_ecrecover_cases_kernel(const uint8_t* msgs,
+                                             const ECDSASignatureGPU* sigs,
+                                             const int* recids, JacobianPoint* out,
+                                             int* ok, int count) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= count) return;
+    JacobianPoint q;
+    field_set_zero(&q.x); field_set_one(&q.y); field_set_zero(&q.z);
+    q.infinity = true;
+    ok[i] = ecdsa_recover(msgs + static_cast<size_t>(i) * 32, &sigs[i], recids[i], &q) ? 1 : 0;
+    out[i] = q;
+}
+
+struct EcrecoverCase {
+    uint8_t msg[32];
+    ECDSASignatureGPU sig;
+    int recid;
+};
+
+static Scalar ecrec_scalar(uint64_t l0, uint64_t l1, uint64_t l2, uint64_t l3) {
+    Scalar s{};
+    s.limbs[0] = l0; s.limbs[1] = l1; s.limbs[2] = l2; s.limbs[3] = l3;
+    return s;
+}
+
+#ifdef HAVE_CPU_LIB
+// Big-endian 32 bytes -> little-endian 64-bit limbs, no reduction.
+static Scalar ecrec_scalar_be(const uint8_t b[32]) {
+    Scalar s{};
+    for (int i = 0; i < 4; ++i) {
+        uint64_t limb = 0;
+        for (int j = 0; j < 8; ++j) limb = (limb << 8) | b[(3 - i) * 8 + j];
+        s.limbs[i] = limb;
+    }
+    return s;
+}
+#endif  // HAVE_CPU_LIB
+
+static EcrecoverCase ecrec_case(uint64_t z, const Scalar& r, const Scalar& s, int recid) {
+    EcrecoverCase c{};
+    for (int i = 0; i < 8; ++i) c.msg[31 - i] = static_cast<uint8_t>(z >> (8 * i));
+    c.sig.r = r;
+    c.sig.s = s;
+    c.recid = recid;
+    return c;
+}
+
+// Runs ecdsa_recover on the device for every case.
+static int run_ecrecover_cases(const std::vector<EcrecoverCase>& cases,
+                               std::vector<JacobianPoint>& out, std::vector<int>& ok) {
+    const size_t n = cases.size();
+    std::vector<uint8_t> h_msg(n * 32);
+    std::vector<ECDSASignatureGPU> h_sig(n);
+    std::vector<int> h_rec(n);
+    for (size_t i = 0; i < n; ++i) {
+        std::memcpy(&h_msg[i * 32], cases[i].msg, 32);
+        h_sig[i] = cases[i].sig;
+        h_rec[i] = cases[i].recid;
+    }
+    out.assign(n, JacobianPoint{});
+    ok.assign(n, -1);
+
+    uint8_t* d_msg = nullptr; ECDSASignatureGPU* d_sig = nullptr; int* d_rec = nullptr;
+    JacobianPoint* d_out = nullptr; int* d_ok = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_msg, n * 32));
+    CUDA_CHECK(cudaMalloc(&d_sig, n * sizeof(ECDSASignatureGPU)));
+    CUDA_CHECK(cudaMalloc(&d_rec, n * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(&d_out, n * sizeof(JacobianPoint)));
+    CUDA_CHECK(cudaMalloc(&d_ok, n * sizeof(int)));
+    CUDA_CHECK(cudaMemcpy(d_msg, h_msg.data(), n * 32, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_sig, h_sig.data(), n * sizeof(ECDSASignatureGPU), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_rec, h_rec.data(), n * sizeof(int), cudaMemcpyHostToDevice));
+    const int count = static_cast<int>(n);
+    audit_ecrecover_cases_kernel<<<(count + 63) / 64, 64>>>(d_msg, d_sig, d_rec, d_out, d_ok, count);
+    CUDA_CHECK(cudaGetLastError());
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(out.data(), d_out, n * sizeof(JacobianPoint), cudaMemcpyDeviceToHost));
+    CUDA_CHECK(cudaMemcpy(ok.data(), d_ok, n * sizeof(int), cudaMemcpyDeviceToHost));
+    cudaFree(d_msg); cudaFree(d_sig); cudaFree(d_rec); cudaFree(d_out); cudaFree(d_ok);
+    return 0;
+}
+
+// Edge rejections of ecdsa_recover. Every rejection has a positive control on
+// a neighbouring input, so a check cannot pass because recovery always fails.
+static int ecrecover_edge_cases() {
+    const Scalar zero  = ecrec_scalar(0, 0, 0, 0);
+    const Scalar one   = ecrec_scalar(1, 0, 0, 0);
+    const Scalar two   = ecrec_scalar(2, 0, 0, 0);
+    const Scalar five  = ecrec_scalar(5, 0, 0, 0);
+    const Scalar seven = ecrec_scalar(7, 0, 0, 0);
+    const Scalar gx    = ecrec_scalar(0x59F2815B16F81798ULL, 0x029BFCDB2DCE28D9ULL,
+                                      0x55A06295CE870B07ULL, 0x79BE667EF9DCBBACULL);
+    const Scalar n     = ecrec_scalar(0xBFD25E8CD0364141ULL, 0xBAAEDCE6AF48A03BULL,
+                                      0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL);
+    const Scalar n_p7  = ecrec_scalar(0xBFD25E8CD0364148ULL, 0xBAAEDCE6AF48A03BULL,
+                                      0xFFFFFFFFFFFFFFFEULL, 0xFFFFFFFFFFFFFFFFULL);
+    const Scalar ones  = ecrec_scalar(~0ULL, ~0ULL, ~0ULL, ~0ULL);
+    const Scalar pmn   = ecrec_scalar(0x402DA1722FC9BAEEULL, 0x4551231950B75FC4ULL, 1, 0);
+    const Scalar pmn1  = ecrec_scalar(0x402DA1722FC9BAEFULL, 0x4551231950B75FC4ULL, 1, 0);
+    // x(2G); 2G has even y.
+    const Scalar g2x   = ecrec_scalar(0xABAC09B95C709EE5ULL, 0x5C778E4B8CEF3CA7ULL,
+                                      0x3045406E95C07CD8ULL, 0xC6047F9441ED7D6DULL);
+
+    struct EdgeCase { const char* name; EcrecoverCase c; int want; };
+    const EdgeCase edges[] = {
+        { "r = 0",                                ecrec_case(7, zero, seven, 0), 0 },
+        { "s = 0",                                ecrec_case(7, gx, zero, 0),    0 },
+        { "r = n",                                ecrec_case(7, n, seven, 1),    0 },
+        { "r = 2^256 - 1",                        ecrec_case(7, ones, seven, 1), 0 },
+        { "s = n",                                ecrec_case(7, gx, n, 1),       0 },
+        { "s = n + 7 (would reduce to s = 7)",    ecrec_case(7, gx, n_p7, 1),    0 },
+        { "control: r = x(G), s = 7, recid 1",    ecrec_case(7, gx, seven, 1),   1 },
+        { "recid = -1",                           ecrec_case(7, gx, seven, -1),  0 },
+        { "recid = 4",                            ecrec_case(7, gx, seven, 4),   0 },
+        { "x = 5 is not on the curve (recid 0)",  ecrec_case(7, five, seven, 0), 0 },
+        { "x = 5 is not on the curve (recid 1)",  ecrec_case(7, five, seven, 1), 0 },
+        { "control: x = 1 lifts (recid 0)",       ecrec_case(7, one, seven, 0),  1 },
+        { "recid 2 with r = p - n",               ecrec_case(7, pmn, seven, 2),  0 },
+        { "recid 2 with r = p - n + 1 (x wraps to 1)", ecrec_case(7, pmn1, seven, 2), 0 },
+        { "recid 3 with r = p - n + 1 (x wraps to 1)", ecrec_case(7, pmn1, seven, 3), 0 },
+        { "control: recid 2, r = 2 (x = 2 + n lifts)", ecrec_case(7, two, seven, 2), 1 },
+        { "control: recid 3, r = 2 (x = 2 + n lifts)", ecrec_case(7, two, seven, 3), 1 },
+        // R = G (even y), s = z = 7: s*R - z*G = O, so Q is the point at infinity
+        // (degenerate Shamir table: P = R).
+        { "Q at infinity (R = G, s = z = 7)",     ecrec_case(7, gx, seven, 0),   0 },
+        // R = 2G (even y), s = 7, z = 14: s*R - z*G = O through the regular
+        // Shamir table; the last addition is the unchecked P + (-P).
+        { "Q at infinity (R = 2G, s = 7, z = 14)", ecrec_case(14, g2x, seven, 0), 0 },
+        { "control: R = -2G, s = 7, z = 14",      ecrec_case(14, g2x, seven, 1), 1 },
+    };
+    const size_t count = sizeof(edges) / sizeof(edges[0]);
+    std::vector<EcrecoverCase> cases;
+    for (size_t i = 0; i < count; ++i) cases.push_back(edges[i].c);
+    std::vector<JacobianPoint> out;
+    std::vector<int> ok;
+    if (run_ecrecover_cases(cases, out, ok) != 0) return 10;
+    for (size_t i = 0; i < count; ++i) {
+        if (ok[i] != edges[i].want) {
+            std::fprintf(stderr, "    ecrecover edge '%s': got %d, want %d\n",
+                         edges[i].name, ok[i], edges[i].want);
+            return 20 + static_cast<int>(i);
+        }
+        if (ok[i] && out[i].infinity) {
+            std::fprintf(stderr, "    ecrecover edge '%s': success with infinity\n", edges[i].name);
+            return 20 + static_cast<int>(i);
+        }
+    }
+    return 0;
+}
+#endif  // !SECP256K1_CUDA_LIMBS_32
+
 static int audit_ecdsa_recovery() {
 #if SECP256K1_CUDA_LIMBS_32
     return 0;
@@ -1227,9 +1824,128 @@ static int audit_ecdsa_recovery() {
     CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaMemcpy(&h_r, d_r, sizeof(int), cudaMemcpyDeviceToHost));
     cudaFree(d_r);
-    return h_r;
+    if (h_r != 0) return h_r;
+    return ecrecover_edge_cases();
 #endif
 }
+
+#if defined(HAVE_CPU_LIB) && !SECP256K1_CUDA_LIMBS_32
+// GPU ecdsa_recover vs CPU secp256k1::ecdsa_recover, byte for byte on the
+// 33-byte compressed key: 64 CPU-signed recoverable signatures under all four
+// recids (exactly one recid, the signer's, recovers the signer key), plus 32
+// random (r, s, z) triples under recids 0..3 and crafted recid 2/3 inputs.
+static int audit_ecrecover_cpu_differential() {
+    using CpuScalar = secp256k1::fast::Scalar;
+    std::mt19937_64 rng(0xEC4EC0DEULL);
+    auto rand32 = [&rng](std::array<uint8_t, 32>& b) {
+        for (auto& x : b) x = static_cast<uint8_t>(rng());
+    };
+
+    struct CpuCase { std::array<uint8_t, 32> msg, r, s; int recid; };
+    std::vector<CpuCase> cpu_cases;
+    std::vector<std::array<uint8_t, 33>> signer_pub;
+    std::vector<int> signer_recid;
+
+    constexpr int kKeys = 64;
+    for (int k = 0; k < kKeys; ++k) {
+        std::array<uint8_t, 32> skb{}, msg{};
+        rand32(skb); rand32(msg);
+        const auto sk = CpuScalar::from_bytes(skb);
+        if (sk.is_zero()) return 1;
+        const auto rs = secp256k1::ecdsa_sign_recoverable(msg, sk);
+        if (rs.sig.r.is_zero() || rs.sig.s.is_zero()) return 2;
+        const auto pub = secp256k1::fast::Point::generator().scalar_mul(sk).to_compressed();
+        std::array<uint8_t, 33> pub33{};
+        std::memcpy(pub33.data(), pub.data(), 33);
+        signer_pub.push_back(pub33);
+        signer_recid.push_back(rs.recid);
+        for (int recid = 0; recid < 4; ++recid)
+            cpu_cases.push_back({msg, rs.sig.r.to_bytes(), rs.sig.s.to_bytes(), recid});
+    }
+    for (int t = 0; t < 32; ++t) {
+        std::array<uint8_t, 32> msg{}, r{}, s{};
+        rand32(msg); rand32(r); rand32(s);
+        // Keep r, s canonical (< n) so both sides see identical scalars.
+        r[0] &= 0x7F; s[0] &= 0x7F;
+        for (int recid = 0; recid < 4; ++recid) cpu_cases.push_back({msg, r, s, recid});
+    }
+    {
+        // recid 2/3 with r = 2: x = 2 + n lies on the curve.
+        std::array<uint8_t, 32> msg{}, r{}, s{};
+        rand32(msg); rand32(s); s[0] &= 0x7F;
+        r[31] = 2;
+        cpu_cases.push_back({msg, r, s, 2});
+        cpu_cases.push_back({msg, r, s, 3});
+    }
+    {
+        // Crafted R = G and R = 2G with z = s * dlog(R): the even-y recid gives
+        // Q = infinity (rejected on both sides), the odd-y recid a real key.
+        static const uint8_t GX[32] = {
+            0x79,0xBE,0x66,0x7E,0xF9,0xDC,0xBB,0xAC,0x55,0xA0,0x62,0x95,0xCE,0x87,0x0B,0x07,
+            0x02,0x9B,0xFC,0xDB,0x2D,0xCE,0x28,0xD9,0x59,0xF2,0x81,0x5B,0x16,0xF8,0x17,0x98};
+        static const uint8_t G2X[32] = {
+            0xC6,0x04,0x7F,0x94,0x41,0xED,0x7D,0x6D,0x30,0x45,0x40,0x6E,0x95,0xC0,0x7C,0xD8,
+            0x5C,0x77,0x8E,0x4B,0x8C,0xEF,0x3C,0xA7,0xAB,0xAC,0x09,0xB9,0x5C,0x70,0x9E,0xE5};
+        std::array<uint8_t, 32> s{}, z7{}, z14{}, gx{}, g2x{};
+        s[31] = 7; z7[31] = 7; z14[31] = 14;
+        std::memcpy(gx.data(), GX, 32);
+        std::memcpy(g2x.data(), G2X, 32);
+        for (int recid = 0; recid < 2; ++recid) {
+            cpu_cases.push_back({z7, gx, s, recid});
+            cpu_cases.push_back({z14, g2x, s, recid});
+        }
+    }
+
+    std::vector<EcrecoverCase> cases;
+    for (const auto& c : cpu_cases) {
+        EcrecoverCase g{};
+        std::memcpy(g.msg, c.msg.data(), 32);
+        g.sig.r = ecrec_scalar_be(c.r.data());
+        g.sig.s = ecrec_scalar_be(c.s.data());
+        g.recid = c.recid;
+        cases.push_back(g);
+    }
+    std::vector<JacobianPoint> out;
+    std::vector<int> ok;
+    if (run_ecrecover_cases(cases, out, ok) != 0) return 3;
+
+    int successes = 0;
+    for (size_t i = 0; i < cpu_cases.size(); ++i) {
+        const auto& c = cpu_cases[i];
+        const secp256k1::ECDSASignature cpu_sig{CpuScalar::from_bytes(c.r), CpuScalar::from_bytes(c.s)};
+        const auto cpu_res = secp256k1::ecdsa_recover(c.msg, cpu_sig, c.recid);
+        const auto& cpu_q = cpu_res.first;
+        const bool cpu_ok = cpu_res.second;
+        if ((ok[i] != 0) != cpu_ok) {
+            std::fprintf(stderr, "    ecrecover case %zu (recid %d): GPU ok=%d, CPU ok=%d\n",
+                         i, c.recid, ok[i], cpu_ok ? 1 : 0);
+            return 4;
+        }
+        if (!cpu_ok) continue;
+        ++successes;
+        const auto gpu33 = HostPoint::from_device(out[i]).to_compressed();
+        const auto cpu33 = cpu_q.to_compressed();
+        if (gpu33.size() != 33 || std::memcmp(gpu33.data(), cpu33.data(), 33) != 0) {
+            std::fprintf(stderr, "    ecrecover case %zu (recid %d): GPU key != CPU key\n",
+                         i, c.recid);
+            return 5;
+        }
+        if (i < static_cast<size_t>(kKeys) * 4) {
+            const size_t key = i / 4;
+            const bool is_signer = std::memcmp(gpu33.data(), signer_pub[key].data(), 33) == 0;
+            if (is_signer != (c.recid == signer_recid[key])) {
+                std::fprintf(stderr, "    key #%zu recid %d: signer match %d (signature recid %d)\n",
+                             key, c.recid, is_signer ? 1 : 0, signer_recid[key]);
+                return 6;
+            }
+        }
+    }
+    // Every signer recid succeeds; a corpus with no other success would not
+    // exercise the differential at all.
+    if (successes <= kKeys) return 7;
+    return 0;
+}
+#endif  // HAVE_CPU_LIB && !SECP256K1_CUDA_LIMBS_32
 
 // BIP-32 derivation chain integrity
 __global__ void audit_bip32_chain_integrity_kernel(int* result) {
@@ -1294,6 +2010,64 @@ __global__ void audit_hash160_kernel(int* result) {
     for (int i = 0; i < 20; i++) if (hash1[i] != 0) all_zero = false;
     if (all_zero) { *result = 3; return; }
 
+    // Known answers for key=1: hash160(02||Gx) and hash160(04||Gx||Gy).
+    // The 33-byte and 65-byte inputs take different SHA-256 paths.
+    const uint8_t kat_compressed[20] = {
+        0x75,0x1e,0x76,0xe8,0x19,0x91,0x96,0xd4,0x54,0x94,
+        0x1c,0x45,0xd1,0xb3,0xa3,0x23,0xf1,0x43,0x3b,0xd6};
+    for (int i = 0; i < 20; i++) {
+        if (hash1[i] != kat_compressed[i]) { *result = 4; return; }
+    }
+    const uint8_t gy[32] = {
+        0x48,0x3A,0xDA,0x77,0x26,0xA3,0xC4,0x65,0x5D,0xA4,0xFB,0xFC,0x0E,0x11,0x08,0xA8,
+        0xFD,0x17,0xB4,0x48,0xA6,0x85,0x54,0x19,0x9C,0x47,0xD0,0x8F,0xFB,0x10,0xD4,0xB8};
+    const uint8_t kat_uncompressed[20] = {
+        0x91,0xb2,0x4b,0xf9,0xf5,0x28,0x85,0x32,0x96,0x0a,
+        0xc6,0x87,0xab,0xb0,0x35,0x12,0x7b,0x1d,0x28,0xa5};
+    uint8_t uncompressed[65];
+    uncompressed[0] = 0x04;
+    for (int i = 0; i < 32; i++) { uncompressed[1 + i] = compressed[1 + i]; uncompressed[33 + i] = gy[i]; }
+    uint8_t hash3[20];
+    hash160_pubkey(uncompressed, 65, hash3);
+    for (int i = 0; i < 20; i++) {
+        if (hash3[i] != kat_uncompressed[i]) { *result = 5; return; }
+    }
+
+    *result = 0;
+}
+
+// 65-byte keys with every possible last byte (0x00..0xff). The last byte is the
+// only input of the second SHA-256 block of a 65-byte message, so this
+// exercises that block's w[0] and its 0x80 padding for all 256 values. The
+// registers-only sha256_65 / hash160_pubkey dispatch is compared against the
+// generic length-looping sha256() (an independent code path, checked against
+// the known answers above) for the same bytes. The first 64 bytes are one fixed
+// pseudo-random prefix, so the 256 keys differ only in the last byte.
+__global__ void audit_hash160_65_lastbyte_kernel(int* result) {
+    uint8_t key[65];
+    uint32_t s = 0x9E3779B9u;
+    for (int i = 0; i < 64; i++) {
+        s = s * 1664525u + 1013904223u;
+        key[i] = (uint8_t)(s >> 24);
+    }
+    key[0] = 0x04;
+    for (int v = 0; v < 256; v++) {
+        key[64] = (uint8_t)v;
+
+        uint8_t sha_fast[32], sha_ref[32];
+        sha256_65(key, sha_fast);
+        sha256(key, 65, sha_ref);
+        for (int i = 0; i < 32; i++) {
+            if (sha_fast[i] != sha_ref[i]) { *result = 6; return; }
+        }
+
+        uint8_t h_fast[20], h_ref[20];
+        hash160_pubkey(key, 65, h_fast);
+        ripemd160_32(sha_ref, h_ref);
+        for (int i = 0; i < 20; i++) {
+            if (h_fast[i] != h_ref[i]) { *result = 7; return; }
+        }
+    }
     *result = 0;
 }
 
@@ -1301,6 +2075,12 @@ static int audit_hash160_consistency() {
     int* d_r; int h_r = -1;
     CUDA_CHECK(cudaMalloc(&d_r, sizeof(int)));
     audit_hash160_kernel<<<1,1>>>(d_r);
+    CUDA_CHECK(cudaDeviceSynchronize());
+    CUDA_CHECK(cudaMemcpy(&h_r, d_r, sizeof(int), cudaMemcpyDeviceToHost));
+    if (h_r != 0) { cudaFree(d_r); return h_r; }
+
+    h_r = -1;
+    audit_hash160_65_lastbyte_kernel<<<1,1>>>(d_r);
     CUDA_CHECK(cudaDeviceSynchronize());
     CUDA_CHECK(cudaMemcpy(&h_r, d_r, sizeof(int), cudaMemcpyDeviceToHost));
     cudaFree(d_r);
@@ -2078,6 +2858,7 @@ static const GpuAuditModule GPU_MODULES[] = {
     { "ecdsa_roundtrip",   "ECDSA sign roundtrip",                        "signatures", audit_ecdsa_roundtrip, false },
     { "schnorr_roundtrip", "Schnorr/BIP-340 sign roundtrip",             "signatures", audit_schnorr_roundtrip, false },
     { "ecdsa_wrong_key",   "ECDSA verify rejects wrong pubkey",           "signatures", audit_ecdsa_wrong_key, false },
+    { "ecdsa_verify_rx",   "ECDSA verify projective x(R)==r (r+n branch)", "signatures", audit_ecdsa_verify_rx, false },
 
     // Section 3: Batch Operations & Advanced
     { "batch_inv",         "Batch inversion (Montgomery trick)",          "batch_advanced", audit_batch_inversion, false },
@@ -2086,10 +2867,15 @@ static const GpuAuditModule GPU_MODULES[] = {
 
     // Section 4: CPU-GPU Differential
     { "diff_gen_mul",      "CPU-GPU differential gen mul",                "differential", audit_cpu_gpu_differential_gen_mul, false },
+#if !SECP256K1_CUDA_LIMBS_32 && !SECP256K1_CUDA_USE_MONTGOMERY
+    { "inv_var_diff",      "Var-time inverse vs Fermat (field+scalar)",   "differential", audit_inv_var_differential, false },
+#endif
 #ifdef HAVE_CPU_LIB
     { "diff_field_mul",    "CPU-GPU differential field mul (10 rounds)",  "differential", audit_cpu_gpu_differential_field_mul, false },
 #if !SECP256K1_CUDA_LIMBS_32
     { "diff_ecdsa",        "CPU-GPU differential ECDSA sign+verify",     "differential", audit_cpu_gpu_differential_ecdsa, false },
+    { "ecrecover_cpu_diff", "ecrecover GPU vs CPU bytes (64 keys x 4 recids + crafted)", "differential", audit_ecrecover_cpu_differential, false },
+    { "bch_schnorr_diff",  "BCH 2019 Schnorr verify GPU vs CPU (valid + invalid classes)", "differential", audit_cpu_gpu_differential_bch_schnorr, false },
 #endif
 #endif
 
@@ -2609,6 +3395,10 @@ int main(int argc, char* argv[]) {
     if (!json_only) {
         std::printf("[Phase 1/2] Running %d GPU audit modules across %d sections...\n\n",
                     modules_to_run, NUM_GPU_SECTIONS);
+#if SECP256K1_CUDA_USE_MONTGOMERY && !SECP256K1_CUDA_LIMBS_32
+        std::printf("  [skip] inv_var_diff (var-time inverse vs Fermat): not run in a Montgomery\n"
+                    "         build; its a * inv == 1 check assumes plain field elements\n\n");
+#endif
     }
 
     std::vector<ModuleResult> results;

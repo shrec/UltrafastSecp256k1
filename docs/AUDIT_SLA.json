@@ -2,7 +2,7 @@
   "version": 2,
   "description": "Audit infrastructure SLA/SLO definitions for UltrafastSecp256k1",
   "created": "2026-04-14",
-  "updated": "2026-06-13",
+  "updated": "2026-11-02",
   "pre_alert": "pre_alert_buffer_days (Bastion B3): audit_sla_check.py emits a non-blocking PRE-ALERT warning while an artifact is within this many days of its blocking threshold, and reports days_until_block per artifact so the SLA never silently jumps from green to blocked.",
   "slos": {
     "max_stale_evidence_days": {
@@ -99,7 +99,7 @@
     }
   },
   "freshness_artifacts": {
-    "description": "Bastion B19 (RR-BAS-01 / RR-BAS-02): explicit refresh-disposition ledger binding every freshness artifact tracked by ci/audit_sla_check.py to either an AUTOMATIC producer (a regeneration+commit step in a scheduled workflow) or a DOCUMENTED RESIDUAL (an authored spec, a stable golden, a build-only artifact, or an owner-chosen manual chore). Enforced by ci/check_evidence_refresh_coverage.py (audit_gate.py --evidence-refresh-coverage, G-19): a blocking freshness artifact with neither a verifiable auto-producer nor a residual that resolves to docs/RESIDUAL_RISK_REGISTER.md fails the gate. `auto` entries are cross-checked against the named workflow's actual commit list so the manifest cannot claim coverage the workflow does not provide. Authored/golden artifacts are intentionally NOT nightly-regenerated (that would fake freshness on a human-authored or baseline artifact); their honest_refresh_mechanism documents what keeps them current instead.",
+    "description": "Bastion B19 (RR-BAS-01 / RR-BAS-02): explicit refresh-disposition ledger binding every freshness artifact tracked by ci/audit_sla_check.py to either an AUTOMATIC producer (a refresh+commit step in a scheduled workflow) or a DOCUMENTED RESIDUAL (a build-only artifact). Enforced by ci/check_evidence_refresh_coverage.py (audit_gate.py --evidence-refresh-coverage, G-19): a blocking freshness artifact with neither a verifiable auto-producer nor a residual that resolves to docs/RESIDUAL_RISK_REGISTER.md fails the gate. `auto` entries are cross-checked against the named workflow's actual commit list so the manifest cannot claim coverage the workflow does not provide. Owner decision 2026-11-02 (RR-BAS-01): the audit/ci-evidence snapshots, the determinism golden, the API-contract file and the assurance-claims file are `auto`, but never regenerated blindly -- ci/refresh_residual_evidence.py refreshes each ONLY by re-running its real verifier and writes ONLY when that verifier passes (a failed group writes nothing; the other groups still refresh), so freshness is never faked on an authored or golden artifact. Owner-gated evidence (GPU hardware, ROCm, Bitcoin Core suite, libbitcoin bridge) is not a freshness artifact here: a GitHub-hosted runner cannot produce it and the lane never writes or stamps it.",
     "auto_refresh_workflow": ".github/workflows/caas-evidence-refresh.yml",
     "coverage_gate": "ci/check_evidence_refresh_coverage.py",
     "artifacts": [
@@ -134,10 +134,13 @@
         "slos": ["max_stale_evidence_days", "critical_evidence_freshness_days"],
         "severity": "blocking",
         "refresh": {
-          "mode": "residual",
-          "residual_id": "RR-BAS-01",
-          "reason": "CT / adversarial / fuzz output snapshots captured by building and running the four standalone audit binaries (test_adversarial_protocol, test_ecies_regression, test_fuzz_parsers, test_fuzz_address_bip32_ffi). The owner explicitly chose a manual chore + B3 pre-alert over an auto-committing scheduled lane (a CI-cost / human-review decision); auto-committing captured fuzz output unattended is declined by the owner.",
-          "honest_refresh_mechanism": "Manual owner chore on a <14-day cadence; ci/audit_sla_check.py B3 pre-alert warns ~4 days before the block with a per-artifact days_until_block."
+          "mode": "auto",
+          "producer_workflow": ".github/workflows/caas-evidence-refresh.yml",
+          "producer_step": "Refresh residual evidence (ci/refresh_residual_evidence.py)",
+          "committed_paths": ["audit/ci-evidence"],
+          "verifier": "the five audit/fuzz suites test_adversarial_protocol_standalone, test_ecies_regression_standalone, test_regression_ct_ops_standalone, test_fuzz_parsers and test_fuzz_address_bip32_ffi, built with -DBUILD_TESTING=ON -DSECP256K1_BUILD_FUZZ_TESTS=ON",
+          "fail_closed": "Five NEW audit/ci-evidence/<suite>_<YYYYMMDD>.txt files are written only when every suite exits 0 and its own summary shows 0 failed (and 0 crashes where the suite counts them); otherwise none are written. An existing snapshot is never rewritten or re-dated. Due when the newest file is at least 7 days old by audit_sla_check's own age function, or on --force.",
+          "promotion": "RR-BAS-01: promoted by the owner on 2026-11-02 (bring everything into one working cycle); replaces the manual chore of commit 121e5325."
         }
       },
       {
@@ -146,10 +149,13 @@
         "slos": ["max_stale_evidence_days", "critical_evidence_freshness_days"],
         "severity": "blocking",
         "refresh": {
-          "mode": "residual",
-          "residual_id": "RR-BAS-01",
-          "reason": "Authored API-security-contract specification (api/criticality/ct_class/preconditions/postconditions/failure_modes/evidence_tests/evidence_docs), validated by ci/check_api_contracts.py. Regenerating it nightly would fake freshness on a human-authored spec.",
-          "honest_refresh_mechanism": "ci/check_api_contracts.py fail-closed changed-file policy: sensitive API/security source cannot change without a docs/API_SECURITY_CONTRACTS.json update, so the contract is re-attested whenever the surface it describes changes."
+          "mode": "auto",
+          "producer_workflow": ".github/workflows/caas-evidence-refresh.yml",
+          "producer_step": "Refresh residual evidence (ci/refresh_residual_evidence.py)",
+          "committed_paths": ["docs/API_SECURITY_CONTRACTS.json"],
+          "verifier": "python3 ci/check_api_contracts.py --json",
+          "fail_closed": "Re-stamped, never regenerated: last_updated and update_note are the only fields written, and only when the verifier exits 0 with no issues; the stamp names the date, the HEAD short sha, the verifier command and its verdict. The authored contract entries are never edited, and the stamp does not replace the human review of an API change (the verifier's changed-file policy still blocks a sensitive source change that comes without a contract update).",
+          "promotion": "RR-BAS-01: promoted by the owner on 2026-11-02."
         }
       },
       {
@@ -158,10 +164,13 @@
         "slos": ["max_stale_evidence_days"],
         "severity": "blocking",
         "refresh": {
-          "mode": "residual",
-          "residual_id": "RR-BAS-01",
-          "reason": "Authored assurance-claims ledger (schema_version/updated_at/source/claims), validated by ci/validate_assurance.py. Not a derived report — auto-regeneration would fake freshness.",
-          "honest_refresh_mechanism": "Re-attested by the owner when claims change; the validate_assurance.py companion check binds each claim to its evidence on every push."
+          "mode": "auto",
+          "producer_workflow": ".github/workflows/caas-evidence-refresh.yml",
+          "producer_step": "Refresh residual evidence (ci/refresh_residual_evidence.py)",
+          "committed_paths": ["docs/ASSURANCE_CLAIMS.json"],
+          "verifier": "python3 ci/validate_assurance.py",
+          "fail_closed": "Re-stamped, never regenerated: updated_at is the only field written, and only when the verifier exits 0. The ledger has no free-text field, so the verifier and the HEAD it ran at are named by the refresh commit and the evidence-chain record.",
+          "promotion": "RR-BAS-01: promoted by the owner on 2026-11-02."
         }
       },
       {
@@ -170,10 +179,13 @@
         "slos": ["max_stale_evidence_days", "determinism_golden_staleness_days"],
         "severity": "blocking",
         "refresh": {
-          "mode": "residual",
-          "residual_id": "RR-BAS-01",
-          "reason": "Golden reference fixture. By definition it is intentionally stable — regenerating it nightly would defeat its purpose as a fixed baseline.",
-          "honest_refresh_mechanism": "Re-verified (compared, not regenerated) by the determinism gate on every push; the staleness SLO is a re-verification prompt, not a regeneration trigger."
+          "mode": "auto",
+          "producer_workflow": ".github/workflows/caas-evidence-refresh.yml",
+          "producer_step": "Refresh residual evidence (ci/refresh_residual_evidence.py)",
+          "committed_paths": ["docs/DETERMINISM_GOLDEN.json"],
+          "verifier": "python3 ci/check_determinism_gate.py",
+          "fail_closed": "The gate regenerates the report; the golden is replaced only when overall_pass is true and the report equals the committed golden except generated_at and library. Any other difference fails the group and leaves the file untouched, so a real change in deterministic output still needs a human decision.",
+          "promotion": "RR-BAS-01: promoted by the owner on 2026-11-02."
         }
       },
       {

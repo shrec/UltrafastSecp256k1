@@ -40,9 +40,21 @@ done
 # and /tmp/ci_local_msan_<PID> accumulating across multiple interrupted runs.
 BUILD_DIR=""
 MSAN_DIR=""
+# The autonomy gate rewrites these tracked files as a side effect (incident drills,
+# KPI snapshot). The nightly caas-evidence-refresh lane commits them to dev, so a
+# local run that leaves them modified makes the next `git pull` of a bot commit fail.
+# Put back the ones that were clean when this run started; never touch a file the
+# user had already changed.
+GENERATED_SIDE_EFFECTS=(docs/INCIDENT_DRILL_LOG.json docs/SECURITY_AUTONOMY_KPI.json)
+CLEAN_SIDE_EFFECTS=()
+for f in "${GENERATED_SIDE_EFFECTS[@]}"; do
+  git diff --quiet -- "$f" 2>/dev/null && CLEAN_SIDE_EFFECTS+=("$f")
+done
 _ci_local_cleanup() {
   [[ -n "${BUILD_DIR:-}" ]] && rm -rf "$BUILD_DIR" 2>/dev/null
   [[ -n "${MSAN_DIR:-}"  ]] && rm -rf "$MSAN_DIR"  2>/dev/null
+  [[ ${#CLEAN_SIDE_EFFECTS[@]} -gt 0 ]] && git checkout -- "${CLEAN_SIDE_EFFECTS[@]}" 2>/dev/null
+  true
 }
 trap '_ci_local_cleanup' EXIT INT TERM
 
@@ -420,6 +432,38 @@ test_gpu_zk_prove_verify_differential"
             echo -e "${YELLOW}SKIP${NC} (binary not built)"
           fi
         done
+        # CUDA GPU audit runner: the only place the on-device known-answer checks
+        # run (e.g. audit_hash160_kernel's hash160(02||Gx) / hash160(04||Gx||Gy)
+        # KATs, d86d3bbf). gpu_audit_runner exits 1 -- not 77 -- when
+        # cudaSetDevice() fails, so it must only run when a device is present.
+        # This branch is already guarded by `nvidia-smi -L` above, so a CUDA build
+        # dir on a GPU-less machine never reaches it (no FAIL). The target only
+        # exists in a CUDA-enabled configure; skip, not fail, when it is absent.
+        if cmake --build "$_gpu_dir" --target help 2>/dev/null | grep -q 'gpu_audit_runner'; then
+          printf "  %-52s" "build gpu_audit_runner ($_gpu_dir)..."
+          if cmake --build "$_gpu_dir" -j"$(nproc)" --target gpu_audit_runner \
+               >>"${TMPDIR:-/tmp}/ci_local_gpubuild_$$.log" 2>&1; then
+            echo -e "${GREEN}OK${NC}"
+            _gpu_audit_bin="$(find "$_gpu_dir" -type f -name gpu_audit_runner -perm -u+x 2>/dev/null | head -1)"
+            if [[ -n "$_gpu_audit_bin" ]]; then
+              _gpu_audit_report="${TMPDIR:-/tmp}/ci_local_gpu_audit_$$"
+              mkdir -p "$_gpu_audit_report"
+              run_check "GPU: gpu_audit_runner (CUDA KATs)" \
+                timeout 300 "$_gpu_audit_bin" --json-only --report-dir "$_gpu_audit_report"
+              rm -rf "$_gpu_audit_report" 2>/dev/null || true
+            else
+              printf "  %-52s" "GPU: gpu_audit_runner..."
+              echo -e "${YELLOW}SKIP${NC} (binary not found after build)"
+            fi
+          else
+            echo -e "${RED}FAIL${NC}"
+            tail -20 "${TMPDIR:-/tmp}/ci_local_gpubuild_$$.log" | sed 's/^/    /'
+            ((fail++)); gate_results["GPU audit runner build"]="fail"
+          fi
+        else
+          printf "  %-52s" "GPU: gpu_audit_runner..."
+          echo -e "${YELLOW}SKIP${NC} (target not in $_gpu_dir -- not a CUDA configure)"
+        fi
         # White-box GPU constant-time gate: build the leakage probe + run the Nsight
         # (ncu) branch-uniformity fixed-vs-random comparison. This is the white-box
         # detector that catches key-dependent warp divergence which the interleaved

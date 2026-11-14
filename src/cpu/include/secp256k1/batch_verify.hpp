@@ -21,6 +21,13 @@
 //
 // If batch verification fails, falls back to individual verification to
 // identify the invalid signature(s).
+//
+// Lane-parallel opt-in: when a lane backend is chosen explicitly
+// (secp256k1::lanes::set_lane_verify_backend, or UFSECP_LANES naming an
+// available backend -- see "Batch-verify opt-in" in secp256k1/lanes.hpp), the
+// ECDSA paths, the BIP-340 sub-cutoff / identify-invalid paths and the per-row
+// results below use the lane verifiers. Verdicts and invalid sets are the
+// scalar path's. Without an explicit choice nothing changes.
 // ============================================================================
 
 #include <array>

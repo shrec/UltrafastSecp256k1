@@ -44,12 +44,14 @@ set(SECP256K1_SOURCES
     src/multiscalar.cpp    # Multi-scalar multiplication (Strauss/Shamir)
     src/ecdh.cpp           # ECDH key exchange
     src/recovery.cpp       # ECDSA public key recovery
+    src/bch_schnorr.cpp    # BCH 2019 Schnorr verify + batch verify (MSM only with PIPPENGER)
     # Bitcoin consensus layer (always needed for any Bitcoin-family backend)
     src/taproot.cpp        # Taproot (BIP-341/342) key tweaking + tapscript sighash
     src/bip143.cpp         # BIP-143 SegWit v0 sighash
     src/bip144.cpp         # BIP-144 witness transaction serialization
     src/segwit.cpp         # BIP-141 segregated witness program ops
     src/hash_accel.cpp     # SHA-256 (SHA-NI) + RIPEMD-160 + Hash160
+    src/cpu_features.cpp   # CPUID/XGETBV decode: one cached, maskable CPU feature view
 )
 
 # =============================================================================
@@ -179,6 +181,11 @@ if(SECP256K1_BUILD_PIPPENGER)
         src/batch_add_affine.cpp # Affine batch addition for sequential ECC search
         src/batch_verify.cpp     # Batch ECDSA/Schnorr verify — calls msm() at N>=96
     )
+    # BCH Schnorr batch verify uses pippenger_msm_glv_short only when it is
+    # built; without this define src/bch_schnorr.cpp verifies batches entry by
+    # entry (same verdict).
+    set_source_files_properties(src/bch_schnorr.cpp PROPERTIES
+        COMPILE_DEFINITIONS SECP256K1_BCH_SCHNORR_HAS_MSM=1)
     message(STATUS "Secp256k1: Pippenger/MSM module: ON")
 else()
     message(STATUS "Secp256k1: Pippenger/MSM module: OFF")
@@ -445,6 +452,116 @@ if(SECP256K1_BUILD_ETHEREUM)
 else()
     message(STATUS "Secp256k1: Ethereum module: OFF (Bitcoin-only build)")
 endif()
+
+# =============================================================================
+# Lane-parallel (vertical SIMD) field arithmetic -- secp256k1/lanes.hpp
+# =============================================================================
+# Each lane field lives in its own translation unit compiled with that ISA's
+# flags (per-file COMPILE_OPTIONS below); nothing else gets them. The library
+# still runs on CPUs without these ISAs: lanes_dispatch.cpp (generic flags)
+# hands a backend's kernel table out only when the masked cpu_features() view
+# reports the ISA, and the tables are constant-initialised, so no ISA code runs
+# at load time. Public-data (verify) paths only -- variable time by design.
+#
+# A backend is built only when the compiler accepts its flags AND its
+# intrinsics (a compile probe, which subsumes check_cxx_compiler_flag; for
+# AVX-IFMA that is -mavxifma plus _mm256_madd52lo_avx_epu64). The ISA TUs are
+# kept out of unity builds so their flags never reach other sources.
+#
+# lanes_verify.cpp (generic flags too) is the scalar side of lane-parallel
+# ECDSA / BIP-340 verification; it reaches the per-ISA verify kernels through
+# the same SECP256K1_LANES_HAVE_* macros as lanes_dispatch.cpp.
+list(APPEND SECP256K1_SOURCES src/lanes/lanes_dispatch.cpp src/lanes/lanes_verify.cpp)
+set(_SECP256K1_LANES_DEFS "")
+if(_SECP_TARGET_ARCH MATCHES "x86_64|AMD64|X64" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    include(CheckCXXSourceCompiles)
+    include(CMakePushCheckState)
+
+    if(MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        set(_lanes_avx2_flags "/arch:AVX2")
+        set(_lanes_ifma_flags "/arch:AVX512")
+        set(_lanes_avx_ifma_flags "")   # no MSVC switch for AVX-IFMA: backend not built
+        set(_lanes_tu_flags "")
+    else()
+        set(_lanes_avx2_flags "-mavx2")
+        set(_lanes_ifma_flags "-mavx512f;-mavx512vl;-mavx512ifma")
+        set(_lanes_avx_ifma_flags "-mavx2;-mavxifma")
+        # The ISA TUs stay out of LTO. Their code is reached only through the
+        # constant kernel tables, so nothing in them needs cross-TU inlining,
+        # and they define no weak (COMDAT) symbols. With them in the LTO unit,
+        # GCC 14 stopped inlining hot CT helpers elsewhere (ct::scalar_window,
+        # comb_lookup, FieldElement::operator-=): ct::point_add_complete and
+        # ct::point_add_mixed_complete ran about 30% slower in bench_unified.
+        set(_lanes_tu_flags "-fno-lto")
+    endif()
+
+    # _secp256k1_lanes_probe(<result-var> <flag-list> <source>)
+    function(_secp256k1_lanes_probe out_var flags source)
+        if(flags STREQUAL "")
+            set(${out_var} FALSE PARENT_SCOPE)
+            return()
+        endif()
+        cmake_push_check_state(RESET)
+        string(REPLACE ";" " " _probe_flags "${flags}")
+        set(CMAKE_REQUIRED_FLAGS "${_probe_flags}")
+        check_cxx_source_compiles("${source}" ${out_var})
+        cmake_pop_check_state()
+        set(${out_var} "${${out_var}}" PARENT_SCOPE)
+    endfunction()
+
+    _secp256k1_lanes_probe(SECP256K1_LANES_PROBE_AVX2 "${_lanes_avx2_flags}" "
+#include <immintrin.h>
+int main() {
+    __m256i a = _mm256_set1_epi64x(3);
+    a = _mm256_mul_epu32(a, _mm256_srli_epi64(a, 1));
+    return _mm256_movemask_epi8(_mm256_cmpeq_epi64(a, a));
+}")
+    _secp256k1_lanes_probe(SECP256K1_LANES_PROBE_IFMA "${_lanes_ifma_flags}" "
+#include <immintrin.h>
+int main() {
+    __m512i a = _mm512_set1_epi64(3);
+    a = _mm512_madd52hi_epu64(_mm512_madd52lo_epu64(a, a, a), a, a);
+    __m256i b = _mm256_set1_epi64x(3);
+    b = _mm256_madd52hi_epu64(_mm256_madd52lo_epu64(b, b, b), b, b);
+    return static_cast<int>(_mm512_cmpeq_epi64_mask(a, a)) +
+           static_cast<int>(_mm256_cmpeq_epi64_mask(b, b));
+}")
+    _secp256k1_lanes_probe(SECP256K1_LANES_PROBE_AVX_IFMA "${_lanes_avx_ifma_flags}" "
+#include <immintrin.h>
+int main() {
+    __m256i b = _mm256_set1_epi64x(3);
+    b = _mm256_madd52hi_avx_epu64(_mm256_madd52lo_avx_epu64(b, b, b), b, b);
+    return _mm256_movemask_epi8(b);
+}")
+
+    set(_lanes_built "")
+    if(SECP256K1_LANES_PROBE_AVX2)
+        list(APPEND SECP256K1_SOURCES src/lanes/lanes_avx2.cpp)
+        set_source_files_properties(src/lanes/lanes_avx2.cpp PROPERTIES
+            COMPILE_OPTIONS "${_lanes_avx2_flags};${_lanes_tu_flags}" SKIP_UNITY_BUILD_INCLUSION ON)
+        list(APPEND _SECP256K1_LANES_DEFS SECP256K1_LANES_HAVE_AVX2=1)
+        list(APPEND _lanes_built avx2)
+    endif()
+    if(SECP256K1_LANES_PROBE_AVX_IFMA)
+        list(APPEND SECP256K1_SOURCES src/lanes/lanes_avx_ifma.cpp)
+        set_source_files_properties(src/lanes/lanes_avx_ifma.cpp PROPERTIES
+            COMPILE_OPTIONS "${_lanes_avx_ifma_flags};${_lanes_tu_flags}" SKIP_UNITY_BUILD_INCLUSION ON)
+        list(APPEND _SECP256K1_LANES_DEFS SECP256K1_LANES_HAVE_AVX_IFMA=1)
+        list(APPEND _lanes_built avx_ifma)
+    endif()
+    if(SECP256K1_LANES_PROBE_IFMA)
+        list(APPEND SECP256K1_SOURCES src/lanes/lanes_ifma256.cpp src/lanes/lanes_ifma512.cpp)
+        set_source_files_properties(src/lanes/lanes_ifma256.cpp src/lanes/lanes_ifma512.cpp PROPERTIES
+            COMPILE_OPTIONS "${_lanes_ifma_flags};${_lanes_tu_flags}" SKIP_UNITY_BUILD_INCLUSION ON)
+        list(APPEND _SECP256K1_LANES_DEFS SECP256K1_LANES_HAVE_IFMA256=1 SECP256K1_LANES_HAVE_IFMA512=1)
+        list(APPEND _lanes_built ifma256 ifma512)
+    endif()
+    message(STATUS "Secp256k1: lane field backends built: ${_lanes_built}")
+else()
+    message(STATUS "Secp256k1: lane field backends: none (not x86-64)")
+endif()
+set_source_files_properties(src/lanes/lanes_dispatch.cpp src/lanes/lanes_verify.cpp PROPERTIES
+    COMPILE_DEFINITIONS "${_SECP256K1_LANES_DEFS}" SKIP_UNITY_BUILD_INCLUSION ON)
 
 # =============================================================================
 # Shim integration (libsecp256k1 API compatibility, no separate build target)
@@ -1381,6 +1498,13 @@ if(SECP256K1_BUILD_BENCH)
     else()
         message(STATUS "bench_unified: skipped (libsecp256k1 source not found at ${LIBSECP_SRC_DIR})")
     endif()
+
+    # BCH 2019 Schnorr single/batch verification against the libsecp256k1 fork
+    # Knuth vendors (issue #466). Built whenever benchmarks are, independent of
+    # SECP256K1_BUILD_BCH; the reference rows are opt-in through the
+    # UFSECP_BCH_REF_SECP256K1_* cache variables (benchmarks/bch/CMakeLists.txt).
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../benchmarks/bch"
+                     "${PROJECT_BINARY_DIR}/benchmarks/bch")
 endif()
 
 # Tests -- unified test runner
@@ -1480,6 +1604,26 @@ if(BUILD_TESTING)
     # MSan instrumentation that hides cpuid, etc.). The test still validates
     # all 679 scalar/ARM-SHA paths — only the SHA-NI cross-check is skipped.
     set_tests_properties(hash_accel PROPERTIES SKIP_RETURN_CODE 77)
+
+    # CPU feature decode: synthetic CPUID tables, cache sizes, mask-down override.
+    add_executable(test_cpu_features_standalone
+        tests/test_cpu_features.cpp
+    )
+    target_link_libraries(test_cpu_features_standalone PRIVATE ${SECP256K1_LIB_NAME})
+    target_compile_definitions(test_cpu_features_standalone PRIVATE STANDALONE_TEST)
+    add_test(NAME cpu_features COMMAND test_cpu_features_standalone)
+
+    # cpu_hwinfo: prints the CPU view and each dispatcher's choice (text / --json).
+    add_executable(cpu_hwinfo tools/cpu_hwinfo.cpp)
+    target_link_libraries(cpu_hwinfo PRIVATE ${SECP256K1_LIB_NAME})
+
+    # Lane-parallel field backends vs fast::FieldElement, every backend the
+    # running CPU supports. 77 = no lane backend available (skip). Run with
+    # --require=<backend> under Intel SDE to cover ISAs the host lacks.
+    add_executable(test_field_lanes tests/test_field_lanes.cpp)
+    target_link_libraries(test_field_lanes PRIVATE ${SECP256K1_LIB_NAME})
+    add_test(NAME field_lanes COMMAND test_field_lanes)
+    set_tests_properties(field_lanes PROPERTIES SKIP_RETURN_CODE 77)
 
     # Standalone 5x52 field test (requires __uint128_t; skip on MSVC)
     if(NOT (MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang"))

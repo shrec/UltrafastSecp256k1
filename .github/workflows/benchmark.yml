@@ -10,6 +10,9 @@
 # Flow:
 #   benchmark        — Linux x86-64, full suite with libsecp comparison
 #   benchmark-windows — Windows MSVC, quick suite only (no comparison clone)
+#   Both jobs then build bench_bch_schnorr against the pinned Knuth
+#   libsecp256k1 fork (k-nuth/kth src/secp256k1) and run its short mode:
+#   BCH 2019 Schnorr single/batch verify, issue #466. Non-canonical too.
 #
 # Concurrency: cancel older runs on same branch so queue doesn't pile up.
 # ============================================================================
@@ -23,6 +26,7 @@ on:
       - 'src/**'
       - 'include/**'
       - 'CMakeLists.txt'
+      - 'benchmarks/bch/**'
   workflow_dispatch:
 
 # Cancel older benchmark runs on the same branch — prevents queue pileup
@@ -182,6 +186,86 @@ jobs:
         gh-pages-branch: gh-pages
         benchmark-data-dir-path: 'bench-v2'
 
+    # -- BCH 2019 Schnorr vs Knuth's libsecp256k1 fork (issue #466) -----------
+    # The Build step above compiled bench_bch_schnorr without the reference.
+    # Fetch the pinned reference (Knuth's vendored libsecp256k1 v0.8.0: sparse
+    # checkout of k-nuth/kth src/secp256k1, static, BCH module on, tests and
+    # benchmarks off), point this build at it, rebuild only that target and run
+    # the short mode. These numbers are NON-CANONICAL for the same reason as
+    # bench_unified's above (no pinning, no turbo lock); the controlled
+    # procedure is docs/BCH_SCHNORR_BATCH_BENCH.md. These steps come after the
+    # dashboard steps, so a failure here cannot block them.
+    - name: Fetch and build the BCH Schnorr reference (k-nuth/kth, pinned)
+      env:
+        KTH_COMMIT: d1b9a8ac50cce15843c6925374709e2391e7aba4
+      run: |
+        set -euo pipefail
+        kth="$GITHUB_WORKSPACE/_kth"
+        git init -q "$kth"
+        git -C "$kth" remote add origin https://github.com/k-nuth/kth.git
+        git -C "$kth" config core.sparseCheckout true
+        printf 'src/secp256k1/\n' > "$kth/.git/info/sparse-checkout"
+        git -C "$kth" fetch -q --depth 1 --filter=blob:none origin "$KTH_COMMIT"
+        git -C "$kth" checkout -q --detach FETCH_HEAD
+        test "$(git -C "$kth" rev-parse HEAD)" = "$KTH_COMMIT"
+        cmake -S "$kth/src/secp256k1" -B "$GITHUB_WORKSPACE/_kth_build" -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DBUILD_SHARED_LIBS=OFF \
+          -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+          -DSECP256K1_ENABLE_MODULE_SCHNORR_BCH=ON \
+          -DSECP256K1_BUILD_TESTS=OFF \
+          -DSECP256K1_BUILD_EXHAUSTIVE_TESTS=OFF \
+          -DSECP256K1_BUILD_BENCHMARK=OFF \
+          -DSECP256K1_BUILD_CTIME_TESTS=OFF \
+          -DSECP256K1_BUILD_EXAMPLES=OFF
+        cmake --build "$GITHUB_WORKSPACE/_kth_build" -j"$(nproc)"
+        ref_lib="$(find "$GITHUB_WORKSPACE/_kth_build" -type f -name libsecp256k1.a -print -quit)"
+        test -n "$ref_lib"
+        echo "BCH_REF_INC=$kth/src/secp256k1/include" >> "$GITHUB_ENV"
+        echo "BCH_REF_LIB=$ref_lib" >> "$GITHUB_ENV"
+
+    - name: Build bench_bch_schnorr against the reference
+      run: |
+        set -euo pipefail
+        cmake -S . -B out/bench \
+          -DUFSECP_BCH_REF_SECP256K1_INCLUDE_DIR="$BCH_REF_INC" \
+          -DUFSECP_BCH_REF_SECP256K1_LIBRARY="$BCH_REF_LIB"
+        cmake --build out/bench --target bench_bch_schnorr -j"$(nproc)"
+
+    - name: Run bench_bch_schnorr (short mode, non-canonical)
+      id: bch_run
+      run: |
+        set -euo pipefail
+        mkdir -p /tmp/bch_bench
+        bin="$(find out/bench -type f -name bench_bch_schnorr -print -quit)"
+        test -n "$bin"
+        "$bin" --passes 3 --sizes 1,8,128,2048 \
+          --note "GitHub-hosted ubuntu-latest runner, no pinning, no turbo lock: DIAGNOSTIC ONLY, non-canonical" \
+          --json /tmp/bch_bench/bench_bch_schnorr_linux.json 2>&1 | tee /tmp/bch_bench/bench_bch_schnorr_linux.txt
+
+    - name: Upload bench_bch_schnorr JSON
+      if: ${{ always() && steps.bch_run.outcome != 'skipped' }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: bench-bch-schnorr-linux-${{ github.sha }}
+        path: |
+          /tmp/bch_bench/bench_bch_schnorr_linux.json
+          /tmp/bch_bench/bench_bch_schnorr_linux.txt
+        retention-days: 90
+
+    - name: BCH Schnorr summary (non-canonical)
+      if: ${{ always() && steps.bch_run.outcome != 'skipped' }}
+      run: |
+        {
+          echo "## BCH 2019 Schnorr vs Knuth reference (Linux) -- DIAGNOSTIC ONLY"
+          echo ""
+          echo "Uncontrolled GitHub runner (no CPU pinning, no turbo lock): **non-canonical, do not cite.** Controlled procedure: \`docs/BCH_SCHNORR_BATCH_BENCH.md\`."
+          echo ""
+          echo '```'
+          cat /tmp/bch_bench/bench_bch_schnorr_linux.txt 2>/dev/null || echo "(no output)"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+
     - name: Summary
       if: always()
       run: |
@@ -275,6 +359,91 @@ jobs:
         name: benchmark-raw-windows-${{ github.sha }}
         path: benchmark_results\raw_output.txt
         retention-days: 90
+
+    # -- BCH 2019 Schnorr vs Knuth's libsecp256k1 fork (issue #466) -----------
+    # Same flow as the Linux job: the pinned reference (sparse checkout of
+    # k-nuth/kth src/secp256k1, static, BCH module on, tests and benchmarks
+    # off), then only bench_bch_schnorr is rebuilt against it and run in short
+    # mode. NON-CANONICAL, like every number this job produces.
+    - name: Fetch and build the BCH Schnorr reference (k-nuth/kth, pinned, Windows)
+      env:
+        KTH_COMMIT: d1b9a8ac50cce15843c6925374709e2391e7aba4
+      run: |
+        $kth = Join-Path $env:GITHUB_WORKSPACE '_kth'
+        $kthBuild = Join-Path $env:GITHUB_WORKSPACE '_kth_build'
+        git init -q $kth
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        git -C $kth remote add origin https://github.com/k-nuth/kth.git
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        git -C $kth config core.sparseCheckout true
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        [System.IO.File]::WriteAllText((Join-Path $kth '.git\info\sparse-checkout'), "src/secp256k1/`n")
+        git -C $kth fetch -q --depth 1 --filter=blob:none origin $env:KTH_COMMIT
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        git -C $kth checkout -q --detach FETCH_HEAD
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        $head = (git -C $kth rev-parse HEAD).Trim()
+        if ($head -ne $env:KTH_COMMIT) { Write-Error "k-nuth/kth is at $head, expected $env:KTH_COMMIT"; exit 1 }
+        cmake -S (Join-Path $kth 'src\secp256k1') -B $kthBuild `
+          -DBUILD_SHARED_LIBS=OFF `
+          -DSECP256K1_ENABLE_MODULE_SCHNORR_BCH=ON `
+          -DSECP256K1_BUILD_TESTS=OFF `
+          -DSECP256K1_BUILD_EXHAUSTIVE_TESTS=OFF `
+          -DSECP256K1_BUILD_BENCHMARK=OFF `
+          -DSECP256K1_BUILD_CTIME_TESTS=OFF `
+          -DSECP256K1_BUILD_EXAMPLES=OFF
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        cmake --build $kthBuild --config Release -j $env:NUMBER_OF_PROCESSORS
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        $lib = Get-ChildItem -Path $kthBuild -Recurse -Include 'libsecp256k1.lib', 'secp256k1.lib' |
+               Select-Object -First 1
+        if (-not $lib) { Write-Error "no static libsecp256k1 .lib under $kthBuild"; exit 1 }
+        "BCH_REF_INC=$(Join-Path $kth 'src\secp256k1\include')" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        "BCH_REF_LIB=$($lib.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+    - name: Build bench_bch_schnorr against the reference (Windows)
+      run: |
+        cmake -S . -B out/bench "-DUFSECP_BCH_REF_SECP256K1_INCLUDE_DIR=$env:BCH_REF_INC" "-DUFSECP_BCH_REF_SECP256K1_LIBRARY=$env:BCH_REF_LIB"
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        cmake --build out/bench --config Release --target bench_bch_schnorr -j $env:NUMBER_OF_PROCESSORS
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+
+    - name: Run bench_bch_schnorr (short mode, non-canonical, Windows)
+      id: bch_run
+      run: |
+        New-Item -Path bch_bench -ItemType Directory -Force | Out-Null
+        $bin = Get-ChildItem -Path .\out\bench -Recurse -Filter bench_bch_schnorr.exe | Select-Object -First 1
+        if (-not $bin) { Write-Error "bench_bch_schnorr.exe not found under out\bench"; exit 1 }
+        $ErrorActionPreference = 'Continue'
+        & $bin.FullName --passes 3 --sizes '1,8,128,2048' `
+          --note 'GitHub-hosted windows-latest runner (MSVC), no pinning, no turbo lock: DIAGNOSTIC ONLY, non-canonical' `
+          --json bch_bench\bench_bch_schnorr_windows.json 2>&1 |
+          Tee-Object -FilePath bch_bench\bench_bch_schnorr_windows.txt
+        $benchExit = $LASTEXITCODE
+        if ($benchExit -ne 0) { Write-Host "::error::bench_bch_schnorr.exe exited with $benchExit"; exit $benchExit }
+
+    - name: Upload bench_bch_schnorr JSON (Windows)
+      if: ${{ always() && steps.bch_run.outcome != 'skipped' }}
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: bench-bch-schnorr-windows-${{ github.sha }}
+        path: bch_bench\
+        retention-days: 90
+
+    - name: BCH Schnorr summary (non-canonical, Windows)
+      if: ${{ always() && steps.bch_run.outcome != 'skipped' }}
+      run: |
+        echo '## BCH 2019 Schnorr vs Knuth reference (Windows MSVC) -- DIAGNOSTIC ONLY' >> $env:GITHUB_STEP_SUMMARY
+        echo '' >> $env:GITHUB_STEP_SUMMARY
+        echo 'Uncontrolled GitHub runner (no CPU pinning, no turbo lock): **non-canonical, do not cite.** Controlled procedure: `docs/BCH_SCHNORR_BATCH_BENCH.md`.' >> $env:GITHUB_STEP_SUMMARY
+        echo '' >> $env:GITHUB_STEP_SUMMARY
+        echo '```' >> $env:GITHUB_STEP_SUMMARY
+        if (Test-Path bch_bench\bench_bch_schnorr_windows.txt) {
+          Get-Content bch_bench\bench_bch_schnorr_windows.txt >> $env:GITHUB_STEP_SUMMARY
+        } else {
+          echo '(no output)' >> $env:GITHUB_STEP_SUMMARY
+        }
+        echo '```' >> $env:GITHUB_STEP_SUMMARY
 
     - name: Summary
       if: always()

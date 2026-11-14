@@ -1,0 +1,139 @@
+{
+  "report_type": "ab_addcc",
+  "generated_by": "scratch A/B driver (ab_driver.py): every value parsed from the tool's own output; no number typed by hand",
+  "date": "2026-11-03T15:56:46.285738+00:00",
+  "host": "parking",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "rounds": 5,
+  "order": "single binary, both forms inside each run",
+  "verdict_rule": "improvement iff new_max < base_min; regression iff new_min > base_max; else inconclusive",
+  "what_changed": "add_cc/sub_cc/muladd64 native __int128 vs compare-based portable form, same binary (benchmarks/gpu/cuda/addcc_ab_bench.cu at 5cac5999)",
+  "build": "nvcc 13.2 -O3 -std=c++17 -gencode arch=compute_120,code=sm_120",
+  "binary": {
+    "path": "benchmarks/gpu/cuda/addcc_ab_bench.cu at 5cac5999, nvcc 13.2 -O3 sm_120",
+    "sha256": "f4b3ad1579f18cd78b29ea240d91f4932f049fdc66d483e79672dde1ed6da7bc"
+  },
+  "ops": {
+    "field_mul": {
+      "portable": {
+        "rounds": [
+          0.0515,
+          0.052,
+          0.0531,
+          0.0531,
+          0.0531
+        ],
+        "median": 0.0531,
+        "min": 0.0515,
+        "max": 0.0531,
+        "spread_pct": 3.0131826741996313
+      },
+      "native": {
+        "rounds": [
+          0.038,
+          0.0381,
+          0.0388,
+          0.0388,
+          0.0388
+        ],
+        "median": 0.0388,
+        "min": 0.038,
+        "max": 0.0388,
+        "spread_pct": 2.0618556701030983
+      },
+      "verdict": "improvement",
+      "native_over_portable_median": 0.7306967984934086
+    },
+    "field add/sub chain": {
+      "portable": {
+        "rounds": [
+          0.0103,
+          0.0104,
+          0.0106,
+          0.0106,
+          0.0106
+        ],
+        "median": 0.0106,
+        "min": 0.0103,
+        "max": 0.0106,
+        "spread_pct": 2.8301886792452824
+      },
+      "native": {
+        "rounds": [
+          0.0052,
+          0.0052,
+          0.0053,
+          0.0053,
+          0.0053
+        ],
+        "median": 0.0053,
+        "min": 0.0052,
+        "max": 0.0053,
+        "spread_pct": 1.8867924528301934
+      },
+      "verdict": "improvement",
+      "native_over_portable_median": 0.5
+    },
+    "generator scalar mult": {
+      "portable": {
+        "rounds": [
+          307.1279,
+          309.1553,
+          314.502,
+          314.7812,
+          314.6963
+        ],
+        "median": 314.502,
+        "min": 307.1279,
+        "max": 314.7812,
+        "spread_pct": 2.4334662418680963
+      },
+      "native": {
+        "rounds": [
+          215.2432,
+          213.875,
+          218.21,
+          218.1807,
+          218.1885
+        ],
+        "median": 218.1807,
+        "min": 213.875,
+        "max": 218.21,
+        "spread_pct": 1.9868851827865655
+      },
+      "verdict": "improvement",
+      "native_over_portable_median": 0.6937339031230326
+    },
+    "vanity (key step + pubkey + field ops)": {
+      "portable": {
+        "rounds": [
+          177.6943,
+          179.3633,
+          182.8848,
+          182.9072,
+          182.8994
+        ],
+        "median": 182.8848,
+        "min": 177.6943,
+        "max": 182.9072,
+        "spread_pct": 2.8503735684977594
+      },
+      "native": {
+        "rounds": [
+          122.8984,
+          124.2119,
+          126.7305,
+          126.8047,
+          126.8047
+        ],
+        "median": 126.7305,
+        "min": 122.8984,
+        "max": 126.8047,
+        "spread_pct": 3.0823677015398827
+      },
+      "verdict": "improvement",
+      "native_over_portable_median": 0.6929526127923151
+    }
+  },
+  "last_run_stdout": "GPU: NVIDIA GeForce RTX 5060 Ti | SM=36 | 2602 MHz | reps=11\nadd_cc form in production build: native (SECP256K1_CUDA_PORTABLE_CARRY=0)\n\nCorrectness (native vs portable, bit-for-bit):\n  identical outputs  field_mul                                OK\n  identical outputs  field add/sub chain                      OK\n  identical outputs  generator scalar mult                    OK\n  identical outputs  vanity (key step + pubkey + field ops)   OK\n  identical outputs  generic<int128> == native (mul/addsub)   OK\n  identical outputs  generic<int128> == native (genmul/vanity) OK\n  genmul vs production scalar_mul_generator_w8: 0 of 32768 points differ\n\nns/op over 11 alternating reps (median [min..max]) -- whole-GPU ns per op\nfield_mul                                 \n    native       0.0388  [    0.0369 ..     0.0391]\n    portable     0.0531  [    0.0504 ..     0.0534]\nfield add/sub chain                       \n    native       0.0053  [    0.0051 ..     0.0054]\n    portable     0.0106  [    0.0100 ..     0.0106]\ngenerator scalar mult                     \n    native     218.1885  [  207.3379 ..   218.8730]\n    portable   314.6963  [  299.3174 ..   317.1269]\nvanity (key step + pubkey + field ops)    \n    native     126.8047  [  120.2773 ..   127.0039]\n    portable   182.8994  [  173.7734 ..   183.1426]\n"
+}

@@ -4,6 +4,10 @@ Safe Rust wrapper for [UltrafastSecp256k1](https://github.com/shrec/UltrafastSec
 
 Wraps the `ufsecp-sys` FFI crate with a safe, ergonomic API.
 
+For experimental arithmetic implemented directly in Rust on CPU and NVIDIA
+GPU, see [`ufsecp-core`](../../rust/ufsecp-core/README.md). That separate port
+handles public arithmetic only and does not replace this wrapper's signing API.
+
 ## Features
 
 - **ECDSA** -- sign, verify, recover, DER serialization (RFC 6979)

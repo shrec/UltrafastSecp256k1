@@ -29,6 +29,10 @@ on:
 permissions:
   contents: read
 
+# Audits a release snapshot (main on schedule, a v* tag on push): evidence is aged as of HEAD's commit, not as of today.
+env:
+  AUDIT_SLA_AS_OF: head
+
 jobs:
   # =========================================================================
   # Linux (GCC-13, Release)
@@ -46,6 +50,9 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          # Per-file commit dates need full history for AUDIT_SLA_AS_OF=head; a shallow clone dates every file at HEAD.
+          fetch-depth: 0
 
       - name: Install build tools
         run: |
@@ -151,7 +158,7 @@ jobs:
       - name: Upload SARIF to GitHub Code Scanning
         if: always() && github.event_name != 'pull_request'
         id: sarif_upload
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: out/audit-output/audit_report.sarif
           category: audit-runner
@@ -194,6 +201,9 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          # Per-file commit dates need full history for AUDIT_SLA_AS_OF=head; a shallow clone dates every file at HEAD.
+          fetch-depth: 0
 
       - name: Install build tools
         run: |
@@ -295,7 +305,7 @@ jobs:
       - name: Upload SARIF to GitHub Code Scanning
         if: always() && github.event_name != 'pull_request'
         id: sarif_upload
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: out/audit-output/audit_report.sarif
           category: audit-runner-clang
@@ -344,6 +354,9 @@ jobs:
         with:
           egress-policy: audit
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          # Per-file commit dates need full history for AUDIT_SLA_AS_OF=head; a shallow clone dates every file at HEAD.
+          fetch-depth: 0
 
       - name: Configure
         run: |
@@ -426,7 +439,7 @@ jobs:
         # block the report job. Surface outcome in the next step.
         if: always() && github.event_name != 'pull_request'
         id: sarif_upload
-        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           sarif_file: out/audit-output/audit_report.sarif
           category: audit-runner-msvc

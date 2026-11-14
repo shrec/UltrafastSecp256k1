@@ -161,6 +161,13 @@ static void test_null_buffer_ops() {
           "ecdsa_verify_lbtc_rows(NULL ctx)");
     CHECK(ufsecp_gpu_schnorr_verify_batch(nullptr, dummy, dummy, dummy, 1, dummy) == UFSECP_ERR_NULL_ARG,
           "schnorr_verify_batch(NULL ctx)");
+    CHECK(ufsecp_gpu_bch_schnorr_verify_batch(nullptr, dummy, dummy, dummy, 1, dummy) == UFSECP_ERR_NULL_ARG,
+          "bch_schnorr_verify_batch(NULL ctx)");
+    /* count == 0 is answered before the context is consulted only when ctx is
+     * non-NULL; NULL ctx with count == 0 is still ERR_NULL_ARG. */
+    CHECK(ufsecp_gpu_bch_schnorr_verify_batch(nullptr, nullptr, nullptr, nullptr, 0, nullptr)
+              == UFSECP_ERR_NULL_ARG,
+          "bch_schnorr_verify_batch(NULL ctx, count=0)");
     /* collect verify (libbitcoin): NULL ctx → ERR_NULL_ARG (hostile-caller null rejection) */
     CHECK(ufsecp_gpu_ecdsa_verify_collect(nullptr, dummy, dummy, dummy, 1, dummy) == UFSECP_ERR_NULL_ARG,
           "ecdsa_verify_collect(NULL ctx)");

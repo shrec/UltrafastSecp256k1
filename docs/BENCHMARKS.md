@@ -207,6 +207,222 @@ Selected full primitives from the rerun:
 
 No regressions vs 2026-03-24 baseline.
 
+### Lane-parallel verify rows in `bench_unified` `[rows only, not yet measured]`
+
+`bench_unified` (section `BATCH VERIFICATION (FAST)`) has rows for the
+lane-parallel verifiers of `secp256k1/lanes.hpp`. Each is in ns per signature
+for a batch of 64, uses the usual harness (11 passes, IQR, warm-up), and sits
+next to a scalar row of the same shape:
+
+| Row | What it times |
+|-----|---------------|
+| `ecdsa_batch_verify_scalar /sig (N=64)` | `ecdsa_batch_verify`, 64 entries, `set_lane_verify_backend(None)` |
+| `ecdsa_batch_verify_lanes[<backend>] /sig (N=64)` | the same call with that backend forced |
+| `schnorr_verify_scalar /sig (N=64)` | `lanes::schnorr_verify_lanes(…, None)` = 64 scalar `schnorr_verify` calls |
+| `schnorr_verify_lanes[<backend>] /sig (N=64)` | `lanes::schnorr_verify_lanes` with that backend |
+
+There is one `_lanes[...]` row per backend available on the machine (`avx2`,
+`avx_ifma`, `ifma256`, `ifma512`), so the set of rows depends on the CPU and
+build. A 64-entry `schnorr_batch_verify` runs the randomized MSM, which the lane
+opt-in does not touch, so the BIP-340 rows time the lane verifier directly. The
+rows force their backend and then call `reset_lane_verify_backend()`, so every
+other row keeps the process's own selection. The JSON row format is unchanged:
+`tools/measure_cpu_variants.py` reads the new rows like any other.
+
+The lane path in the batch APIs is **opt-in**. It runs only when
+`UFSECP_LANES` names an available backend or a program calls
+`set_lane_verify_backend` (see [API_REFERENCE.md](API_REFERENCE.md#c-abi-batch-lanes)).
+Under the measurement kit's `lanes_<backend>` variants (`UFSECP_LANES=<backend>`),
+the existing `ecdsa_batch_verify(N=…)` rows and the sub-cutoff
+`schnorr_batch_verify(N=4/16)` rows also take the lane path. The `default`
+variant is unchanged.
+
+No numbers are published for these rows. Making a lane backend the default
+for a microarchitecture needs a measured canonical JSON from
+`tools/measure_cpu_variants.py` on that hardware
+(`docs/bench_variants_<date>_<cpu>.json`), with non-overlapping ranges against
+`default`. Until then the default stays scalar.
+
+### 4.6.2 vs 4.7.0: full bench_unified and CUDA verify (2026-11-04)
+
+Old is the v4.6.2 tag (`80b08d5a`). New is dev with this release's CPU changes. Each was built in its own tree with the same preset.
+
+CPU setup: `cpu-release` (GCC 14.2.0), the same libsecp256k1 source (`_research_repos/secp256k1` `f9a944f`), i5-14400F, `performance` governor, turbo off (`intel_pstate/no_turbo=1`), `taskset -c 0`.
+
+The 4.6.2 side is the median of five whole-binary runs. The 4.7.0 side is one run of the fixed build (`3bd40175`); `bench_unified` already takes an 11-pass IQR median inside each run. A row counts as changed only when the 4.7.0 value is more than 3% from the 4.6.2 median and outside the 4.6.2 min-max range.
+
+Sources: `docs/benchmark_artifacts/bench_unified_2026-11-04_dev-4.7.0-fixed_i5-14400f.json` (4.7.0) and `docs/benchmark_artifacts/cpu_v462_vs_4.7.0-prefix_ab_2026-11-04_i5-14400f.json` (per-run 4.6.2 values, alternated with the pre-fix dev build).
+
+**CPU rows faster in 4.7.0:**
+
+| Row | 4.6.2: us median (min - max) | 4.7.0: us | Change |
+|-----|-----------------------------:|----------:|-------:|
+| `schnorr_batch_verify(cached,N=192)` | 4345.8 (4329.4 - 4370.6) | 3518.6 | -19.0% |
+| `schnorr_batch_verify(cached,N=128)` | 3127.2 (3125.5 - 3175.9) | 2537.1 | -18.9% |
+| `schnorr_batch_verify(N=192)` | 4590.3 (4586.4 - 4621.4) | 3769.3 | -17.9% |
+| `schnorr_batch_verify(N=128)` | 3388.6 (3384.7 - 3399.9) | 2823.2 | -16.7% |
+| `schnorr_batch_verify(cached,N=64)` | 1844.8 (1836.6 - 1849.9) | 1544.6 | -16.3% |
+| `schnorr_batch_verify(N=64)` | 2092.9 (2092.5 - 2095.3) | 1799.4 | -14.0% |
+
+All other Ultra rows are within 3% of 4.6.2 or inside its range, with one exception: `SHA-256 (32B input)`, 72.4 -> 104.2 ns. The SHA-256 functions and their SHA-NI dispatch are the same size in both binaries, and no library row that hashes (BIP-143/341 sighash, tagged hashes) moved by more than 3%. That row is tracked as NF-2026-00040 and not counted as a library regression.
+
+CT signing, verify, ecrecover and the Ultra ConnectBlock rows did not change. The libsecp256k1 ConnectBlock `Mixed` row read 128.8 -> 151.6 ms in the single 4.7.0 run. That code is identical in both builds, so this is run noise.
+
+**CPU regression found and fixed in this cycle.** Before `3bd40175` the lane ISA translation units sat in the LTO unit, and GCC stopped inlining hot CT helpers. The 5-round A/B of 4.6.2 against that build shows it with non-overlapping ranges:
+
+| Row | 4.6.2: ns median | 4.7.0 before fix: ns median | 4.7.0 fixed: ns |
+|-----|-----------------:|----------------------------:|----------------:|
+| `ct::point_add_complete (11M+6S)` | 354.5 | 468.1 | 353.2 |
+| `ct::point_add_mixed_complete (7M+5S)` | 261.0 | 336.6 | 262.1 |
+| `ct::point_add_mixed_unified (7M+5S)` | 252.5 | 305.5 | 253.7 |
+
+The bisect that located it ran `bench_unified --quick`, one run per commit: `docs/benchmark_artifacts/cpu_lane_lto_bisect_quick_2026-11-04_i5-14400f.json`.
+
+**CUDA verify (RTX 5060 Ti, CUDA 13.2).** `secp256k1_cuda_bench`, one run per release. Source: `docs/benchmark_artifacts/cuda_bench_v462_vs_4.7.0_2026-11-04_rtx5060ti.json`.
+
+| Row | 4.6.2: ns/op | 4.7.0: ns/op | Change |
+|-----|-------------:|-------------:|-------:|
+| ECDSA Verify | 243.8 | 157.1 | -35.6% |
+| Schnorr Verify | 168.9 | 146.7 | -13.1% |
+| FROST Partial Verify | 691.0 | 670.9 | -2.9% |
+| ECDSA Sign | 178.8 | 179.1 | +0.2% |
+| Schnorr Sign | 223.5 | 222.6 | -0.4% |
+
+`gpu_bench_unified --suite all` ran 5 alternating rounds over its field, point, scalar-mul, sign and MSM rows. No median moved by more than 1.1%. It has no verify rows. Source: `docs/benchmark_artifacts/gpu_bench_unified_v462_vs_4.7.0_ab_2026-11-04_rtx5060ti.json`.
+
+**OpenCL verify (RTX 5060 Ti, NVIDIA OpenCL 580.196.07), variable-time inverse (`d84eb5f4`) vs the Fermat inverses.** Kernel-only setup:
+- `secp256k1_extended.cl` built as the GPU backend builds it;
+- 65536 valid signatures, made from 512 distinct ones by a pure-Python secp256k1 reference;
+- 11 timed launches after 3 warmups;
+- every result is accepted by both kernel sets.
+
+Source, with the harness inline: `docs/benchmark_artifacts/opencl_verify_inv_var_ab_2026-11-04_rtx5060ti.json`.
+
+| Kernel | Fermat: ns/op median (min - max) | Variable-time: ns/op median (min - max) | Change |
+|--------|---------------------------------:|----------------------------------------:|-------:|
+| `ecdsa_verify` | 230.6 (230.5 - 233.2) | 143.7 (143.6 - 143.9) | -37.7% |
+| `schnorr_verify` | 184.0 (182.4 - 184.5) | 156.1 (152.2 - 159.3) | -15.2% |
+
+**Not measured:**
+- Metal: no macOS host.
+- The CPU lane backends on IFMA hardware.
+
+In the same 4.7.0 run on this CPU, the AVX2 lane rows are slower than the scalar rows: ECDSA 52.3 vs 35.6 us/sig, BIP-340 62.2 vs 37.2 us/sig at N = 64. The lane path therefore stays opt-in.
+
+### x86-64 Schnorr batch verify with 128-bit weights: canonical rerun (2026-11-03) `[A/B, canonical conditions]`
+
+The canonical rerun the 2026-11-01 section below asks for. Base `14e803b2`
+(`8cd38bdb^`) and changed `8cd38bdb`, each built in its own worktree with the
+`cpu-release` preset (GCC 14.2.0), run the full `bench_unified --json`
+alternately (base,new then new,base), five whole-binary runs each, with
+`taskset -c 0`, the `performance` governor and turbo off
+(`intel_pstate/no_turbo=1`) on an i5-14400F. A row is called faster only if the
+ranges do not overlap. Source of every number, with per-run values and binary
+hashes:
+`docs/benchmark_artifacts/schnorr_batch_short_weights_canonical_ab_2026-11-03_i5-14400f.json`.
+
+| Row | Before: us median (min - max) | After: us median (min - max) | Median change | Ranges |
+|-----|------------------------------:|-----------------------------:|--------------:|--------|
+| `schnorr_batch_verify(N=4)` | 138.3 (137.6 - 250.3) | 138.8 (137.8 - 139.7) | +0.4% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=4)` | 140.6 (140.3 - 261.6) | 142.3 (141.2 - 142.8) | +1.2% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=16)` | 549.6 (548.9 - 553.4) | 554.8 (551.6 - 1027.4) | +0.9% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=16)` | 561.5 (561.2 - 562.4) | 565.7 (564.8 - 566.3) | +0.8% | no overlap, slower |
+| `schnorr_batch_verify(N=64)` | 2088.8 (2085.9 - 2101.5) | 1785.6 (1780.7 - 1808.6) | -14.5% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=64)` | 1843.4 (1832.9 - 1849.3) | 1533.4 (1529.6 - 1544.8) | -16.8% | no overlap, faster |
+| `schnorr_batch_verify(N=128)` | 3388.3 (3380.1 - 3398.4) | 2797.0 (2780.9 - 2811.4) | -17.5% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=128)` | 3125.7 (3122.7 - 3149.0) | 2529.1 (2523.5 - 2538.2) | -19.1% | no overlap, faster |
+| `schnorr_batch_verify(N=192)` | 4605.4 (4602.1 - 4631.5) | 3767.0 (3762.9 - 3785.6) | -18.2% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=192)` | 4352.9 (4317.8 - 4371.4) | 3514.6 (3506.6 - 3665.7) | -19.3% | no overlap, faster |
+
+Every batch row at N = 64 and above is faster with non-overlapping ranges, by
+14.5% to 19.3% at the median; this settles the magnitude the two 2026-11-01
+A/Bs could not. N = 4 and N = 16 are below both cutoffs and verify per
+signature in both binaries; their single wide ranges come from one disturbed
+run each (250.3, 261.6, 1027.4).
+
+Rows the commit does not touch moved too. Of 120 Ultra rows above 1 us outside
+the Schnorr batch rows, the median `new / base` ratio is 1.003 (range 0.981 -
+1.020), and 34 rows in the artifact are "slower" with non-overlapping ranges by
+0.2% to 2.0% (`ecdsa_verify` +1.1%, `dual_scalar_mul_gen_point` +1.3%,
+`schnorr_verify` +0.9% to +1.1%, `cached,N=16` above). The commit changes only
+`pippenger.cpp`, `pippenger.hpp` and `batch_verify.cpp`, and the 27 libsecp256k1
+rows in the same runs have a median ratio of 1.000, so the shift belongs to the
+rebuilt Ultra library rather than to the machine. A code-layout change is the
+likely cause; that is not proven here. Each shift is below the 3% this page
+accepts as run-to-run noise for a baseline. The `-> per-sig amortized (N=…)`
+rows are left out of the artifact: bench_unified prints that name under both
+`schnorr_batch_verify` and `ecdsa_batch_verify` in the same section, so the
+parsed value is the ECDSA one.
+
+### x86-64 Schnorr batch verify with 128-bit weights (2026-11-01) `[A/B, non-canonical conditions]`
+
+`schnorr_batch_verify` now uses the BIP-340 batch form with 128-bit randomizers
+(`a_0 = 1`, `a_i` odd and below `2^128`): the `R` terms enter the MSM unsplit and
+only `a_i * e_i` is GLV-split, so one Pippenger pass runs over `3N` points
+(`pippenger_msm_glv_short`) where `msm()` used to run over `4N`; the
+individual-verify cutoff moved from 38 to 27 signatures. Soundness argument:
+`docs/AUDIT_CHANGELOG.md` 2026-11-01.
+
+Method: the base binary (commit `14e803b2`) and the changed binary, built from
+the same `build.ninja` (GCC 14.2, audit preset), run `bench_unified --suite
+extended` alternately, five whole-binary runs each, pinned with `taskset -c 2`
+on an i5-14400F. The worker sandbox has no root, so the governor stayed at
+`powersave` and turbo stayed on: these are **not** canonical bench_unified
+numbers, and the base binary's run-to-run spread is far above the 3% this page
+asks of a baseline (see the min - max columns). A row is called faster only if
+the ranges do not overlap. Source of every number, with per-run values, binary
+hashes, the window sweep and the cutoff sweep:
+`docs/benchmark_artifacts/schnorr_batch_short_weights_ab_2026-11-01_i5-14400f.json`.
+
+| Row | Before: us median (min - max) | After: us median (min - max) | Median change | Ranges |
+|-----|------------------------------:|-----------------------------:|--------------:|--------|
+| `schnorr_batch_verify(N=4)` | 84.2 (75.0 - 156.1) | 85.3 (84.5 - 90.5) | +1.3% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=16)` | 337.5 (299.2 - 490.7) | 340.8 (336.3 - 355.1) | +1.0% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=64)` | 1282.1 (1164.6 - 1668.1) | 1099.1 (1097.1 - 1110.4) | -14.3% | no overlap, faster |
+| `schnorr_batch_verify(N=128)` | 2094.0 (1933.2 - 2988.7) | 1704.3 (1699.4 - 1749.6) | -18.6% | no overlap, faster |
+| `schnorr_batch_verify(N=192)` | 4219.9 (2695.9 - 5151.6) | 2308.4 (2293.2 - 2485.0) | -45.3% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=4)` | 86.4 (77.6 - 110.4) | 95.1 (86.2 - 106.3) | +10.0% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=16)` | 356.2 (318.7 - 567.4) | 346.1 (345.3 - 409.5) | -2.8% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=64)` | 1126.4 (1108.9 - 1473.8) | 941.4 (935.5 - 1034.7) | -16.4% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=128)` | 1950.5 (1875.3 - 3121.9) | 1541.7 (1539.5 - 2087.4) | -21.0% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=192)` | 2700.5 (2630.1 - 5288.9) | 2136.2 (2133.1 - 2147.4) | -20.9% | no overlap, faster |
+
+N = 4 and N = 16 are below both cutoffs and run per-signature verification in
+both binaries, so no change is expected there. The median changes overstate
+the gain wherever the base runs were disturbed (N = 192 most of all: base runs
+2 and 3 are about twice run 1); the fastest base run against the changed
+binary's range is the conservative reading. `cached,N=128` overlaps because of
+one slow changed-binary run (2087.4) against one fast base run (1875.3). A
+canonical rerun (performance governor, turbo off) is still needed before these
+magnitudes are cited elsewhere.
+
+**Independent reproduction (manager review, same day).** Same method, rebuilt
+base and changed binaries from the same `build.ninja`, pinned with `taskset -c 6`
+(the core used above, cpu2, had a busy hyperthread sibling). Same limits: no
+root, `powersave`, turbo on, and unrelated CPU-heavy jobs running on other
+cores, so several whole runs were disturbed and the base spread is again far
+above 3%. Source:
+`docs/benchmark_artifacts/schnorr_batch_short_weights_ab_repro_2026-11-01_i5-14400f.json`.
+
+| Row | Before: us median (min - max) | After: us median (min - max) | Median change | Ranges |
+|-----|------------------------------:|-----------------------------:|--------------:|--------|
+| `schnorr_batch_verify(N=4)` | 82.8 (75.3 - 138.8) | 84.3 (84.0 - 89.2) | +1.9% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=4)` | 85.8 (79.9 - 177.1) | 86.3 (77.9 - 162.8) | +0.5% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=16)` | 320.5 (302.7 - 622.8) | 317.2 (301.6 - 368.1) | -1.0% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=16)` | 345.2 (307.4 - 635.8) | 344.9 (309.3 - 345.3) | -0.1% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=64)` | 1221.6 (1154.2 - 2042.8) | 990.7 (973.4 - 1142.8) | -18.9% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=64)` | 1071.6 (998.9 - 1812.8) | 864.7 (849.5 - 936.8) | -19.3% | no overlap, faster |
+| `schnorr_batch_verify(N=128)` | 1927.1 (1841.1 - 3780.1) | 1569.9 (1495.6 - 1704.4) | -18.5% | no overlap, faster |
+| `schnorr_batch_verify(cached,N=128)` | 1760.6 (1713.9 - 3168.8) | 1535.0 (1369.4 - 2842.2) | -12.8% | overlap (inconclusive) |
+| `schnorr_batch_verify(N=192)` | 2668.2 (2594.4 - 2781.0) | 2130.6 (2047.6 - 2933.8) | -20.1% | overlap (inconclusive) |
+| `schnorr_batch_verify(cached,N=192)` | 2632.8 (2376.9 - 2831.5) | 2058.1 (1899.7 - 2482.5) | -21.8% | overlap (inconclusive) |
+
+Reading both A/Bs together: `N=64`, `cached,N=64` and `N=128` are faster with
+non-overlapping ranges in both; every other row is inconclusive in at least one.
+The -45.3% `N=192` median above did not reproduce (here the medians differ by
+about 20%, and the ranges overlap). Neither run meets this page's 3% baseline
+rule, so the direction is established and the magnitude is not.
+
 ### x86-64 Batch Verify Rerun (2026-03-17) `[archived / diagnostic]`
 
 A retained low-risk x86 CPU improvement was keeping the Schnorr batch pubkey cache
@@ -463,6 +679,160 @@ paths (sign, pubkey, batch) win by 2–2.7×. CT signing beats libsecp by ~7% CT
 | Batch Inv | 2.9 ns | 340 M/s | Kernel-only, batch 64K |
 | Jac->Affine | 14.9 ns | 66.9 M/s | Kernel-only, batch 64K |
 
+### CUDA variable-time inverse (2026-10-02)
+
+`field_inv_var` and `scalar_inv_var` (`src/cuda/include/modinv_var.cuh`) are
+variable-time SafeGCD inverses for **public data only**. The CUDA verify paths
+call them (next subsection). Rows are from `gpu_bench_unified
+--suite all` (kernel-only, 3 warmup + 5 passes, 256 threads per block), five
+whole-binary runs on an RTX 5060 Ti (sm_120, CUDA 13.2), no other GPU compute
+process, host CPU busy with unrelated jobs. Source of every number:
+`docs/benchmark_artifacts/gpu_bench_unified_2026-10-02_rtx5060ti_run{1..5}.json`.
+The `inv` row here was measured in the same runs; the older `Field Inv` row in
+the table above comes from a different build and date.
+
+| Operation | ns/op median (min - max) | M/s median (min - max) | Batch | Kernel registers (sm_120) |
+|-----------|-------------------------:|-----------------------:|------:|--------------------------:|
+| `inv` (`field_inv`, Fermat chain) | 11.06 (11.05 - 11.14) | 90.45 (89.76 - 90.52) | 65536 | 70 |
+| `inv (var)` (`field_inv_var`) | 1.67 (1.67 - 1.67) | 599.36 (597.78 - 600.23) | 65536 | 58 |
+| `scalar inv` (`scalar_inverse`, Fermat) | 60.78 (60.74 - 60.86) | 16.45 (16.43 - 16.46) | 65536 | 48 |
+| `scalar inv (var)` (`scalar_inv_var`) | 1.67 (1.66 - 1.68) | 599.53 (595.18 - 602.00) | 65536 | 62 |
+
+### CUDA verify paths with the variable-time inverse (2026-10-02)
+
+The CUDA verifiers (`ecdsa_verify`, `schnorr_verify`, `ecdsa_recover`, the ECDSA
+SNARK witness, knowledge / DLEQ / FROST partial verification, the Bulletproof
+range verifiers) now invert public values with `field_inv_var` /
+`scalar_inv_var`. Signing, ECDH and the provers are unchanged. Rows below are
+kernel-only, from the existing benches, with the binary from before the change
+and the one after it run back to back inside one hold of the GPU lock, order
+alternating, five runs each, on an RTX 5060 Ti (sm_120, CUDA 13.2). Source of
+every number, including the rows not shown:
+`docs/benchmark_artifacts/cuda_verify_inv_var_ab_2026-10-02_rtx5060ti.json`.
+
+| Bench | Row | Before: ns/op median (min - max) | After: ns/op median (min - max) | Median change | Ranges |
+|-------|-----|---------------------------------:|--------------------------------:|--------------:|--------|
+| `secp256k1_cuda_bench` | ECDSA Verify | 234.1 (231.4 - 243.7) | 152.4 (151.8 - 159.9) | -34.9% | no overlap, faster |
+| `secp256k1_cuda_bench` | Schnorr Verify | 169.3 (167.8 - 169.6) | 146.7 (146.1 - 147.0) | -13.3% | no overlap, faster |
+| `secp256k1_cuda_bench` | FROST Partial Verify | 691.2 (690.7 - 696.5) | 672.7 (671.4 - 675.4) | -2.7% | no overlap, faster |
+| `bench_zk` | knowledge_verify | 551.2 (550.8 - 551.3) | 529.8 (529.7 - 530.7) | -3.9% | no overlap, faster |
+| `bench_zk` | dleq_verify | 1250.7 (1245.1 - 1253.0) | 1140.6 (1139.7 - 1143.5) | -8.8% | no overlap, faster |
+| `bench_zk` | range_verify | 685836 (685636 - 686020) | 683372 (683026 - 683404) | -0.4% | no overlap, faster |
+| `bench_zk` | range_verify_warp | 185052 (184055 - 185652) | 169814 (169414 - 170344) | -8.2% | no overlap, faster |
+| `bench_zk` | verify_warp_w4 | 175219 (174987 - 176782) | 161793 (161099 - 162725) | -7.7% | no overlap, faster |
+| `bench_zk` | verify_warp_w8 | 173842 (172427 - 175103) | 160483 (159964 - 161535) | -7.7% | no overlap, faster |
+| `bench_zk` | verify_warp_lut4 | 154008 (153385 - 154595) | 141973 (141390 - 142549) | -7.8% | no overlap, faster |
+| `bench_zk` | verify_p1par_lut4 | 13630.6 (13582.6 - 13786.7) | 11755.9 (11701.9 - 11836.0) | -13.8% | no overlap, faster |
+| `bench_snark_witness` | GPU ecdsa_snark_witness_batch_kernel | 225.2 (225.1 - 225.4) | 140.3 (140.2 - 140.5) | -37.7% | no overlap, faster |
+| `bench_compare` | ECDSA / verify (GPU) | 233.6 (227.8 - 233.7) | 149.4 (149.3 - 149.7) | -36.1% | no overlap, faster |
+| `bench_compare` | Schnorr / verify (GPU) | 168.4 (168.1 - 181.4) | 147.5 (145.3 - 148.7) | -12.4% | no overlap, faster |
+| `bench_compare` | Pipeline / ECDSA (keygen+sign+verify) (GPU) | 565.8 (564.9 - 566.1) | 476.9 (476.6 - 481.2) | -15.7% | no overlap, faster |
+| `bench_compare` | Pipeline / Schnorr (keygen+sign+verify) (GPU) | 547.6 (547.4 - 548.4) | 523.9 (523.3 - 525.8) | -4.3% | no overlap, faster |
+
+The other 32 rows of these benches (field and point arithmetic, `k*G`, every
+signing row, the provers, Pedersen commit) have overlapping ranges. In
+`secp256k1_cuda_bench` the ECDSA rows vary by about 5% between runs for both
+binaries, which is above the 3% this project asks of a baseline; the before and
+after ranges are still far apart. The older verify rows elsewhere on this page
+were measured before this change.
+
+### CUDA hash160: register-only SHA-256 and unrolled RIPEMD-160 (2026-11-02)
+
+`src/cuda/include/hash160.cuh` gained a register-only `sha256_33` for 33-byte
+keys and a fully unrolled `ripemd160_32`, contributed by zeroxbee (VanityPlate).
+Kernel-only A/B from a scratch harness (source embedded in the artifact): one
+thread per pubkey, 256 threads per block, 2^22 device-resident inputs, 100
+launches timed per run, base (previous header) and new run in alternating order,
+five runs each, on an RTX 5060 Ti (sm_120, CUDA 13.2), no other GPU compute
+process. Outputs are bit-identical between base and new. `ptxas -v` for the
+kernel: stack frame 480 -> 128 bytes, 56 registers in both. Source of every
+number: `docs/benchmark_artifacts/cuda_hash160_unrolled_ab_2026-11-02_rtx5060ti.json`.
+
+| Input | Before: ns/hash median (min - max) | After: ns/hash median (min - max) | Median change | Ranges |
+|-------|-----------------------------------:|----------------------------------:|--------------:|--------|
+| 33-byte compressed key | 1.1062 (1.1008 - 1.1141) | 0.3259 (0.3256 - 0.3261) | -70.5% | no overlap, faster |
+| 65-byte uncompressed key | 1.2357 (1.2340 - 1.2376) | 0.6188 (0.6148 - 0.6193) | -49.9% | no overlap, faster |
+
+This is the hash kernel alone. `ufsecp_gpu_hash160_pubkey_batch` also copies
+inputs and outputs over PCIe, which this harness does not measure.
+
+### CUDA hash160: registers-only two-block `sha256_65` for 65-byte keys (2026-11-03)
+
+`hash160_pubkey` now sends 65-byte keys to `sha256_65`. It builds both
+compression blocks straight from the key bytes in registers: block 2 is byte 64,
+the padding and the 520-bit length. 33-byte and other lengths are unchanged.
+
+The section above uses the same kernel-only harness (its source is embedded in
+the artifact): base is the header at `fd79ffab`, new is the changed header. Five
+alternating runs each on the RTX 5060 Ti. Outputs are bit-identical. `ptxas -v`
+reports 56 registers and a 128-byte stack in both. Source of every number:
+`docs/benchmark_artifacts/cuda_hash160_65_kernel_ab_2026-11-03_rtx5060ti.json`.
+
+| Input | Before: ns/hash median (min - max) | After: ns/hash median (min - max) | Median change | Ranges |
+|-------|-----------------------------------:|----------------------------------:|--------------:|--------|
+| 33-byte compressed key | 0.3259 (0.3257 - 0.3259) | 0.3238 (0.3237 - 0.3239) | -0.6% | no overlap (code unchanged for this length) |
+| 65-byte uncompressed key | 0.6191 (0.6113 - 0.6197) | 0.5360 (0.5352 - 0.5364) | -13.4% | no overlap, faster |
+
+The new `benchmarks/gpu/cuda/hash160_ab_bench.cu` times the previous generic
+path and the shipped dispatch for 65-byte keys in one binary. It also checks
+the `04||Gx||Gy` known answer and that the two paths agree on every key. Its
+five runs agree with the table:
+`docs/benchmark_artifacts/cuda_hash160_65_harness_ab_2026-11-03_rtx5060ti.json`.
+
+The same change was tried in OpenCL and is **not shipped**. In one kernel, the
+65-byte form gets faster but the 33-byte form gets slower with non-overlapping
+ranges, so the OpenCL kernel and the Metal mirror keep the generic SHA-256 for
+65-byte keys. Evidence:
+`docs/benchmark_artifacts/opencl_hash160_sha256_65_ab_2026-11-03_rtx5060ti.json`.
+
+### CUDA carry chain: native `__int128` `add_cc` on nvcc (2026-11-03)
+
+Commit `5cac5999` (NF-2026-00031, reported by zeroxbee / VanityPlate) makes
+`add_cc`, `sub_cc` and `muladd64` in `src/cuda/include/secp256k1.cuh` use the
+`unsigned __int128` form again on nvcc. nvcc lowers that form to a PTX
+`add.cc`/`addc` chain. Since `8af7320c` every build had used a compare-based
+carry. Both measurements are on an RTX 5060 Ti (sm_120, CUDA 13.2).
+
+**1. Code built on these primitives.** `benchmarks/gpu/cuda/addcc_ab_bench.cu`
+compiles the same kernels twice, once with each carry form, in one binary. Each
+run alternates the forms over 11 reps. There are five runs, and outputs are
+bit-identical. Source: `docs/benchmark_artifacts/cuda_addcc_harness_ab_2026-11-03_rtx5060ti.json`.
+
+| Kernel (harness) | Portable carry: ns/op median (min - max) | Native carry: ns/op median (min - max) | Median change | Ranges |
+|---|---:|---:|---:|---|
+| field_mul | 0.0531 (0.0515 - 0.0531) | 0.0388 (0.0380 - 0.0388) | -26.9% | no overlap, faster |
+| field add/sub chain | 0.0106 (0.0103 - 0.0106) | 0.0053 (0.0052 - 0.0053) | -50.0% | no overlap, faster |
+| generator scalar mult | 314.50 (307.13 - 314.78) | 218.18 (213.88 - 218.21) | -30.6% | no overlap, faster |
+| vanity (key step + pubkey + field ops) | 182.88 (177.69 - 182.91) | 126.73 (122.90 - 126.80) | -30.7% | no overlap, faster |
+
+These kernels are written over the carry primitives, as user kernels that call
+them are. They are not the library's tuned PTX field core.
+
+**2. The library's own paths.** `gpu_bench_unified --suite all --passes 11`
+was built at `5402d9e0` (before) and `5cac5999` (after), with five rounds in
+alternating order. The PTX field core never used `add_cc`, so most rows do not
+move. Rows that changed or that call the touched scalar ops are shown below.
+Every other row, including field mul/sqr/add/sub/inv and MSM, overlaps within
+±0.6%. Source: `docs/benchmark_artifacts/cuda_carry_chain_gpu_bench_unified_ab_2026-11-03_rtx5060ti.json`.
+
+| gpu_bench_unified row | Before: ns/op median (min - max) | After: ns/op median (min - max) | Median change | Ranges |
+|---|---:|---:|---:|---|
+| Scalar Arithmetic / scalar inv | 60.64 (60.63 - 60.65) | 60.29 (60.25 - 60.30) | -0.6% | no overlap, faster |
+| Point Operations / add (Jacobian) | 0.93 (0.93 - 0.94) | 0.94 (0.93 - 0.94) | +1.1% | overlap (noise) |
+| Point Operations / double | 0.74 (0.73 - 0.74) | 0.73 (0.73 - 0.74) | -1.4% | overlap (noise) |
+| Scalar Multiplication / k*G (generator) | 136.11 (136.03 - 136.22) | 136.08 (136.00 - 136.17) | -0.0% | overlap (noise) |
+| ECDSA / sign (RFC 6979) | 184.99 (184.84 - 185.01) | 185.48 (185.33 - 186.01) | +0.3% | no overlap, slower |
+| Schnorr/BIP-340 / sign | 217.88 (214.07 - 218.20) | 217.26 (212.86 - 217.69) | -0.3% | overlap (noise) |
+| CT Point Ops / ct::k*G (generator) | 95.67 (93.99 - 95.68) | 93.93 (93.43 - 95.57) | -1.8% | overlap (noise) |
+| CT Point Ops / ct::k*P (scalar mul) | 161.46 (157.84 - 161.76) | 158.33 (157.84 - 162.35) | -1.9% | overlap (noise) |
+| CT ECDSA / ct::ecdsa_sign | 175.87 (173.90 - 176.53) | 176.87 (176.63 - 177.52) | +0.6% | no overlap, slower |
+| CT Schnorr / ct::schnorr_sign | 211.03 (208.89 - 211.59) | 209.14 (208.52 - 209.48) | -0.9% | overlap (noise) |
+
+Net effect: code that builds on `add_cc`/`sub_cc`/`muladd64` gets the native
+chain back, and the library's own benchmark rows stay within ±1%. ECDSA sign
+is 0.3% slower and CT ECDSA sign 0.6% slower, both with non-overlapping ranges;
+scalar inverse is 0.6% faster.
+
 ### GPU Signature Operations `[archived / diagnostic — kernel-only, excl. PCIe DMA; verify against current bench before citing]`
 
 > As of early 2026, this is the only multi-backend (CUDA + OpenCL + Metal) secp256k1 library
@@ -635,6 +1005,25 @@ is retained from this sweep.
 **Hardware:** NVIDIA RTX 5060 Ti (36 CUs, 2602 MHz)  
 **OpenCL:** 3.0 CUDA, Driver 580.126.09  
 **Build:** Clang 19, Release, -O3, PTX inline assembly  
+
+### OpenCL hash160: register-only SHA-256 and unrolled RIPEMD-160 (2026-11-03)
+
+Commit `39044386` (NF-2026-00033) ports the CUDA hash160 from `d86d3bbf`
+(zeroxbee, VanityPlate) to `src/opencl/kernels/secp256k1_hash160.cl`.
+`opencl_hash160_ab_bench` keeps the previous loop/table form inside the harness
+and times both forms in one run:
+- 2^20 device-resident keys, 20 kernel iterations, median over 11 reps;
+- five runs on an RTX 5060 Ti through the NVIDIA OpenCL ICD;
+- the old and new forms agree on every key.
+
+Source of every number: `docs/benchmark_artifacts/opencl_hash160_ab_2026-11-03_rtx5060ti.json`.
+The Metal port mirrors the same code. It has not been measured: no Apple GPU
+was available.
+
+| Input | Before: ns/hash median (min - max) | After: ns/hash median (min - max) | Median change | Ranges |
+|---|---:|---:|---:|---|
+| 33-byte compressed key | 0.9313 (0.9310 - 0.9322) | 0.3967 (0.3966 - 0.3968) | -57.4% | no overlap, faster |
+| 65-byte uncompressed key | 1.2656 (1.2515 - 1.3092) | 0.9752 (0.9630 - 1.0024) | -22.9% | no overlap, faster |
 
 ### OpenCL GPU C ABI Coverage (2026-04-11)
 
@@ -1629,6 +2018,8 @@ Drop-in replacement via `compat/libsecp256k1_bchn_shim/` — exposes the BCHN
 `secp256k1_schnorr_*` API (legacy BCH Schnorr, not BIP-340) backed by the
 fast engine.
 
+BCH 2019 Schnorr single and batch verification against Knuth's libsecp256k1 fork (issue #466): harness and per-platform reproduction steps in [`BCH_SCHNORR_BATCH_BENCH.md`](BCH_SCHNORR_BATCH_BENCH.md).
+
 **BCH Schnorr scheme:** `e = SHA256(R.x[32] || P_compressed[33] || msg[32])`, `s = k + e·d`
 
 Reference: [bitcoin-abc/secp256k1](https://github.com/bitcoin-abc/secp256k1) built with
@@ -1683,5 +2074,5 @@ Benchmarks run: 2026-04-25
 
 ## Version
 
-UltrafastSecp256k1 v4.6.2
+UltrafastSecp256k1 v4.7.0
 Benchmarks updated: 2026-04-25

@@ -59,6 +59,17 @@
       "ref": ""
     },
     {
+      "id": "musig2-partial-verify-setup",
+      "protocol": "MuSig2 partial signature (setup shared by both musig2_partial_verify overloads)",
+      "verify_function": "partial_verify_setup",
+      "claim": "File-local helper of musig2_partial_verify: computes s*G, R_eff = R1_i + b*R2_i (negated when the session R was) and ea = e*a_i*g*gacc, and returns false on a bad signer index or an infinity nonce point. It decides nothing on its own; its soundness is that of musig2_partial_verify (musig2-partial-binding).",
+      "forge": "Inherits the musig2-partial-binding forge-probe. The signer-parity forge s' = k1 + b*k2 - e*a_i*g*gacc*d_i is already rejected by the 33-byte overload in audit/test_regression_musig2_session_token.cpp.",
+      "probe_module": null,
+      "probe_run_symbol": null,
+      "status": "roadmap",
+      "ref": "NF-2026-00028"
+    },
+    {
       "id": "frost-partial-binding",
       "protocol": "FROST partial signature",
       "verify_function": "frost_verify_partial",
@@ -134,6 +145,39 @@
       "probe_run_symbol": null,
       "status": "roadmap",
       "ref": "surfaced 2026-06-11 by self-deriving soundness scope"
+    },
+    {
+      "id": "bch-schnorr-2019-verify",
+      "protocol": "Bitcoin Cash 2019 Schnorr single verify (NOT BIP-340)",
+      "verify_function": "bch_schnorr_verify",
+      "claim": "verify==OK => r < p, 0 < s < n, P != O, and R = s*G - e*P with e = SHA256(r || compressed33(P) || msg) mod n satisfies R != O, x(R) == r and R.y a quadratic residue (2019-05-15 BCH upgrade spec). Evaluated with one dual mul, Jacobi(Y*Z) and r*Z^2 == X, no inversion and no sqrt.",
+      "forge": "The -R twin (same r, s' = 2ed - s) has x(R') == r but a non-residue y; r >= p, off-curve r, s >= n, s == 0 and malformed keys must all be rejected. Differential vs the pre-delegation shim body in bch_schnorr_differential.",
+      "probe_module": "exploit_bch_schnorr_batch_forgery",
+      "probe_run_symbol": "test_exploit_bch_schnorr_batch_forgery_run",
+      "status": "covered",
+      "ref": "https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/ (issue #466)"
+    },
+    {
+      "id": "bch-schnorr-2019-batch-verify",
+      "protocol": "Bitcoin Cash 2019 Schnorr batch verify",
+      "verify_function": "bch_schnorr_batch_verify",
+      "claim": "batch==OK => every entry passes bch_schnorr_verify, except with probability <= 2^-127 per call: sum a_i*(s_i*G - e_i*P_i - R_i) == O with a_0 = 1 and odd a_i < 2^128 derived from SHA256 over every (sig, pubkey33, msg) XOR 32 CSPRNG bytes, R_i the quadratic-residue lift of r_i. A single invalid entry is rejected with certainty (prime order, 0 < a_i < n).",
+      "forge": "Cancellation pair (s1+d, s2-d) from two valid signatures, whose unweighted error terms cancel; one corrupted entry at every position for sizes 2..64; -R twin; range and encoding violations. Each must be rejected, and weights must differ across calls with no seed.",
+      "probe_module": "exploit_bch_schnorr_batch_forgery",
+      "probe_run_symbol": "test_exploit_bch_schnorr_batch_forgery_run",
+      "status": "covered",
+      "ref": "issue #466; weight design as SCHNORR-BATCH-SHORT-WEIGHTS"
+    },
+    {
+      "id": "bch-schnorr-2019-batch-identify",
+      "protocol": "Bitcoin Cash 2019 Schnorr batch verify with per-entry results",
+      "verify_function": "bch_schnorr_batch_verify_identify",
+      "claim": "out_results[i] == 1 => entry i passes bch_schnorr_verify (batch first; on rejection every entry is verified individually), with the same <= 2^-127 batch soundness bound.",
+      "forge": "A batch with one forged entry at a known position, and random mixed batches: identify must flag exactly the entries the single verifier rejects.",
+      "probe_module": "exploit_bch_schnorr_batch_forgery",
+      "probe_run_symbol": "test_exploit_bch_schnorr_batch_forgery_run",
+      "status": "covered",
+      "ref": "issue #466"
     }
   ]
 }

@@ -1,6 +1,6 @@
 # Audit Traceability Matrix
 
-**UltrafastSecp256k1 v4.6.2** -- Evidence-Based Correctness & Security Mapping
+**UltrafastSecp256k1 v4.7.0** -- Evidence-Based Correctness & Security Mapping
 
 > Every security claim in this system is traceable to executable evidence.
 >
@@ -463,9 +463,9 @@ DIFFERENTIAL_MULTIPLIER=100 ./build/src/cpu/test_cross_libsecp256k1  # 1.3M chec
 | `gpu_backend_matrix` | Backend enumeration, device info, per-backend op probing | `audit/test_gpu_backend_matrix.cpp` |
 
 Backend-specific internal audit runners:
-- CUDA: `src/cuda/src/gpu_audit_runner.cu` ( 480 modules)
-- OpenCL: `opencl/src/opencl_audit_runner.cpp` ( 480 modules)
-- Metal: `metal/src/metal_audit_runner.mm` ( 480 modules)
+- CUDA: `src/cuda/src/gpu_audit_runner.cu` ( 485 modules)
+- OpenCL: `opencl/src/opencl_audit_runner.cpp` ( 485 modules)
+- Metal: `metal/src/metal_audit_runner.mm` ( 485 modules)
 
 ---
 

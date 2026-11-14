@@ -30,7 +30,7 @@ Current verified state:
 | RR-010 | MuSig2 signer-index bypass (MED-3) | **CLOSED 2026-05-31** | MuSig2/ABI | Fully fail-closed across all three layers: (1) the C++ `musig2_partial_sign` now treats the Rule-13 signer-index cross-check as **mandatory** — when `individual_pubkeys` cannot validate the signer (empty or too short) it returns `Scalar::zero()` instead of signing blind (`src/cpu/src/musig2.cpp`); (2) the v1 ABI `ufsecp_musig2_partial_sign` is hard-failed at entry with `UFSECP_ERR_DEPRECATED_API` (it has no pubkeys parameter and cannot validate); (3) the v2 ABI `ufsecp_musig2_partial_sign_v2` validates `privkey ↔ pubkeys[signer_index]` at the boundary and populates `individual_pubkeys` before delegating to the signing core. Regression-guarded by `audit/test_regression_musig2_signer_index_validation.cpp` MSI-4 (now `advisory=false`, asserts the empty-pubkeys context fail-closes) and `test_regression_frost_musig2_degenerate.cpp` FMD-4 (populated context still signs). The earlier v5.0.0 ABI-extension plan is no longer needed: the C++ defense-in-depth + v2 boundary check close the gap without an ABI break. |
 | RR-NEW-01 | `ct::scalar_inverse` non-CT on platforms without `__int128` (SEC-001-INCOMPLETE) | Accepted, non-blocking for Bitcoin Core PR | CT/portability | On platforms without `__int128` support (WASM target, MSVC 32-bit), `ct::scalar_inverse` falls back to a `fast::` multiplication chain which is variable-time. Not applicable to Bitcoin Core PR targets (x86-64 and ARM64 have `__int128`). Build system requires `__int128` for CT builds; static assert enforced in the CT path. See SEC-001-INCOMPLETE. |
 | RR-NEW-02 | P1 shim regression tests advisory-gated by build configuration | Open, by design. Non-blocking for Bitcoin Core PR | Shim/audit | `regression_shim_security_v8` and `exploit_musig2_infinity_pubnonce` require `SECP256K1_BUILD_COMPAT_SHIM=ON`; without it they return ADVISORY_SKIP_CODE (77). Standalone CTest targets always run. Bitcoin Core PR is out of shim scope. Planned: shim-linked CI matrix job in future milestone. |
-| RR-BAS-01 | CAAS evidence auto-refresh (ci-evidence + API contracts) | **Ready for owner promotion (B19)** | Infra/audit | Bastion B19 added the `freshness_artifacts` disposition ledger (`docs/AUDIT_SLA.json`) + coverage gate `ci/check_evidence_refresh_coverage.py` (`audit_gate.py --evidence-refresh-coverage`, G-19): every tracked freshness artifact is now explicitly `auto` (producer cross-checked against the lane commit list) or `residual` (resolves here). `audit/ci-evidence` + `docs/API_SECURITY_CONTRACTS.json` (+ assurance_claims / determinism_golden / risk_coverage_report) remain documented residuals — authored/golden/build/owner-chosen-manual, not honestly nightly-regenerable. Promotion = owner approves a heavy snapshot lane. Not a vulnerability. See RR-BAS-01 below. |
+| RR-BAS-01 | CAAS evidence auto-refresh (ci-evidence + API contracts) | **Promoted by the owner 2026-11-02; closes after one observed window** | Infra/audit | Owner decision 2026-11-02 ("bring everything into one working cycle"): `audit/ci-evidence`, `docs/DETERMINISM_GOLDEN.json`, `docs/API_SECURITY_CONTRACTS.json` and `docs/ASSURANCE_CLAIMS.json` (plus the `INT-SHIM-PARITY` row of `docs/INTEGRATION_EVIDENCE_STATUS.json`) are now `auto` in `docs/AUDIT_SLA.json`, refreshed by `ci/refresh_residual_evidence.py` in the nightly `caas-evidence-refresh.yml` lane. Fail-closed: a file is refreshed only by re-running its real verifier and written only when that verifier passes; a failed group writes nothing; snapshots are new dated files, never re-dated. Owner-gated rows (GPU hardware, ROCm, Bitcoin Core suite, libbitcoin bridge) stay owner-gated, and `risk_coverage_report` stays a build-only residual. Scheduled runs use `main`'s copy of the workflow, so the schedule picks this up at the next release; until then dispatch it from `dev`. Not a vulnerability. See RR-BAS-01 below. |
 | RR-BAS-02 | Incident-drill freshness SLO promotion to blocking | **Ready for owner promotion (B19)** | Audit/infra | `incident_drill_freshness_days` (`docs/AUDIT_SLA.json`) is advisory (warning). B19 proved the precondition: the coverage gate confirms the drill log is genuinely auto-refreshed by the nightly lane, and the `B19:evidence_refresh_coverage` self-test proves `ci/audit_sla_check.py` BLOCKS a simulated stale log under blocking severity (and only warns under advisory). Promotion = owner flips the severity to `blocking` after one observation window. See RR-BAS-02 below. |
 | RR-BAS-03 | Benchmark `target_context` labels | **CLOSED 2026-06-13** | Bench/audit | Closed by Bastion B17: canonical `bench_unified_*.json` (target_context=microbench) and `BITCOIN_CORE_BENCH_RESULTS.json` (target_context=bitcoin_core) now carry explicit `target_context` + `claim_scope` metadata, validated against `docs/BENCH_TARGET_CONTEXT_SCHEMA.json` by `ci/check_bench_target_context.py` (folded into `check_bench_doc_consistency.py`, co-gated by `perf_security_cogate.py`). See RR-BAS-03 below. |
 | RR-BAS-04 | Research-monitor attack-class taxonomy | **CLOSED 2026-06-13** | Audit/tooling | Closed by Bastion B18: all 45 signal classes carry `attack_class` (16-value enum) + evidence routing (affected_primitive/surface, expected_gate, missing_evidence_action); validated by `ci/check_research_signal_matrix.py` (`audit_gate.py --research-signal-matrix`, G-18) and rendered by `ci/research_monitor.py`. See RR-BAS-04 below. — was: `docs/RESEARCH_SIGNAL_MATRIX.json` signal classes carry a coverage `status` but no `attack_class` field; Bastion B6 added actionable affected-surface/patch-plan rendering without the taxonomy. See RR-BAS-04 below. |
@@ -84,65 +84,83 @@ regressions guard the `libsecp256k1_shim` compatibility layer which is out of sc
 ## RR-BAS-01 — CAAS evidence auto-refresh (ci-evidence + API contracts)
 
 **Type:** Process / automation gap — not a vulnerability
-**Status:** **Ready for owner promotion** (Bastion B19 — coverage gated; auto-vs-residual disposition formalized)
+**Status:** **Promoted by the owner 2026-11-02** — the lane is implemented on `dev`; the entry closes after one observed full window (see the close condition below)
 **Severity:** Informational (operational cadence)
 **Scope:** Critical-evidence freshness automation
 
-**Description:**
-`audit/ci-evidence/*` (CT / adversarial / fuzz snapshots) and
-`docs/API_SECURITY_CONTRACTS.json` are tracked on the 14-day
-`critical_evidence_freshness_days` SLO (`docs/AUDIT_SLA.json`), but the nightly
-`caas-evidence-refresh.yml` workflow does **not** regenerate them. They are
-refreshed by a manual owner chore (build + run the four standalone audit binaries
-— `test_adversarial_protocol`, `test_ecies_regression`, `test_fuzz_parsers`,
-`test_fuzz_address_bip32_ffi` — and commit dated snapshots). Without automation
-they will periodically cross the SLO and drop the autonomy score until refreshed.
+**Owner decision (2026-11-02):** "bring everything into one working cycle". The residual
+evidence that `ci/audit_sla_check.py` tracks and no lane regenerated — `audit/ci-evidence`
+(CT / adversarial / fuzz snapshots), `docs/DETERMINISM_GOLDEN.json`,
+`docs/API_SECURITY_CONTRACTS.json` and `docs/ASSURANCE_CLAIMS.json` — plus the
+`INT-SHIM-PARITY` row of `docs/INTEGRATION_EVIDENCE_STATUS.json` had been refreshed by a manual
+owner chore (commit `121e5325` is the template). Without it they periodically crossed the 14-day
+`critical_evidence_freshness_days` / 30-day `max_stale_evidence_days` SLOs (`docs/AUDIT_SLA.json`)
+and dropped the autonomy score until refreshed. The nightly `caas-evidence-refresh.yml` lane now
+performs that chore through `ci/refresh_residual_evidence.py`. The four artifacts are `auto` in the
+`freshness_artifacts` ledger, checked against the lane's real commit list by
+`ci/check_evidence_refresh_coverage.py` (`audit_gate.py --evidence-refresh-coverage`, G-19), which
+fails closed if a **blocking** freshness artifact ever loses both its auto-producer and its
+documented residual, or if an `auto` disposition claims a commit path the workflow does not stage.
 
-**What B19 added (hardening):** Every freshness artifact tracked by
-`ci/audit_sla_check.py` now carries an explicit refresh disposition in the
-`freshness_artifacts` ledger (`docs/AUDIT_SLA.json`), enforced by
-`ci/check_evidence_refresh_coverage.py` (`audit_gate.py --evidence-refresh-coverage`,
-G-19). The disposition is honest, not aspirational:
+**Dispositions now:**
 
-| Artifact | Disposition | Why |
-|----------|-------------|-----|
-| `assurance_report` | **auto** | derived report regenerated + committed by the lane (`export_assurance.py`) |
-| `incident_drill_log` | **auto** | rewritten by the lane's autonomy step (`incident_drills.py`) |
-| `ct_evidence` (`audit/ci-evidence`) | **residual** | CT/fuzz output snapshots; owner explicitly chose a manual chore over auto-committing fuzz output |
-| `api_contracts` | **residual** | authored security-contract spec; auto-regen would fake freshness; kept current by the fail-closed changed-file policy |
-| `assurance_claims` | **residual** | authored claims ledger validated by `validate_assurance.py` |
-| `determinism_golden` | **residual** | golden baseline — must stay stable; re-verified, not regenerated |
-| `risk_coverage_report` | **residual** | build-only artifact under gitignored `out/` |
+| Artifact | Disposition | Refreshed by (its real verifier) | What is written |
+|----------|-------------|----------------------------------|-----------------|
+| `assurance_report` | **auto** | `export_assurance.py` (derived report) | the regenerated report |
+| `incident_drill_log` | **auto** | `incident_drills.py`, run by the autonomy step | the rewritten log |
+| `ct_evidence` (`audit/ci-evidence`) | **auto** | the five audit/fuzz suites `test_adversarial_protocol_standalone`, `test_ecies_regression_standalone`, `test_regression_ct_ops_standalone`, `test_fuzz_parsers`, `test_fuzz_address_bip32_ffi` | five NEW dated `<suite>_<YYYYMMDD>.txt` files, all or none |
+| `determinism_golden` | **auto** | `ci/check_determinism_gate.py` | `generated_at` and `library` only, and only if the report is otherwise identical |
+| `api_contracts` | **auto** | `ci/check_api_contracts.py --json` | the `last_updated` + `update_note` stamp |
+| `assurance_claims` | **auto** | `ci/validate_assurance.py` | the `updated_at` stamp |
+| `INT-SHIM-PARITY` row (G-13, not a freshness artifact) | **auto** | `ci/check_libsecp_shim_parity.py --json` | the row's `last_verified` + `notes` stamp |
+| `risk_coverage_report` | **residual** | build-only artifact under the gitignored `out/` tree | never committed |
 
-The gate fails closed if a **blocking** freshness artifact ever loses *both* its
-auto-producer and its documented residual, or if an `auto` disposition claims a
-commit path the workflow does not actually stage. So the manual residual can no
-longer silently disappear, and a future blocking freshness SLO cannot be added
-without a producer-or-residual. The `auto`/`residual` honesty was
-adversarially cross-checked (no authored/golden artifact is fake-refreshed).
+**Fail-closed rules** (enforced by `ci/refresh_residual_evidence.py`, pinned by the
+`RR-BAS-01:refresh_residual_evidence` self-test in `ci/test_audit_scripts.py`):
 
-**Current behavior / mitigation:** The Bastion B3 pre-alert
-(`ci/audit_sla_check.py`) warns ~4 days before the block with a per-artifact
-`days_until_block`, so the chore is signalled rather than silent. The owner
-explicitly chose the manual chore + pre-alert model over an auto-committing
-scheduled workflow (a CI-cost / infra decision); B19 respects that choice and
-makes the residual explicit + gated rather than overriding it.
+1. A file is refreshed only by re-running its real verifier and written only when that verifier
+   passes. Nothing is regenerated blindly: an authored or golden artifact is re-verified and
+   re-stamped, never rewritten, so freshness is not faked.
+2. `ct_evidence` writes its five dated files only when every suite exits 0 and its own summary shows
+   0 failed (and 0 crashes where the suite counts them); otherwise it writes none. It never
+   rewrites or re-dates an old file, and an existing snapshot dated today is left alone.
+3. `determinism_golden` is accepted only when `overall_pass` is true and the new content equals the
+   old except `generated_at` and the library path; otherwise the group fails and the file stays
+   untouched (a real change in deterministic output still needs a human decision).
+4. The stamps touch only their own fields: `API_SECURITY_CONTRACTS.json` `last_updated` +
+   `update_note`; `ASSURANCE_CLAIMS.json` `updated_at`; the `INT-SHIM-PARITY` row's `last_verified`
+   + `notes`. Each names the date, the HEAD short sha, the verifier command and its verdict wherever
+   the field has room for text (the claims ledger carries the date only). The file's JSON formatting
+   is preserved, a stamp that would change any other field is refused, and a failing verifier
+   stamps nothing.
+5. A group is due only when its artifact is at least `--min-age-days` (default 7) old, measured by
+   `audit_sla_check.py`'s own age function; `--force` overrides. `--plan` and `--dry-run` write
+   nothing.
+6. A failed group writes nothing and fails the step; the other groups still refresh. The step's
+   outcome feeds `GATE_VERDICT`: a failed run commits only `docs/EVIDENCE_CHAIN.json` and the lane
+   ends red.
+7. The audit/fuzz build runs only on the nights a group that needs it is due.
 
-**Acceptance criteria (for closure):** `audit/ci-evidence` and
-`docs/API_SECURITY_CONTRACTS.json` either (a) are moved to `auto` behind a
-scheduled lane that regenerates + commits them on a < 14-day cadence, or
-(b) remain documented residuals with the owner accepting the manual-chore model
-permanently — and in both cases the G-19 coverage gate stays green.
-**Promotion trigger (owner decision):** Owner approves a scheduled refresh lane
-(a dedicated `ci-evidence-refresh.yml`, or a snapshot step wired into the heavy
-`security-audit.yml` lane) that builds + runs the four audit binaries and commits
-dated snapshots on a < 14-day cadence. Flipping the disposition is a one-line
-manifest edit (`residual` → `auto` with `committed_paths: ["audit/ci-evidence", ...]`)
-that the G-19 gate will then verify against the lane.
-**Close condition:** Either the scheduled lane has refreshed the evidence on
-cadence for one full window with no unattended SLO breach (path a), or the owner
-records permanent acceptance of the manual model (path b); update this entry to
-CLOSED.
+**Owner-gated rows stay owner-gated.** GPU hardware evidence (the real-device rows of
+`docs/GPU_HARDWARE_EVIDENCE_STATUS.json`), ROCm/HIP evidence (`GPU_BACKEND_EVIDENCE.json`, fail-closed
+for promotion), the Bitcoin Core full-chain suite and the libbitcoin bridge (the owner-gated rows of
+`docs/INTEGRATION_EVIDENCE_STATUS.json`) cannot be produced by a GitHub-hosted runner. The lane never
+writes, stamps or counts them as current.
+
+**Scheduling.** Scheduled workflow runs use the copy of the workflow on the default branch (`main`),
+which changes only when a version is cut, so the schedule picks the new lane up at the next release.
+Until then run it from `dev`: `gh workflow run caas-evidence-refresh.yml --ref dev` (add
+`-f force_residual_refresh=true` to refresh artifacts younger than 7 days). The Bastion B3 pre-alert
+(`ci/audit_sla_check.py`) still warns ~4 days before a block with a per-artifact `days_until_block`.
+If the lane stays red past an SLO, the same script refreshes by hand
+(`python3 ci/refresh_residual_evidence.py --force --build-dir <dir> --lib <dir>`, then commit).
+
+**Acceptance criteria (for closure):** `audit/ci-evidence`, `docs/DETERMINISM_GOLDEN.json`,
+`docs/API_SECURITY_CONTRACTS.json` and `docs/ASSURANCE_CLAIMS.json` are `auto` behind a scheduled lane
+that refreshes them on a < 14-day cadence (implemented on `dev` 2026-11-02, scheduled from the next
+release), and the G-19 coverage gate stays green.
+**Close condition:** the scheduled lane has refreshed the evidence on cadence for one full window with
+no unattended SLO breach; then update this entry to CLOSED.
 
 ---
 
