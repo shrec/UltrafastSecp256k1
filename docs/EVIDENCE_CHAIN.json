@@ -1,8 +1,8 @@
 {
   "version": 1,
   "description": "Tamper-resistant evidence chain for audit verdicts",
-  "last_updated": "2026-11-15T04:40:11.556854+00:00",
-  "records_count": 23,
+  "last_updated": "2026-11-16T04:49:32.312345+00:00",
+  "records_count": 24,
   "records": [
     {
       "who": "security_autonomy_check.py",
@@ -279,6 +279,18 @@
       "reason": "automated-nightly-2026-11-15",
       "signed_by_ci": true,
       "signature": "820631613d66c9024afdf355783cc6c288f9d77bb5f047a5a6d57c49ccbafa41"
+    },
+    {
+      "who": "caas-evidence-refresh",
+      "what": "nightly-evidence-refresh",
+      "when": "2026-11-16T04:49:32.312164+00:00",
+      "commit": "80b08d5ad77b88cb6eefff7c63eb7780309b2d8c",
+      "run_id": "43805978942",
+      "binary_hash": "n/a",
+      "verdict": "pass",
+      "reason": "automated-nightly-2026-11-16",
+      "signed_by_ci": true,
+      "signature": "bc7f8f2f9bdfdac4dd9cdfd9be4dcc7059f58a3c6be7ce737c513c08d84ba380"
     }
   ]
 }
