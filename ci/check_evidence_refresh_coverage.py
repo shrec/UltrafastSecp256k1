@@ -11,8 +11,11 @@ auto-refreshed nor documented as a residual:
   - `auto` entries are cross-checked against the named workflow's actual commit
     list — the manifest cannot claim nightly coverage the workflow does not give;
   - `residual` entries must resolve to a docs/RESIDUAL_RISK_REGISTER.md id
-    (authored specs, stable goldens, build-only artifacts, owner-chosen manual
-    chores — never auto-regenerated because that would fake freshness);
+    (a build-only artifact, or evidence no scheduled lane can produce);
+  - an authored or golden artifact may be `auto` only as a verifier-gated
+    re-stamp (RR-BAS-01, ci/refresh_residual_evidence.py: written only when its
+    real verifier passes, never regenerated blindly). This gate checks that the
+    lane stages the path; ci/test_audit_scripts.py pins how the file is produced;
   - a BLOCKING artifact with neither a verifiable producer nor a resolvable
     residual fails the gate (warning artifacts are advisory).
 

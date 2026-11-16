@@ -2,6 +2,8 @@
 
 UltrafastSecp256k1 is a high-performance, multi-backend secp256k1 engine with reproducible audit evidence, compatibility shims, and profile-based review scopes.
 
+Used by [Sparrow Wallet's Frigate](https://github.com/sparrowwallet/frigate) for GPU-accelerated BIP-352 Silent Payments scanning. [Who uses UltrafastSecp256k1 →](#who-uses-ultrafastsecp256k1)
+
 It is not a trust request. It is a verification package.
 
 <p align="center">
@@ -59,7 +61,7 @@ Project-wide (branch-independent — not pinned to `main` or `dev`):
 
 > **No external third-party security audit has been performed.** All audit evidence is self-generated and independently reproducible via CAAS. See [SECURITY.md](SECURITY.md) §Audit Status.
 
-> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 480-module unified runner with 276 exploit PoC tests.
+> **Audit methodology:** CAAS (Continuous Automated Assurance System) — a multi-layer automated audit framework: LLVM ct-verif, Valgrind taint analysis, dudect statistical timing, 485-module unified runner with 278 exploit PoC tests.
 
 **Reproduce from patch (primary — stable):**
 ```bash
@@ -274,7 +276,7 @@ This project: `code → test → execution → evidence → continuous verificat
 We do not rely on trust. We provide reproducible evidence.
 
 - Every exploit attempt becomes a permanent regression test
-- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 204 non-exploit audit modules and 276 exploit PoCs ( 480 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
+- Every commit runs ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) across 207 non-exploit audit modules and 278 exploit PoCs ( 485 modules total; count via `python3 ci/sync_module_count.py`; canonical data: `docs/canonical_data.json`)
 - Every claim maps to a test in [docs/AUDIT_TRACEABILITY.md](docs/AUDIT_TRACEABILITY.md)
 - Every performance number has pinned compiler/driver/toolkit versions and raw logs
 
@@ -286,6 +288,7 @@ For the full breakdown of the audit culture, CI/CD pipeline, formal verification
 
 <!-- Keywords (machine-readable, SEO):
 secp256k1 · secp256k1 python · secp256k1 nodejs · secp256k1 rust · secp256k1 go · secp256k1 c# · secp256k1 java · secp256k1 swift · ecdsa python · schnorr python · bitcoin python library · ethereum python library · ECDSA batch verify · Schnorr BIP-340 · FROST threshold signatures · MuSig2 · Bitcoin cryptography · CUDA secp256k1 · OpenCL ECC · Metal GPU crypto · BIP-352 Silent Payments · constant-time cryptography · embedded ECC · WebAssembly crypto · elliptic curve cryptography · bitcoin wallet library · taproot signatures · BIP-32 HD keys · BIP-39 mnemonic · adaptor signatures · Pedersen commitment · Bulletproof range proof · react native crypto · python ecdsa signing · node.js secp256k1 · GPU elliptic curve · wasm crypto · mobile crypto library · threshold signature scheme · multi-party computation · pip install secp256k1 · npm secp256k1 · cargo secp256k1 · nuget secp256k1 · ufsecp
+who uses UltrafastSecp256k1 · used by Sparrow Wallet Frigate · Frigate Silent Payments GPU scanning · libbitcoin secp256k1 backend · libbitcoin GPU batch validation · UltrafastSecp256k1 NuGet for libbitcoin · Satobox Yocto recipe · Robinhood Chain sequencer feed ufsecp
 -->
 
 ## The Audit Model
@@ -313,7 +316,7 @@ Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.
 
 > TL;DR is above. This section covers what differentiates this library in depth.
 
-- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) per release evidence run, 276 exploit PoCs runner modules in `unified_audit_runner.cpp` (some source files contain multiple registered test functions; all wired, verified by `ci/check_exploit_wiring.py`) across 200+ attack vectors, a block-based PR/push gate, release CAAS gate, and manual deep-assurance workflows — security hardens through executable evidence, not snapshot PDFs ([→ how it works](#engineering-quality--self-audit-culture))
+- **Continuous adversarial audit system** -- every exploit attempt becomes a permanent regression test; ≈600K explicitly itemized field/scalar/point/CT assertions (plus full-suite KAT/differential/fuzz checks, not individually counted) per release evidence run, 278 exploit PoCs runner modules in `unified_audit_runner.cpp` (some source files contain multiple registered test functions; all wired, verified by `ci/check_exploit_wiring.py`) across 200+ attack vectors, a block-based PR/push gate, release CAAS gate, and manual deep-assurance workflows — security hardens through executable evidence, not snapshot PDFs ([→ how it works](#engineering-quality--self-audit-culture))
 - **High-performance CPU secp256k1 engine** -- optimized generator multiply, scalar multiply, hashing, and serialization pipelines across x86-64, ARM64, RISC-V, and embedded targets ([see bench_unified ratio table](docs/BENCHMARKS.md))
 - **Built for modern secp256k1 workloads** -- signing, verification, wallet derivation, threshold protocols, adaptor signatures, ZK primitives, address generation, and large-scale public-key pipelines in one engine
 - **Dual-layer security** -- variable-time FAST path for throughput, constant-time CT path for secret-key operations
@@ -337,13 +340,18 @@ Benchmark numbers and historical milestones are maintained in [`docs/BENCHMARKS.
 
 **Quick links:** [Discord](https://discord.gg/E4BK8SeMYU) * [Benchmarks](docs/BENCHMARKS.md) * [Community Benchmarks](docs/COMMUNITY_BENCHMARKS.md) * [Adopters](docs/ADOPTION.md) * [Build Guide](docs/BUILDING.md) * [API Reference](docs/API_REFERENCE.md) * [Binding Usage Standard](docs/BINDINGS_USAGE_STANDARD.md) * [Security Policy](SECURITY.md) * [Threat Model](docs/THREAT_MODEL.md) * [Assurance Ledger](docs/ASSURANCE_LEDGER.md) * [AI Audit Protocol](docs/AI_AUDIT_PROTOCOL.md) * [Audit Standard (CAAS)](docs/AUDIT_STANDARD.md) * [**Why This Library?**](docs/WHY_ULTRAFASTSECP256K1.md) * [Porting Guide](docs/PORTING.md) * [**Sponsor**](https://github.com/sponsors/shrec)
 
-### Real-world Adoption
+### Who uses UltrafastSecp256k1
 
-UltrafastSecp256k1 is used by [Sparrow Wallet's Frigate](https://github.com/sparrowwallet/frigate).
+Public projects that integrate UltrafastSecp256k1 *(checked against each project's own repository on 2026-11-01)*:
 
-Frigate 1.4.0 switched its DuckDB extension to `ufsecp.duckdb_extension` using UltrafastSecp256k1, and its README documents a custom DuckDB extension wrapping UltrafastSecp256k1 for `ufsecp_scan(...)`-based Silent Payments scanning with CUDA, OpenCL and Metal backend support. *(as of Frigate 1.4.0, 2026-03-29 — verify against current Frigate README for latest status)*
+| Project | How it uses UltrafastSecp256k1 | Status |
+|---|---|---|
+| [Sparrow Wallet's Frigate](https://github.com/sparrowwallet/frigate) | Silent Payments scanning server. Its DuckDB extension `ufsecp.duckdb_extension` ([source](https://github.com/sparrowwallet/duckdb-ufsecp-extension)) wraps UltrafastSecp256k1 for `ufsecp_scan(...)` with CUDA, OpenCL and Metal backends | Shipped since Frigate 1.4.0 |
+| [Robinhood Chain sequencer feed](https://github.com/groovg/ultrafast-robinhood-sequencer-feed) | Rust sequencer-feed client; opt-in `--features ufsecp` backend for ECDSA sender recovery | Opt-in feature |
+| [Satobox](https://github.com/embetrix/satobox) | Embedded-Linux Bitcoin full-node distribution; ships a Yocto recipe for the library | Packaged (v3.15.3) |
+| [libbitcoin](https://github.com/libbitcoin) | Was a build-time secp256k1 backend (`--with-ultrafast`, `-Dwith-ultrafast=ON`, `UltrafastSecp256k1-vc145` NuGet) across libbitcoin-system, -database, -network, -node, -server and -explorer, with GPU detection and GPU-gated batch validation | Former: 2026-06 to 2026-10-02, removed in [libbitcoin-system #2048](https://github.com/libbitcoin/libbitcoin-system/pull/2048) |
 
-See: [Frigate 1.4.0 release](https://github.com/sparrowwallet/frigate/releases/tag/1.4.0) · [Frigate README](https://github.com/sparrowwallet/frigate/blob/master/README.md) · [Details →](docs/ADOPTION.md)
+See: [Frigate 1.4.0 release](https://github.com/sparrowwallet/frigate/releases/tag/1.4.0) · [libbitcoin-build #426](https://github.com/libbitcoin/libbitcoin-build/pull/426) · [Details and evidence →](docs/ADOPTION.md)
 
 Package-distribution links and adoption evidence are maintained in [docs/ADOPTION.md](docs/ADOPTION.md). Download counts are intentionally not duplicated here because npm/NuGet figures change continuously.
 
@@ -479,7 +487,7 @@ In addition to the `unified_audit_runner`, UltrafastSecp256k1 ships exploit-styl
 | Self-Test / Recovery | self-test API behavior and recovery boundary cases |
 | Batch Verify | aggregate verification math correctness |
 
-> All 276 registered exploit-PoC modules live in `audit/test_exploit_*.cpp` (264 source files; some files register multiple modules). Build with `python3 ci/configure_build.py audit` (or `cmake -S . -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release`) and run them standalone or via `ctest`.
+> All 278 registered exploit-PoC modules live in `audit/test_exploit_*.cpp` (266 source files; some files register multiple modules). Build with `python3 ci/configure_build.py audit` (or `cmake -S . -B out/audit -G Ninja -DCMAKE_BUILD_TYPE=Release`) and run them standalone or via `ctest`.
 
 ### Self-Audit Document Index
 
@@ -1624,7 +1632,7 @@ cosign verify-blob SHA256SUMS \
 | [GPU Validation Matrix](docs/GPU_VALIDATION_MATRIX.md) | Per-backend op coverage and validation status |
 | [Feature Maturity](docs/FEATURE_MATURITY.md) | Per-feature GPU/CT/fuzz/tier status table |
 | [Supported Guarantees](include/ufsecp/SUPPORTED_GUARANTEES.md) | ABI stability tiers and commitment levels |
-| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 204 non-exploit modules + 276 exploit PoCs and platform verdicts |
+| [Audit Coverage](docs/AUDIT_COVERAGE.md) | Full audit report with 207 non-exploit modules + 278 exploit PoCs and platform verdicts |
 | [Audit Guide](docs/AUDIT_GUIDE.md) | How to run and interpret audit suite |
 | [Test Matrix](docs/TEST_MATRIX.md) | Comprehensive test coverage map for auditors |
 | [ARM64 Audit & Benchmark](docs/ARM64_AUDIT_BENCHMARK.md) | ARM64 platform certification and performance analysis |
@@ -1733,4 +1741,5 @@ All sponsors are acknowledged in the README and release notes.
 **UltrafastSecp256k1** -- High-performance secp256k1 cryptography for CPU, CUDA, OpenCL, Metal, mobile, embedded, and WebAssembly. Constant-time secret-key paths, GPU public-data batch acceleration, and broad multi-platform coverage.
 
 <!-- SEO keywords (not rendered by GitHub) -->
+<!-- who uses UltrafastSecp256k1 adopters integrations Sparrow Wallet Frigate Silent Payments server GPU scanning duckdb-ufsecp-extension ufsecp_scan libbitcoin secp256k1 backend libbitcoin-system libbitcoin-node libbitcoin-server libbitcoin GPU batch validation UltrafastSecp256k1 NuGet vc143 vc145 MSVC Satobox Yocto recipe embedded Bitcoin full node Robinhood Chain sequencer feed Rust ufsecp feature ECDSA sender recovery -->
 <!-- secp256k1 GPU CUDA OpenCL Metal ROCm ECDSA sign verify Schnorr BIP-340 Bitcoin Ethereum signature acceleration elliptic curve cryptography C++ C++20 high-performance zero dependency batch verification constant time side channel resistance embedded ESP32 STM32 ARM Cortex-M RISC-V ARM64 WebAssembly WASM cross-platform multi-coin address generation BIP-32 BIP-44 HD wallet derivation key recovery EIP-155 RFC-6979 transaction signing blockchain cryptocurrency libsecp256k1 alternative NVIDIA AMD Apple Silicon MuSig2 FROST threshold signatures Taproot BIP-341 BIP-342 Pedersen commitments adaptor signatures ECDH key exchange secp256k1 GPU acceleration secp256k1 on embedded secp256k1 benchmarks secp256k1 constant time secp256k1 WASM secp256k1 C ABI FFI bindings Python Go Rust Java Node.js constant-time ECC library for RISC-V bitcoin cryptography optimization high-throughput elliptic curve signing secp256k1 RISC-V constant-time branchless cryptography GLV endomorphism Hamburg signed-digit comb Renes-Costello-Bathalter complete addition formulas dudect side-channel testing ASan UBSan TSan fuzzing libFuzzer valgrind memcheck security audit vulnerability scanning SLSA provenance supply chain security OpenSSF Scorecard CodeQL SonarCloud clang-tidy static analysis Docker container reproducible build Debian APT RPM Arch AUR Linux packaging MIT open source cryptographic library secp256k1 formal verification Fiat-Crypto Montgomery multiplication Barrett reduction BIP-327 multi-party computation MPC digital signatures public key cryptography PKI key agreement protocol -->

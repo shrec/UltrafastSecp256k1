@@ -418,4 +418,5 @@ static secp256k1::Network to_network(int n) {
 #include "impl/ufsecp_zk.cpp"
 #include "impl/ufsecp_coins.cpp"
 #include "impl/ufsecp_bip322.cpp"
+#include "impl/ufsecp_bch_schnorr.cpp"
 

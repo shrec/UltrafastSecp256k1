@@ -205,6 +205,29 @@ target_include_directories(secp256k1_opencl PRIVATE
 )
 
 # =============================================================================
+# Runtime kernel files next to binaries that load .cl sources from disk
+# =============================================================================
+# The audit runner and the benchmark build programs such as
+# secp256k1_ct_extended.cl, secp256k1_ct_smoke.cl and secp256k1_zk.cl at
+# runtime with "-I <exe_dir>/kernels"; secp256k1_extended.cl alone #includes
+# secp256k1_ct_ops/field/scalar/point.cl. Copying a hand-picked subset left
+# those includes unresolved ("file not found"), so ship every kernel file.
+# CONFIGURE_DEPENDS re-globs when a kernel file is added or removed.
+file(GLOB SECP256K1_OPENCL_RUNTIME_KERNELS CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/kernels/*.cl"
+)
+
+function(secp256k1_opencl_copy_kernels target)
+    add_custom_command(TARGET ${target} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:${target}>/kernels
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${SECP256K1_OPENCL_RUNTIME_KERNELS}
+            $<TARGET_FILE_DIR:${target}>/kernels/
+        COMMENT "Copying OpenCL kernel files for ${target}"
+    )
+endfunction()
+
+# =============================================================================
 # Benchmark Executable
 # =============================================================================
 
@@ -246,6 +269,10 @@ if(SECP256K1_BUILD_BENCH)
             )
         endif()
 
+        # bench_opencl.cpp loads secp256k1_extended.cl / secp256k1_zk.cl from
+        # <exe_dir>/kernels at runtime; those #include the CT and hash files.
+        secp256k1_opencl_copy_kernels(opencl_benchmark)
+
         add_executable(opencl_bip352_benchmark
             benchmarks/bench_bip352_opencl.cpp
         )
@@ -281,6 +308,22 @@ if(SECP256K1_BUILD_BENCH)
             ${FASTSECP256K1_LIB}
         )
         target_compile_definitions(opencl_bch_scan_benchmark PRIVATE
+            SECP256K1_OPENCL_KERNEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/kernels"
+        )
+
+        # hash160 A/B harness (NF-2026-00033): times the previous loop/table
+        # hash160 kernel (embedded in the harness) against the production
+        # kernel in one run and checks they agree. Raw OpenCL, no library deps.
+        add_executable(opencl_hash160_ab_bench
+            benchmarks/hash160_ab_bench.cpp
+        )
+        target_link_libraries(opencl_hash160_ab_bench PRIVATE
+            ${OpenCL_LIBRARY}
+        )
+        target_include_directories(opencl_hash160_ab_bench PRIVATE
+            ${OpenCL_INCLUDE_DIR}
+        )
+        target_compile_definitions(opencl_hash160_ab_bench PRIVATE
             SECP256K1_OPENCL_KERNEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/kernels"
         )
     endif()
@@ -322,19 +365,9 @@ target_include_directories(opencl_audit_runner PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../../include
 )
 
-# Copy kernel files next to the audit runner binary for runtime loading
-add_custom_command(TARGET opencl_audit_runner POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:opencl_audit_runner>/kernels
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_field.cl
-        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_point.cl
-        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_batch.cl
-        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_affine.cl
-        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_extended.cl
-        ${CMAKE_CURRENT_SOURCE_DIR}/kernels/secp256k1_hash160.cl
-        $<TARGET_FILE_DIR:opencl_audit_runner>/kernels/
-    COMMENT "Copying OpenCL kernel files for audit runner"
-)
+# Copy every kernel file next to the audit runner binary for runtime loading
+# (the CT drop-in, smoke and ZK programs #include files beyond the old six).
+secp256k1_opencl_copy_kernels(opencl_audit_runner)
 
 # CTest integration
 enable_testing()

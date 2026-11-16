@@ -258,6 +258,8 @@ int test_regression_batch_dos_cap_run(); // RESOURCE-EXHAUSTION (blind-zone #15)
 int test_regression_abi_invalid_reject_run(); // VALID/INVALID coverage: live ABI reject branches (seckey_negate >=n, shamir/MSM scalar>=n + off-curve) that the blocking suite never exercised — wrong-accept trap (2026-06-11)
 int test_regression_table_build_invariants_run(); // odd-multiple table: window-constant agreement + shared-Z contract
 int test_regression_bch_schnorr_spec_run(); // BCH 2019 Schnorr: Jacobi(R.y) + RFC6979 "Schnorr+SHA256  " tag
+int test_exploit_bch_schnorr_batch_forgery_run(); // BCH 2019 Schnorr batch verify: cancellation pair, bad entry at every position, range/-R twin, weight randomness (issue #466)
+int test_bch_schnorr_differential_run(); // BCH 2019 Schnorr: engine/shim/ABI verifiers == pre-delegation shim verifier; batch == AND of singles (issue #466)
 int test_external_anchor_kat_run(); // EXTERNAL-ANCHOR KAT: ufsecp_sha512 vs NIST FIPS 180-4 + ufsecp_taproot_output_key vs official BIP-341 vectors — defeats common-mode self-anchoring (2026-06-11)
 int test_regression_ecdh_xy64_erase_run();           // SEC-002: shim_ecdh xy64 erased after hashfp call (2026-05-23)
 int test_regression_ecdh_off_curve_run();            // SEC-005: ecdh_compute* reject off-curve and infinity pubkeys (2026-05-27)
@@ -412,6 +414,7 @@ int test_exploit_frost_threshold_degenerate_run();
 int test_exploit_glv_endomorphism_run();
 int test_exploit_glv_kat_run();
 int test_exploit_gpu_cpu_divergence_run();
+int test_exploit_gpu_noncanonical_point_encoding_run();
 int test_exploit_gpu_host_api_shape_run();
 int test_exploit_hash256_var_bounds_run(); // hash256_var hostile-input / bounds contract (ctx-null, n=0, oversize n/stride, per-row length)
 int test_exploit_hedged_nonce_bias_run();
@@ -638,6 +641,7 @@ int test_regression_schnorr_r_zero_ct_run();                // SEC-006 // SEC-00
 // Forward declarations -- 2026-05-06 performance review fixes
 // ============================================================================
 int test_regression_pippenger_stale_used_run();  // BUG-01: Pippenger used[] stale across windows
+int test_regression_schnorr_batch_short_weights_run();  // Schnorr batch: 128-bit BIP-340 weights stay sound
 int test_regression_negate_inplace_generator_flag_run();  // B1: negate_inplace must clear is_generator_
 int test_regression_recover_rplus_n_overflow_run();  // bbhunt-001: ECDSA recover must reject r >= p-n in recid&2
 int test_regression_ct_glv_make_v_branchless_run();  // CT-CRYPTO-001: branchless make_v in ct::scalar_mul
@@ -800,6 +804,11 @@ int test_regression_shim_divergence_fixes_run(); // SDF-1..6: pubkey_parse NULL 
 int test_regression_frost_musig2_degenerate_run(); // FMD-1..4: FROST infinity group key + MuSig2 e=0 guard
 
 // ============================================================================
+// Forward declarations -- lane-parallel verify differential (RM-2026-00009)
+// ============================================================================
+int test_lanes_verify_differential_run(); // ecdsa/schnorr_verify_lanes == scalar verifiers, every lane backend
+
+// ============================================================================
 // Report section IDs -- 10 audit categories
 // ============================================================================
 //   1. math_invariants   -- Mathematical Invariants (Fp, Zn, Group Laws)
@@ -904,6 +913,10 @@ static const AuditModule ALL_MODULES[] = {
     { "fiat_crypto_link",  "Independent reference linkage (100%% parity)","differential",   test_fiat_crypto_linkage_run, true  /* advisory=true: requires __int128 (MSVC skips with code 77) */ },
     { "cross_platform_kat","Cross-platform KAT",                          "differential",   test_cross_platform_kat_run, false },
     { "fe52_compute_verify","FE52-compute verify: dual-mul==single-mul + ECDSA/Schnorr KAT","differential",   test_fe52_compute_verify_run, false },
+    // advisory=false: CPU C++ API only. Every available lane backend must match the
+    // scalar verifiers bit for bit; with no lane backend (non-x86, no AVX2) the
+    // module reports SKIP and returns 0 (the standalone binary exits 77).
+    { "lanes_verify_differential","Lane-parallel ECDSA/BIP-340 verify == scalar verify (every lane backend)","differential", test_lanes_verify_differential_run, false },
 
     // ===================================================================
     // Section 4: Standard Test Vectors (BIP-340, RFC-6979, BIP-32)
@@ -1139,6 +1152,7 @@ static const AuditModule ALL_MODULES[] = {
     { "exploit_glv_endomorphism",       "GLV Endomorphism Correctness",                "exploit_poc", test_exploit_glv_endomorphism_run, false },
     { "exploit_glv_kat",                "GLV Decomposition KAT",                       "exploit_poc", test_exploit_glv_kat_run, false },
     { "exploit_gpu_cpu_divergence",     "GPU/CPU Algebraic Consistency",               "exploit_poc", test_exploit_gpu_cpu_divergence_run, false },
+    { "exploit_gpu_noncanonical_point_encoding", "GPU Non-Canonical Point Encoding Gate", "exploit_poc", test_exploit_gpu_noncanonical_point_encoding_run, false },
     { "exploit_gpu_host_api_shape",     "GPU Host API Hostile Caller",                 "exploit_poc", test_exploit_gpu_host_api_shape_run, false },
     { "exploit_hash256_var_bounds",     "hash256_var Hostile-Input / Bounds Contract", "exploit_poc", test_exploit_hash256_var_bounds_run, false },
     { "exploit_hedged_nonce_bias",      "Hedged Signature Nonce Bias",                 "exploit_poc", test_exploit_hedged_nonce_bias_run, false },
@@ -1483,6 +1497,7 @@ static const AuditModule ALL_MODULES[] = {
 #endif // SECP256K1_HAS_FROST
     { "musig2_nonce_erasure_le32_ecdh", "MuSig2 secnonce/nonce erasure + LE32 round-trip + ECDH Y-parity prefix", "memory_safety", test_exploit_musig2_nonce_erasure_le32_ecdh_run, false },
     { "regression_pippenger_stale_used", "Pippenger used[] not cleared per-window — stale bits corrupt MSM for n>=48 (BUG-01, PIP-R1..R7)", "math_invariants", test_regression_pippenger_stale_used_run, false },
+    { "regression_schnorr_batch_short_weights", "Schnorr batch verify with 128-bit BIP-340 randomizers (a_0=1): single-invalid and equal-weight cancelling pairs rejected, weight shape and seed binding", "protocol_security", test_regression_schnorr_batch_short_weights_run, false },
     { "regression_negate_inplace_generator_flag", "negate_inplace must clear is_generator_ — (-G).scalar_mul(k) == -(k*G), not k*G via the fixed-base path (B1, NEG-1..5)", "math_invariants", test_regression_negate_inplace_generator_flag_run, false },
     { "regression_recover_rplus_n_overflow", "ECDSA recover rejects r >= (p-n) in the recid&2 branch — else r+n wraps mod p to a different x and returns a bogus pubkey as success vs upstream's 0 (bbhunt-001, REC-1..4)", "math_invariants", test_regression_recover_rplus_n_overflow_run, false },
     { "regression_ct_glv_make_v_branchless", "ct::scalar_mul uses branchless ct_glv_make_v (no secret if(k_neg) branch on the ECDH/ellswift/tweak_mul path) and stays numerically identical to the variable-time reference (CT-CRYPTO-001, CT-GLV-1..3)", "ct_analysis", test_regression_ct_glv_make_v_branchless_run, false },
@@ -1631,6 +1646,9 @@ static const AuditModule ALL_MODULES[] = {
     { "regression_table_build_invariants", "ODD-MULTIPLE TABLE BUILD: the two invariants that hold every windowed scalar-mul table together, neither previously asserted. (1) WINDOW-CONSTANT AGREEMENT -- dual_scalar_mul_gen_point recodes wNAF digits at WINDOW_G while tbl_G/tbl_H are SIZED from a separate constant kDualMulWindowG; they were independently-written literals, and setting one alone indexed past the table end (segfault at window 12, and at window 13 no crash at all, just five silently wrong dual_mul results). Asserts the BEHAVIOUR, not the static_assert: a*G+b*P through the table must equal two independent scalar multiplications. (2) SHARED-Z TABLE CONTRACT -- table entries share one implied global Z built with zero inversions, so a build that lands on the wrong Z is wrong in EVERY entry by the same factor and a spot check of one entry proves nothing; walks all 16 odd multiples on BOTH the fast:: and ct:: tracks and cross-checks the two against each other. Compares canonical serialised points, so the checks survive a change of coordinate or table representation -- which is exactly what they guard", "math_invariants", test_regression_table_build_invariants_run, false },
     // === 2026-09-14 BCH 2019 Schnorr specification conformance (issue #374) ===
     { "regression_bch_schnorr_spec", "BCH 2019 SCHNORR (OP_CHECKDATASIG): the BCHN shim violated the spec it is named after, and no gate ran it -- the BCH shim builds only under SECP256K1_BCHN_SHIM_BUILD_TESTS, default OFF, which no workflow and no ci/ script ever set. (1) JACOBI(R.y)==1 was absent on BOTH sides: the signer never negated its nonce for a non-residue R.y and the verifier never applied verification step 10, so the omission concealed itself -- our verifier accepted signatures precisely because it skipped the same check BCHN applies. Over 16 fixed (key,msg) pairs only 6 had a residue R.y, so 10 of 16 signatures would have been REJECTED by BCHN and Libauth while our own verifier took all 16. (2) The RFC6979 nonce carried no BCH domain separator -- the plain ECDSA path instead of algo16 \"Schnorr+SHA256  \" -- so 0 of 16 signatures were byte-identical to BCHN/Libauth for the same key and message; now 16 of 16 are. Vectors come from an INDEPENDENT pure-Python implementation of the spec whose RFC6979 was itself cross-checked 8/8 against rfc6979_nonce_libsecp_compat with the ECDSA tag. Carries a negative control that builds the -R twin of each signature (same r, s = 2ed-s) and requires rejection: that is the direct probe for (1), and it fails 0/8 against the pre-fix shim", "standard_vectors", test_regression_bch_schnorr_spec_run, false },
+    // === BCH 2019 Schnorr batch verification (issue #466) ===
+    { "exploit_bch_schnorr_batch_forgery", "BCH 2019 SCHNORR BATCH FORGERY (issue #466): bch_schnorr_batch_verify checks sum a_i*(s_i*G - e_i*P_i - R_i) == O with a_0 = 1, 128-bit odd a_i bound to every (sig, msg, pubkey33) plus CSPRNG bytes, and R_i the quadratic-residue lift of r_i. Forges inputs that VIOLATE the invariant and requires rejection: a cancellation pair (s1+d, s2-d) whose unweighted error terms sum to O; one corrupted signature at every position for batch sizes 2..64 (per-entry and 3n-point MSM paths, a_0 = 1 included); wrong message, wrong key, -P; r >= p, r off the curve, and the -R twin (same r, non-residue y) a wrong-root lift would accept; s >= n and s == 0; bad prefix, x >= p, off-curve key. Mixed batches must equal the AND of single verdicts and identify must equal them entry by entry; the engine's own seed/weight functions must give a_0 = 1, odd a_i < 2^128, a digest bound to every entry byte, and fresh weights on every call with or without a caller seed", "exploit_poc", test_exploit_bch_schnorr_batch_forgery_run, false },
+    { "bch_schnorr_differential", "BCH 2019 SCHNORR DIFFERENTIAL (issue #466): the optimised verifier (one dual mul, Jacobi on Y*Z, projective r*Z^2 == X -- no inversion, no sqrt) replaced the BCHN shim's verify body. Every surface -- bch_schnorr_verify on a wire key and on a parsed key, the delegating secp256k1_schnorr_verify, and ufsecp_bch_schnorr_verify -- must equal a verbatim copy of the pre-delegation shim verifier on valid signatures and 13 mutation classes (s+1, -R twin, s = 0 / n / 2^256-1, r = p / 2^256-1, r bit flip, wrong msg, wrong key, zero and random sigs), plus the eight regression_bch_schnorr_spec vectors and their twins. Batch surfaces -- secp256k1_schnorr_verify_batch (Knuth PR #826 contract: n == 0 -> 1, NULL arrays -> 0) and ufsecp_bch_schnorr_batch_verify / _identify (BAD_PUBKEY / BAD_SIG / VERIFY_FAIL, fail-closed results) -- must equal the AND of their singles", "differential", test_bch_schnorr_differential_run, false },
     // === 2026-06-11 EXTERNAL-ANCHOR KAT: defeat common-mode self-anchoring ===
     { "external_anchor_kat", "EXTERNAL-ANCHOR KAT (common-mode defence): pins ops to authorities that did NOT come from this engine. ufsecp_sha512 vs NIST FIPS 180-4 (\"\"/\"abc\") — the SHA-512 ABI was KAT-checked only vs the internal C++ impl, never the ABI; SHA-512 underlies BIP-32 HMAC. ufsecp_taproot_output_key vs the OFFICIAL BIP-341 wallet-test-vectors (scriptPubKey[0] keypath-only) — the native taproot path was self-roundtrip only; this pins H_TapTweak(P) to the BIP-341 reference", "standard_vectors", test_external_anchor_kat_run, false },
     // === 2026-05-24 DEDUP refactors (SonarCloud-driven, no security/ABI change) ===

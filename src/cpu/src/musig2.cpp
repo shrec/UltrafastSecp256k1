@@ -540,13 +540,19 @@ Scalar musig2_partial_sign(
 
 // -- Partial Verification -----------------------------------------------------
 
-bool musig2_partial_verify(
+namespace {
+
+// Shared PartialSigVerify setup: s*G, the signer's effective nonce R_eff (with the
+// session's R negation applied) and the signed key-term scalar
+// ea = e * a_i * g * gacc, where g = -1 if the aggregate Q was negated.
+// Returns false on a bad signer index or an invalid (infinity) nonce point.
+bool partial_verify_setup(
     const Scalar& partial_sig,
     const MuSig2PubNonce& pub_nonce,
-    const std::array<uint8_t, 32>& pubkey,
     const MuSig2KeyAggCtx& key_agg_ctx,
     const MuSig2Session& session,
-    std::size_t signer_index) {
+    std::size_t signer_index,
+    Point& sG, Point& R_eff, Scalar& ea) {
 
     // Bounds check: signer_index must be valid for the key_coefficients vector.
     // musig2_partial_sign already has this guard; verify must be consistent.
@@ -558,7 +564,7 @@ bool musig2_partial_verify(
     // (with appropriate negation adjustments)
 
     // CT-003: partial_sig is a public value — use variable-time scalar_mul, not CT.
-    auto sG = Point::generator().scalar_mul(partial_sig);
+    sG = Point::generator().scalar_mul(partial_sig);
 
     auto R1_i = decompress_point(pub_nonce.R1);
     auto R2_i = decompress_point(pub_nonce.R2);
@@ -568,16 +574,54 @@ bool musig2_partial_verify(
     }
 
     // Effective nonce: R_i = R1_i + b * R2_i
-    auto R_eff = R1_i.add(R2_i.scalar_mul(session.b));
+    R_eff = R1_i.add(R2_i.scalar_mul(session.b));
     if (session.R_negated) {
         R_eff.negate_inplace();
     }
 
-    // Key contribution: e * a_i * P_i
-    // Lift pubkey (strict: reject x >= p). Use BOTH possible Y parities
-    // because the partial sign API takes a raw secret key (original parity),
-    // not an x-only key. BIP-327 signing uses d_i directly (no per-signer
-    // Y-parity flip), so P_i can have either Y parity.
+    ea = session.e * key_agg_ctx.key_coefficients[signer_index];
+    if (key_agg_ctx.Q_negated) ea = ea.negate();
+    // BIP-327: the signer's key term is e*a_i*g*gacc*P_i — fold gacc in to match
+    // musig2_partial_sign (gacc defaults to 1, so untweaked verification is unchanged).
+    ea = ea * key_agg_ctx.gacc;
+    return true;
+}
+
+// Jacobian point equality without normalizing to affine.
+bool jacobian_eq(const Point& A, const Point& B) {
+    auto const z1sq = A.z().square();
+    auto const z2sq = B.z().square();
+    if (A.X() * z2sq != B.X() * z1sq) return false;
+    auto const z1cu = z1sq * A.z();
+    auto const z2cu = z2sq * B.z();
+    return A.Y() * z2cu == B.Y() * z1cu;
+}
+
+} // anonymous namespace
+
+// x-only signer key: parity-LENIENT. The key's Y parity is not known, so both
+// candidates R_eff + ea*P and R_eff - ea*P are accepted. This is weaker than
+// BIP-327 PartialSigVerify: a signer can return s' = k1 + b*k2 - e*a_i*g*gacc*d_i,
+// which passes here yet makes the aggregate signature invalid. Callers that hold
+// the signer's 33-byte compressed key must use the overload below.
+bool musig2_partial_verify(
+    const Scalar& partial_sig,
+    const MuSig2PubNonce& pub_nonce,
+    const std::array<uint8_t, 32>& pubkey,
+    const MuSig2KeyAggCtx& key_agg_ctx,
+    const MuSig2Session& session,
+    std::size_t signer_index) {
+
+    Point sG = Point::infinity();
+    Point R_eff = Point::infinity();
+    Scalar ea = Scalar::zero();
+    if (!partial_verify_setup(partial_sig, pub_nonce, key_agg_ctx, session,
+                              signer_index, sG, R_eff, ea)) {
+        return false;
+    }
+
+    // Lift pubkey (strict: reject x >= p). Both Y parities are tried because
+    // an x-only key does not carry the signer's real parity.
     FieldElement px;
     if (!FieldElement::parse_bytes_strict(pubkey, px)) return false;
     auto x3 = px.square() * px;
@@ -585,28 +629,38 @@ bool musig2_partial_verify(
     auto y = y2.sqrt();
     if (y.square() != y2) return false;  // x not on curve -- reject
 
-    Scalar ea = session.e * key_agg_ctx.key_coefficients[signer_index];
-    if (key_agg_ctx.Q_negated) ea = ea.negate();
-    // BIP-327: the signer's key term is e*a_i*g*gacc*P_i — fold gacc in to match
-    // musig2_partial_sign (gacc defaults to 1, so untweaked verification is unchanged).
-    ea = ea * key_agg_ctx.gacc;
-
-    // Helper: check if sG == R_eff + ea * Point::from_affine(px, y_candidate)
-    auto jacobian_eq = [](const Point& A, const Point& B) -> bool {
-        auto const z1sq = A.z().square();
-        auto const z2sq = B.z().square();
-        if (A.X() * z2sq != B.X() * z1sq) return false;
-        auto const z1cu = z1sq * A.z();
-        auto const z2cu = z2sq * B.z();
-        return A.Y() * z2cu == B.Y() * z1cu;
-    };
-
     // Try even-Y candidate; ea * (-Pi) = -(ea * Pi) so only one scalar_mul needed.
     FieldElement y_even = (y.limbs()[0] & 1) ? y.negate() : y;
     auto Pi_even = Point::from_affine(px, y_even);
     auto eaP = Pi_even.scalar_mul(ea);
     if (jacobian_eq(sG, R_eff.add(eaP))) return true;
     return jacobian_eq(sG, R_eff.add(eaP.negate()));
+}
+
+// 33-byte compressed signer key: BIP-327 PartialSigVerify. Only the key's real
+// parity (cpoint(pk_i)) is checked: s*G == R_eff + e*a_i*g*gacc*P_i.
+// The negated-key-term partial signature is rejected (NF-2026-00028).
+bool musig2_partial_verify(
+    const Scalar& partial_sig,
+    const MuSig2PubNonce& pub_nonce,
+    const std::array<uint8_t, 33>& pubkey,
+    const MuSig2KeyAggCtx& key_agg_ctx,
+    const MuSig2Session& session,
+    std::size_t signer_index) {
+
+    Point sG = Point::infinity();
+    Point R_eff = Point::infinity();
+    Scalar ea = Scalar::zero();
+    if (!partial_verify_setup(partial_sig, pub_nonce, key_agg_ctx, session,
+                              signer_index, sG, R_eff, ea)) {
+        return false;
+    }
+
+    // Strict decompression: prefix 02/03, x < p, x on the curve.
+    auto const Pi = decompress_point(pubkey);
+    if (Pi.is_infinity()) return false;
+
+    return jacobian_eq(sG, R_eff.add(Pi.scalar_mul(ea)));
 }
 
 // -- Signature Aggregation ----------------------------------------------------

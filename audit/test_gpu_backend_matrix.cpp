@@ -55,6 +55,9 @@ static void probe_ops(ufsecp_gpu_ctx* ctx, const char* backend_name) {
     // single tweak candidate -- content doesn't matter for probing.
     auto e8 = ufsecp_gpu_bip352_scan_batch_multispend(
         ctx, scalar, pub33, 1, pub33, 1, reinterpret_cast<uint64_t*>(out));
+    // Bitcoin Cash 2019 Schnorr verify: dummy item (result is 0; only the
+    // dispatch status is probed).
+    auto e9 = ufsecp_gpu_bch_schnorr_verify_batch(ctx, hash32, pub33, sig64, 1, out);
 
     std::printf("  +----------------------------------------+\n");
     std::printf("  | %-12s | %-24s |\n", "Operation", "Status");
@@ -67,6 +70,7 @@ static void probe_ops(ufsecp_gpu_ctx* ctx, const char* backend_name) {
     std::printf("  | %-12s | %-24s |\n", "msm",         probe_status(e6));
     std::printf("  | %-12s | %-24s |\n", "ecrecover",   probe_status(e7));
     std::printf("  | %-12s | %-24s |\n", "bip352_multi",probe_status(e8));
+    std::printf("  | %-12s | %-24s |\n", "bch_schnorr", probe_status(e9));
     std::printf("  +----------------------------------------+\n");
 }
 

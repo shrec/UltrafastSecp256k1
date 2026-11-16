@@ -606,6 +606,112 @@ Point pippenger_msm_glv(const Scalar* scalars,
     return pippenger_core(half, pts, m, pippenger_glv_window(m), 129);
 }
 
+// -- Short-scalar GLV Pippenger -----------------------------------------------
+// The Schnorr batch shape. A BIP-340 batch with 128-bit randomizers hands the
+// MSM two kinds of term: n full-width scalars c_i = a_i * e_i, which still need
+// a GLV split to get down to 128 bits, and n scalars a_i that are ALREADY below
+// 2^128 and gain nothing from a split. pippenger_msm_glv would split both, so
+// the bucket engine would run over 4n points; splitting only the full-width
+// stream gives 2n + n = 3n points at the same 129-bit scalar length.
+//
+// Sign convention is the one pippenger_msm_glv uses: the decomposition signs
+// are carried by the points, so every scalar fed to pippenger_core is a
+// non-negative magnitude. A caller that needs a negated term negates its point
+// before the call (negation is one field negation and keeps z = 1).
+namespace {
+
+// Window width for the short shape: m = 2*n_full + n_short points, 129-bit
+// scalars, affine inputs. Same cost model as pippenger_glv_window (half-length
+// scalars, so half the windows), but m is 3N for an N-signature batch instead
+// of 4N, so it was swept on its own: a copy of THIS file with the window
+// forced, linked against the same library, every timing gated on agreeing with
+// pippenger_msm_glv over the same terms. i5-14400F, GCC 14.2, pinned to one
+// core, median of 5 (7 for m <= 384); powersave governor with turbo ON, so
+// treat single cells as +-5%. Microseconds per MSM:
+//
+//      m     c=5      c=6      c=7      c=8      c=9     c=10
+//    117   594.6    636.5    585.7    729.3    996.0   1519.5
+//    192   820.4    868.4    821.5    887.1   1165.5   1661.0
+//    384  1445.6   1361.6   1253.9   1374.1   1578.1   2124.9
+//    576       -   1866.4   1691.9   1765.2   1974.7   2460.9
+//    768       -   2372.5   2431.3   2234.3   2560.0   2867.2
+//   1536       -   4477.1   4198.0   3842.5   4213.5   4506.4
+//   3072       -   8321.2   7806.7   7071.8   7267.1   7315.3
+//   6144       -  16292.5  16055.3  13594.2  13306.5  12135.5
+//  12288       -  32738.8  31801.1  27212.6  25586.2  23435.1
+//
+// The difference from pippenger_glv_window is the top: c = 10 beats the c = 9
+// that table would pick by ~9% at m = 6144 and 12288. The 8 -> 10 edge sits at
+// 4096, between the two measured rows; m > 12288 is unmeasured and keeps 10.
+unsigned pippenger_short_window(std::size_t m) {
+    if (m <= 16)    return 4;
+    if (m <= 96)    return 5;
+    if (m <= 640)   return 7;
+    if (m <= 4096)  return 8;
+    return 10;
+}
+
+inline bool scalar_below_2_128(const Scalar& s) {
+    auto const& l = s.limbs();
+    return l[2] == 0 && l[3] == 0;
+}
+
+} // namespace
+
+Point pippenger_msm_glv_short(const Scalar* full_scalars,
+                              const Point* full_points,
+                              std::size_t n_full,
+                              const Scalar* short_scalars,
+                              const Point* short_points,
+                              std::size_t n_short) {
+    // A "short" scalar that is not actually below 2^128 would have its high
+    // bits silently dropped by the 129-bit digit extraction below, i.e. the
+    // MSM would return a well-formed wrong answer. The precondition is cheap
+    // to check, so it is checked: such a scalar is GLV-split like a full one.
+    std::size_t n_long_short = 0;
+    for (std::size_t i = 0; i < n_short; ++i) {
+        if (!scalar_below_2_128(short_scalars[i])) ++n_long_short;
+    }
+    std::size_t const m = 2 * n_full + n_short + n_long_short;
+    if (m == 0) return Point::infinity();
+
+    static thread_local std::vector<Scalar> tl_sc;
+    static thread_local std::vector<Point>  tl_pts;
+    if (tl_sc.size()  < m) tl_sc.resize(m);
+    if (tl_pts.size() < m) tl_pts.resize(m);
+    Scalar* const sc  = tl_sc.data();
+    Point*  const pts = tl_pts.data();
+
+    std::size_t k = 0;
+    auto glv_split = [&](const Scalar& s, const Point& P) {
+        fast::GLVDecomposition const d = fast::glv_decompose(s);
+        sc[k]  = d.k1;
+        pts[k] = d.k1_neg ? P.negate() : P;
+        ++k;
+        Point const e = endomorphism_inplace_repr(P);
+        sc[k]  = d.k2;
+        pts[k] = d.k2_neg ? e.negate() : e;
+        ++k;
+    };
+
+    for (std::size_t i = 0; i < n_short; ++i) {
+        if (SECP256K1_LIKELY(scalar_below_2_128(short_scalars[i]))) {
+            sc[k]  = short_scalars[i];
+            pts[k] = short_points[i];
+            ++k;
+        } else {
+            glv_split(short_scalars[i], short_points[i]);
+        }
+    }
+    for (std::size_t i = 0; i < n_full; ++i) {
+        glv_split(full_scalars[i], full_points[i]);
+    }
+
+    // 129 for the same reason as pippenger_msm_glv: the GLV halves are below
+    // 2^128 and the short scalars are below 2^128 by the check above.
+    return pippenger_core(sc, pts, k, pippenger_short_window(k), 129);
+}
+
 // -- Signed-digit Pippenger (halved bucket count) -----------------------------
 // Uses signed digits [-2^(c-1), ..., -1, 0, 1, ..., 2^(c-1)]
 // This halves the number of buckets (2^(c-1) instead of 2^c) at the cost
@@ -646,9 +752,9 @@ Point pippenger_msm(const std::vector<Scalar>& scalars,
 // n endomorphisms, 2n point copies -- is not yet amortised over enough bucket
 // work; above it the halved aggregation term wins and keeps winning.
 //
-// This is the routing schnorr_batch_verify uses (N signatures -> n = 2N
-// points), so the whole batch-verification range from ~30 signatures upward
-// runs through the last column.
+// schnorr_batch_verify no longer goes through msm(): with 128-bit weights its
+// R terms need no GLV split, so it calls pippenger_msm_glv_short directly
+// (N signatures -> 3N bucket points) -- see the note above that function.
 //
 // pippenger_msm keeps its OWN fallback at n < 48 on purpose: the audit suite
 // calls it directly to exercise the bucket path at n = 64, 100 and 128, and

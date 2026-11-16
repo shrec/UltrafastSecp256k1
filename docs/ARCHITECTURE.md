@@ -1,6 +1,6 @@
 # Architecture
 
-**UltrafastSecp256k1 v4.6.2** -- Technical Architecture for Auditors
+**UltrafastSecp256k1 v4.7.0** -- Technical Architecture for Auditors
 
 ---
 
@@ -431,4 +431,4 @@ Verification:
 
 ---
 
-*UltrafastSecp256k1 v4.6.2 -- Architecture*
+*UltrafastSecp256k1 v4.7.0 -- Architecture*

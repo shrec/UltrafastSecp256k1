@@ -129,8 +129,12 @@ __kernel void ct_smoke_ecdsa(__global int* result) {
     privkey.limbs[2] = 0UL;
     privkey.limbs[3] = 0UL;
 
+    // Private copy of the __constant message (the signer/verifier take private pointers).
+    uchar msg[32];
+    for (int i = 0; i < 32; ++i) msg[i] = CT_SMOKE_MSG[i];
+
     ECDSASignature sig;
-    int ok = ct_ecdsa_sign_impl(CT_SMOKE_MSG, &privkey, &sig);
+    int ok = ct_ecdsa_sign_impl(msg, &privkey, &sig);
     if (!ok) { *result = 1; return; }
 
     // Derive pubkey = 1*G via CT generator mul
@@ -138,7 +142,7 @@ __kernel void ct_smoke_ecdsa(__global int* result) {
     ct_generator_mul_impl(&privkey, &pub_jac);
     JacobianPoint pub = ct_point_to_jacobian(&pub_jac);
 
-    int verified = ecdsa_verify_impl(CT_SMOKE_MSG, &pub, &sig);
+    int verified = ecdsa_verify_impl(msg, &pub, &sig);
     *result = verified ? 0 : 2;
 }
 
@@ -156,8 +160,13 @@ __kernel void ct_smoke_schnorr(__global int* result) {
     privkey.limbs[2] = 0UL;
     privkey.limbs[3] = 0UL;
 
+    // The signer and verifier take private pointers: copy the __constant
+    // vectors into private arrays (passing them directly is an address-space error).
+    uchar msg[32], aux[32];
+    for (int i = 0; i < 32; ++i) { msg[i] = CT_SMOKE_MSG[i]; aux[i] = CT_SMOKE_AUX[i]; }
+
     uchar sig64[64];
-    int ok = ct_schnorr_sign_impl(&privkey, CT_SMOKE_MSG, CT_SMOKE_AUX, sig64);
+    int ok = ct_schnorr_sign_impl(&privkey, msg, aux, sig64);
     if (!ok) { *result = 1; return; }
 
     // Derive pubkey x-coordinate via CT (BIP-340 xonly pubkey)
@@ -177,6 +186,6 @@ __kernel void ct_smoke_schnorr(__global int* result) {
     for (int i = 0; i < 32; ++i) ssig.r[i] = sig64[i];
     scalar_from_bytes_impl(sig64 + 32, &ssig.s);
 
-    int verified = schnorr_verify_impl(pub_x_bytes, CT_SMOKE_MSG, &ssig);
+    int verified = schnorr_verify_impl(pub_x_bytes, msg, &ssig);
     *result = verified ? 0 : 2;
 }

@@ -1,0 +1,111 @@
+{
+  "report_type": "ab_opencl-hash160-65",
+  "generated_by": "ocl3_ab.py (scratch driver; every number parsed from harness output)",
+  "date": "2026-11-03T18:26:58.407278+00:00",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "rounds": 5,
+  "forms": {
+    "old": "the loop kernel before 39044386",
+    "prev": "the shipped kernel (39044386) with the 65-byte dispatch line stripped, so 65-byte keys take the generic SHA-256",
+    "new": "shipped kernel with sha256_65_impl for 65-byte keys"
+  },
+  "verdict_rule": "improvement iff new_max < base_min; regression iff new_min > base_max; else inconclusive",
+  "binary": {
+    "path": "out/opencl-release/src/opencl/opencl_hash160_ab_bench",
+    "sha256": "f465aebb91158724963b2c08893e65fd96264ee204fa7d8a9c6bd48add632c5b"
+  },
+  "ops": {
+    "hash160 len=33": {
+      "old": {
+        "rounds": [
+          0.9322,
+          0.9304,
+          0.926,
+          0.8992,
+          0.9309
+        ],
+        "median": 0.9304,
+        "min": 0.8992,
+        "max": 0.9322,
+        "spread_pct": 3.546861564918318
+      },
+      "prev": {
+        "rounds": [
+          0.3968,
+          0.3967,
+          0.396,
+          0.3913,
+          0.396
+        ],
+        "median": 0.396,
+        "min": 0.3913,
+        "max": 0.3968,
+        "spread_pct": 1.38888888888889
+      },
+      "new": {
+        "rounds": [
+          0.4172,
+          0.4173,
+          0.4171,
+          0.4166,
+          0.4169
+        ],
+        "median": 0.4171,
+        "min": 0.4166,
+        "max": 0.4173,
+        "spread_pct": 0.16782546152001399
+      },
+      "verdict_new_vs_prev": "regression",
+      "verdict_new_vs_old": "improvement",
+      "new_over_prev_median": 1.0532828282828284,
+      "new_over_old_median": 0.4483018056749785
+    },
+    "hash160 len=65": {
+      "old": {
+        "rounds": [
+          1.2581,
+          1.2807,
+          1.2686,
+          1.2525,
+          1.2564
+        ],
+        "median": 1.2581,
+        "min": 1.2525,
+        "max": 1.2807,
+        "spread_pct": 2.2414752404419365
+      },
+      "prev": {
+        "rounds": [
+          1.0021,
+          0.9689,
+          0.9582,
+          0.9561,
+          0.9586
+        ],
+        "median": 0.9586,
+        "min": 0.9561,
+        "max": 1.0021,
+        "spread_pct": 4.798664719382437
+      },
+      "new": {
+        "rounds": [
+          0.6624,
+          0.6618,
+          0.644,
+          0.6339,
+          0.6358
+        ],
+        "median": 0.644,
+        "min": 0.6339,
+        "max": 0.6624,
+        "spread_pct": 4.425465838509312
+      },
+      "verdict_new_vs_prev": "improvement",
+      "verdict_new_vs_old": "improvement",
+      "new_over_prev_median": 0.6718130607135406,
+      "new_over_old_median": 0.5118829981718465
+    }
+  },
+  "last_run_stdout": "device: NVIDIA GeForce RTX 5060 Ti\nkeys=1048576 iters=20 reps=11 (median over reps; ns/hash is device kernel time / (keys*iters))\nlen=33  old=0.9309  prev=0.3960  new=0.4169 ns/hash  old/new=2.233  prev/new=0.950  agree=yes\n  old min..max: 0.8947..0.9333\n  prev min..max: 0.3818..0.3968\n  new min..max: 0.4014..0.4179\nlen=65  old=1.2564  prev=0.9586  new=0.6358 ns/hash  old/new=1.976  prev/new=1.508  agree=yes\n  old min..max: 1.2462..1.3123\n  prev min..max: 0.9539..1.0036\n  new min..max: 0.6239..0.6638\nRESULT: old, prev and new agree on every key\n",
+  "decision": "not shipped: the 65-byte form is faster, but the 33-byte form regresses in the same kernel (verdict_new_vs_prev = regression); the kernel and the Metal mirror keep the generic SHA-256 for 65-byte keys until per-length kernels exist"
+}

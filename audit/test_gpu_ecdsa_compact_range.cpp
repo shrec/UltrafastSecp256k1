@@ -165,12 +165,16 @@ std::string extract_function_body(const std::string& src, size_t sig_pos) {
     return {};
 }
 
-// True when guard appears in body before the scalar_inverse() call
-// ("scalar_inverse" also matches scalar_inverse_impl in the OpenCL kernel).
+// True when guard appears in body before the scalar inverse call: either
+// scalar_inverse() ("scalar_inverse" also matches scalar_inverse_impl in the
+// OpenCL kernel) or scalar_inv_var(), the variable-time inverse the CUDA
+// verifier uses on the public signature scalar.
 bool guard_before_inverse(const std::string& body, const std::string& guard) {
     const size_t g = body.find(guard);
     if (g == std::string::npos) return false;
-    const size_t inv = body.find("scalar_inverse");
+    size_t inv = body.find("scalar_inverse");
+    const size_t inv_var = body.find("scalar_inv_var");
+    if (inv_var < inv) inv = inv_var;               // npos is the largest size_t
     return inv != std::string::npos && g < inv;
 }
 

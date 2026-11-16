@@ -82,9 +82,13 @@ def scan_ctest_targets():
     targets = set()
     test_re = re.compile(r'add_test\s*\(\s*NAME\s+(\S+)')
     for cmake_file in LIB_ROOT.rglob('CMakeLists.txt'):
-        # Skip build directories
+        # Skip build directories, and hidden top-level trees such as
+        # .aiworkhub/runtime/worktrees/*: those hold other checkouts of this
+        # repo, and their CMakeLists.txt are not this tree's tests.
         rel = str(cmake_file.relative_to(LIB_ROOT))
         if rel.startswith('build') or rel.startswith('out') or '_build' in rel:
+            continue
+        if rel.startswith('.'):
             continue
         try:
             with open(cmake_file, 'r', errors='replace') as f:

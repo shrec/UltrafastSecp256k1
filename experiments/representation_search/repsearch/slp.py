@@ -48,7 +48,17 @@ DEFAULT_WEIGHTS = {
     "mul": 1.00,
     "sqr": 0.93,
     "add": 0.06,
-    "sub": 0.06,
+    # FE52 has NO subtract.  Its only additive primitives are add_assign and
+    # negate_assign (point.cpp's kernels are written in exactly those two), so a
+    # candidate spelled `sub(a, b)` compiles to the same negate-then-add that a
+    # candidate spelled `add(a, neg(b))` compiles to.  Weighting sub below
+    # neg + add therefore hands a formula a discount for a spelling the engine
+    # cannot emit -- and it did: an all-pairs registry sweep reported four
+    # "unconditional improvements" (dbl_prod_alt_sign, madd_prod_no_signfold)
+    # whose multiply and square counts were IDENTICAL to the shipped formulas'.
+    # Every one of those deltas was this discount, and the size of each was
+    # exactly the reference formula's neg count.  sub must cost neg + add.
+    "sub": 0.10,
     "neg": 0.04,
     "mulint": 0.05,
     "half": 0.05,

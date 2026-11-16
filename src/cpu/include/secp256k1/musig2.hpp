@@ -140,10 +140,28 @@ fast::Scalar musig2_partial_sign(
     std::size_t signer_index);
 
 // Verify a partial signature (optional, for honest-signer detection).
+//
+// x-only overload: PARITY-LENIENT. The signer's Y parity is unknown, so it
+// accepts s_i if s_i*G == R_i + e*a_i*g*gacc*P_i for EITHER parity of P_i.
+// A signer can therefore pass with the negated key term
+// (s_i' = k1 + b*k2 - e*a_i*g*gacc*d_i), which makes the aggregate signature
+// invalid without being blamed. Prefer the 33-byte overload when the signer's
+// compressed key is known.
 bool musig2_partial_verify(
     const fast::Scalar& partial_sig,
     const MuSig2PubNonce& pub_nonce,
     const std::array<std::uint8_t, 32>& pubkey,
+    const MuSig2KeyAggCtx& key_agg_ctx,
+    const MuSig2Session& session,
+    std::size_t signer_index);
+
+// 33-byte compressed-key overload (02/03 prefix): BIP-327 PartialSigVerify.
+// Checks only the key's real parity, cpoint(pk_i); rejects the negated-key-term
+// partial signature. Returns false on a malformed or off-curve key.
+bool musig2_partial_verify(
+    const fast::Scalar& partial_sig,
+    const MuSig2PubNonce& pub_nonce,
+    const std::array<std::uint8_t, 33>& pubkey,
     const MuSig2KeyAggCtx& key_agg_ctx,
     const MuSig2Session& session,
     std::size_t signer_index);

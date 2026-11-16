@@ -893,6 +893,245 @@ FORCE_INLINE void field_inv_impl(FieldElement* r, const FieldElement* a) {
 }
 
 // =============================================================================
+// Variable-time modular inverse (Bernstein-Yang SafeGCD) -- PUBLIC DATA ONLY
+// =============================================================================
+//   field_inv_var_impl(r, a)    r = a^-1 mod p   (defined below)
+//   scalar_inv_var_impl(a, r)   r = a^-1 mod n   (secp256k1_extended.cl, next
+//                                                 to scalar_inverse_impl)
+//   modinv30_var_impl(...)      the core both of them call
+//
+// !! VARIABLE TIME -- PUBLIC DATA ONLY !!
+// The number of loop iterations depends on the VALUE being inverted. Never
+// call these on a private key, a nonce, a signing share, an ECDH scalar, a
+// BIP-32 / BIP-352 secret, or on the Z coordinate of a point produced by a
+// secret scalar multiplication (k*G, sk*G, sk*P). Signing, ECDH, key
+// generation, provers, every secp256k1_ct_*.cl file and the shared affine
+// helpers keep field_inv_impl / scalar_inverse_impl / the ct_* inverses.
+// OpenCL has no namespaces, so the rule is enforced by a source scan in
+// audit/test_regression_opencl_kernel_closure.cpp: these three names may not
+// appear in any secp256k1_ct_*.cl file, nor inside any function whose name
+// contains sign, ecdh, keygen, derive or prove.
+// Callers: signature verification, public-key recovery, the Taproot
+// commitment check, the ECDSA SNARK witness, FROST partial verification and
+// the Shamir helper used only by verifiers; docs/AUDIT_CHANGELOG.md has the
+// per-site reasoning. A new caller needs its own argument that no secret, or
+// value derived from one, reaches the inversion.
+//
+// Contract (same value as field_inv_impl / scalar_inverse_impl):
+//   - input: any 256-bit value, reduced or not; input and output may alias
+//   - output: canonical, in [0, modulus); 0 when the input is 0 mod modulus
+//   - always terminates: at most MODINV30_MAX_ITERS outer iterations of at
+//     most 30 inner passes each; if the cap were reached the result is 0
+//     (fail closed) -- not reachable for a 256-bit input, see the cap below
+//
+// Algorithm: Bernstein-Yang safegcd ("Fast constant-time gcd computation and
+// modular inversion", 2019), variable-time form, 30 divsteps per batch on
+// 9 signed 30-bit limbs with 64-bit accumulators. Port of the CUDA code in
+// src/cuda/include/modinv_var.cuh, itself a port of this library's CPU
+// safegcd30 code, which is adapted from bitcoin-core/secp256k1
+// secp256k1_modinv32_var (src/modinv32_impl.h):
+//   Copyright (c) 2020 Peter Dettman
+//   Distributed under the MIT software license, see
+//   https://www.opensource.org/licenses/mit-license.php.
+// As in the CUDA code: hard cap on the outer loop, table-free 6-bit inner
+// step w = f*g*(f*f-2), f and g always keep 9 limbs (compile-time indices
+// only, so the state stays in registers), the input is reduced first, and on
+// NVIDIA each signed 32x32->64 product is one mul.wide.s32.
+// =============================================================================
+
+// 25 * 30 = 750 divsteps. 741 divsteps are proven sufficient for any 256-bit
+// input with delta starting at 1 (Bernstein-Yang, Theorem 11.2); 724 by
+// sipa/safegcd-bounds. bitcoin-core/secp256k1 modinv32_var uses the same 25.
+#define MODINV30_MAX_ITERS 25
+
+// acc + a*b, signed 32x32->64.
+FORCE_INLINE long modinv30_mul_add(long acc, int a, int b) {
+#ifdef __NV_CL_C_VERSION
+    long p;
+    __asm volatile("mul.wide.s32 %0, %1, %2;" : "=l"(p) : "r"(a), "r"(b));
+    return acc + p;
+#else
+    return acc + (long)a * (long)b;
+#endif
+}
+
+// 30 divsteps on the low words of f and g. Returns the new eta (= -delta) and
+// writes the transition matrix (u, v, q, r), scaled by 2^30.
+// Bounded for ANY f, g: every pass after the first removes at least one of
+// the 30 steps (f is forced odd by the caller, and g is odd after the shift).
+FORCE_INLINE int modinv30_divsteps_30_var(int eta, uint f, uint g,
+                                          int* tu, int* tv, int* tq, int* tr) {
+    uint u = 1u, v = 0u, q = 0u, r = 1u;
+    int i = 30;
+    for (;;) {
+        // strip zero bits of g; the sentinel at bit i stops the count at i
+        const uint x = g | (0xFFFFFFFFu << i);
+        const int zeros = 31 - (int)clz(x & (0u - x));
+        g >>= zeros; u <<= zeros; v <<= zeros; eta -= zeros; i -= zeros;
+        if (i == 0) break;
+        // eta < 0: (f, g) <- (g, -f), same for the matrix rows (selects)
+        const int swap = eta < 0;
+        const uint f0 = f, u0 = u, v0 = v;
+        eta = swap ? -eta : eta;
+        f = swap ? g : f0;   g = swap ? (0u - f0) : g;
+        u = swap ? q : u0;   q = swap ? (0u - u0) : q;
+        v = swap ? r : v0;   r = swap ? (0u - v0) : r;
+        // cancel up to 6 low bits of g with a multiple of f (f odd):
+        // g + f*w == g*(f*f-1)^2 == 0 (mod 64)
+        const int limit = (eta + 1) < i ? (eta + 1) : i;
+        const uint m = (0xFFFFFFFFu >> (32 - limit)) & 63u;
+        const uint w = ((f * g) * (f * f - 2u)) & m;
+        g += f * w; q += u * w; r += v * w;
+    }
+    *tu = (int)u; *tv = (int)v; *tq = (int)q; *tr = (int)r;
+    return eta;
+}
+
+// r4 = (a4 mod M)^-1 mod M, canonical, where M = n when is_n != 0, else p.
+// 0 if a4 == 0 mod M or if max_iters is reached. Returns the number of outer
+// iterations used. a4 == r4 is allowed. Every call site passes a literal
+// is_n, so after inlining the modulus constants fold to immediates.
+// max_iters is a parameter only so that the OpenCL audit runner can exercise
+// the fail-closed path; production callers pass MODINV30_MAX_ITERS.
+// VARIABLE TIME, PUBLIC DATA ONLY (see the block comment above).
+FORCE_INLINE int modinv30_var_impl(const ulong* a4, ulong* r4,
+                                   const int is_n, const int max_iters) {
+    const uint M30 = 0x3FFFFFFFu;
+
+    // Modulus as 9 signed 30-bit limbs (value = sum ml[i] * 2^(30*i)), its
+    // inverse mod 2^30, and the same modulus as 4 x 64-bit limbs.
+    const int ml[9] = {
+        is_n ? 0x10364141 : -0x3D1,  is_n ? 0x3F497A33 : -4,
+        is_n ? 0x348A03BB : 0,       is_n ? 0x2BB739AB : 0,
+        is_n ? -0x146 : 0,           0, 0, 0, 65536
+    };
+    const uint inv30 = is_n ? 0x2A774EC1u : 0x2DDACACFu;
+    const ulong m0 = is_n ? 0xBFD25E8CD0364141UL : 0xFFFFFFFEFFFFFC2FUL;
+    const ulong m1 = is_n ? 0xBAAEDCE6AF48A03BUL : 0xFFFFFFFFFFFFFFFFUL;
+    const ulong m2 = is_n ? 0xFFFFFFFFFFFFFFFEUL : 0xFFFFFFFFFFFFFFFFUL;
+    const ulong m3 = 0xFFFFFFFFFFFFFFFFUL;
+
+    // x = a >= M ? a - M : a   (M < 2^256 < 2M, so one subtraction is enough)
+    ulong x0 = a4[0], x1 = a4[1], x2 = a4[2], x3 = a4[3];
+    {
+        ulong borrow = 0;
+        const ulong t0 = sub_with_borrow(x0, m0, 0UL, &borrow);
+        const ulong t1 = sub_with_borrow(x1, m1, borrow, &borrow);
+        const ulong t2 = sub_with_borrow(x2, m2, borrow, &borrow);
+        const ulong t3 = sub_with_borrow(x3, m3, borrow, &borrow);
+        const ulong keep = 0UL - borrow;            // all-ones when a < M
+        x0 = (x0 & keep) | (t0 & ~keep);
+        x1 = (x1 & keep) | (t1 & ~keep);
+        x2 = (x2 & keep) | (t2 & ~keep);
+        x3 = (x3 & keep) | (t3 & ~keep);
+    }
+
+    // d = 0, e = 1, f = M, g = x
+    int d[9], e[9], f[9], g[9];
+    #pragma unroll
+    for (int i = 0; i < 9; ++i) { d[i] = 0; e[i] = 0; f[i] = ml[i]; }
+    e[0] = 1;
+    g[0] = (int)((uint)x0 & M30);
+    g[1] = (int)((uint)(x0 >> 30) & M30);
+    g[2] = (int)((uint)((x0 >> 60) | (x1 << 4)) & M30);
+    g[3] = (int)((uint)(x1 >> 26) & M30);
+    g[4] = (int)((uint)((x1 >> 56) | (x2 << 8)) & M30);
+    g[5] = (int)((uint)(x2 >> 22) & M30);
+    g[6] = (int)((uint)((x2 >> 52) | (x3 << 12)) & M30);
+    g[7] = (int)((uint)(x3 >> 18) & M30);
+    g[8] = (int)(x3 >> 48);
+
+    int eta = -1;
+    int done = 0;
+    int it = 0;
+    while (it < max_iters) {
+        ++it;
+        int u, v, q, r;
+        // "| 1u": f is always odd, the OR only makes the inner loop bound
+        // independent of that invariant
+        eta = modinv30_divsteps_30_var(eta, (uint)f[0] | 1u, (uint)g[0], &u, &v, &q, &r);
+
+        // (d, e) <- (matrix / 2^30) * (d, e) mod M
+        {
+            const int sd = d[8] >> 31, se = e[8] >> 31;
+            int md = (u & sd) + (v & se);
+            int me = (q & sd) + (r & se);
+            long cd = modinv30_mul_add(modinv30_mul_add(0L, u, d[0]), v, e[0]);
+            long ce = modinv30_mul_add(modinv30_mul_add(0L, q, d[0]), r, e[0]);
+            md -= (int)((inv30 * (uint)cd + (uint)md) & M30);
+            me -= (int)((inv30 * (uint)ce + (uint)me) & M30);
+            cd += (long)ml[0] * md;
+            ce += (long)ml[0] * me;
+            cd >>= 30; ce >>= 30;                    // low 30 bits are zero
+            #pragma unroll
+            for (int i = 1; i < 9; ++i) {
+                cd = modinv30_mul_add(modinv30_mul_add(cd, u, d[i]), v, e[i]);
+                ce = modinv30_mul_add(modinv30_mul_add(ce, q, d[i]), r, e[i]);
+                if (ml[i] != 0) {                    // constant after unrolling
+                    cd += (long)ml[i] * md;
+                    ce += (long)ml[i] * me;
+                }
+                d[i - 1] = (int)((uint)cd & M30); cd >>= 30;
+                e[i - 1] = (int)((uint)ce & M30); ce >>= 30;
+            }
+            d[8] = (int)cd; e[8] = (int)ce;
+        }
+
+        // (f, g) <- (matrix / 2^30) * (f, g), exact; g_nonzero = OR of the new g
+        int g_nonzero;
+        {
+            long cf = modinv30_mul_add(modinv30_mul_add(0L, u, f[0]), v, g[0]);
+            long cg = modinv30_mul_add(modinv30_mul_add(0L, q, f[0]), r, g[0]);
+            cf >>= 30; cg >>= 30;                    // low 30 bits are zero
+            g_nonzero = 0;
+            #pragma unroll
+            for (int i = 1; i < 9; ++i) {
+                cf = modinv30_mul_add(modinv30_mul_add(cf, u, f[i]), v, g[i]);
+                cg = modinv30_mul_add(modinv30_mul_add(cg, q, f[i]), r, g[i]);
+                f[i - 1] = (int)((uint)cf & M30); cf >>= 30;
+                g[i - 1] = (int)((uint)cg & M30); cg >>= 30;
+                g_nonzero |= g[i - 1];
+            }
+            f[8] = (int)cf; g[8] = (int)cg;
+            g_nonzero |= g[8];
+        }
+        if (g_nonzero == 0) { done = 1; break; }
+    }
+
+    // normalize d to [0, M), negating first when f == -1
+    {
+        int cond_add = d[8] >> 31;
+        #pragma unroll
+        for (int i = 0; i < 9; ++i) d[i] += ml[i] & cond_add;
+        const int cond_neg = f[8] >> 31;
+        #pragma unroll
+        for (int i = 0; i < 9; ++i) d[i] = (d[i] ^ cond_neg) - cond_neg;
+        #pragma unroll
+        for (int i = 0; i < 8; ++i) { d[i + 1] += d[i] >> 30; d[i] &= (int)M30; }
+        cond_add = d[8] >> 31;
+        #pragma unroll
+        for (int i = 0; i < 9; ++i) d[i] += ml[i] & cond_add;
+        #pragma unroll
+        for (int i = 0; i < 8; ++i) { d[i + 1] += d[i] >> 30; d[i] &= (int)M30; }
+    }
+
+    const ulong ok = 0UL - (ulong)done;             // cap reached -> 0 (fail closed)
+    const ulong d0 = (uint)d[0], d1 = (uint)d[1], d2 = (uint)d[2],
+                d3 = (uint)d[3], d4 = (uint)d[4], d5 = (uint)d[5],
+                d6 = (uint)d[6], d7 = (uint)d[7], d8 = (uint)d[8];
+    r4[0] = ok & (d0 | (d1 << 30) | (d2 << 60));
+    r4[1] = ok & ((d2 >> 4) | (d3 << 26) | (d4 << 56));
+    r4[2] = ok & ((d4 >> 8) | (d5 << 22) | (d6 << 52));
+    r4[3] = ok & ((d6 >> 12) | (d7 << 18) | (d8 << 48));
+    return it;
+}
+
+// r = a^-1 mod p. VARIABLE TIME, PUBLIC DATA ONLY (see the block comment above).
+FORCE_INLINE void field_inv_var_impl(FieldElement* r, const FieldElement* a) {
+    (void)modinv30_var_impl(a->limbs, r->limbs, 0, MODINV30_MAX_ITERS);
+}
+
+// =============================================================================
 // OpenCL Kernels
 // =============================================================================
 

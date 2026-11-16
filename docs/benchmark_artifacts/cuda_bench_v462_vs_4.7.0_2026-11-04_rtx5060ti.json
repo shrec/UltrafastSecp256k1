@@ -1,0 +1,211 @@
+{
+ "report_type": "cuda_bench_release_compare",
+ "generated_by": "secp256k1_cuda_bench (no arguments), one run per binary; rows parsed from its stdout by a script, none typed by hand",
+ "date": "2026-11-04",
+ "gpu": "NVIDIA GeForce RTX 5060 Ti, driver 580.196.07, CUDA 13.2",
+ "build": "cuda-release-5060ti preset in each tree",
+ "base": {
+  "commit": "80b08d5a (v4.6.2)",
+  "binary_sha256": "784f1858a0e6587731c738964dd77ff2d580b3d2a93b677e436ce874ecee30a9",
+  "rows": {
+   "Field Arithmetic / Field Mul": {
+    "ns_per_op": 0.2,
+    "mops": 4135.08,
+    "batch": 1048576
+   },
+   "Field Arithmetic / Field Add": {
+    "ns_per_op": 0.2,
+    "mops": 4131.64,
+    "batch": 1048576
+   },
+   "Field Arithmetic / Field Inverse": {
+    "ns_per_op": 11.0,
+    "mops": 91.07,
+    "batch": 65536
+   },
+   "Point Operations / Point Add": {
+    "ns_per_op": 2.0,
+    "mops": 507.46,
+    "batch": 262144
+   },
+   "Point Operations / Point Double": {
+    "ns_per_op": 0.8,
+    "mops": 1282.73,
+    "batch": 262144
+   },
+   "Scalar Multiplication / Scalar Mul (P*k)": {
+    "ns_per_op": 215.0,
+    "mops": 4.65,
+    "batch": 65536
+   },
+   "Scalar Multiplication / Generator Mul (G*k)": {
+    "ns_per_op": 202.0,
+    "mops": 4.95,
+    "batch": 131072
+   },
+   "Affine Point Addition / Affine Add (2M+1S+inv)": {
+    "ns_per_op": 0.4,
+    "mops": 2586.67,
+    "batch": 262144
+   },
+   "Affine Point Addition / Affine Lambda (2M+1S)": {
+    "ns_per_op": 0.5,
+    "mops": 2109.27,
+    "batch": 262144
+   },
+   "Affine Point Addition / Affine X-Only (1M+1S)": {
+    "ns_per_op": 0.4,
+    "mops": 2433.46,
+    "batch": 262144
+   },
+   "Affine Point Addition / Batch Inv (Montgomery)": {
+    "ns_per_op": 3.5,
+    "mops": 285.17,
+    "batch": 1048576
+   },
+   "Affine Point Addition / Jac->Affine (per-pt)": {
+    "ns_per_op": 16.4,
+    "mops": 61.12,
+    "batch": 65536
+   },
+   "ECDSA Signatures / ECDSA Sign": {
+    "ns_per_op": 178.8,
+    "mops": 5.59,
+    "batch": 16384
+   },
+   "ECDSA Signatures / ECDSA Verify": {
+    "ns_per_op": 243.8,
+    "mops": 4.1,
+    "batch": 16384
+   },
+   "ECDSA Signatures / ECDSA Sign+Recid": {
+    "ns_per_op": 185.3,
+    "mops": 5.4,
+    "batch": 16384
+   },
+   "Schnorr Signatures (BIP-340) / Schnorr Sign": {
+    "ns_per_op": 223.5,
+    "mops": 4.47,
+    "batch": 16384
+   },
+   "Schnorr Signatures (BIP-340) / Schnorr Verify": {
+    "ns_per_op": 168.9,
+    "mops": 5.92,
+    "batch": 16384
+   },
+   "FROST Threshold Signatures / FROST Partial Verify": {
+    "ns_per_op": 691.0,
+    "mops": 1.45,
+    "batch": 16384
+   },
+   "Batch Serialization / Batch J->Compressed": {
+    "ns_per_op": 10.6,
+    "mops": 93.99,
+    "batch": 65536
+   }
+  },
+  "stdout": "============================================================\n  Secp256k1 CUDA Benchmark\n============================================================\n\nGPU Information:\n  Device:         NVIDIA GeForce RTX 5060 Ti\n  Compute:        12.0\n  SM Count:       36\n  Clock:          2602 MHz\n  Memory:         15844 MB\n  Memory Clock:   14001 MHz\n  Memory Bus:     128 bit\n\nBenchmark Configuration:\n  Batch Size:     1048576\n  Threads/Block:  256\n  Warmup Iters:   3\n  Measure Iters:  5\n\nRunning benchmarks...\n\n=== Field Arithmetic ===\nField Mul              |      0.2 ns |    4135.08 Mops/s | batch=1048576\nField Add              |      0.2 ns |    4131.64 Mops/s | batch=1048576\nField Inverse          |     11.0 ns |      91.07 Mops/s | batch=65536\n\n=== Point Operations ===\nPoint Add              |      2.0 ns |     507.46 Mops/s | batch=262144\nPoint Double           |      0.8 ns |    1282.73 Mops/s | batch=262144\n\n=== Scalar Multiplication ===\nScalar Mul (P*k)       |    215.0 ns |       4.65 Mops/s | batch=65536\nGenerator Mul (G*k)    |    202.0 ns |       4.95 Mops/s | batch=131072\n\n=== Affine Point Addition ===\nAffine Add (2M+1S+inv) |      0.4 ns |    2586.67 Mops/s | batch=262144\nAffine Lambda (2M+1S)  |      0.5 ns |    2109.27 Mops/s | batch=262144\nAffine X-Only (1M+1S)  |      0.4 ns |    2433.46 Mops/s | batch=262144\nBatch Inv (Montgomery) |      3.5 ns |     285.17 Mops/s | batch=1048576\nJac->Affine (per-pt)   |     16.4 ns |      61.12 Mops/s | batch=65536\n\n=== ECDSA Signatures ===\nECDSA Sign             |    178.8 ns |       5.59 Mops/s | batch=16384\nECDSA Verify           |    243.8 ns |       4.10 Mops/s | batch=16384\nECDSA Sign+Recid       |    185.3 ns |       5.40 Mops/s | batch=16384\n\n=== Schnorr Signatures (BIP-340) ===\nSchnorr Sign           |    223.5 ns |       4.47 Mops/s | batch=16384\nSchnorr Verify         |    168.9 ns |       5.92 Mops/s | batch=16384\n\n=== FROST Threshold Signatures ===\nFROST Partial Verify   |    691.0 ns |       1.45 Mops/s | batch=16384\n\n=== Batch Serialization ===\nBatch J->Compressed    |     10.6 ns |      93.99 Mops/s | batch=65536\n\n==============================================\n  Performance Summary (for README)\n==============================================\nGPU: NVIDIA GeForce RTX 5060 Ti\n\n| Operation              | Time/Op    | Throughput   |\n|------------------------|------------|-------------:|\n| Field Mul              |      0.2 ns |    4135.08 M/s |\n| Field Add              |      0.2 ns |    4131.64 M/s |\n| Field Inverse          |     11.0 ns |      91.07 M/s |\n| Point Add              |      2.0 ns |     507.46 M/s |\n| Point Double           |      0.8 ns |    1282.73 M/s |\n| Scalar Mul (P*k)       |    215.0 ns |       4.65 M/s |\n| Generator Mul (G*k)    |    202.0 ns |       4.95 M/s |\n| Affine Add (2M+1S+inv) |      0.4 ns |    2586.67 M/s |\n| Affine Lambda (2M+1S)  |      0.5 ns |    2109.27 M/s |\n| Affine X-Only (1M+1S)  |      0.4 ns |    2433.46 M/s |\n| Batch Inv (Montgomery) |      3.5 ns |     285.17 M/s |\n| Jac->Affine (per-pt)   |     16.4 ns |      61.12 M/s |\n| ECDSA Sign             |    178.8 ns |       5.59 M/s |\n| ECDSA Verify           |    243.8 ns |       4.10 M/s |\n| ECDSA Sign+Recid       |    185.3 ns |       5.40 M/s |\n| Schnorr Sign           |    223.5 ns |       4.47 M/s |\n| Schnorr Verify         |    168.9 ns |       5.92 M/s |\n| FROST Partial Verify   |    691.0 ns |       1.45 M/s |\n| Batch J->Compressed    |     10.6 ns |      93.99 M/s |\n\nBenchmark complete.\n"
+ },
+ "new": {
+  "commit": "022e06d3 (dev, 4.7.0 staged; CUDA unchanged since)",
+  "binary_sha256": "23cda29deb1613749d9803b46e7ff0c3c6b75c0aeb0595ece9627fe8c88c9842",
+  "rows": {
+   "Field Arithmetic / Field Mul": {
+    "ns_per_op": 0.2,
+    "mops": 4134.35,
+    "batch": 1048576
+   },
+   "Field Arithmetic / Field Add": {
+    "ns_per_op": 0.2,
+    "mops": 4125.6,
+    "batch": 1048576
+   },
+   "Field Arithmetic / Field Inverse": {
+    "ns_per_op": 11.0,
+    "mops": 91.16,
+    "batch": 65536
+   },
+   "Point Operations / Point Add": {
+    "ns_per_op": 2.0,
+    "mops": 507.74,
+    "batch": 262144
+   },
+   "Point Operations / Point Double": {
+    "ns_per_op": 0.8,
+    "mops": 1303.46,
+    "batch": 262144
+   },
+   "Scalar Multiplication / Scalar Mul (P*k)": {
+    "ns_per_op": 215.0,
+    "mops": 4.65,
+    "batch": 65536
+   },
+   "Scalar Multiplication / Generator Mul (G*k)": {
+    "ns_per_op": 203.6,
+    "mops": 4.91,
+    "batch": 131072
+   },
+   "Affine Point Addition / Affine Add (2M+1S+inv)": {
+    "ns_per_op": 0.4,
+    "mops": 2604.11,
+    "batch": 262144
+   },
+   "Affine Point Addition / Affine Lambda (2M+1S)": {
+    "ns_per_op": 0.5,
+    "mops": 2101.48,
+    "batch": 262144
+   },
+   "Affine Point Addition / Affine X-Only (1M+1S)": {
+    "ns_per_op": 0.4,
+    "mops": 2423.96,
+    "batch": 262144
+   },
+   "Affine Point Addition / Batch Inv (Montgomery)": {
+    "ns_per_op": 3.4,
+    "mops": 291.75,
+    "batch": 1048576
+   },
+   "Affine Point Addition / Jac->Affine (per-pt)": {
+    "ns_per_op": 16.4,
+    "mops": 60.93,
+    "batch": 65536
+   },
+   "ECDSA Signatures / ECDSA Sign": {
+    "ns_per_op": 179.1,
+    "mops": 5.58,
+    "batch": 16384
+   },
+   "ECDSA Signatures / ECDSA Verify": {
+    "ns_per_op": 157.1,
+    "mops": 6.37,
+    "batch": 16384
+   },
+   "ECDSA Signatures / ECDSA Sign+Recid": {
+    "ns_per_op": 186.0,
+    "mops": 5.38,
+    "batch": 16384
+   },
+   "Schnorr Signatures (BIP-340) / Schnorr Sign": {
+    "ns_per_op": 222.6,
+    "mops": 4.49,
+    "batch": 16384
+   },
+   "Schnorr Signatures (BIP-340) / Schnorr Verify": {
+    "ns_per_op": 146.7,
+    "mops": 6.82,
+    "batch": 16384
+   },
+   "FROST Threshold Signatures / FROST Partial Verify": {
+    "ns_per_op": 670.9,
+    "mops": 1.49,
+    "batch": 16384
+   },
+   "Batch Serialization / Batch J->Compressed": {
+    "ns_per_op": 10.6,
+    "mops": 93.94,
+    "batch": 65536
+   }
+  },
+  "stdout": "============================================================\n  Secp256k1 CUDA Benchmark\n============================================================\n\nGPU Information:\n  Device:         NVIDIA GeForce RTX 5060 Ti\n  Compute:        12.0\n  SM Count:       36\n  Clock:          2602 MHz\n  Memory:         15844 MB\n  Memory Clock:   14001 MHz\n  Memory Bus:     128 bit\n\nBenchmark Configuration:\n  Batch Size:     1048576\n  Threads/Block:  256\n  Warmup Iters:   3\n  Measure Iters:  5\n\nRunning benchmarks...\n\n=== Field Arithmetic ===\nField Mul              |      0.2 ns |    4134.35 Mops/s | batch=1048576\nField Add              |      0.2 ns |    4125.60 Mops/s | batch=1048576\nField Inverse          |     11.0 ns |      91.16 Mops/s | batch=65536\n\n=== Point Operations ===\nPoint Add              |      2.0 ns |     507.74 Mops/s | batch=262144\nPoint Double           |      0.8 ns |    1303.46 Mops/s | batch=262144\n\n=== Scalar Multiplication ===\nScalar Mul (P*k)       |    215.0 ns |       4.65 Mops/s | batch=65536\nGenerator Mul (G*k)    |    203.6 ns |       4.91 Mops/s | batch=131072\n\n=== Affine Point Addition ===\nAffine Add (2M+1S+inv) |      0.4 ns |    2604.11 Mops/s | batch=262144\nAffine Lambda (2M+1S)  |      0.5 ns |    2101.48 Mops/s | batch=262144\nAffine X-Only (1M+1S)  |      0.4 ns |    2423.96 Mops/s | batch=262144\nBatch Inv (Montgomery) |      3.4 ns |     291.75 Mops/s | batch=1048576\nJac->Affine (per-pt)   |     16.4 ns |      60.93 Mops/s | batch=65536\n\n=== ECDSA Signatures ===\nECDSA Sign             |    179.1 ns |       5.58 Mops/s | batch=16384\nECDSA Verify           |    157.1 ns |       6.37 Mops/s | batch=16384\nECDSA Sign+Recid       |    186.0 ns |       5.38 Mops/s | batch=16384\n\n=== Schnorr Signatures (BIP-340) ===\nSchnorr Sign           |    222.6 ns |       4.49 Mops/s | batch=16384\nSchnorr Verify         |    146.7 ns |       6.82 Mops/s | batch=16384\n\n=== FROST Threshold Signatures ===\nFROST Partial Verify   |    670.9 ns |       1.49 Mops/s | batch=16384\n\n=== Batch Serialization ===\nBatch J->Compressed    |     10.6 ns |      93.94 Mops/s | batch=65536\n\n==============================================\n  Performance Summary (for README)\n==============================================\nGPU: NVIDIA GeForce RTX 5060 Ti\n\n| Operation              | Time/Op    | Throughput   |\n|------------------------|------------|-------------:|\n| Field Mul              |      0.2 ns |    4134.35 M/s |\n| Field Add              |      0.2 ns |    4125.60 M/s |\n| Field Inverse          |     11.0 ns |      91.16 M/s |\n| Point Add              |      2.0 ns |     507.74 M/s |\n| Point Double           |      0.8 ns |    1303.46 M/s |\n| Scalar Mul (P*k)       |    215.0 ns |       4.65 M/s |\n| Generator Mul (G*k)    |    203.6 ns |       4.91 M/s |\n| Affine Add (2M+1S+inv) |      0.4 ns |    2604.11 M/s |\n| Affine Lambda (2M+1S)  |      0.5 ns |    2101.48 M/s |\n| Affine X-Only (1M+1S)  |      0.4 ns |    2423.96 M/s |\n| Batch Inv (Montgomery) |      3.4 ns |     291.75 M/s |\n| Jac->Affine (per-pt)   |     16.4 ns |      60.93 M/s |\n| ECDSA Sign             |    179.1 ns |       5.58 M/s |\n| ECDSA Verify           |    157.1 ns |       6.37 M/s |\n| ECDSA Sign+Recid       |    186.0 ns |       5.38 M/s |\n| Schnorr Sign           |    222.6 ns |       4.49 M/s |\n| Schnorr Verify         |    146.7 ns |       6.82 M/s |\n| FROST Partial Verify   |    670.9 ns |       1.49 M/s |\n| Batch J->Compressed    |     10.6 ns |      93.94 M/s |\n\nBenchmark complete.\n"
+ }
+}

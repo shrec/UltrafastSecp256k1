@@ -638,6 +638,170 @@ struct OclSighashPool {
 
 static thread_local OclSighashPool g_ocl_sighash_pool;
 
+/* Grow-only device scratch owned by ONE OpenCLBackend instance and used by its
+ * C ABI batch methods instead of a clCreateBuffer/clReleaseMemObject pair per
+ * call (the OpenCL twin of CudaScratchArena in gpu_backend_cuda.cu).
+ *
+ * - A call borrows buffers through an OclScratchLease; slots are handed out in
+ *   stack order and returned when the lease ends, so a nested lease on the
+ *   same thread can never receive a slot an outer lease still holds.
+ * - A slot only grows; a request that fits reuses the cl_mem. Every slot is a
+ *   CL_MEM_READ_WRITE buffer; uploads are blocking clEnqueueWriteBuffer calls,
+ *   so the caller's pointer is never retained past the call (the same
+ *   lifetime CL_MEM_COPY_HOST_PTR gave).
+ * - Secret slots (private keys, ECDH secrets, AEAD keys/plaintext) are zeroed
+ *   by the lease when it ends, on every exit path, with clEnqueueFillBuffer
+ *   followed by clFinish (Rule 10). A slot that grows is released without a
+ *   fill: whatever secret it ever held was already zeroed by the lease that
+ *   wrote it.
+ * - release_all(queue) zeroes (when a queue is given) and releases every slot;
+ *   OpenCLBackend::shutdown() calls it before the context is destroyed.
+ * - Thread safety: the lease holds the arena's recursive mutex for its whole
+ *   lifetime, which also serialises the clSetKernelArg -> enqueue sequence on
+ *   the backend's shared kernel objects. */
+class OclScratchArena {
+public:
+    static constexpr int kSlots = 24;
+
+    OclScratchArena() = default;
+    OclScratchArena(const OclScratchArena&) = delete;
+    OclScratchArena& operator=(const OclScratchArena&) = delete;
+    ~OclScratchArena() { release_all(nullptr); }
+
+    void release_all(cl_command_queue queue) {
+        std::lock_guard<std::recursive_mutex> lk(mtx_);
+        for (Slot& s : slots_) {
+            if (s.buf) {
+                if (queue && s.cap > 0) {
+                    cl_uchar zero = 0;
+                    if (clEnqueueFillBuffer(queue, s.buf, &zero, 1, 0, s.cap,
+                                            0, nullptr, nullptr) == CL_SUCCESS)
+                        clFinish(queue);
+                }
+                clReleaseMemObject(s.buf);
+            }
+            s = Slot{};
+        }
+        next_ = 0;
+        ctx_  = nullptr;
+    }
+
+    // Total bytes currently held (diagnostics / tests).
+    size_t capacity_bytes() {
+        std::lock_guard<std::recursive_mutex> lk(mtx_);
+        size_t total = 0;
+        for (const Slot& s : slots_) total += s.cap;
+        return total;
+    }
+
+private:
+    friend class OclScratchLease;
+
+    struct Slot { cl_mem buf = nullptr; size_t cap = 0; };
+
+    // Called by the outermost lease: buffers bound to another context are
+    // never reused (shutdown() releases them before the context goes away,
+    // so this only drops stale handles).
+    void check_context(cl_context ctx) {
+        if (ctx == ctx_) return;
+        for (Slot& s : slots_) {
+            if (s.buf) clReleaseMemObject(s.buf);
+            s = Slot{};
+        }
+        ctx_ = ctx;
+    }
+
+    cl_int take(size_t bytes, cl_mem* out) {
+        *out = nullptr;
+        // Same contract as clCreateBuffer(size 0): CL_INVALID_BUFFER_SIZE.
+        if (bytes == 0) return CL_INVALID_BUFFER_SIZE;
+        if (next_ >= kSlots) return CL_OUT_OF_RESOURCES;
+        Slot& s = slots_[next_];
+        if (s.cap < bytes) {
+            if (s.buf) clReleaseMemObject(s.buf);
+            s = Slot{};
+            cl_int err = CL_SUCCESS;
+            cl_mem created = clCreateBuffer(ctx_, CL_MEM_READ_WRITE, bytes, nullptr, &err);
+            if (err != CL_SUCCESS || !created)
+                return (err != CL_SUCCESS) ? err : CL_MEM_OBJECT_ALLOCATION_FAILURE;
+            s.buf = created;
+            s.cap = bytes;
+        }
+        ++next_;
+        *out = s.buf;
+        return CL_SUCCESS;
+    }
+
+    std::recursive_mutex mtx_;
+    Slot       slots_[kSlots];
+    int        next_ = 0;
+    cl_context ctx_  = nullptr;
+};
+
+class OclScratchLease {
+public:
+    OclScratchLease(OclScratchArena& arena, cl_context ctx, cl_command_queue queue)
+        : arena_(arena), lock_(arena.mtx_), base_(arena.next_), queue_(queue) {
+        if (base_ == 0) arena_.check_context(ctx);
+    }
+    OclScratchLease(const OclScratchLease&) = delete;
+    OclScratchLease& operator=(const OclScratchLease&) = delete;
+
+    ~OclScratchLease() {
+        // Rule 10: zero every secret slot this call used, then wait for the
+        // queue so the erase has completed before the slot can be reused.
+        if (n_secret_ > 0 && queue_) {
+            cl_uchar zero = 0;
+            for (int i = 0; i < n_secret_; ++i)
+                clEnqueueFillBuffer(queue_, secret_[i].buf, &zero, 1, 0,
+                                    secret_[i].bytes, 0, nullptr, nullptr);
+            clFinish(queue_);
+        }
+        arena_.next_ = base_;
+    }
+
+    // Public-data buffer of at least `bytes` bytes (contents undefined).
+    cl_int alloc(cl_mem* out, size_t bytes) { return arena_.take(bytes, out); }
+
+    // Public-data buffer filled with `bytes` bytes from `src` (blocking).
+    cl_int upload(cl_mem* out, const void* src, size_t bytes) {
+        const cl_int err = alloc(out, bytes);
+        if (err != CL_SUCCESS) return err;
+        return clEnqueueWriteBuffer(queue_, *out, CL_TRUE, 0, bytes, src,
+                                    0, nullptr, nullptr);
+    }
+
+    // Buffer that will hold secret material: zeroed when the lease ends.
+    cl_int alloc_secret(cl_mem* out, size_t bytes) {
+        const cl_int err = alloc(out, bytes);
+        if (err == CL_SUCCESS) {
+            secret_[n_secret_].buf   = *out;
+            secret_[n_secret_].bytes = bytes;
+            ++n_secret_;
+        }
+        return err;
+    }
+
+    // Secret upload: registered for erase BEFORE the write, so even a failed
+    // or partial write is zeroed when the lease ends.
+    cl_int upload_secret(cl_mem* out, const void* src, size_t bytes) {
+        const cl_int err = alloc_secret(out, bytes);
+        if (err != CL_SUCCESS) return err;
+        return clEnqueueWriteBuffer(queue_, *out, CL_TRUE, 0, bytes, src,
+                                    0, nullptr, nullptr);
+    }
+
+private:
+    struct SecretUse { cl_mem buf = nullptr; size_t bytes = 0; };
+
+    OclScratchArena&                       arena_;
+    std::lock_guard<std::recursive_mutex>  lock_;
+    int                                    base_;
+    cl_command_queue                       queue_;
+    SecretUse                              secret_[OclScratchArena::kSlots];
+    int                                    n_secret_ = 0;
+};
+
 } // anonymous namespace
 
 // ============================================================================
@@ -899,6 +1063,7 @@ public:
         if (ext_sighash_descriptor_)   { clReleaseKernel(ext_sighash_descriptor_);   ext_sighash_descriptor_   = nullptr; }
         if (ext_ecrecover_)      { clReleaseKernel(ext_ecrecover_);      ext_ecrecover_      = nullptr; }
         if (ext_schnorr_verify_) { clReleaseKernel(ext_schnorr_verify_); ext_schnorr_verify_ = nullptr; }
+        if (ext_bch_schnorr_verify_) { clReleaseKernel(ext_bch_schnorr_verify_); ext_bch_schnorr_verify_ = nullptr; }
         if (ext_ecdsa_snark_)    { clReleaseKernel(ext_ecdsa_snark_);    ext_ecdsa_snark_    = nullptr; }
         if (ext_ecdsa_snark_compressed_)      { clReleaseKernel(ext_ecdsa_snark_compressed_);      ext_ecdsa_snark_compressed_      = nullptr; }
         if (ext_ecdh_scalar_mul_compressed_) { clReleaseKernel(ext_ecdh_scalar_mul_compressed_); ext_ecdh_scalar_mul_compressed_ = nullptr; }
@@ -929,6 +1094,8 @@ public:
         bip324_init_attempted_ = false;
         auto* shutdown_queue = ctx_ ? static_cast<cl_command_queue>(ctx_->native_queue()) : nullptr;
         msm_pool_.free_all(shutdown_queue);
+        // Zero then release every scratch slot while the queue still exists.
+        scratch_.release_all(shutdown_queue);
         ctx_.reset();
     }
 
@@ -948,10 +1115,21 @@ public:
         if (count == 0) { clear_error(); return GpuError::Ok; }
         if (!scalars32 || !out_pubkeys33) return set_error(GpuError::NullArg, "NULL buffer");
 
-        /* Convert big-endian bytes → OpenCL Scalar (4×uint64 LE limbs) */
+        /* Device buffers for this op are owned and reused by
+         * secp256k1::opencl::Context (batch_scalar_mul_generator /
+         * batch_jacobian_to_affine), not by this backend, so scratch_ is not
+         * used here. The host staging below is the grow-only thread-local
+         * scratch; Rule 10: the private scalars it holds are secure_erase'd on
+         * every exit path. */
         auto& scratch = g_opencl_batch_scratch;
         scratch.ensure_generator_mul(count);
         auto* const h_scalars = scratch.scalars.data();
+        struct HostScalarEraseGuard {
+            secp256k1::opencl::Scalar* p;
+            size_t n;
+            ~HostScalarEraseGuard() { secp256k1::detail::secure_erase(p, n * sizeof(*p)); }
+        } _host_scalar_guard{h_scalars, count};
+        /* Convert big-endian bytes → OpenCL Scalar (4×uint64 LE limbs) */
         for (size_t i = 0; i < count; ++i) {
             bytes_to_scalar(scalars32 + i * 32, &h_scalars[i]);
             // Reject zero private keys (Guardrail #11)
@@ -994,42 +1172,28 @@ public:
         auto* queue   = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int clerr;
 
-        /* Prepare GPU-side buffers ----------------------------------------- */
+        /* Grow-only per-backend scratch (public verify data, no erase) ---- */
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_msgs = nullptr, d_pubs = nullptr, d_sigs = nullptr, d_res = nullptr;
 
         /* msg_hashes: 32 bytes each, passed flat */
-        cl_mem d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       32 * count, const_cast<uint8_t*>(msg_hashes32), &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "msg buffer alloc");
+        if (lease.upload(&d_msgs, msg_hashes32, 32 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "msg buffer alloc");
 
         /* pubkeys: pass 33-byte compressed directly (GPU decompresses via lbtc_point_from_compressed) */
-        cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       33 * count, const_cast<uint8_t*>(pubkeys33), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_msgs);
+        if (lease.upload(&d_pubs, pubkeys33, 33 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "pub buffer alloc");
-        }
 
         /* sigs: compact 64-byte r||s. The kernel parses into Scalar registers,
          * matching Metal and avoiding a host-side N x ECDSASig staging copy. */
         auto& scratch = g_opencl_batch_scratch;
         scratch.ensure_results(count);
-        cl_mem d_sigs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       64 * count, const_cast<uint8_t*>(sigs64), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pubs);
-            clReleaseMemObject(d_msgs);
+        if (lease.upload(&d_sigs, sigs64, 64 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "sig buffer alloc");
-        }
 
         /* results: int per item */
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      sizeof(int) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_pubs);
-            clReleaseMemObject(d_msgs);
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "result buffer alloc");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(ext_ecdsa_verify_compressed_, 0, sizeof(cl_mem), &d_msgs);
@@ -1041,13 +1205,8 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_verify_compressed_, 1, nullptr,
                                &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_res);
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_pubs);
-            clReleaseMemObject(d_msgs);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "ecdsa_verify_compressed kernel launch failed");
-        }
         clFinish(queue);
 
         /* Read results */
@@ -1057,11 +1216,6 @@ public:
 
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
-
-        clReleaseMemObject(d_msgs);
-        clReleaseMemObject(d_pubs);
-        clReleaseMemObject(d_sigs);
-        clReleaseMemObject(d_res);
 
         clear_error();
         return GpuError::Ok;
@@ -1086,17 +1240,13 @@ public:
         cl_int clerr;
 
         const size_t row_bytes = count * stride;
-        cl_mem d_rows = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       row_bytes, const_cast<uint8_t*>(rows), &clerr);
-        if (clerr != CL_SUCCESS)
+        // Public verify rows: grow-only per-backend scratch, no erase needed.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_rows = nullptr, d_res = nullptr;
+        if (lease.upload(&d_rows, rows, row_bytes) != CL_SUCCESS)
             return set_error(GpuError::Memory, "lbtc row buffer alloc");
-
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      sizeof(int) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_rows);
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "lbtc result buffer alloc");
-        }
 
         cl_ulong cl_stride = static_cast<cl_ulong>(stride);
         cl_uint cl_count = static_cast<cl_uint>(count);
@@ -1108,11 +1258,8 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_lbtc_, 1, nullptr,
                                        &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_res);
-            clReleaseMemObject(d_rows);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "lbtc ecdsa row kernel launch failed");
-        }
         clFinish(queue);
 
         auto& scratch = g_opencl_batch_scratch;
@@ -1122,9 +1269,6 @@ public:
                             sizeof(int) * count, h_res, 0, nullptr, nullptr);
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
-
-        clReleaseMemObject(d_rows);
-        clReleaseMemObject(d_res);
         clear_error();
         return GpuError::Ok;
     }
@@ -1146,19 +1290,17 @@ public:
         auto* queue   = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int clerr;
 
+        // Public verify data: grow-only per-backend scratch, no erase needed.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_pks = nullptr, d_msgs = nullptr, d_sigs = nullptr, d_res = nullptr;
+
         /* pubkeys_x: 32 bytes each, passed flat */
-        cl_mem d_pks = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      32 * count, const_cast<uint8_t*>(pubkeys_x32), &clerr);
-        if (clerr != CL_SUCCESS)
+        if (lease.upload(&d_pks, pubkeys_x32, 32 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "schnorr pk buffer alloc");
 
         /* messages: 32 bytes each, passed flat */
-        cl_mem d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       32 * count, const_cast<uint8_t*>(msg_hashes32), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pks);
+        if (lease.upload(&d_msgs, msg_hashes32, 32 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "schnorr msg buffer alloc");
-        }
 
         /* sigs: 64 bytes (r[32] | s[32]) → SchnorrSig (r:uint8_t[32], s:Scalar = 64 bytes) */
         struct SchnorrSig { uint8_t r[32]; uint64_t s[4]; };
@@ -1167,23 +1309,12 @@ public:
             std::memcpy(h_sigs[i].r, sigs64 + i * 64, 32);
             be32_to_le_limbs(sigs64 + i * 64 + 32, h_sigs[i].s);
         }
-        cl_mem d_sigs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(SchnorrSig) * count, h_sigs.data(), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_msgs);
-            clReleaseMemObject(d_pks);
+        if (lease.upload(&d_sigs, h_sigs.data(), sizeof(SchnorrSig) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "schnorr sig buffer alloc");
-        }
 
         /* results: int per item */
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      sizeof(int) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_msgs);
-            clReleaseMemObject(d_pks);
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "schnorr result buffer alloc");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(ext_schnorr_verify_, 0, sizeof(cl_mem), &d_pks);
@@ -1195,13 +1326,8 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, ext_schnorr_verify_, 1, nullptr,
                                &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_res);
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_msgs);
-            clReleaseMemObject(d_pks);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "schnorr_verify kernel launch failed");
-        }
         clFinish(queue);
 
         /* Read results */
@@ -1212,10 +1338,66 @@ public:
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
 
-        clReleaseMemObject(d_pks);
-        clReleaseMemObject(d_msgs);
-        clReleaseMemObject(d_sigs);
-        clReleaseMemObject(d_res);
+        clear_error();
+        return GpuError::Ok;
+    }
+
+    /* Bitcoin Cash 2019 Schnorr (NOT BIP-340) batch verify. PUBLIC data:
+     * grow-only per-backend scratch, no erase. The kernel decompresses the
+     * key, hashes the 97-byte challenge and range-checks r and s itself. */
+    GpuError bch_schnorr_verify_batch(
+        const uint8_t* msgs32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!is_ready()) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msgs32 || !pubkeys33 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        if (count > static_cast<size_t>(0xFFFFFFFFu))
+            return set_error(GpuError::BadInput, "bch_schnorr_verify count too large");
+
+        auto err = ensure_extended_kernels();
+        if (err != GpuError::Ok) return err;
+        if (!ext_bch_schnorr_verify_)
+            return set_error(GpuError::Launch, "bch_schnorr_verify_batch kernel unavailable");
+
+        auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
+        auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
+
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_msgs = nullptr, d_pubs = nullptr, d_sigs = nullptr, d_res = nullptr;
+        if (lease.upload(&d_msgs, msgs32, 32 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bch_schnorr msg buffer alloc");
+        if (lease.upload(&d_pubs, pubkeys33, 33 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bch_schnorr pub buffer alloc");
+        if (lease.upload(&d_sigs, sigs64, 64 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bch_schnorr sig buffer alloc");
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bch_schnorr result buffer alloc");
+
+        cl_uint cl_count = static_cast<cl_uint>(count);
+        clSetKernelArg(ext_bch_schnorr_verify_, 0, sizeof(cl_mem), &d_msgs);
+        clSetKernelArg(ext_bch_schnorr_verify_, 1, sizeof(cl_mem), &d_pubs);
+        clSetKernelArg(ext_bch_schnorr_verify_, 2, sizeof(cl_mem), &d_sigs);
+        clSetKernelArg(ext_bch_schnorr_verify_, 3, sizeof(cl_mem), &d_res);
+        clSetKernelArg(ext_bch_schnorr_verify_, 4, sizeof(cl_uint), &cl_count);
+
+        size_t global = count;
+        cl_int clerr = clEnqueueNDRangeKernel(queue, ext_bch_schnorr_verify_, 1, nullptr,
+                                              &global, nullptr, 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS)
+            return set_error(GpuError::Launch, "bch_schnorr_verify kernel launch failed");
+        if (clFinish(queue) != CL_SUCCESS)
+            return set_error(GpuError::Launch, "bch_schnorr_verify kernel finish failed");
+
+        std::vector<int> h_res(count);
+        clerr = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0,
+                                    sizeof(int) * count, h_res.data(), 0, nullptr, nullptr);
+        if (clerr != CL_SUCCESS)
+            return set_error(GpuError::Launch, "bch_schnorr_verify result read failed");
+        for (size_t i = 0; i < count; ++i)
+            out_results[i] = h_res[i] ? 1 : 0;
 
         clear_error();
         return GpuError::Ok;
@@ -1620,11 +1802,12 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int e;
-        cl_mem d_keys = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       n * 32, const_cast<uint8_t*>(keys32), &e);
-        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "xonly_validate d_keys");
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n, nullptr, &e);
-        if (e != CL_SUCCESS) { clReleaseMemObject(d_keys); return set_error(GpuError::Memory, "xonly_validate d_res"); }
+        OclScratchLease lease(scratch_, cl_ctx, queue);  // public keys: reused, no erase
+        cl_mem d_keys = nullptr, d_res = nullptr;
+        if (lease.upload(&d_keys, keys32, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "xonly_validate d_keys");
+        if (lease.alloc(&d_res, n) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "xonly_validate d_res");
 
         cl_uint cl_count = static_cast<cl_uint>(n);
         clSetKernelArg(ext_xonly_validate_, 0, sizeof(cl_mem), &d_keys);
@@ -1632,12 +1815,9 @@ public:
         clSetKernelArg(ext_xonly_validate_, 2, sizeof(cl_uint), &cl_count);
         size_t global = n;
         e = clEnqueueNDRangeKernel(queue, ext_xonly_validate_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
-        if (e != CL_SUCCESS) { clReleaseMemObject(d_res); clReleaseMemObject(d_keys);
-            return set_error(GpuError::Launch, "xonly_validate kernel launch failed"); }
+        if (e != CL_SUCCESS) return set_error(GpuError::Launch, "xonly_validate kernel launch failed");
         clFinish(queue);
         e = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, n, results, 0, nullptr, nullptr);
-        clReleaseMemObject(d_res);
-        clReleaseMemObject(d_keys);
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "xonly_validate result read failed");
         clear_error();
         return GpuError::Ok;
@@ -1659,11 +1839,12 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int e;
-        cl_mem d_pk = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                     n * 33, const_cast<uint8_t*>(pubkeys33), &e);
-        if (e != CL_SUCCESS) return set_error(GpuError::Memory, "pubkey_validate d_pk");
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n, nullptr, &e);
-        if (e != CL_SUCCESS) { clReleaseMemObject(d_pk); return set_error(GpuError::Memory, "pubkey_validate d_res"); }
+        OclScratchLease lease(scratch_, cl_ctx, queue);  // public data: reused, no erase
+        cl_mem d_pk = nullptr, d_res = nullptr;
+        if (lease.upload(&d_pk, pubkeys33, n * 33) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "pubkey_validate d_pk");
+        if (lease.alloc(&d_res, n) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "pubkey_validate d_res");
 
         cl_uint cl_count = static_cast<cl_uint>(n);
         clSetKernelArg(ext_pubkey_validate_, 0, sizeof(cl_mem), &d_pk);
@@ -1671,12 +1852,9 @@ public:
         clSetKernelArg(ext_pubkey_validate_, 2, sizeof(cl_uint), &cl_count);
         size_t global = n;
         e = clEnqueueNDRangeKernel(queue, ext_pubkey_validate_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
-        if (e != CL_SUCCESS) { clReleaseMemObject(d_res); clReleaseMemObject(d_pk);
-            return set_error(GpuError::Launch, "pubkey_validate kernel launch failed"); }
+        if (e != CL_SUCCESS) return set_error(GpuError::Launch, "pubkey_validate kernel launch failed");
         clFinish(queue);
         e = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, n, results, 0, nullptr, nullptr);
-        clReleaseMemObject(d_res);
-        clReleaseMemObject(d_pk);
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "pubkey_validate result read failed");
         clear_error();
         return GpuError::Ok;
@@ -1701,28 +1879,18 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int e;
+        OclScratchLease lease(scratch_, cl_ctx, queue);  // public data: reused, no erase
         cl_mem d_ix = nullptr, d_tw = nullptr, d_tx = nullptr, d_par = nullptr, d_res = nullptr;
-        auto release_all = [&]() {
-            if (d_res) clReleaseMemObject(d_res);
-            if (d_par) clReleaseMemObject(d_par);
-            if (d_tx)  clReleaseMemObject(d_tx);
-            if (d_tw)  clReleaseMemObject(d_tw);
-            if (d_ix)  clReleaseMemObject(d_ix);
-        };
-        d_ix = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                              n * 32, const_cast<uint8_t*>(internal_x32), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_ix"); }
-        d_tw = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                              n * 32, const_cast<uint8_t*>(tweak32), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_tw"); }
-        d_tx = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                              n * 32, const_cast<uint8_t*>(tweaked_x32), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_tx"); }
-        d_par = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                               n, const_cast<uint8_t*>(parity), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_par"); }
-        d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n, nullptr, &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "commit d_res"); }
+        if (lease.upload(&d_ix, internal_x32, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "commit d_ix");
+        if (lease.upload(&d_tw, tweak32, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "commit d_tw");
+        if (lease.upload(&d_tx, tweaked_x32, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "commit d_tx");
+        if (lease.upload(&d_par, parity, n) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "commit d_par");
+        if (lease.alloc(&d_res, n) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "commit d_res");
 
         cl_uint cl_count = static_cast<cl_uint>(n);
         clSetKernelArg(ext_commitment_verify_, 0, sizeof(cl_mem), &d_ix);
@@ -1733,10 +1901,9 @@ public:
         clSetKernelArg(ext_commitment_verify_, 5, sizeof(cl_uint), &cl_count);
         size_t global = n;
         e = clEnqueueNDRangeKernel(queue, ext_commitment_verify_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "commitment_verify kernel launch failed"); }
+        if (e != CL_SUCCESS) return set_error(GpuError::Launch, "commitment_verify kernel launch failed");
         clFinish(queue);
         e = clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0, n, results, 0, nullptr, nullptr);
-        release_all();
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "commitment_verify result read failed");
         clear_error();
         return GpuError::Ok;
@@ -1759,20 +1926,14 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int e;
+        OclScratchLease lease(scratch_, cl_ctx, queue);  // public data: reused, no erase
         cl_mem d_th = nullptr, d_msgs = nullptr, d_out = nullptr;
-        auto release_all = [&]() {
-            if (d_out)  clReleaseMemObject(d_out);
-            if (d_msgs) clReleaseMemObject(d_msgs);
-            if (d_th)   clReleaseMemObject(d_th);
-        };
-        d_th = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                              32, const_cast<uint8_t*>(tag_hash32), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagged d_th"); }
-        d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                n * msg_len, const_cast<uint8_t*>(msgs), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagged d_msgs"); }
-        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagged d_out"); }
+        if (lease.upload(&d_th, tag_hash32, 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "tagged d_th");
+        if (lease.upload(&d_msgs, msgs, n * msg_len) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "tagged d_msgs");
+        if (lease.alloc(&d_out, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "tagged d_out");
 
         cl_uint cl_count = static_cast<cl_uint>(n);
         cl_uint cl_ml = static_cast<cl_uint>(msg_len);
@@ -1783,10 +1944,9 @@ public:
         clSetKernelArg(ext_tagged_hash_, 4, sizeof(cl_uint), &cl_count);
         size_t global = n;
         e = clEnqueueNDRangeKernel(queue, ext_tagged_hash_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "tagged_hash kernel launch failed"); }
+        if (e != CL_SUCCESS) return set_error(GpuError::Launch, "tagged_hash kernel launch failed");
         clFinish(queue);
         e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
-        release_all();
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "tagged_hash result read failed");
         clear_error();
         return GpuError::Ok;
@@ -1809,24 +1969,16 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int e;
+        OclScratchLease lease(scratch_, cl_ctx, queue);  // public data: reused, no erase
         cl_mem d_th = nullptr, d_msgs = nullptr, d_lens = nullptr, d_out = nullptr;
-        auto release_all = [&]() {
-            if (d_out)  clReleaseMemObject(d_out);
-            if (d_lens) clReleaseMemObject(d_lens);
-            if (d_msgs) clReleaseMemObject(d_msgs);
-            if (d_th)   clReleaseMemObject(d_th);
-        };
-        d_th = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                              32, const_cast<uint8_t*>(tag_hash32), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagvar d_th"); }
-        d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                n * stride, const_cast<uint8_t*>(msgs), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagvar d_msgs"); }
-        d_lens = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                n * sizeof(cl_uint), const_cast<uint32_t*>(msg_lens), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagvar d_lens"); }
-        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "tagvar d_out"); }
+        if (lease.upload(&d_th, tag_hash32, 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "tagvar d_th");
+        if (lease.upload(&d_msgs, msgs, n * stride) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "tagvar d_msgs");
+        if (lease.upload(&d_lens, msg_lens, n * sizeof(cl_uint)) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "tagvar d_lens");
+        if (lease.alloc(&d_out, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "tagvar d_out");
 
         cl_uint cl_count = static_cast<cl_uint>(n);
         cl_uint cl_stride = static_cast<cl_uint>(stride);
@@ -1838,10 +1990,9 @@ public:
         clSetKernelArg(ext_tagged_hash_var_, 5, sizeof(cl_uint), &cl_count);
         size_t global = n;
         e = clEnqueueNDRangeKernel(queue, ext_tagged_hash_var_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "tagged_hash_var kernel launch failed"); }
+        if (e != CL_SUCCESS) return set_error(GpuError::Launch, "tagged_hash_var kernel launch failed");
         clFinish(queue);
         e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
-        release_all();
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "tagged_hash_var result read failed");
         clear_error();
         return GpuError::Ok;
@@ -1863,16 +2014,12 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int e;
+        OclScratchLease lease(scratch_, cl_ctx, queue);  // public data: reused, no erase
         cl_mem d_in = nullptr, d_out = nullptr;
-        auto release_all = [&]() {
-            if (d_out) clReleaseMemObject(d_out);
-            if (d_in)  clReleaseMemObject(d_in);
-        };
-        d_in = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                              n * input_len, const_cast<uint8_t*>(inputs), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256 d_in"); }
-        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256 d_out"); }
+        if (lease.upload(&d_in, inputs, n * input_len) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "hash256 d_in");
+        if (lease.alloc(&d_out, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "hash256 d_out");
 
         cl_uint cl_count = static_cast<cl_uint>(n);
         cl_uint cl_il = static_cast<cl_uint>(input_len);
@@ -1882,10 +2029,9 @@ public:
         clSetKernelArg(ext_hash256_, 3, sizeof(cl_uint), &cl_count);
         size_t global = n;
         e = clEnqueueNDRangeKernel(queue, ext_hash256_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "hash256 kernel launch failed"); }
+        if (e != CL_SUCCESS) return set_error(GpuError::Launch, "hash256 kernel launch failed");
         clFinish(queue);
         e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
-        release_all();
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "hash256 result read failed");
         clear_error();
         return GpuError::Ok;
@@ -1916,20 +2062,14 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int e;
+        OclScratchLease lease(scratch_, cl_ctx, queue);  // public data: reused, no erase
         cl_mem d_in = nullptr, d_lens = nullptr, d_out = nullptr;
-        auto release_all = [&]() {
-            if (d_out)  clReleaseMemObject(d_out);
-            if (d_lens) clReleaseMemObject(d_lens);
-            if (d_in)   clReleaseMemObject(d_in);
-        };
-        d_in = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                              n * stride, const_cast<uint8_t*>(inputs), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256_var d_in"); }
-        d_lens = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                n * sizeof(cl_uint), const_cast<uint32_t*>(input_lens), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256_var d_lens"); }
-        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "hash256_var d_out"); }
+        if (lease.upload(&d_in, inputs, n * stride) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "hash256_var d_in");
+        if (lease.upload(&d_lens, input_lens, n * sizeof(cl_uint)) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "hash256_var d_lens");
+        if (lease.alloc(&d_out, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "hash256_var d_out");
 
         cl_uint cl_count = static_cast<cl_uint>(n);
         cl_uint cl_stride = static_cast<cl_uint>(stride);
@@ -1940,10 +2080,9 @@ public:
         clSetKernelArg(ext_hash256_var_, 4, sizeof(cl_uint), &cl_count);
         size_t global = n;
         e = clEnqueueNDRangeKernel(queue, ext_hash256_var_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "hash256_var kernel launch failed"); }
+        if (e != CL_SUCCESS) return set_error(GpuError::Launch, "hash256_var kernel launch failed");
         clFinish(queue);
         e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
-        release_all();
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "hash256_var result read failed");
         clear_error();
         return GpuError::Ok;
@@ -1968,20 +2107,14 @@ public:
         auto* cl_ctx = static_cast<cl_context>(ctx_->native_context());
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int e;
+        OclScratchLease lease(scratch_, cl_ctx, queue);  // public data: reused, no erase
         cl_mem d_left = nullptr, d_right = nullptr, d_out = nullptr;
-        auto release_all = [&]() {
-            if (d_out)   clReleaseMemObject(d_out);
-            if (d_right) clReleaseMemObject(d_right);
-            if (d_left)  clReleaseMemObject(d_left);
-        };
-        d_left = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                n * 32, const_cast<uint8_t*>(left32), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "merkle_pair_hash d_left"); }
-        d_right = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                 n * 32, const_cast<uint8_t*>(right32), &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "merkle_pair_hash d_right"); }
-        d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, n * 32, nullptr, &e);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Memory, "merkle_pair_hash d_out"); }
+        if (lease.upload(&d_left, left32, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "merkle_pair_hash d_left");
+        if (lease.upload(&d_right, right32, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "merkle_pair_hash d_right");
+        if (lease.alloc(&d_out, n * 32) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "merkle_pair_hash d_out");
 
         cl_uint cl_count = static_cast<cl_uint>(n);
         clSetKernelArg(ext_merkle_pair_, 0, sizeof(cl_mem), &d_left);
@@ -1990,10 +2123,9 @@ public:
         clSetKernelArg(ext_merkle_pair_, 3, sizeof(cl_uint), &cl_count);
         size_t global = n;
         e = clEnqueueNDRangeKernel(queue, ext_merkle_pair_, 1, nullptr, &global, nullptr, 0, nullptr, nullptr);
-        if (e != CL_SUCCESS) { release_all(); return set_error(GpuError::Launch, "merkle_pair_hash kernel launch failed"); }
+        if (e != CL_SUCCESS) return set_error(GpuError::Launch, "merkle_pair_hash kernel launch failed");
         clFinish(queue);
         e = clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0, n * 32, out32, 0, nullptr, nullptr);
-        release_all();
         if (e != CL_SUCCESS) return set_error(GpuError::Memory, "merkle_pair_hash result read failed");
         clear_error();
         return GpuError::Ok;
@@ -2484,28 +2616,25 @@ public:
         for (size_t i = 0; i < count; ++i)
             bytes_to_scalar(privkeys32 + i * 32, &h_scalars[i]);
 
+        // Grow-only per-backend scratch. Rule 10: the private scalars and the
+        // Jacobian shared points (ECDH secrets) are secret slots -- the lease
+        // zeroes both (clEnqueueFillBuffer + clFinish) on every exit path
+        // before any later call can reuse the slot.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_scalars = nullptr, d_pubs33 = nullptr, d_jac = nullptr;
+
         /* Upload scalars */
-        cl_mem d_scalars = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          count * sizeof(secp256k1::opencl::Scalar),
-                                          h_scalars.data(), &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "scalar buffer alloc");
+        if (lease.upload_secret(&d_scalars, h_scalars.data(),
+                                count * sizeof(secp256k1::opencl::Scalar)) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "scalar buffer alloc");
 
         /* Pass 33-byte compressed pubkeys directly (GPU decompresses) */
-        cl_mem d_pubs33 = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         33 * count, const_cast<uint8_t*>(peer_pubkeys33), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_scalars);
+        if (lease.upload(&d_pubs33, peer_pubkeys33, 33 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "pubkey buffer alloc");
-        }
 
-        /* Results: JacobianPoint per item */
-        cl_mem d_jac = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      count * sizeof(secp256k1::opencl::JacobianPoint),
-                                      nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pubs33); clReleaseMemObject(d_scalars);
+        /* Results: JacobianPoint per item (the shared secret point) */
+        if (lease.alloc_secret(&d_jac, count * sizeof(secp256k1::opencl::JacobianPoint)) != CL_SUCCESS)
             return set_error(GpuError::Memory, "result buffer alloc");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(ext_ecdh_scalar_mul_compressed_, 0, sizeof(cl_mem), &d_scalars);
@@ -2516,21 +2645,27 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, ext_ecdh_scalar_mul_compressed_, 1, nullptr,
                                        &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_jac); clReleaseMemObject(d_pubs33);
-            clReleaseMemObject(d_scalars);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "ecdh_scalar_mul_compressed launch failed");
-        }
         clFinish(queue);
 
-        /* Read Jacobian results → GPU Jacobian→Affine → CPU compress+SHA256 */
+        /* Read Jacobian results → GPU Jacobian→Affine → CPU compress+SHA256.
+         * The host copies are shared secret points: erased on every exit. */
         std::vector<secp256k1::opencl::JacobianPoint> h_jac(count);
+        std::vector<secp256k1::opencl::AffinePoint> h_aff(count);
+        struct SharedPointEraseGuard {
+            std::vector<secp256k1::opencl::JacobianPoint>& jac;
+            std::vector<secp256k1::opencl::AffinePoint>&   aff;
+            ~SharedPointEraseGuard() {
+                secp256k1::detail::secure_erase(jac.data(), jac.size() * sizeof(jac[0]));
+                secp256k1::detail::secure_erase(aff.data(), aff.size() * sizeof(aff[0]));
+            }
+        } _shared_guard{h_jac, h_aff};
         clEnqueueReadBuffer(queue, d_jac, CL_TRUE, 0,
                             count * sizeof(secp256k1::opencl::JacobianPoint),
                             h_jac.data(), 0, nullptr, nullptr);
 
         /* GPU: Jacobian → Affine */
-        std::vector<secp256k1::opencl::AffinePoint> h_aff(count);
         ctx_->batch_jacobian_to_affine(h_jac.data(), h_aff.data(), count);
 
         /* CPU: SHA-256(compressed shared point) to match ufsecp_ecdh/CUDA. */
@@ -2539,18 +2674,12 @@ public:
             affine_to_compressed(&h_aff[i], compressed);
             auto digest = secp256k1::SHA256::hash(compressed, sizeof(compressed));
             std::memcpy(out_secrets32 + i * 32, digest.data(), 32);
+            secp256k1::detail::secure_erase(compressed, sizeof(compressed));
+            secp256k1::detail::secure_erase(digest.data(), digest.size());
         }
 
-        // Rule 10: zero scalar buffer
-        cl_uchar zero = 0;
-        clEnqueueFillBuffer(queue, d_scalars, &zero, 1, 0,
-                            count * sizeof(secp256k1::opencl::Scalar), 0, nullptr, nullptr);
-        clFinish(queue);
-
-        clReleaseMemObject(d_jac);
-        clReleaseMemObject(d_pubs33);
-        clReleaseMemObject(d_scalars);
-
+        // Rule 10: the lease zeroes d_scalars and d_jac when it goes out of
+        // scope here; _scalar_guard and _shared_guard erase the host copies.
         clear_error();
         return GpuError::Ok;
     }
@@ -2574,16 +2703,13 @@ public:
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int clerr;
 
-        cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       33 * count, const_cast<uint8_t*>(pubkeys33), &clerr);
-        if (clerr != CL_SUCCESS)
+        // Public pubkeys/hashes: grow-only per-backend scratch, no erase.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_pubs = nullptr, d_hash = nullptr;
+        if (lease.upload(&d_pubs, pubkeys33, 33 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "hash160 pubkeys buffer alloc");
-
-        cl_mem d_hash = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY, 20 * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pubs);
+        if (lease.alloc(&d_hash, 20 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "hash160 output buffer alloc");
-        }
 
         cl_uint cl_stride = 33;
         cl_uint cl_count = static_cast<cl_uint>(count);
@@ -2595,17 +2721,11 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, hash160_kernel_, 1, nullptr,
                                &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_hash);
-            clReleaseMemObject(d_pubs);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "hash160_batch kernel launch failed");
-        }
         clFinish(queue);
 
         clEnqueueReadBuffer(queue, d_hash, CL_TRUE, 0, 20 * count, out_hash160, 0, nullptr, nullptr);
-
-        clReleaseMemObject(d_hash);
-        clReleaseMemObject(d_pubs);
 
         clear_error();
         return GpuError::Ok;
@@ -2639,95 +2759,30 @@ public:
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int clerr;
 
-        /* Allocate GPU buffers for all inputs -------------------------------- */
-        cl_mem d_z   = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      32 * count, const_cast<uint8_t*>(z_i32), &clerr);
-        if (clerr != CL_SUCCESS)
+        /* Grow-only per-backend scratch for all inputs. FROST partial verify
+         * reads public shares/commitments only, so no erase is needed. ---- */
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_z = nullptr, d_D = nullptr, d_E = nullptr, d_Y = nullptr;
+        cl_mem d_rho = nullptr, d_lam = nullptr, d_nR = nullptr, d_nK = nullptr;
+        cl_mem d_res = nullptr;
+        if (lease.upload(&d_z, z_i32, 32 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "frost z buffer alloc");
-
-        cl_mem d_D   = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      33 * count, const_cast<uint8_t*>(D_i33), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_z);
+        if (lease.upload(&d_D, D_i33, 33 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "frost D buffer alloc");
-        }
-
-        cl_mem d_E   = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      33 * count, const_cast<uint8_t*>(E_i33), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_D);
-            clReleaseMemObject(d_z);
+        if (lease.upload(&d_E, E_i33, 33 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "frost E buffer alloc");
-        }
-
-        cl_mem d_Y   = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      33 * count, const_cast<uint8_t*>(Y_i33), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_E);
-            clReleaseMemObject(d_D);
-            clReleaseMemObject(d_z);
+        if (lease.upload(&d_Y, Y_i33, 33 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "frost Y buffer alloc");
-        }
-
-        cl_mem d_rho = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      32 * count, const_cast<uint8_t*>(rho_i32), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_Y);
-            clReleaseMemObject(d_E);
-            clReleaseMemObject(d_D);
-            clReleaseMemObject(d_z);
+        if (lease.upload(&d_rho, rho_i32, 32 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "frost rho buffer alloc");
-        }
-
-        cl_mem d_lam = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      32 * count, const_cast<uint8_t*>(lambda_ie32), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_rho);
-            clReleaseMemObject(d_Y);
-            clReleaseMemObject(d_E);
-            clReleaseMemObject(d_D);
-            clReleaseMemObject(d_z);
+        if (lease.upload(&d_lam, lambda_ie32, 32 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "frost lambda buffer alloc");
-        }
-
-        cl_mem d_nR  = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      1 * count, const_cast<uint8_t*>(negate_R), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_lam);
-            clReleaseMemObject(d_rho);
-            clReleaseMemObject(d_Y);
-            clReleaseMemObject(d_E);
-            clReleaseMemObject(d_D);
-            clReleaseMemObject(d_z);
+        if (lease.upload(&d_nR, negate_R, 1 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "frost nR buffer alloc");
-        }
-
-        cl_mem d_nK  = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      1 * count, const_cast<uint8_t*>(negate_key), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_nR);
-            clReleaseMemObject(d_lam);
-            clReleaseMemObject(d_rho);
-            clReleaseMemObject(d_Y);
-            clReleaseMemObject(d_E);
-            clReleaseMemObject(d_D);
-            clReleaseMemObject(d_z);
+        if (lease.upload(&d_nK, negate_key, 1 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "frost nK buffer alloc");
-        }
-
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      sizeof(int) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_nK);
-            clReleaseMemObject(d_nR);
-            clReleaseMemObject(d_lam);
-            clReleaseMemObject(d_rho);
-            clReleaseMemObject(d_Y);
-            clReleaseMemObject(d_E);
-            clReleaseMemObject(d_D);
-            clReleaseMemObject(d_z);
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "frost result buffer alloc");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(frost_kernel_, 0, sizeof(cl_mem),  &d_z);
@@ -2744,18 +2799,8 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, frost_kernel_, 1, nullptr,
                                &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_res);
-            clReleaseMemObject(d_nK);
-            clReleaseMemObject(d_nR);
-            clReleaseMemObject(d_lam);
-            clReleaseMemObject(d_rho);
-            clReleaseMemObject(d_Y);
-            clReleaseMemObject(d_E);
-            clReleaseMemObject(d_D);
-            clReleaseMemObject(d_z);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "frost_verify kernel launch failed");
-        }
         clFinish(queue);
 
         std::vector<int> h_res(count);
@@ -2764,16 +2809,6 @@ public:
 
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
-
-        clReleaseMemObject(d_z);
-        clReleaseMemObject(d_D);
-        clReleaseMemObject(d_E);
-        clReleaseMemObject(d_Y);
-        clReleaseMemObject(d_rho);
-        clReleaseMemObject(d_lam);
-        clReleaseMemObject(d_nR);
-        clReleaseMemObject(d_nK);
-        clReleaseMemObject(d_res);
 
         clear_error();
         return GpuError::Ok;
@@ -2799,9 +2834,13 @@ public:
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int clerr;
 
-        cl_mem d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       32 * count, const_cast<uint8_t*>(msg_hashes32), &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "msg buffer alloc");
+        // Public data (recovery is a verifier op): grow-only per-backend
+        // scratch, no erase needed.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_msgs = nullptr, d_sigs = nullptr, d_recids = nullptr;
+        cl_mem d_keys = nullptr, d_res = nullptr;
+        if (lease.upload(&d_msgs, msg_hashes32, 32 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "msg buffer alloc");
 
         struct ECDSASig { uint64_t r[4]; uint64_t s[4]; };
         std::vector<ECDSASig> h_sigs(count);
@@ -2809,39 +2848,14 @@ public:
             be32_to_le_limbs(sigs64 + i * 64,      h_sigs[i].r);
             be32_to_le_limbs(sigs64 + i * 64 + 32, h_sigs[i].s);
         }
-        cl_mem d_sigs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(ECDSASig) * count, h_sigs.data(), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_msgs);
+        if (lease.upload(&d_sigs, h_sigs.data(), sizeof(ECDSASig) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "sig buffer alloc");
-        }
-
-        cl_mem d_recids = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         sizeof(int) * count, const_cast<int*>(recids), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_msgs);
+        if (lease.upload(&d_recids, recids, sizeof(int) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "recid buffer alloc");
-        }
-
-        cl_mem d_keys = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                       sizeof(secp256k1::opencl::JacobianPoint) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_recids);
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_msgs);
+        if (lease.alloc(&d_keys, sizeof(secp256k1::opencl::JacobianPoint) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "key buffer alloc");
-        }
-
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      sizeof(int) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_keys);
-            clReleaseMemObject(d_recids);
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_msgs);
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "result buffer alloc");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(ext_ecrecover_, 0, sizeof(cl_mem), &d_msgs);
@@ -2854,14 +2868,8 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, ext_ecrecover_, 1, nullptr,
                                        &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_res);
-            clReleaseMemObject(d_keys);
-            clReleaseMemObject(d_recids);
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_msgs);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "ecrecover kernel launch failed");
-        }
         clFinish(queue);
 
         std::vector<secp256k1::opencl::JacobianPoint> h_jac(count);
@@ -2883,12 +2891,6 @@ public:
                 std::memset(out_pubkeys33 + i * 33, 0, 33);
             }
         }
-
-        clReleaseMemObject(d_res);
-        clReleaseMemObject(d_keys);
-        clReleaseMemObject(d_recids);
-        clReleaseMemObject(d_sigs);
-        clReleaseMemObject(d_msgs);
         clear_error();
         return GpuError::Ok;
     }
@@ -3061,18 +3063,17 @@ public:
         auto* queue   = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int clerr;
 
+        // Public data: grow-only per-backend scratch, no erase needed.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_msgs = nullptr, d_pubs = nullptr, d_sigs = nullptr, d_out = nullptr;
+
         /* msgs: flat 32-byte hashes */
-        cl_mem d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       32 * count, const_cast<uint8_t*>(msg_hashes32), &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "msg buffer alloc");
+        if (lease.upload(&d_msgs, msg_hashes32, 32 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "msg buffer alloc");
 
         /* pubkeys: pass 33-byte compressed directly (GPU decompresses) */
-        cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       33 * count, const_cast<uint8_t*>(pubkeys33), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_msgs);
+        if (lease.upload(&d_pubs, pubkeys33, 33 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "pub buffer alloc");
-        }
 
         /* sigs: BE r|s → ECDSASignature {r:Scalar, s:Scalar} */
         auto& scratch = g_opencl_batch_scratch;
@@ -3082,24 +3083,13 @@ public:
             be32_to_le_limbs(sigs64 + i * 64,      h_sigs[i].r);
             be32_to_le_limbs(sigs64 + i * 64 + 32, h_sigs[i].s);
         }
-        cl_mem d_sigs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(OpenCLECDSASig) * count, h_sigs, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pubs);
-            clReleaseMemObject(d_msgs);
+        if (lease.upload(&d_sigs, h_sigs, sizeof(OpenCLECDSASig) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "sig buffer alloc");
-        }
 
         /* output: count × 760-byte flat witness records */
         constexpr size_t WITNESS_BYTES = 760;
-        cl_mem d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      WITNESS_BYTES * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_pubs);
-            clReleaseMemObject(d_msgs);
+        if (lease.alloc(&d_out, WITNESS_BYTES * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "output buffer alloc");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(ext_ecdsa_snark_compressed_, 0, sizeof(cl_mem),  &d_msgs);
@@ -3111,22 +3101,12 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, ext_ecdsa_snark_compressed_, 1, nullptr,
                                        &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_out);
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_pubs);
-            clReleaseMemObject(d_msgs);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "ecdsa_snark_witness_batch kernel launch failed");
-        }
         clFinish(queue);
 
         clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0,
                             WITNESS_BYTES * count, out_flat, 0, nullptr, nullptr);
-
-        clReleaseMemObject(d_out);
-        clReleaseMemObject(d_sigs);
-        clReleaseMemObject(d_pubs);
-        clReleaseMemObject(d_msgs);
         clear_error();
         return GpuError::Ok;
     }
@@ -3153,34 +3133,18 @@ public:
         auto* queue  = static_cast<cl_command_queue>(ctx_->native_queue());
         cl_int clerr;
 
-        cl_mem d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       32 * count, const_cast<uint8_t*>(msgs32), &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "msgs buffer alloc");
-
-        cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       32 * count, const_cast<uint8_t*>(pubkeys_x32), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_msgs);
+        // Public data: grow-only per-backend scratch, no erase needed.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_msgs = nullptr, d_pubs = nullptr, d_sigs = nullptr, d_out = nullptr;
+        if (lease.upload(&d_msgs, msgs32, 32 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "msgs buffer alloc");
+        if (lease.upload(&d_pubs, pubkeys_x32, 32 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "pubkeys buffer alloc");
-        }
-
-        cl_mem d_sigs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       64 * count, const_cast<uint8_t*>(sigs64), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pubs);
-            clReleaseMemObject(d_msgs);
+        if (lease.upload(&d_sigs, sigs64, 64 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "sigs buffer alloc");
-        }
-
         constexpr size_t WITNESS_BYTES = 472;
-        cl_mem d_out = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      WITNESS_BYTES * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_pubs);
-            clReleaseMemObject(d_msgs);
+        if (lease.alloc(&d_out, WITNESS_BYTES * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "output buffer alloc");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(ext_schnorr_snark_, 0, sizeof(cl_mem),  &d_msgs);
@@ -3192,22 +3156,12 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, ext_schnorr_snark_, 1, nullptr,
                                        &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_out);
-            clReleaseMemObject(d_sigs);
-            clReleaseMemObject(d_pubs);
-            clReleaseMemObject(d_msgs);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "schnorr_snark_witness_batch kernel launch failed");
-        }
         clFinish(queue);
 
         clEnqueueReadBuffer(queue, d_out, CL_TRUE, 0,
                             WITNESS_BYTES * count, out_flat, 0, nullptr, nullptr);
-
-        clReleaseMemObject(d_out);
-        clReleaseMemObject(d_sigs);
-        clReleaseMemObject(d_pubs);
-        clReleaseMemObject(d_msgs);
         clear_error();
         return GpuError::Ok;
     }
@@ -3256,42 +3210,22 @@ public:
         secp256k1::opencl::JacobianPoint G_jac = generator_jacobian();
         std::vector<secp256k1::opencl::JacobianPoint> h_bases(count, G_jac);
 
-        cl_mem d_proofs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         sizeof(ZKKnowledgeProofOCL) * count,
-                                         h_proofs.data(), &clerr);
-        if (clerr != CL_SUCCESS)
+        // Public verify data: grow-only per-backend scratch, no erase needed.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_proofs = nullptr, d_pubs = nullptr, d_bases = nullptr;
+        cl_mem d_msgs = nullptr, d_res = nullptr;
+        if (lease.upload(&d_proofs, h_proofs.data(), sizeof(ZKKnowledgeProofOCL) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "zk proof buffer alloc");
-
-        cl_mem d_pubs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                        sizeof(secp256k1::opencl::JacobianPoint) * count,
-                                        h_pubs.data(), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_proofs);
+        if (lease.upload(&d_pubs, h_pubs.data(),
+                         sizeof(secp256k1::opencl::JacobianPoint) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "zk pubkey buffer alloc");
-        }
-
-        cl_mem d_bases = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         sizeof(secp256k1::opencl::JacobianPoint) * count,
-                                         h_bases.data(), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pubs); clReleaseMemObject(d_proofs);
+        if (lease.upload(&d_bases, h_bases.data(),
+                         sizeof(secp256k1::opencl::JacobianPoint) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "zk bases buffer alloc");
-        }
-
-        cl_mem d_msgs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                        32 * count, const_cast<uint8_t*>(messages32), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_bases); clReleaseMemObject(d_pubs); clReleaseMemObject(d_proofs);
+        if (lease.upload(&d_msgs, messages32, 32 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "zk msg buffer alloc");
-        }
-
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                       sizeof(int) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_msgs); clReleaseMemObject(d_bases);
-            clReleaseMemObject(d_pubs); clReleaseMemObject(d_proofs);
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "zk result buffer alloc");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(zk_knowledge_verify_, 0, sizeof(cl_mem),  &d_proofs);
@@ -3304,11 +3238,8 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, zk_knowledge_verify_, 1, nullptr,
                                         &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_res); clReleaseMemObject(d_msgs);
-            clReleaseMemObject(d_bases); clReleaseMemObject(d_pubs); clReleaseMemObject(d_proofs);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "zk_knowledge_verify kernel launch failed");
-        }
         clFinish(queue);
 
         std::vector<int> h_res(count);
@@ -3316,9 +3247,6 @@ public:
                              sizeof(int) * count, h_res.data(), 0, nullptr, nullptr);
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
-
-        clReleaseMemObject(d_res); clReleaseMemObject(d_msgs);
-        clReleaseMemObject(d_bases); clReleaseMemObject(d_pubs); clReleaseMemObject(d_proofs);
         clear_error();
         return GpuError::Ok;
     }
@@ -3378,46 +3306,22 @@ public:
 
         size_t jp_sz = sizeof(secp256k1::opencl::JacobianPoint) * count;
 
-        cl_mem d_proofs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          sizeof(ZKDLEQProofOCL) * count, h_proofs.data(), &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "dleq proof buf");
-
-        cl_mem d_G = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                     jp_sz, h_G.data(), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_proofs);
+        // Public verify data: grow-only per-backend scratch, no erase needed.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_proofs = nullptr, d_G = nullptr, d_H = nullptr;
+        cl_mem d_P = nullptr, d_Q = nullptr, d_res = nullptr;
+        if (lease.upload(&d_proofs, h_proofs.data(), sizeof(ZKDLEQProofOCL) * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "dleq proof buf");
+        if (lease.upload(&d_G, h_G.data(), jp_sz) != CL_SUCCESS)
             return set_error(GpuError::Memory, "dleq G buf");
-        }
-
-        cl_mem d_H = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                     jp_sz, h_H.data(), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_G); clReleaseMemObject(d_proofs);
+        if (lease.upload(&d_H, h_H.data(), jp_sz) != CL_SUCCESS)
             return set_error(GpuError::Memory, "dleq H buf");
-        }
-
-        cl_mem d_P = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                     jp_sz, h_P.data(), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_H); clReleaseMemObject(d_G); clReleaseMemObject(d_proofs);
+        if (lease.upload(&d_P, h_P.data(), jp_sz) != CL_SUCCESS)
             return set_error(GpuError::Memory, "dleq P buf");
-        }
-
-        cl_mem d_Q = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                     jp_sz, h_Q.data(), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_P); clReleaseMemObject(d_H);
-            clReleaseMemObject(d_G); clReleaseMemObject(d_proofs);
+        if (lease.upload(&d_Q, h_Q.data(), jp_sz) != CL_SUCCESS)
             return set_error(GpuError::Memory, "dleq Q buf");
-        }
-
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                       sizeof(int) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_Q); clReleaseMemObject(d_P);
-            clReleaseMemObject(d_H); clReleaseMemObject(d_G); clReleaseMemObject(d_proofs);
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "dleq result buf");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(zk_dleq_verify_, 0, sizeof(cl_mem),  &d_proofs);
@@ -3431,11 +3335,8 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, zk_dleq_verify_, 1, nullptr,
                                         &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_res); clReleaseMemObject(d_Q); clReleaseMemObject(d_P);
-            clReleaseMemObject(d_H); clReleaseMemObject(d_G); clReleaseMemObject(d_proofs);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "zk_dleq_verify kernel launch failed");
-        }
         clFinish(queue);
 
         std::vector<int> h_res(count);
@@ -3443,9 +3344,6 @@ public:
                              sizeof(int) * count, h_res.data(), 0, nullptr, nullptr);
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
-
-        clReleaseMemObject(d_res); clReleaseMemObject(d_Q); clReleaseMemObject(d_P);
-        clReleaseMemObject(d_H); clReleaseMemObject(d_G); clReleaseMemObject(d_proofs);
         clear_error();
         return GpuError::Ok;
     }
@@ -3499,31 +3397,18 @@ public:
         if (!pubkey65_to_affine(H_generator65, &h_gen))
             return set_error(GpuError::BadKey, "invalid H generator");
 
-        cl_mem d_proofs = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         sizeof(RangeProofPolyOCL) * count, h_proofs.data(), &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "bp proof buffer");
-
-        cl_mem d_commits = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          sizeof(secp256k1::opencl::AffinePoint) * count,
-                                          h_commits.data(), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_proofs);
+        // Public verify data: grow-only per-backend scratch, no erase needed.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_proofs = nullptr, d_commits = nullptr, d_hgen = nullptr, d_res = nullptr;
+        if (lease.upload(&d_proofs, h_proofs.data(), sizeof(RangeProofPolyOCL) * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bp proof buffer");
+        if (lease.upload(&d_commits, h_commits.data(),
+                         sizeof(secp256k1::opencl::AffinePoint) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bp commit buffer");
-        }
-
-        cl_mem d_hgen = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                       sizeof(secp256k1::opencl::AffinePoint), &h_gen, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_commits); clReleaseMemObject(d_proofs);
+        if (lease.upload(&d_hgen, &h_gen, sizeof(secp256k1::opencl::AffinePoint)) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bp h-gen buffer");
-        }
-
-        cl_mem d_res = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      sizeof(int) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_hgen); clReleaseMemObject(d_commits); clReleaseMemObject(d_proofs);
+        if (lease.alloc(&d_res, sizeof(int) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bp result buffer");
-        }
 
         cl_uint cl_count = static_cast<cl_uint>(count);
         clSetKernelArg(bp_poly_batch_, 0, sizeof(cl_mem),  &d_proofs);
@@ -3535,21 +3420,17 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, bp_poly_batch_, 1, nullptr,
                                         &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_res);   clReleaseMemObject(d_hgen);
-            clReleaseMemObject(d_commits); clReleaseMemObject(d_proofs);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "bp_poly_batch kernel launch failed");
-        }
         clFinish(queue);
 
+        // Zero-initialised per call on purpose: the readback below is not
+        // checked, so a failed read must leave "invalid", never a stale verdict.
         std::vector<int> h_res(count);
         clEnqueueReadBuffer(queue, d_res, CL_TRUE, 0,
                              sizeof(int) * count, h_res.data(), 0, nullptr, nullptr);
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
-
-        clReleaseMemObject(d_res);    clReleaseMemObject(d_hgen);
-        clReleaseMemObject(d_commits); clReleaseMemObject(d_proofs);
         clear_error();
         return GpuError::Ok;
     }
@@ -3578,48 +3459,22 @@ public:
 
         const size_t wire_stride = (size_t)max_payload + 19u; /* BIP324_OVERHEAD = 19 */
 
-        // NF-02: Rule 10 — helper that zeros d_keys before release on ALL exit paths
-        auto zero_release_keys = [&](cl_mem buf) {
-            cl_uchar z = 0;
-            clEnqueueFillBuffer(queue, buf, &z, 1, 0, 32 * count, 0, nullptr, nullptr);
-            clFinish(queue);
-            clReleaseMemObject(buf);
-        };
-
-        cl_mem d_keys = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                        32 * count, const_cast<uint8_t*>(keys32), &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "bip324 key buf");
-
-        cl_mem d_nonces = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          12 * count, const_cast<uint8_t*>(nonces12), &clerr);
-        if (clerr != CL_SUCCESS) {
-            zero_release_keys(d_keys);
+        // NF-02 / Rule 10: the AEAD session keys and the plaintext are secret
+        // slots of the per-backend scratch -- the lease zeroes them
+        // (clEnqueueFillBuffer + clFinish) on ALL exit paths before reuse.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_keys = nullptr, d_nonces = nullptr, d_pt = nullptr;
+        cl_mem d_sizes = nullptr, d_wire = nullptr;
+        if (lease.upload_secret(&d_keys, keys32, 32 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bip324 key buf");
+        if (lease.upload(&d_nonces, nonces12, 12 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bip324 nonce buf");
-        }
-
-        cl_mem d_pt = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                      (size_t)max_payload * count,
-                                      const_cast<uint8_t*>(plaintexts), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        if (lease.upload_secret(&d_pt, plaintexts, (size_t)max_payload * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bip324 plaintext buf");
-        }
-
-        cl_mem d_sizes = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         sizeof(uint32_t) * count,
-                                         const_cast<uint32_t*>(sizes), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        if (lease.upload(&d_sizes, sizes, sizeof(uint32_t) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bip324 sizes buf");
-        }
-
-        cl_mem d_wire = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                        wire_stride * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_sizes); clReleaseMemObject(d_pt);
-            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        if (lease.alloc(&d_wire, wire_stride * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bip324 wire_out buf");
-        }
 
         cl_uint cl_max = static_cast<cl_uint>(max_payload);
         cl_int  cl_cnt = static_cast<cl_int>(count);
@@ -3634,19 +3489,14 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, bip324_aead_encrypt_, 1, nullptr,
                                         &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_wire); clReleaseMemObject(d_sizes);
-            clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "bip324_encrypt kernel launch failed");
-        }
         clFinish(queue);
 
         clEnqueueReadBuffer(queue, d_wire, CL_TRUE, 0,
                              wire_stride * count, wire_out, 0, nullptr, nullptr);
 
-        // Rule 10 — zero AES session keys before release (success path)
-        clReleaseMemObject(d_wire); clReleaseMemObject(d_sizes);
-        clReleaseMemObject(d_pt); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        // Rule 10 — the lease zeroes the AES session keys and plaintext here.
         clear_error();
         return GpuError::Ok;
     }
@@ -3674,57 +3524,25 @@ public:
 
         const size_t wire_stride = (size_t)max_payload + 19u;
 
-        // NF-02: Rule 10 — helper that zeros d_keys before release on ALL exit paths
-        auto zero_release_keys = [&](cl_mem buf) {
-            cl_uchar z = 0;
-            clEnqueueFillBuffer(queue, buf, &z, 1, 0, 32 * count, 0, nullptr, nullptr);
-            clFinish(queue);
-            clReleaseMemObject(buf);
-        };
-
-        cl_mem d_keys = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                        32 * count, const_cast<uint8_t*>(keys32), &clerr);
-        if (clerr != CL_SUCCESS) return set_error(GpuError::Memory, "bip324d key buf");
-
-        cl_mem d_nonces = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                          12 * count, const_cast<uint8_t*>(nonces12), &clerr);
-        if (clerr != CL_SUCCESS) {
-            zero_release_keys(d_keys);
+        // NF-02 / Rule 10: the AEAD session keys and the recovered plaintext are
+        // secret slots of the per-backend scratch -- the lease zeroes them
+        // (clEnqueueFillBuffer + clFinish) on ALL exit paths before reuse.
+        OclScratchLease lease(scratch_, cl_ctx, queue);
+        cl_mem d_keys = nullptr, d_nonces = nullptr, d_wire_in = nullptr;
+        cl_mem d_sizes = nullptr, d_pt = nullptr, d_ok = nullptr;
+        if (lease.upload_secret(&d_keys, keys32, 32 * count) != CL_SUCCESS)
+            return set_error(GpuError::Memory, "bip324d key buf");
+        if (lease.upload(&d_nonces, nonces12, 12 * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bip324d nonce buf");
-        }
-
-        cl_mem d_wire_in = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                           wire_stride * count,
-                                           const_cast<uint8_t*>(wire_in), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        if (lease.upload(&d_wire_in, wire_in, wire_stride * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bip324d wire_in buf");
-        }
-
-        cl_mem d_sizes = clCreateBuffer(cl_ctx, CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
-                                         sizeof(uint32_t) * count,
-                                         const_cast<uint32_t*>(sizes), &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_wire_in); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        if (lease.upload(&d_sizes, sizes, sizeof(uint32_t) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bip324d sizes buf");
-        }
-
-        cl_mem d_pt = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      (size_t)max_payload * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_sizes); clReleaseMemObject(d_wire_in);
-            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        if (lease.alloc_secret(&d_pt, (size_t)max_payload * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bip324d plaintext buf");
-        }
-
         /* ok: kernel writes cl_uint, convert to uint8_t after readback */
-        cl_mem d_ok = clCreateBuffer(cl_ctx, CL_MEM_WRITE_ONLY,
-                                      sizeof(cl_uint) * count, nullptr, &clerr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_pt); clReleaseMemObject(d_sizes);
-            clReleaseMemObject(d_wire_in); clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        if (lease.alloc(&d_ok, sizeof(cl_uint) * count) != CL_SUCCESS)
             return set_error(GpuError::Memory, "bip324d ok buf");
-        }
 
         cl_uint cl_max = static_cast<cl_uint>(max_payload);
         cl_int  cl_cnt = static_cast<cl_int>(count);
@@ -3740,12 +3558,8 @@ public:
         size_t global = count;
         clerr = clEnqueueNDRangeKernel(queue, bip324_aead_decrypt_, 1, nullptr,
                                         &global, nullptr, 0, nullptr, nullptr);
-        if (clerr != CL_SUCCESS) {
-            clReleaseMemObject(d_ok); clReleaseMemObject(d_pt);
-            clReleaseMemObject(d_sizes); clReleaseMemObject(d_wire_in);
-            clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        if (clerr != CL_SUCCESS)
             return set_error(GpuError::Launch, "bip324_decrypt kernel launch failed");
-        }
         clFinish(queue);
 
         clEnqueueReadBuffer(queue, d_pt, CL_TRUE, 0,
@@ -3757,10 +3571,7 @@ public:
         for (size_t i = 0; i < count; ++i)
             out_valid[i] = h_ok[i] ? 1 : 0;
 
-        // Rule 10 — zero AES session keys before release (success path)
-        clReleaseMemObject(d_ok); clReleaseMemObject(d_pt);
-        clReleaseMemObject(d_sizes); clReleaseMemObject(d_wire_in);
-        clReleaseMemObject(d_nonces); zero_release_keys(d_keys);
+        // Rule 10 — the lease zeroes the AES session keys and plaintext here.
         clear_error();
         return GpuError::Ok;
     }
@@ -3856,6 +3667,13 @@ static void bip352_glv_wnaf5(const uint8_t* scalar_be32, int8_t wnaf[130]) {
         const size_t n_rows = n_tweaks * n_spend;
         if (n_rows > kLocalMaxGpuBatchN)
             return set_error(GpuError::BadInput, "n_tweaks * n_spend too large");
+
+        // Deliberately keeps per-call clCreateBuffer + DevicePlanGuard instead
+        // of the per-backend scratch_: every OpenCL control call of this method
+        // goes through bip352_fault_injection::fi_call() at a fixed site, and
+        // audit/test_exploit_opencl_bip352_control_call_failclosed.cpp injects
+        // faults at those exact sites. Routing the buffers through scratch_
+        // would change the site set that audit pins.
 
         // Fail-closed helper: from this point on, n_rows (and therefore
         // prefix64_out's caller-visible byte size) is known and validated,
@@ -4146,6 +3964,7 @@ private:
      * backend/context -- correctness over concurrency for this op. */
     std::mutex sighash_dispatch_mtx_;
     cl_kernel  ext_schnorr_verify_         = nullptr;
+    cl_kernel  ext_bch_schnorr_verify_     = nullptr;  // BCH 2019 Schnorr (public)
     cl_kernel  ext_ecrecover_       = nullptr;
     cl_kernel  ext_ecdsa_snark_            = nullptr;
     cl_kernel  ext_ecdsa_snark_compressed_      = nullptr;
@@ -4189,6 +4008,14 @@ private:
 
     /* MSM persistent buffer pool (shared across msm() calls) */
     OclMsmPool msm_pool_;
+
+    /* Per-backend grow-only device scratch for the C ABI batch methods (see
+     * OclScratchArena). One owner (this backend), released in shutdown()
+     * before the context goes away and again by its destructor. Every method
+     * that uses it holds scratch_'s mutex for the whole dispatch through an
+     * OclScratchLease -- which also serialises the shared clSetKernelArg ->
+     * clEnqueueNDRangeKernel sequence on this backend's kernel objects. */
+    OclScratchArena scratch_;
 
     GpuError set_error(GpuError err, const char* msg) {
         last_err_ = err;
@@ -4397,6 +4224,7 @@ private:
         // (each handle is nullptr until created) make one shared cleanup safe
         // regardless of which clCreateKernel failed — no double-release.
         auto release_all_extended = [&]() {
+            if (ext_bch_schnorr_verify_)   { clReleaseKernel(ext_bch_schnorr_verify_);   ext_bch_schnorr_verify_   = nullptr; }
             if (ext_sighash_descriptor_)   { clReleaseKernel(ext_sighash_descriptor_);   ext_sighash_descriptor_   = nullptr; }
             if (ext_merkle_pair_)          { clReleaseKernel(ext_merkle_pair_);          ext_merkle_pair_          = nullptr; }
             if (ext_hash256_var_)          { clReleaseKernel(ext_hash256_var_);          ext_hash256_var_          = nullptr; }
@@ -4447,6 +4275,10 @@ private:
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "ecdsa_verify_lbtc_collect kernel not found"); }
         ext_schnorr_lbtc_collect_ = clCreateKernel(ext_program_, "schnorr_verify_lbtc_collect", &err);
         if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "schnorr_verify_lbtc_collect kernel not found"); }
+
+        // Bitcoin Cash 2019 Schnorr verify (NOT BIP-340), PUBLIC data.
+        ext_bch_schnorr_verify_ = clCreateKernel(ext_program_, "bch_schnorr_verify_batch", &err);
+        if (err != CL_SUCCESS) { release_all_extended(); return set_error(GpuError::Launch, "bch_schnorr_verify_batch kernel not found"); }
 
         return GpuError::Ok;
     }

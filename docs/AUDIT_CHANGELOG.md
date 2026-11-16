@@ -1,5 +1,1064 @@
 # Audit Changelog
 
+## 2026-11-05 - Dev CI fixes after the issue #466 push
+
+- **UFSECP_LANES no longer echoes the raw value.** A rejected value was printed
+  to stderr verbatim. SonarCloud flagged this as log injection (S5145). The
+  warning now prints only the reason and the selected backend. The standalone
+  `lanes_verify_differential` sets a hostile value (an escape sequence and
+  `%n`), captures stderr, and fails if the value appears in it. The check is
+  skipped when `UFSECP_LANES` is already set.
+- **`exploit_bch_schnorr_batch_forgery` gets 600 s instead of 180 s.** It takes
+  5.6 s in Release and 116 s alone under Debug ASan+UBSan, and it timed out on
+  the loaded sanitizer runner. 600 s matches the other batch soundness probes.
+- **`bch_schnorr.cpp` builds again with `-Werror`.** `fe_is_qr_var` is compiled
+  only where the non-52-bit verifier tail calls it. The 52-bit build reported
+  it as an unused function.
+
+## 2026-11-05 - BCH 2019 Schnorr lane verify joins lanes_verify_differential (issue #466)
+
+**Surface.** `lanes::bch_schnorr_verify_lanes` with the new `lv_bch_group`
+kernel, on every lane backend: AVX2, AVX-IFMA, IFMA256 and AVX-512 IFMA. The
+residue test is a lane-parallel Euler criterion on Y*Z. Every input is public
+(CT-VERIFY).
+
+**Guards.**
+- `lanes_verify_differential` (blocking) checks BCH on every available backend
+  and on `LaneBackend::None`, against `bch_schnorr_verify` entry by entry:
+  valid signatures with 02 and 03 keys, every invalid class, R negated, R = O,
+  GLV edges, partial groups for n = 1..17, NULL and n == 0, and the stats
+  counters.
+- `--require=<backends>` makes a missing backend a failure.
+  `.github/workflows/sde-dispatch.yml` runs the test under SDE -tgl, -spr
+  (ifma512 and ifma256 required) and -srf (avx_ifma).
+
+**Host run** (i5-14400F, AVX2 only): 2562 checks, 0 failures; `--require=ifma512`
+fails as expected. The IFMA backends are proven only by the SDE CI job.
+
+## 2026-11-04 - BCH batch verify: the Strauss route and its engine differential (issue #466)
+
+**Surface.** `bch_schnorr_batch_verify` now has four routes: single, individual
+(N = 2..4), a dedicated interleaved Strauss (N = 5..48) and Pippenger-short
+(above 48). `batch_route()` picks one; the equation, the weights and the
+pre-MSM rejects are the same on every route.
+
+**Guards** (`exploit_bch_schnorr_batch_forgery`, still blocking):
+- Every route runs at and around both thresholds. The sizes come from the
+  header constants, so a threshold change moves the tests with it.
+- The cancellation pair, the -R twin and one bad entry at every position run on
+  each route.
+- New engine differential, for N in [2, 64] with random scalars and points:
+  the Strauss sum equals pippenger_msm_glv_short + g*G and the separate
+  multiplications, exactly. It also covers zero and small weights, a repeated
+  point, P and -P in one batch, and streams that end early.
+
+Host run: 943/943 checks; batch, Schnorr and BCH ctests 37/37.
+
+## 2026-11-04 - GPU BCH 2019 Schnorr batch verify: GPU-vs-CPU differential modules (issue #466)
+
+**Surface.** `ufsecp_gpu_bch_schnorr_verify_batch` runs on CUDA, OpenCL and
+Metal. Every input is public, so the kernels are variable-time.
+
+**Guards.**
+- `audit/test_gpu_ops_equivalence.cpp` compares every item with
+  `ufsecp_bch_schnorr_verify`, for random valid signatures and for each
+  invalid class: each field corrupted, r >= p, r off the curve, R negated (the
+  Jacobi check fails), s >= n, s = 0, bad and non-canonical keys, and mixed
+  batches.
+- `audit/test_gpu_host_api_negative.cpp` and `audit/test_gpu_abi_gate.cpp`
+  cover the NULL and count cases.
+- New modules in `gpu_audit_runner` (CUDA) and `opencl_audit_runner`: BCH
+  verify, GPU against CPU, on valid and invalid classes.
+
+**Host run, RTX 5060 Ti.**
+- CUDA: `gpu_ops_equivalence` 495/495, `gpu_audit_runner` 49/49, GPU ctest 21/21.
+- OpenCL: `gpu_ops_equivalence` 495/495, `opencl_audit_runner` 46/46,
+  `--kernel-dir` = source tree.
+- Metal is code-complete but not runtime-verified on Linux.
+
+## 2026-11-04 - BCH 2019 Schnorr batch verification: forgery and differential modules (issue #466)
+
+**Surface.** A new verifier, `src/cpu/src/bch_schnorr.cpp`, covers single and
+batch verification of the Bitcoin Cash 2019 Schnorr scheme (not BIP-340). It is
+reached through the C ABI (`ufsecp_bch_schnorr_verify`,
+`ufsecp_bch_schnorr_batch_verify`, `ufsecp_bch_schnorr_batch_identify`) and the
+BCHN shim (`secp256k1_schnorr_verify`, `secp256k1_schnorr_verify_batch`). Every
+input is public, so the verifier is variable-time (CT-VERIFY).
+
+**Guards.**
+- `exploit_bch_schnorr_batch_forgery` (section `exploit_poc`, advisory=false)
+  builds the attacks a weak batch admits:
+  - a cancellation pair whose unweighted sum is O;
+  - the R = -R_valid twin with s' = 2ed - s;
+  - one bad entry at every position for n in 2..64;
+  - message and key swaps;
+  - r >= p, r off the curve, s >= n and s == 0, and bad pubkeys.
+
+  It asserts that the batch result equals the AND of single verifies, and that
+  the weights depend on every input.
+- `bch_schnorr_differential` (section `differential`, advisory=false) checks
+  the C++ engine, the C ABI and the BCHN shim against the shim's verifier from
+  before the delegation. It covers valid signatures and every mutation class,
+  and checks that each batch result equals the AND of its singles.
+
+**Divergence.** s == 0 is rejected up front. The reference reaches the curve
+check instead, but no signature anyone can produce behaves differently
+(`docs/SHIM_KNOWN_DIVERGENCES.md`).
+
+## 2026-11-04 - OpenCL/Metal CT mixed addition: P + (-P) is the flagged point at infinity (module `ct_add_mixed_neg`)
+
+**Defect.** `ct_point_add_mixed` (`src/opencl/kernels/secp256k1_ct_point.cl`,
+`src/metal/shaders/secp256k1_ct_point.h`) used the Jacobian+affine formula. It
+made a constant-time select for P == Q (h == 0, rr == 0) but not for P == -Q
+(h == 0, rr != 0). There z3 = 2*z1*h = 0 while the final flag was
+`p.infinity & q.infinity`, so the sum was an unflagged Z = 0 point, and Z = 0
+stays 0 through later additions and doublings. The callers are the CT
+`ct_scalar_mul_point` and `ct_generator_mul_impl`/`ct_generator_mul_metal`
+(signing nonces, pubkey creation, ECDH). There, random scalars reach the case
+with negligible probability. No input that reaches it through those callers has
+been constructed. CUDA (`src/cuda/include/ct/ct_point.cuh`, complete
+Brier-Joye) and the CPU `ct::` code handle it already.
+
+**Fix.** `neg_point = h_zero & ~rr_zero & ~p.infinity & ~q.infinity`, at the
+backend's mask width (64-bit OpenCL, 32-bit Metal). A `ct_point_cmov` then moves
+the canonical infinity into the result, and `neg_point` is ORed into the final
+flag. No branch, and the function signatures are unchanged. These are the only
+CT point additions in the two files.
+
+**Guard.** OpenCL `opencl_audit_runner` module `ct_add_mixed_neg` (section
+`gpu_ct_smoke`, advisory=false). It uses P = m*G for m in {1, 2, 3, n-1, n-2,
+(n-1)/2, lambda} plus 16 seeded random m, and P is given with Z = 1 and with
+Z = c != 1. The checks:
+- P + (-P) is flagged;
+- (P + (-P)) + Q == Q, also after one doubling, and adding O stays O;
+- P + P == `ct_point_dbl(P)` == (2m)*G;
+- P + Q == (m+q)*G.
+
+Host run on an RTX 5060 Ti: 45/45 with the fix. With the old
+`secp256k1_ct_point.cl` (same runner, `--kernel-dir`) the module fails for 23 of
+23 points, on the flag and on (P + (-P)) + Q. `src/metal/tests/metal_extended_test.mm`
+mirrors the checks; Metal is not compiled on Linux, so they run on the macOS CI job.
+
+## 2026-11-04 - CPU bench: recover-vs-recover rows against libsecp256k1, and the SHA-256 (32B) row timed out of line (NF-2026-00040)
+
+**ecrecover comparison.** bench_unified's "ETHEREUM / RECOVERY" table compared Ultra
+`coins::ecrecover` (recover, 65-byte serialization and a Keccak-256 address) with libsecp256k1's
+bare `secp256k1_ecdsa_recover`, so the ratio counted work libsecp did not do. A profile of
+`ecdsa_recover` (`src/cpu/src/recovery.cpp`), `ufsecp_ecdsa_recover` and the ecrecover wrapper
+found no extra inversion, affine conversion or serialization round trip. r^-1 uses the
+variable-time scalar inverse, lift_x runs in FE52, and Q = u1*G + u2*R is one
+`dual_scalar_mul_gen_point`. The recovery code is unchanged. bench_unified now has an
+"ECDSA RECOVERY -- Ultra FAST" section and an "ECDSA RECOVERY" Ultra-vs-libsecp table:
+`ecdsa_sign_recoverable`, `ecdsa_recover`, and `ecdsa_recover + serialize 33B`
+(`Point::to_compressed` vs `secp256k1_ec_pubkey_serialize`). Those rows also appear in the libsecp
+section. They no longer depend on `SECP256K1_BUILD_ETHEREUM`, because recovery.cpp and libsecp's
+recovery module are always built. The ecrecover row stays in the Ethereum table without a libsecp
+column.
+
+**SHA-256 (32B) row.** The row moved between bc5aa9f4 and a2d93fa0, but the SHA-256 code did not
+change. It was timed by a lambda inside `main()`. `Harness::run` and that lambda were inlined into
+`main()`, which was past GCC's inline-unit growth limit, so the timed loop called
+`SHA256::update`/`finalize` out of line. Any unrelated code added to `main()` could move the row.
+The SHA-256 and SHA-512 rows now run through `bench_sha256_32` / `bench_sha512_32`
+(noipa on GCC, noinline elsewhere, fixed 32-byte length). A small caller gets inlined the way a
+real library caller is. Bench-only change; the library hash path is unchanged.
+
+**Guard.** `audit/test_exploit_ecdsa_recovery.cpp` (module `exploit_ecdsa_recovery`), new checks:
+- a 64-entry pool where the recovered key's 33-byte and 65-byte encodings must equal sk*G byte for
+  byte, the signature must verify, and the opposite-parity recid must give a different key that
+  also verifies;
+- recid&2 boundaries: r = p-n+1 is rejected (r+n would wrap to x = 1, which is on the curve);
+  r = p-n-1 fails in lift_x (x^3+7 = 6 is a non-residue); r = p-n-3 recovers two different
+  verify-consistent keys for recid 2 and 3.
+
+**Open.** `sha256_compress_dispatch` (`src/cpu/src/hash_accel.cpp`) still calls the out-of-line
+`cpu_features()` on every compress. Replacing that call with a cached flag that still follows
+`set_cpu_disable_mask` needs a publish hook in `src/cpu/src/cpu_features.cpp` and a mask-path test
+in `src/cpu/tests/`, which this change did not cover.
+
+## 2026-11-04 - GPU C ABI: non-canonical SEC1 points rejected in `ufsecp_gpu_msm` and per item in the verify batches (NF-2026-00029, module `exploit_gpu_noncanonical_point_encoding`)
+
+**Gap.** caab87a0 put the SEC1 range gate (`sec1_compressed_batch_canonical` /
+`sec1_uncompressed_batch_canonical`, `src/cpu/include/secp256k1/detail/sec1_canonical.hpp`; KB
+`GPU-SEC1-CANONICAL-GATE`) in front of most GPU C ABI entry points, but not all. Measured on CUDA
+with x = p+1 (the second encoding of the on-curve point x = 1): `ufsecp_gpu_msm` returned OK and
+the same result as for the canonical encoding, while the CPU parser rejects it. The verify batches
+(`ecdsa_verify_batch`, `schnorr_verify_batch`, `ecdsa_verify_opaque_rows` / `_lbtc_rows`, the
+`*_verify_lbtc_columns`, the `*_verify_collect` variants and `commitment_verify`) had the same gap.
+
+**Fix (host side, `src/cpu/src/ufsecp_gpu_impl.cpp` only; kernels unchanged).** `ufsecp_gpu_msm`
+returns `UFSECP_ERR_BAD_PUBKEY` (output cleared) for any non-canonical point, like the other
+whole-batch entry points. The single-spend `ufsecp_gpu_bip352_scan_batch`, which only checked the
+prefix, now uses the same gate as the multi-spend entry point (`UFSECP_ERR_BAD_INPUT`). The
+per-item verifiers are post-masked after a successful dispatch: an item whose key is not canonical
+(33-byte prefix / x `>= p`, or an x-only / internal / tweaked x `>= p`) gets result 0 whatever the
+kernel wrote, and the other items keep their verdicts. This covers the verify batches above plus
+`xonly_validate` and `pubkey_validate`. The collect variants save the pre-seeded marker of such a
+row before dispatch and restore it afterwards, so the row stays invalid. A failed dispatch still
+clears every result, as before.
+
+**Remaining gap.** The gate lives in the C ABI only. C++ callers that invoke `GpuBackend` methods
+directly (the libbitcoin direct entry point) bypass it and keep the kernels' reduce-mod-p
+behaviour.
+
+**Test.** `audit/test_exploit_gpu_noncanonical_point_encoding.cpp` (CPU-runnable; GPU part skips
+without a usable runtime) now checks `msm` (x `>= p` at index 0 and 1), `bip352_scan_batch`, a
+65-byte y `>= p` encoding on `zk_knowledge_verify_batch`, every verify batch with the bad key at
+index 0 and at index 1 (bad item 0, valid neighbour 1, collect marker kept), and `xonly_validate`,
+`pubkey_validate` and `commitment_verify` with the p+1 alias of x = 1 (alias 0, x = 1 itself 1).
+GPU results: not yet run in this change; the manager runs the module on the host GPU.
+
+## 2026-11-04 - CUDA and OpenCL: ECDSA verify checks x(R) mod n == r projectively (`ecdsa_jacobian_x_eq_r_var`, module `ecdsa_verify_rx`)
+
+CUDA `ecdsa_verify` (`src/cuda/include/ecdsa.cuh`) and OpenCL `ecdsa_verify_impl`
+(`src/opencl/kernels/secp256k1_extended.cl`) inverted R.z only to compare x(R) mod n with r.
+Both now use the libsecp256k1 projective check (`secp256k1_gej_eq_x_var` plus the r+n case of
+`secp256k1_ecdsa_sig_verify`): for 0 < r < n, accept iff X == r*Z^2 (mod p), or r < p - n
+(p - n = 0x14551231950B75FC4402DA1722FC9BAEE) and X == (r+n)*Z^2. The new helpers are
+`ecdsa_jacobian_x_eq_r_var` (CUDA) and `ecdsa_jacobian_x_eq_r_var_impl` (OpenCL). They run in
+variable time, which is correct because every input is public (CT-VERIFY). Every verdict-only
+ECDSA route goes through these two functions: every CUDA kernel that calls `ecdsa_verify`, and
+every `ecdsa_verify_impl` caller in OpenCL (the verify kernels in `secp256k1_extended.cl` and the
+CT sign-then-verify kernels). The ECDSA SNARK witness and recovery still do the affine conversion,
+because they output R's or Q's coordinates. Verdicts are unchanged. Audit module
+`ecdsa_verify_rx` (CUDA `gpu_audit_runner`, OpenCL `opencl_audit_runner`) checks that a valid
+signature accepts and that a tampered r, s, msg or key rejects. It also checks a fixed vector with
+x(R) = n + 2 >= n: r = 2 accepts, r + 1 = 3 rejects, and s + 1 or z + 1 reject. The vector was
+built off-device as Q = u2^-1 (R - u1 G) and is checked with the pubkey both at Z = 1 and at
+Z != 1. The CUDA module also calls the helper directly on Z != 1 points, covering both
+candidates and the r >= p - n early exit. Throughput: not yet measured; benchmark required.
+
+## 2026-11-04 - MuSig2: partial signature verification checks only the signer key's real parity (`musig2_partial_verify`, `secp256k1_musig_partial_sig_verify`)
+
+**Root cause (NF-2026-00028).** `secp256k1::musig2_partial_verify` (`src/cpu/src/musig2.cpp`)
+took the signer key as 32-byte x-only and returned true if `s*G == R_eff + ea*P` OR
+`s*G == R_eff - ea*P`, with `ea = e*a_i*g*gacc`. BIP-327 `PartialSigVerify` checks only
+`cpoint(pk_i)`, with the key's real parity. A signer could return
+`s' = k1 + b*k2 - e*a_i*g*gacc*d_i`: it passed partial verification, but the aggregate
+signature was invalid, which defeats blame attribution. The shim
+`secp256k1_musig_partial_sig_verify` held the 33-byte key, dropped its parity and passed x-only,
+so it returned 1 where libsecp256k1 returns 0. That divergence was undocumented.
+
+**Fix.** New core overload `musig2_partial_verify(..., const std::array<uint8_t, 33>&, ...)`
+decompresses the key strictly (02/03 prefix, x < p, on curve) and checks only that point. The
+shim now calls it with the 33-byte key. The x-only overload and the C ABI
+`ufsecp_musig2_partial_verify` are unchanged (no ABI change) and are documented as
+parity-lenient in `docs/API_REFERENCE.md`; `docs/SHIM_KNOWN_DIVERGENCES.md` records the shim as
+conformant. Verification only; no signing or CT code changed.
+
+**Guard.** `audit/test_regression_musig2_session_token.cpp` (`test_negated_key_term_rejected`,
+module `regression_musig2_session_token`): builds `s'` from a real 2-of-2 shim session and checks
+that the shim and the core 33-byte overload reject it, that the honest partial signatures still
+verify, that the x-only overload still accepts it (documented contract), and that the aggregate
+with `s'` fails BIP-340 verification.
+
+## 2026-11-04 - OpenCL: the CT BIP-340 signer rejects a zero private key (`ct_schnorr_sign_impl`, module `fuzz_schnorr_zero`)
+
+`ct_schnorr_sign_impl` (`src/opencl/kernels/secp256k1_ct_sign.cl`) signed with `d = 0` and
+returned success. The CPU signer rejects that key, and so did the OpenCL ECDSA signer. Once the
+CT drop-in built and the CT GLV split was fixed, the audit module `fuzz_schnorr_zero` ran and
+failed (`error=1`). `ct_scalar_is_zero(priv)` is now one more CT mask in the signer's single final
+verdict, next to `k' == 0`, `s == 0` and `R.x == 0`. Checked on the host GPU with a pyopencl
+harness checked against a pure-Python BIP-340 verifier: `d = 0` returns 0, and 15 other keys
+(including 1, 2 and n-1) produce valid signatures. Metal is unchanged.
+
+## 2026-11-04 - OpenCL and Metal: the CT generator / scalar multiplication uses a real constant-time GLV split (`ct_glv_decompose_impl`, `ct_glv_decompose`)
+
+**Root cause (NF-2026-00039).** `ct_glv_decompose_impl` (`src/opencl/kernels/secp256k1_ct_scalar.cl`)
+and `ct_glv_decompose` (`src/metal/shaders/secp256k1_ct_scalar.h`) were stubs: they returned
+k1 = k (negated when k > n/2) and k2 = 0. The CT multipliers that consume them,
+`ct_generator_mul_impl` / `ct_scalar_mul_point` (`secp256k1_ct_point.cl`) and
+`ct_generator_mul_metal` / `ct_scalar_mul_point` (`secp256k1_ct_point.h`), scan only 33 four-bit
+windows (132 bits) of k1 and k2 because they assume a real GLV split with |k1|, |k2| < 2^128.
+So the top bits of every k whose normalized value is >= 2^132 were silently dropped and k*G
+was wrong for essentially every random scalar. Measured by the manager on the OpenCL backend
+before the fix: `ct_generator_mul_impl` matched a pure-Python reference for 5 of 16 scalars
+(only k = 1, 2, 3, 42 and n-1), and `ct_ecdsa_sign_impl` produced 0 of 16 valid signatures. The
+verifier and the fast `scalar_mul_generator_windowed_impl` were correct.
+
+**Affected callers.** Every OpenCL / Metal user of the CT multipliers: CT ECDSA and Schnorr
+signing and the CT sign-then-verify paths (`secp256k1_ct_sign.cl` / `.h`, the CT signers in
+`secp256k1_extended.cl` and the `secp256k1_ct_extended.cl` drop-in), CT pubkey derivation, recovery
+signing (`secp256k1_recovery.cl` / `.h`), BIP-32 private derivation (`secp256k1_bip32.cl` / `.h`),
+the CT ZK provers (knowledge, DLEQ, Bulletproof commitments in `secp256k1_ct_zk.cl` / `.h`, which
+also use `ct_scalar_mul_point` on non-generator bases), the Metal kernels in
+`secp256k1_kernels.metal`, and BCH nonce grinding (`src/bch/opencl/secp256k1_bch_grinding.cl`).
+This is why the OpenCL ECDSA / Schnorr sign+verify, multi-key, stress and `ct_smoke_ecdsa` /
+`ct_smoke_schnorr` audit modules failed.
+
+**Fix.** Both functions now compute the Babai-rounded GLV split, ported from the CUDA
+`ct_glv_decompose`: c1 = round(k*g1 / 2^384), c2 = round(k*g2 / 2^384), k2 = c1*(-b1) + c2*(-b2)
+mod n, k1 = k - lambda*k2 mod n, and each half is replaced by its negation under a mask when it
+is above n/2. The constants are the g1, g2, -b1, -b2 and lambda used by the variable-time
+`glv_decompose_impl` in `secp256k1_extended.cl` (Metal carries the same values in 8x32 limbs).
+The new `ct_mul_shift_384_impl` / `ct_mul_shift_384` is a fixed schoolbook product that adds the
+rounding bit as a carry instead of branching on it. Everything else uses the existing masked
+`ct_scalar_mul/add/sub/neg`, `ct_scalar_is_high` and `ct_scalar_cmov`. No branch, loop bound or
+memory index depends on k. The output contract (k1, k2 < 2^128 plus the k1_neg / k2_neg masks)
+is unchanged, so the 33-window loops are now correct as they are. The fast
+`glv_decompose_impl`, the verifiers and the inverse code are untouched. The Metal change mirrors
+the OpenCL one line for line. It has not been compiled with the Metal toolchain (none is
+available here).
+
+**Tests.** New `opencl_audit_runner` module `ct_glv_scalar_mul` (section `gpu_ct_smoke`). It builds
+a test program over `secp256k1_ct_extended.cl` and runs it on edge scalars (0, 1, 2, 3, n-1, n-2,
+(n-1)/2, (n+1)/2, 2^127, 2^128-1, 2^128, 2^129, 2^255, lambda, lambda^2, n-lambda, zero and
+all-ones limb patterns) and on 2048 seeded random k < n. It checks:
+(1) k1, k2 < 2^128 and the sign masks are 0 or all-ones;
+(2) (+/-k1) + (+/-k2)*lambda == k (mod n), using an independent host double-and-add mod-n
+multiply;
+(3) `ct_generator_mul_impl(k)` == fast windowed k*G;
+(4) `ct_scalar_mul_point(m*G, k)` == fast windowed (k*m mod n)*G.
+The existing OpenCL sign+verify roundtrip, multi-key, stress and CT smoke modules are the
+end-to-end check.
+
+## 2026-11-04 - OpenCL: the CT drop-in builds again, all kernel files ship next to the binaries, bench verify rows are checked (`opencl_audit_runner`, `opencl_benchmark`)
+
+**What was hidden.** Three pre-existing faults kept every OpenCL sign/verify path out of the
+audit and the benchmark (NF-2026-00020):
+
+1. `secp256k1_ct_extended.cl` (the CT drop-in built by `opencl_audit_runner`) did not
+   compile, so the runner printed
+   `Extended kernels: Build failed` and skipped every module gated on it. Causes:
+   `secp256k1_ct_sign.cl` called `scalar_is_zero_impl`, which is defined nowhere;
+   `ct_schnorr_sign_verified_impl` used `ct_schnorr_pubkey_impl` before its `static`
+   definition; and the CT `schnorr_sign` kernel passed `&signatures[gid].s` (`__global`) to
+   `scalar_from_bytes_impl` (private pointer). `secp256k1_ct_smoke.cl` also passed its
+   `__constant` test vectors to the private-pointer signer/verifier.
+   Fix: the k' == 0, s == 0 and R.x == 0 checks in `ct_schnorr_sign_impl`, and the s / R.x
+   checks in `ct_schnorr_sign_verified_impl`, use the CT masks `ct_scalar_is_zero` /
+   `ct_is_zero_mask` (secret-derived values), combined into one verdict branch at the end;
+   `ct_schnorr_pubkey_impl` is defined before its first use; the kernel decodes s into a
+   private `Scalar` and assigns it; the smoke kernels copy the vectors into private arrays.
+   No variable-time helper was introduced and no verify or inverse code changed.
+2. `src/opencl/CMakeLists.txt` copied six hand-picked `.cl` files next to the binaries, but
+   `secp256k1_extended.cl` `#include`s `secp256k1_ct_ops/field/scalar/point.cl`, so
+   `opencl_benchmark` run from the build dir skipped the signature benchmarks
+   (`secp256k1_ct_ops.cl file not found`). Every `kernels/*.cl` file is now copied
+   (`copy_if_different`, POST_BUILD) next to both `opencl_audit_runner` and `opencl_benchmark`.
+3. `bench_opencl.cpp` never read back a verify result and timed rows against output buffers
+   it never checked (and ECDSA and Schnorr verify shared `d_res`, so a stale accept could
+   carry over). It reported an ECDSA verify time no GPU can reach. Every sign, verify, ZK
+   prove and ZK verify row now zeroes its result buffer, checks each OpenCL call, reads the
+   results back and prints `accepted N/M`. A row with any rejected item or OpenCL error is
+   marked `INVALID`, and the benchmark exits non-zero. An extended-program build or kernel
+   creation failure is now `INVALID` instead of `SKIP`.
+
+**Now running instead of skipping.** In `opencl_audit_runner`, every module gated on the
+extended program now runs: ECDSA and Schnorr sign and verify, the ecrecover round trip, and the
+`inv_var` vs Fermat check. So do the four CT smoke modules (`ct_smoke_masks`, `ct_smoke_cmov`,
+`ct_smoke_ecdsa`, `ct_smoke_schnorr`). The `opencl_benchmark` signature rows run too.
+
+**Validation.** Before the fix, a clang OpenCL C 1.2 syntax check reproduced the reported build
+errors. After the fix, `secp256k1_ct_extended.cl`, `secp256k1_ct_smoke.cl` and
+`secp256k1_extended.cl` pass it, and `bench_opencl.cpp` compiles cleanly. The device run (NVIDIA
+OpenCL) and timings are left to the host GPU. No benchmark numbers are recorded here.
+
+**Still open (not in this change).** `secp256k1_recovery.cl` still does not compile on top of
+`secp256k1_ct_extended.cl`. Its `ecdsa_sign_recoverable_impl` and `ecdsa_recover_impl` conflict
+with the definitions in `secp256k1_extended.cl`, and it uses an undefined `GENERATOR_POINT`.
+`opencl_audit_runner` does not load that file.
+
+## 2026-11-04 - OpenCL: verify paths use a variable-time SafeGCD inverse (`audit/test_regression_opencl_kernel_closure.cpp`, `opencl_audit_runner`)
+
+**Change.** OpenCL port of the CUDA change of 2026-10-02 (entries below). New in
+`src/opencl/kernels/secp256k1_field.cl`: `modinv30_var_impl`, a port of
+`src/cuda/include/modinv_var.cuh` (Bernstein-Yang SafeGCD, variable time, 30 divsteps per
+batch on 9 signed 30-bit limbs, input reduced first, `MODINV30_MAX_ITERS` = 25 so the cap is
+750 >= 741 proven divsteps, cap reached -> result 0), and `field_inv_var_impl(r, a)` on top of
+it. `scalar_inv_var_impl(a, r)` sits next to `scalar_inverse_impl` in
+`secp256k1_extended.cl`. Both are defined inside the six scan-only embed files, so the #415
+embed (includes stripped) still compiles; no `.cl` file was added to the include chain. The
+signatures follow the Fermat functions they replace (`field_inv_impl(r, a)`,
+`scalar_inverse_impl(a, r)`), and the results are the same values, now always canonical.
+
+**Sites switched (public data only).** Callers were listed up to the kernels for each site.
+
+| Function | Value inverted | Why it is public |
+|----------|----------------|------------------|
+| `ecdsa_verify_impl` (`extended.cl`) | `sig.s`; `pubkey.z` (Z != 1 only); `R.z` | signature, pubkey and message are the verifier's public inputs; R = u1*G + u2*Q with u1, u2 from them. Every ECDSA verify kernel reaches it: `ecdsa_verify`, `ecdsa_verify_compressed`, `ecdsa_verify_lbtc_rows`, `ecdsa_verify_lbtc_columns` and `ecdsa_verify_lbtc_collect`. |
+| `shamir_double_mul_glv_impl` (`extended.cl`) | product of the 11 table Z values | the table is sums of the two public affine inputs. Its callers are all verifiers: `ecdsa_verify_impl`, `schnorr_verify_impl`, `lbtc_commitment_verify`, `ecdsa_snark_witness_impl`, and knowledge / DLEQ proof verification in `secp256k1_zk.cl` (that file is unchanged). |
+| `schnorr_verify_impl` (`extended.cl`) | `R.z` | R = s*G - e*P from signature, x-only key and message. |
+| `ecdsa_recover_impl` (`extended.cl`, `ecrecover_batch`) | `sig.r`; `R.z` (R lifted from r); Z of s*R - z*G | built from r, s, recid and the message hash only. |
+| `ecdsa_recover_impl` (`secp256k1_recovery.cl`) | `sig.r` | same as above. The old call `scalar_inverse_impl(&r_inv, sig_r)` had input and output swapped for the `(in, out)` signature; the new call passes `sig_r` as the input. |
+| `lbtc_commitment_verify` (`extended.cl`) | Z of tweak*G + P | Taproot commitment check: the internal key and the tweak are public. |
+| `ecdsa_snark_witness_impl` (`extended.cl`) | `pubkey.z` (Z != 1 only), `sig.s`, `R.z` | the witness is computed from a public signature, pubkey and message. |
+| `frost_jac_to_affine_bytes` (`secp256k1_frost.cl`) | Z of z_i*G and of R_i + lambda_i*e*Y_i | its only caller is `frost_verify_partial`; z_i, D_i, E_i, Y_i, rho_i and lambda_i*e are published to the aggregator. |
+
+**Left on the Fermat / CT inverse.** Every `secp256k1_ct_*.cl` file (unchanged), all signing
+(`ecdsa_sign_impl`, `schnorr_sign_impl`, the recoverable signer's k^-1), ECDH, key generation,
+BIP-32 / BIP-352, the provers, `secp256k1_affine.cl` and the shared batch / affine helpers,
+`secp256k1_zk.cl` and `secp256k1_ct_zk.cl` (NF-2026-00036). The sign-then-verify wrapper
+`ct_ecdsa_sign_verified_impl` normalises the key it derived to Z = 1 with the CT inverse before
+calling `ecdsa_verify_impl`, so the pubkey-Z branch is not reached from a signer; as on CUDA, its
+verify leg then inverts s and R.z of the signature it just produced. A caller of the
+`ecdsa_verify` kernel that passes a Jacobian pubkey straight out of a secret scalar
+multiplication would put that Z through the variable-time inverse; host callers pass parsed
+(Z = 1) keys.
+
+**Public-only guard.** OpenCL has no namespaces, so the CUDA `= delete` guard becomes a source
+scan in the existing kernel-closure module (no new audit module, module counts unchanged).
+OKC-5: with comments stripped, `field_inv_var_impl`, `scalar_inv_var_impl` and
+`modinv30_var_impl` appear in no `secp256k1_ct_*.cl` file, on no preprocessor line, and inside
+no top-level function whose name contains sign, ecdh, keygen, derive or prove, across every
+kernel file and the OpenCL C embedded in `opencl_context.cpp`. OKC-6 (positive control): the
+scan finds the real calls in `ecdsa_verify_impl`, `schnorr_verify_impl` and
+`ecdsa_recover_impl`. OKC-7 (negative control, live): replacing `field_inv_impl(` with
+`field_inv_var_impl(` in the real `secp256k1_extended.cl` is rejected in `ecdsa_sign_impl`,
+`schnorr_sign_impl` and `ecdh_compute_raw_impl`, a call appended to the real
+`secp256k1_ct_field.cl` is rejected, a macro wrapping the inverse is rejected, and a synthetic
+verifier call is accepted. The scan is direct-reference only, not a call graph; each helper
+that calls a `_var` inverse says in a comment that all its callers are verifiers.
+
+**Tests.** `opencl_audit_runner` gains `inv_var_fermat`: a device program built on
+`secp256k1_ct_extended.cl` compares `field_inv_var_impl` with `field_inv_impl` and
+`scalar_inv_var_impl` with `scalar_inverse_impl` (on the input reduced mod M) for 0, 1, 2, 3,
+M-2, M-1, (M-1)/2, (M+1)/2, M, M+1, M+2, values between M and 2^256, 2^255, 2^256-1, zero /
+all-ones / 30-bit-boundary limb patterns and 16384 seeded random inputs, requires a canonical
+result and a*inv == 1 (0 for a == 0 mod M), and checks that the core with one outer iteration
+fewer than each input needs returns 0 (at least 10000 such inputs per modulus). It also gains
+`ecrecover_rt`: for six keys, exactly one recid of a GPU-made signature recovers the signer's key
+through `ecrecover_batch`, and a signature with one flipped s bit recovers it for none. No
+performance numbers are recorded in this entry.
+
+## 2026-11-03 - Lane verify dual multiplication is GLV-split (`audit/test_lanes_verify_differential.cpp`)
+
+**Change.** `lg_dual_mul` (`src/cpu/src/lanes/group_lanes.hpp`) now computes
+R = a1*G + b1*phi(G) + a2*Q + b2*phi(Q). The scalar side (`lanes_verify.cpp`) splits u1 and u2
+with the library's `glv_decompose` (|a|, |b| < 2^128, signs as lane masks), so the shared
+doubling chain is about 128 doublings instead of 256. A lane whose halves do not fit 2x64 is
+refused before any write and goes to the scalar verifier. Recoding is now signed fixed-window
+with zero digits allowed, over the multiples 1..2^(w-1) of each point. phi is beta*x (one
+multiply per table entry). Zero digits and lanes that have not started yet are handled by
+select, so control flow stays uniform. A lane where every half is zero (R = O) is flagged.
+Because zero halves are now legal, the old u1 == 0 / e == 0 prep fallback is gone: u1 == 0
+computes R = u2*Q in the lanes. Verify paths only (CT-VERIFY); no `ct::` or secret path
+changes. Verdicts are unchanged, entry by entry.
+
+**Test.** `test_lanes_verify_differential` adds a GLV edge set. It builds valid ECDSA signatures
+for chosen (u1, u2): 0, 1, n-1, +-lambda, multiples of lambda, 2^127, 2^128-1, and the widest
+halves `glv_decompose` gives over a random sample. Each has an invalid twin, and there are
+BIP-340 entries with edge s. The test asserts that the set reaches negative, zero and 128-bit
+halves on both the G and the Q side, and that the lanes decide every case. Host results:
+`ctest --preset cpu-release` 444/444. The differential passes natively (avx2), under Intel SDE
+`-spr` (ifma512, ifma256, avx2) and under `-srf` (avx_ifma, avx2).
+
+## 2026-11-03 - Lane-parallel ECDSA / BIP-340 verification over the lane field types, with scalar fallback (`audit/test_lanes_verify_differential.cpp`)
+
+**Change.** RM-2026-00009 part 2, on top of the lane field layer of `1b9ede64`. New
+`src/cpu/src/lanes/group_lanes.hpp`: per-lane Jacobian double, mixed add and general add
+(templated once over the lane field type, instantiated in each per-ISA TU), and a per-lane dual
+scalar multiplication R = u1*G + u2*Q with uniform control flow -- fixed-length regular
+signed-odd-digit recoding, one shared affine table of odd multiples of G, a per-lane affine table
+of odd multiples of Q made affine with one per-lane batch inversion, per-lane gathers and
+negation by mask; no GLV. The additions return the lanes whose Z3 is zero (equal or opposite
+operands, or an operand at infinity), so an exceptional lane is flagged, never used. New entry
+points `lanes::ecdsa_verify_lanes` / `lanes::schnorr_verify_lanes` (`secp256k1/lanes.hpp`) take
+`ECDSABatchEntry` / `SchnorrBatchEntry` arrays and an explicit `LaneBackend`. The scalar side
+(`lanes_verify.cpp`, generic flags) keeps the scalar verifiers' parse and policy, inverts s and
+normalises Q once per group, and hands any entry it cannot represent, and every flagged lane,
+to `ecdsa_verify` / `schnorr_verify`. ECDSA compares x projectively (X == r*Z^2, or
+(r+n)*Z^2 when r + n < p); BIP-340 needs one per-lane inversion for y parity. Verify paths only
+(CT-VERIFY: every input is public); no `ct::` or secret path changes, no batch-API integration,
+no bench rows.
+
+**Test.** `test_lanes_verify_differential` (module `lanes_verify_differential`, section
+`differential`, advisory=false; standalone CTest `lanes_verify_differential`, skip code 77)
+compares every entry against the scalar verifiers on every available lane backend: random valid
+(decided by the lane kernel), single-field corruptions of r/s/msg/pubkey, high-S, zero r/s,
+infinity key, u1 == 0, BIP-340 r >= p / x >= p / off-curve x, mixed batches of every size
+1..2W+3, constructed R = O lanes (all must be flagged) and tiny-scalar Q = +-jG lanes, backend
+None and null arguments, and unit-tests the projective x-compare on both sides of r + n < p.
+`--require=<backend>` makes a missing backend a failure (Intel SDE runs). Without a lane
+backend the unified module reports SKIP and returns 0 (a non-advisory 77 would count as a
+failure there).
+
+## 2026-11-02 - Evidence chain: a CI-signed record is "unverified", not "tamper", where the HMAC secret is absent (`ci/evidence_governance.py`)
+
+**Gap.** The first successful nightly refresh push (`32cb0404`, run 41485761385) appended
+`docs/EVIDENCE_CHAIN.json` record 8, signed in CI with the `CAAS_HMAC_KEY` secret
+(`signed_by_ci: true`). Every earlier record was signed locally with the public in-repo key.
+`validate_chain()` without the secret (every local checkout, and fork PRs) recomputed record 8
+with the public key and reported "HMAC mismatch — possible tamper". That failed three
+`ci_local.sh` gates (evidence chain integrity, security autonomy `evidence_governance`, and
+through them every push). Nothing was tampered with; the checker could not hold the key.
+
+**Change.** Without the secret, a `signed_by_ci: true` record whose signature does not match
+the public key goes to a new `ci_signed_unverified_records` list and is not counted as an
+issue. With the secret, nothing changes: a CI-signed record must verify, and a local record
+must match either key. Because `signed_by_ci` is outside the HMAC payload, flipping it on a
+local record to dodge the check is still caught wherever the secret is present. `validate`
+reports the count in its JSON output.
+
+**Test.** `test_evidence_governance_ci_record_without_secret` in `ci/test_caas_integrity.py`
+(CAAS-KEY-5/6): with the public key, a chain of [local, CI-signed] is valid and reports the CI
+record as unverified; adding a local record with a bad signature still makes it tampered.
+
+## 2026-11-02 - The nightly lane refreshes the residual CAAS evidence from its real verifiers, fail-closed (RR-BAS-01 promoted)
+
+**Gap.** Four blocking freshness artifacts that `ci/audit_sla_check.py` tracks had no
+automatic producer: `audit/ci-evidence` (CT / adversarial / fuzz snapshots),
+`docs/DETERMINISM_GOLDEN.json`, `docs/API_SECURITY_CONTRACTS.json` and
+`docs/ASSURANCE_CLAIMS.json`. The `INT-SHIM-PARITY` row of
+`docs/INTEGRATION_EVIDENCE_STATUS.json`, which the integration-evidence gate (G-13) ages,
+had none either. They were documented residuals of RR-BAS-01 and were refreshed by hand
+(`121e5325` is the template), so they crossed the 14/30-day SLOs whenever the chore lapsed:
+eight artifacts were blocking at once on 2026-11-01. Owner decision, 2026-11-02: "bring
+everything into one working cycle".
+
+**Change.** New `ci/refresh_residual_evidence.py` (stdlib only), one group per artifact, run
+by `.github/workflows/caas-evidence-refresh.yml`. A file is refreshed only by re-running its
+real verifier and is written only when that verifier passes:
+
+- `ct_evidence` runs `test_adversarial_protocol_standalone`,
+  `test_ecies_regression_standalone`, `test_regression_ct_ops_standalone`,
+  `test_fuzz_parsers` and `test_fuzz_address_bip32_ffi`. If every suite exits 0 and its own
+  summary shows 0 failed (and 0 crashes where it counts them) it writes five NEW
+  `audit/ci-evidence/<suite>_<YYYYMMDD>.txt` files, all or none; otherwise it writes none. It
+  never rewrites or re-dates an existing file.
+- `determinism_golden` regenerates through `ci/check_determinism_gate.py` and is accepted only
+  when `overall_pass` is true and the new content equals the old except `generated_at` and
+  `library`; otherwise the file is untouched.
+- `api_contracts` (`check_api_contracts.py`), `assurance_claims` (`validate_assurance.py`) and
+  `shim_parity` (`check_libsecp_shim_parity.py`) are stamped after a pass: `last_updated` +
+  `update_note`, `updated_at`, and the `INT-SHIM-PARITY` row's `last_verified` + `notes`. Each
+  stamp names the date, the HEAD short sha, the verifier command and its verdict wherever the
+  field has room for text. A stamp is a text edit of exactly those string values, so the file's
+  formatting survives, and it is refused unless a re-parse differs from the original in the
+  allowed fields alone.
+- `--plan` prints the due groups as JSON; `--dry-run` runs the verifiers and writes nothing;
+  `--force` overrides the age gate; `--min-age-days` (default 7, measured by
+  `audit_sla_check.py`'s own age function) sets it; `--build-dir` names the build holding the
+  binaries. A failed group writes nothing and makes the exit non-zero, and the other groups
+  still refresh.
+
+The workflow runs `--plan`, builds a second directory (`BUILD_TESTING=ON`,
+`SECP256K1_BUILD_FUZZ_TESTS=ON`, only the five targets) only when a group that needs the
+binaries is due, runs the script before the assurance report, the bundle and the KPI, and feeds
+its outcome into `GATE_VERDICT`. The new snapshots (untracked, so invisible to
+`git diff --quiet`) and the four JSON files are staged on the success path only and are in the
+diagnostic upload; the job timeout goes from 25 to 90 minutes. The plan, build and refresh steps
+are `continue-on-error` so one failed group cannot stop the rest of the lane, and a last step
+turns that failure into a red run. `docs/AUDIT_SLA.json` marks the four artifacts `auto`
+(`risk_coverage_report` stays residual) and `ci/check_evidence_refresh_coverage.py` verifies each
+against the lane's real commit list, unchanged. RR-BAS-01 records the promotion, the fail-closed
+rules, and that the owner-gated rows (GPU hardware, ROCm, Bitcoin Core suite, libbitcoin bridge)
+stay owner-gated: a GitHub runner cannot produce them and the lane never writes or stamps them.
+No evidence file is modified by this change; only the lane writes them, at run time.
+
+Scheduled runs execute the copy of the workflow on the default branch (`main`), which changes
+only when a version is cut, so the schedule picks this up at the next release. Until then run it
+from `dev` with `gh workflow run caas-evidence-refresh.yml --ref dev` (add
+`-f force_residual_refresh=true` to refresh artifacts younger than 7 days).
+
+**Test.** `check_refresh_residual_evidence_fixtures` in `ci/test_audit_scripts.py` (called from
+`main()` next to `check_evidence_refresh_coverage_fixtures` and registered in the high-value gate
+list) runs the real script against a throwaway tree of fake verifiers and fake suite
+executables, never the real evidence files, and fails when: a failing suite, a non-zero failed
+count, a non-zero crash count, a missing summary or a missing binary writes any
+`audit/ci-evidence` file; an old snapshot is rewritten or re-dated; a failing verifier stamps a
+JSON; a stamp changes a field outside its allowed set or reformats the file; a determinism
+regeneration with different content, a false `overall_pass`, listed issues or a missing golden is
+accepted; an artifact younger than `--min-age-days` is refreshed without `--force`; `--plan` or
+`--dry-run` writes anything, or `--plan` runs a verifier. It also pins the committed wiring: the
+four artifacts are `auto` with their commit paths staged on the success path only, the build is
+gated on the plan, the outcome feeds `GATE_VERDICT`, the paths are in the diagnostic upload and the
+timeout was raised.
+
+## 2026-11-02 - Audit SLA can age a release snapshot as of `HEAD` (`AUDIT_SLA_AS_OF=head`); the 6-hourly freshness watch moves to `dev`
+
+**Gap.** GitHub runs scheduled workflows on the default branch, which is `main`.
+`main` is the release branch and only changes when a version is cut, so nothing
+on it can refresh evidence between releases, yet `ci/audit_sla_check.py` aged
+every evidence file as the wall clock minus its last git commit time. On `main`
+the evidence therefore crossed the 30-day `max_stale_evidence_days` SLO about 30
+days after each release. `CAAS Freshness Check` (every 6 hours) failed on every
+scheduled run from then on, and the weekly `Audit Report` failed its "Run CAAS
+gate + autonomy for bundle completeness" step, because `security_autonomy_check.py`
+runs `audit_sla_check.py` as its `audit_sla` gate. On `dev`, where
+`caas-evidence-refresh.yml` keeps the evidence current, the same check passed.
+
+**Change.** `ci/audit_sla_check.py` gets one helper, `_age_reference()`, that
+names the instant every age is measured against. With `AUDIT_SLA_AS_OF` unset, or
+set to anything other than exactly `head`, that is the wall clock and every
+verdict and age is as before. With `AUDIT_SLA_AS_OF=head` it is the commit time
+of `HEAD` (`git log -1 --format=%ct HEAD`), used by both the git-tracked path and
+the mtime fallback of `_file_age_days`, so the check asks "was the evidence fresh
+when this release was cut". An age that would come out negative (an untracked
+file generated during the run is newer than `HEAD`) is clamped to 0.0, and if
+`HEAD`'s commit time cannot be read the helper falls back to the wall clock, the
+stricter answer, rather than inventing a value. The JSON report records the
+reference that was applied in a new `as_of` field (`wall_clock` or `head`).
+
+`audit-report.yml` audits a release snapshot (`main` on schedule, a `v*` tag on
+push), so it sets `AUDIT_SLA_AS_OF: head` at workflow level;
+`security_autonomy_check.py` is unchanged and its `audit_sla` gate inherits the
+variable. `caas-freshness-check.yml` now checks out `dev` (`ref: dev`,
+`fetch-depth: 0` kept): the 6-hourly wall-clock check watches the branch where
+evidence is refreshed and the next release is cut from, while `main`'s evidence
+is checked as of its release commit by `audit-report.yml`. Scheduled runs execute
+`main`'s copy of the workflow files and of the scripts, so this reaches the
+schedule when the next release is merged to `main`. `head` ages come from
+per-file git history, so they need a checkout that has it: `caas-freshness-check.yml`
+already fetches full history, and the three `audit-report.yml` jobs that run
+`security_autonomy_check.py` (Linux GCC, Linux Clang-17, Windows MSVC) now do too,
+with `fetch-depth: 0` and a comment saying why. At the default depth (a shallow
+clone) `git log -1 -- <file>` returns the single boundary commit, which is `HEAD`,
+for every tracked file, so every `head` age would be exactly 0.0 and the
+`audit_sla` gate would pass however old the evidence was when the release was cut.
+The `gh-pages` checkout and the `verdict` job's `fetch-depth: 1` checkout sit in
+jobs that never run the gate and are left alone.
+
+**Test.** `check_audit_sla_as_of_release_snapshot` in `ci/test_audit_scripts.py`
+(called from `main()` next to `check_audit_sla_pre_alert_and_block`) fails when:
+with `AUDIT_SLA_AS_OF` unset the reference is not the wall clock; with
+`AUDIT_SLA_AS_OF=head` the reference is not `HEAD`'s `%ct` as git reports it for
+this checkout, or `_file_age_days` of a tracked file (`ci/audit_sla_check.py`) is
+not (`HEAD` time - its last commit time) / 86400 or is negative; or, against a
+stand-in for the git calls with commits 40 and 100 days old, a tracked file is not
+60 days old under `head` and about 100 under the wall clock, a commit dated after
+`HEAD` or an untracked file newer than `HEAD` is not clamped to 0.0, an unreadable
+`HEAD` (non-zero exit, garbage output, no git) does not fall back to the wall
+clock, a value other than exactly `head` (upper-case `HEAD`, `head` with a
+trailing space, `1`, empty) does not keep the wall clock, or the JSON report's
+`as_of` does not say which reference was applied. It also fails when
+`audit-report.yml` has no workflow-level `AUDIT_SLA_AS_OF: head`, or
+`caas-freshness-check.yml` lacks `ref: dev` or has lost `fetch-depth: 0`, or when
+an `actions/checkout` step in a job of `audit-report.yml` that runs
+`security_autonomy_check.py` lacks `fetch-depth: 0`, or no job runs it. The
+workflow is parsed per job rather than counted across the file, so the `gh-pages`
+checkout and the `verdict` job's `fetch-depth: 1` do not count, and the parser is
+also run on a synthetic workflow (a full-history gate job, one at the default
+depth, one at `fetch-depth: 1`, one with no checkout, and a non-gate job) so that
+it cannot pass by finding nothing.
+
+## 2026-11-02 - CPU-runnable exploit PoC for the GPU non-canonical point gate; `gpu_audit_runner` in `ci_local.sh` (`exploit_gpu_noncanonical_point_encoding`)
+
+**Gap.** The fix that makes the GPU C ABI host gate reject SEC1 coordinates
+>= p was covered only by `test_noncanonical_coordinate_gate` in
+`audit/test_gpu_host_api_negative.cpp`, which needs a usable GPU and skips on every
+CPU-only CI runner, so the fix could regress without any gate failing. The CUDA
+hash160 known-answer checks in `gpu_audit_runner` were not run by `ci_local.sh`
+at all.
+
+**Change.** The two predicates (33-byte: prefix 0x02/0x03 and x < p; 65-byte:
+prefix 0x04, x < p and y < p) and their batch forms now live once in
+`src/cpu/include/secp256k1/detail/sec1_canonical.hpp`
+(`secp256k1::detail::sec1_*_canonical`). `ufsecp_gpu_impl.cpp` calls them
+directly and keeps no private copy; every gate caller still returns
+`UFSECP_ERR_BAD_PUBKEY` (BIP-352 multi-spend keeps its `UFSECP_ERR_BAD_INPUT`).
+The new module `exploit_gpu_noncanonical_point_encoding`
+(`audit/test_exploit_gpu_noncanonical_point_encoding.cpp`, section `exploit_poc`,
+advisory=false) runs the predicate-boundary checks and the CPU ABI parity check
+(`ufsecp_pubkey_parse` vs the predicate on 02\|\|(p+1) and 02\|\|00..01) on a
+CPU-only build; its GPU entry-point checks run only when a GPU runtime is usable
+and are otherwise reported as skipped. The boundary checks are written to fail
+when the predicate is reduced to a prefix-only check (x = p, p+1, 2^256-1, the y
+boundaries and the CPU-parity pair).
+
+**CI.** The `ci_local.sh` GPU section also builds `gpu_audit_runner` and runs it
+with `timeout 300 ... --json-only`. `gpu_audit_runner` exits 1 (not 77) when no
+CUDA device can be set, so it runs only inside the branch guarded by
+`nvidia-smi -L`; a CUDA build directory on a GPU-less machine is not a FAIL.
+
+## 2026-11-02 - CUDA hash160 rewrite and known-answer checks (`gpu_audit`)
+
+`src/cuda/include/hash160.cuh` now has a register-only `sha256_33` for 33-byte
+keys and a fully unrolled `ripemd160_32`, both contributed by zeroxbee
+(VanityPlate). `hash160_pubkey` keeps the generic `sha256` for any other length,
+because `hash160_pubkey_kernel` passes a runtime length and 65-byte keys must
+still hash correctly. The contributed version had dropped that length dispatch.
+
+The GPU audit runner's `audit_hash160_kernel` checked only determinism and a
+non-zero result. It now also asserts the known hash160 of key 1 in both
+encodings: `02||Gx` -> `751e76e8...433bd6` (the `sha256_33` path) and
+`04||Gx||Gy` -> `91b24bf9...1d28a5` (the generic path). On CUDA (RTX 5060 Ti,
+`cuda-release-5060ti`), 18 of 18 GPU tests pass with the new header, among them
+`gpu_audit` and `gpu_ops_equivalence` (hash160 GPU vs CPU). The kernel A/B is
+bit-identical between the old and new header on 2^22 random 33-byte and
+65-byte inputs. Measurements:
+`docs/benchmark_artifacts/cuda_hash160_unrolled_ab_2026-11-02_rtx5060ti.json`.
+
+## 2026-11-02 - MuSig2: official BIP-327 key_agg vectors in the core test; key_agg/session ABI docs (`musig2_bip327_vectors`)
+
+`audit/test_musig2_bip327_vectors.cpp` now runs the official bitcoin/bips
+`bip-0327/vectors/key_agg_vectors.json` cases through `secp256k1::musig2_key_agg`:
+the four valid cases against their exact expected x-only aggregate keys, and the
+three invalid-pubkey cases (not on curve, x >= p, 0x04 prefix) which must yield an
+infinity aggregate. The file header now separates official vectors from
+self-consistency checks, and the "Pin" comments that only printed values are
+reworded. `ufsecp.h` and `API_REFERENCE.md` corrected `ufsecp_musig2_key_agg` input
+to n * 33-byte compressed public keys, and document that the MuSig2 session blob is
+signer-local (`partial_sign_v2` does not re-derive b or e; never use a session
+received from another party). Test and docs only; no behaviour change. Gaps
+reported by Gleb Lizunov (@hokvo).
+
+## 2026-11-02 - GPU C ABI host check rejects coordinates >= p (`gpu_api_negative`)
+
+**Defect.** `has_valid_compressed_pubkeys` and `has_valid_uncompressed_pubkeys`
+in `src/cpu/src/ufsecp_gpu_impl.cpp` checked only the SEC1 prefix byte. The
+OpenCL and Metal `frost_decompress_sec1` lift x without a range check, so an
+encoding with x >= p was decoded as x - p, while the CPU `point_from_compressed`
+rejects it (`FE::parse_bytes_strict`). Every GPU entry point behind these two
+checks could disagree with the CPU on such input: FROST partial verify, ECDH,
+hash160, BIP-352 scan, the ZK SNARK witness batch, and the ZK knowledge / DLEQ /
+Bulletproof verifiers. Reported by Gleb Lizunov (@hokvo).
+
+**Fix.** Both checks compare each coordinate with p, big-endian
+(`std::memcmp(coord, p, 32) >= 0` rejects; the inputs are public, so variable
+time is correct). The fix is in the shared host check, so it covers every GPU
+backend; no kernel changed.
+
+**Impact.** Only points with a coordinate below 2^32 + 977 have a second
+encoding, and no discrete log of any such point is known, so nobody can produce
+a valid signature or partial signature over one. The effect was a verdict
+mismatch (GPU: verify failure or a computed value; CPU: `UFSECP_ERR_BAD_PUBKEY`),
+not a forgery.
+
+**Test.** `test_noncanonical_coordinate_gate` in
+`audit/test_gpu_host_api_negative.cpp` (module `gpu_api_negative`) uses
+x = p + 1, the second encoding of the point with x = 1. It asserts
+`UFSECP_ERR_BAD_PUBKEY` with zeroed outputs for FROST (D_i, E_i, Y_i), ECDH,
+hash160 and ZK knowledge verify (x = p + 1, then y = p); that the canonical
+encoding passes the check; and that the CPU `ufsecp_frost_verify_partial`
+rejects the same encoding. Against the unpatched check 7 of these assertions
+fail. With the fix, `gpu_host_api_negative`, `gpu_abi_gate` and
+`gpu_ops_equivalence` pass on CUDA (RTX 5060 Ti, `cuda-release-5060ti`).
+
+**Entry points outside these checks (probed on CUDA with x = p + 1, unchanged).**
+`ufsecp_gpu_pubkey_validate` and `ufsecp_gpu_xonly_validate` already report the
+encoding invalid, matching the CPU. `ufsecp_gpu_msm` accepts it and returns the
+same result as for the canonical encoding. `ufsecp_gpu_ecdsa_verify_batch` and
+`ufsecp_gpu_schnorr_verify_batch` were not measured, because that needs a valid
+signature under a point with a coordinate below 2^32 + 977. Tracked as a
+follow-up.
+
+## 2026-11-01 - CPU Schnorr batch verify: 128-bit BIP-340 randomizers, 3n-point MSM (`regression_schnorr_batch_short_weights`)
+
+**What changed.** `schnorr_batch_verify_impl` (`src/cpu/src/batch_verify.cpp`)
+now uses the BIP-340 batch form with short randomizers, as libbitcoin and the
+libsecp256k1 batch proposal do:
+
+- `a_0 = 1` (BIP-340 numbers it `a_1 = 1`); for `i >= 1`, `a_i` is the low 128
+  bits of `SHA256(seed || i_le32)` with bit 0 forced to 1. Previously every
+  `a_i` was a full 256-bit `SHA256(seed || i)` reduced mod n.
+- The seed is unchanged: `SHA256(r || s || pubkey_x || msg` over all entries`)`
+  XOR 32 CSPRNG bytes (P2-SEC-002), hashed as a 36-byte `seed || index` buffer
+  (the binding restored after ca0dde78; no `SHA256::Midstate`). The CSPRNG
+  buffer is erased as before, now also on the early fail-closed return.
+- MSM: `(-R_i, a_i)` enters the bucket engine unsplit, the minus sign carried by
+  the point; `c_i = a_i * e_i` is GLV-split against `-P_i` with the
+  `k1_neg` / `k2_neg` signs applied to the points. One Pippenger pass over
+  `2n + n = 3n` points with 129-bit scalars, through the new
+  `pippenger_msm_glv_short` (`src/cpu/src/pippenger.cpp`), whose window table
+  was measured for that shape. The old path was `msm()` over `2n` full scalars,
+  i.e. GLV Pippenger over `4n` points.
+- The `G` term is unchanged: `(sum a_i * s_i) * G`, variable-time (public data,
+  CT-VERIFY).
+- `kSchnorrBatchIndividualCutoff` re-measured: 38 -> 27.
+
+Fail-closed behaviour is unchanged: any `lift_x` / pubkey failure returns false
+and callers keep their per-signature fallback. ECDSA batch verification, all
+`ct::` code, the shim and the GPU sources are untouched.
+
+**Soundness argument.** Let `D_i = s_i*G - R_i - e_i*P_i`; entry `i` is valid
+iff `D_i = O`, and the batch accepts iff `sum a_i*D_i = O`. secp256k1 has prime
+order `n` and cofactor 1, so every nonzero `D_i` has order `n`.
+
+- *One invalid entry `j`*: acceptance needs `a_j*D_j = O`, i.e. `a_j = 0 mod n`.
+  Every `a_j` is odd and below `2^128 < n`, so this never happens: a single
+  invalid signature is rejected with certainty at every position, including
+  position 0 where `a_0 = 1`.
+- *Two or more invalid entries*: pick an invalid `j >= 1` and fix all other
+  weights. `a_j*D_j = -T` has at most one solution mod `n`, and `a_j` ranges
+  over `2^127` distinct values (128 bits with bit 0 fixed), so the batch
+  accepts with probability at most `2^-127` per call -- about `2^-128`, against
+  the about `2^-256` the full-width weights gave. That is the same security
+  level as the rest of the curve (`~2^128` group operations for a discrete
+  log), which is why BIP-340 and libsecp256k1 accept 128-bit randomizers.
+- The bound assumes `a_j` cannot be predicted when the entries are chosen.
+  That property comes from the CSPRNG bytes XORed into the seed and from the
+  seed being bound to every entry byte; neither changed. A seedless or
+  predictable seed would break the argument for any weight length, which is
+  exactly the ca0dde78 regression pinned by
+  `audit/test_exploit_batch_weight_seed_binding.cpp`.
+- The SEC-007 zero-weight fallback is removed because it is unreachable: with
+  bit 0 set and `a_i < 2^128 < n`, no weight is zero or reduces to zero.
+
+**Tests.** New `audit/test_regression_schnorr_batch_short_weights.cpp`
+(section `protocol_security`, next to `regression_batch_csprng_seed`; standalone CTest `regression_schnorr_batch_short_weights`):
+valid batches at the cutoff, window-band and power-of-two boundaries up to
+4096; one invalid signature at random positions (0 and n-1 included) rejected in
+every trial; pairs corrupted as `s_i + d`, `s_j - d` -- first shown to cancel
+exactly under equal weights -- rejected; mixed batches equal to the AND of
+per-signature `schnorr_verify`; the engine's own weight function and seed
+digest (two test views exported from `batch_verify.cpp`) checked for
+`a_0 = 1`, odd / nonzero / `< 2^128` / distinct / seed-dependent weights, and a
+seed that moves on every single-byte change of any entry. Built against an
+equal-weight mutant of the engine the module fails (0 of 34 cancelling pairs
+rejected). The existing batch modules (`exploit_batch_schnorr`,
+`exploit_batch_schnorr_forge`, `exploit_batch_verify_correctness`,
+`exploit_batch_verify_poison`, `exploit_pippenger_batch_regression`,
+`exploit_schnorr_batch_inflation`) pass unchanged.
+
+**Measurement.** A/B of the base and changed `bench_unified`, alternating, five
+whole-binary runs each: `docs/benchmark_artifacts/schnorr_batch_short_weights_ab_2026-11-01_i5-14400f.json`,
+summarised in `docs/BENCHMARKS.md`. The window sweep and the cutoff sweep are
+in the same artifact.
+
+## 2026-10-02 - CUDA: verify paths use the variable-time inverse; inverse hardened
+
+Follow-up to the entry below. The variable-time inverse added there is now
+called from the CUDA verification code, and the findings of its reviews are
+addressed.
+
+**Sites switched (public data only).** Each was switched after listing its
+callers up to the kernels and checking that no caller brings a secret, or a
+value derived from one, into the inversion.
+
+| Function | Value inverted | Now |
+|----------|----------------|-----|
+| `ecdsa_verify` | `sig.s` mod n; `R'.z` | `scalar_inv_var`; `field_inv_var` |
+| `shamir_double_mul_glv` | product of the 11 table Z values | `field_inv_var` |
+| `schnorr_verify`, `schnorr_verify_xonly` | `R.z` | `field_inv_var` |
+| `ecdsa_recover` | `sig.r` mod n | `scalar_inv_var` |
+| `ecdsa_snark_witness_device` | `pubkey.z`, `sig.s` mod n, `R.z` | `field_inv_var`, `scalar_inv_var` |
+| `dleq_verify_device`, `frost_verify_partial_device` | Z of the two points compared | new `jacobian_to_affine_var` |
+| `range_verify_full_device`, `range_verify_warp_device`, `range_verify_warp_precomp_impl`, `range_verify_warp_lut4_device`, `range_verify_warp_lut4_p1par_device` | Fiat-Shamir challenges and their products mod n (13 sites) | `scalar_inv_var` |
+
+The table in `shamir_double_mul_glv` is built from the affine coordinates of
+its two points and from the two scalars. Its seven call sites are all verifiers
+(`ecdsa_verify`, the ECDSA SNARK witness, both Schnorr verifiers,
+`knowledge_verify_device`, `dleq_verify_device` twice).
+
+**Left on the Fermat inverse.** `field_inv`, `scalar_inverse` and every `ct::`
+function; the two input normalisations at the top of `shamir_double_mul_glv`
+(the ECDSA sign-then-verify wrappers pass `ct_generator_mul(sk)`, whose Z
+depends on the key); `jacobian_to_affine` and the `point_to_compressed` family
+(shared with key generation, BIP-32 and the BIP-352 scan); the base
+normalisation in `scalar_mul`, `scalar_mul_glv_wnaf` and `scalar_mul_glv_shamir`;
+all signing, ECDH, Pedersen and prover code; everything in
+`src/gpu/src/gpu_backend_cuda.cu`, `bp_gen_table.cuh`, `batch_inversion.cuh` and
+`affine_add.cuh`. Those files, and every file under `src/cuda/include/ct/`, are
+byte-identical before and after.
+
+**Known property, unchanged in kind.** The sign-then-verify wrappers
+(`ecdsa_sign_verified`, `ecdsa_sign_hedged_verified`,
+`ct::ct_ecdsa_sign_verified` and the three Schnorr ones) verify the signature
+they just produced. If that verification fails, the withheld signature has
+passed through the variable-time inverse. The verify leg was already variable
+time in that signature before this change (GLV split and loop bounds in
+`shamir_double_mul_glv`).
+
+**Hardening of the inverse.**
+- **Compile-time CT guard.** `ct::field_inv_var`, `ct::scalar_inv_var` and
+  `ct::jacobian_to_affine_var` are declared `= delete`, so an unqualified call
+  from namespace `ct` does not compile (checked with a probe translation unit:
+  the public caller builds, each of the three calls from `ct` is rejected). A
+  qualified `secp256k1::cuda::` call is not caught by the compiler.
+- **Compile-time constants.** `static_assert(MODINV30_MAX_ITERS * 30 >= 741)`,
+  and the modulus self-check now ties all nine signed 30-bit limbs to all four
+  64-bit words with nothing left above bit 255 (it covered the low 64 bits).
+  Six headers with one mutated constant each (a limb, a 64-bit word, the cap)
+  all fail to compile.
+- **Vectors.** `secp256k1_cuda_test` now has 66 field and 66 scalar vectors: two
+  inputs per modulus for which, after the first batch of divsteps, only the top
+  limb of `g` is non-zero. A mutant that drops that limb from the early-exit
+  test passed all tests before; it now fails those four vectors.
+- **Audit module `inv_var_diff`.** 622 edge inputs per modulus (was 559): the
+  inputs whose inverse is 2..64 were added. A mutant that returns a
+  non-canonical result for inverses >= 2 passed the module before; it now fails
+  it. The module count is unchanged (46).
+- **Montgomery builds.** The vector test and `inv_var_diff` are not built when
+  `SECP256K1_CUDA_USE_MONTGOMERY=1`. The self-test prints the skip, and the
+  audit runner prints one ahead of its module list. (That configuration fails
+  34 of its 51 other self-tests; this is older than, and unrelated to, the
+  inverse.)
+- **Provenance.** The upstream copyright line of libsecp256k1's `modinv32` is in
+  the header comment.
+
+**Evidence that secret-bearing device code did not change.** `cuobjdump -sass`
+(instruction text and encodings) and `--dump-resource-usage`, per function, both
+architectures (sm_89, sm_120), before and after:
+
+| Binary or object | Functions | Identical | Differ | No longer emitted | Stack size only | Identical, name matches a secret-path word |
+|------------------|----------:|----------:|-------:|------------------:|----------------:|-------------------------------------------:|
+| `secp256k1.cu.o` (library kernels) | 77 | 62 | 15 | 0 | 0 | 21 |
+| `gpu_backend_cuda.cu.o` (production backend) | 68 | 58 | 10 | 0 | 0 | 10 |
+| `secp256k1_cuda_test` | 130 | 106 | 24 | 0 | 3 | 33 |
+| `gpu_audit_runner` | 145 | 120 | 24 | 1 | 1 | 35 |
+| `test_ct_smoke` | 96 | 81 | 14 | 1 | 3 | 40 |
+| `gpu_ct_leakage_probe` | 23 | 23 | 0 | 0 | 0 | 20 |
+| `gpu_bench_unified` | 74 | 74 | 0 | 0 | 0 | 26 |
+| `secp256k1_cuda_bench` | 89 | 74 | 15 | 0 | 2 | 21 |
+| `bench_zk` | 141 | 120 | 20 | 1 | 7 | 49 |
+| `bench_snark_witness` | 79 | 64 | 15 | 0 | 2 | 21 |
+| `bench_compare` | 50 | 40 | 9 | 1 | 1 | 9 |
+
+"Functions" counts kernels and non-inlined device functions per architecture.
+"Stack size only" functions are among the identical ones: same instructions,
+different frame size because a callee changed. The secret-path words are `ct`,
+`sign`, `ecdh`, `prove`, `keypair`, `pubkey`, `bip32`, `bip352`, `pedersen`,
+`nonce`, `generator_mul`, `scan`, `commit`, `derive`, `secret`, `priv`.
+
+Every function that differs contains verification or recovery code. 36 of the
+55 names are verify-only: the production kernels (`ecdsa_verify_batch_kernel`,
+`ecdsa_verify_collect_kernel`, `schnorr_verify_batch_kernel`,
+`schnorr_verify_collect_kernel`, the three libbitcoin row/column verify
+kernels, `ecdsa_recover` and its batch kernel, `ecdsa_snark_witness_batch_kernel`,
+`frost_verify_partial_*`, `dleq_verify_batch_kernel`,
+`knowledge_verify_batch_kernel`, `shamir_double_mul_glv`, the `range_verify_*`
+functions), verify-only test or bench kernels, and the plain `scalar_inverse`
+function, which `bench_zk` no longer emits because nothing in it calls it. The
+other 19 are test and bench kernels that derive a key, sign or prove and then
+verify or recover inside one kernel
+(`test_ct_ecdsa_kernel`, `test_ct_schnorr_kernel`,
+`test_ct_schnorr_keypair_kernel`, `test_ct_zk_dleq_kernel`,
+`test_ct_zk_knowledge_kernel`, `audit_ct_ecdsa_roundtrip_kernel`,
+`audit_ct_schnorr_roundtrip_kernel`, `audit_bip340_vec0_kernel`,
+`audit_ecdsa_multi_key_kernel`, `audit_ecdsa_wrong_key_kernel`,
+`audit_schnorr_multi_key_kernel`, `audit_ecdsa_recovery_kernel`,
+`kernel_ecdsa_sign_verify`, `kernel_ecdsa_verify_bad_msg`,
+`kernel_schnorr_sign_verify`, `kernel_schnorr_verify_bad_msg`,
+`kernel_recovery_test`, `cmp_pipeline_ecdsa_k`, `cmp_pipeline_schnorr_k`); they
+change because the verifier is compiled into them. The signing and proving code
+they call is identical wherever it exists as its own function
+(`ct::ct_ecdsa_sign`, `ct::ct_schnorr_sign`, `ct::ct_generator_mul`,
+`ct::ct_jacobian_to_affine`, `ct::ct_dleq_prove_device` and others in the sm_89
+code). All pure signing, ECDH, key-generation, scan and prover kernels are
+identical, including all six kernels of `gpu_ct_leakage_probe`.
+
+**Evidence that results did not change.**
+- Same-input differential, old device code against new, on the GPU: 1,048,576
+  valid signatures and 1,048,576 corrupted ones in 16 classes (bit flips in r,
+  s, message and public key; s = 0; r = 0; s = n; r = n; s and r just above n;
+  high-s; infinity flag; Z = 0; Z replaced; negated y; r and s swapped). The
+  per-element outputs of `ecdsa_verify` (limb and strict-compact entry),
+  `schnorr_verify`, `schnorr_verify_xonly` and `ecdsa_recover` (including the
+  recovered point's raw limbs), and 131,072 ECDSA SNARK witness records, are
+  byte-identical. A negative control with one wrong inverse bit for one input in
+  4096 changes 1,466 valid and 289 corrupted elements. The harness is scratch,
+  not part of the tree.
+- `secp256k1_cuda_test` 52/52, `gpu_audit_runner` 46/46, `test_ct_smoke` 9/9,
+  and the C ABI GPU tests against the CPU library: `test_gpu_ops_equivalence`
+  380, `test_gpu_lbtc_columns_diff` 222, `test_gpu_host_api_negative` 87,
+  `test_gpu_zk_prove_verify_differential` 31, `test_gpu_ecdsa_compact_range` 29,
+  `test_gpu_ecdsa_snark_witness` 28, `test_gpu_collect_verify_parity` 24,
+  `test_gpu_backend_matrix` 4, `test_gpu_bip352_scan` 3938 (3 skipped), all with
+  0 failures and the same counts as before the change.
+
+**Audit surface.** No module was added or removed. The source gate in
+`audit/test_gpu_ecdsa_compact_range.cpp` checks that the `r >= n` / `s >= n`
+guard of the CUDA `ecdsa_verify` precedes the scalar inverse; it now accepts
+`scalar_inv_var` as that inverse (it looked for the name `scalar_inverse` only).
+
+**Measured.** RTX 5060 Ti (sm_120), CUDA 13.2. Old and new binaries run back to
+back inside one hold of the GPU lock, order alternating, five runs each. Source
+of every number: `docs/benchmark_artifacts/cuda_verify_inv_var_ab_2026-10-02_rtx5060ti.json`.
+
+| Bench | Row | Before: ns/op median (min - max) | After: ns/op median (min - max) | Median change | Ranges |
+|-------|-----|---------------------------------:|--------------------------------:|--------------:|--------|
+| `secp256k1_cuda_bench` | ECDSA Verify | 234.1 (231.4 - 243.7) | 152.4 (151.8 - 159.9) | -34.9% | no overlap, faster |
+| `secp256k1_cuda_bench` | Schnorr Verify | 169.3 (167.8 - 169.6) | 146.7 (146.1 - 147.0) | -13.3% | no overlap, faster |
+| `secp256k1_cuda_bench` | FROST Partial Verify | 691.2 (690.7 - 696.5) | 672.7 (671.4 - 675.4) | -2.7% | no overlap, faster |
+| `bench_zk` | knowledge_verify | 551.2 (550.8 - 551.3) | 529.8 (529.7 - 530.7) | -3.9% | no overlap, faster |
+| `bench_zk` | dleq_verify | 1250.7 (1245.1 - 1253.0) | 1140.6 (1139.7 - 1143.5) | -8.8% | no overlap, faster |
+| `bench_zk` | range_verify | 685836 (685636 - 686020) | 683372 (683026 - 683404) | -0.4% | no overlap, faster |
+| `bench_zk` | range_verify_warp | 185052 (184055 - 185652) | 169814 (169414 - 170344) | -8.2% | no overlap, faster |
+| `bench_zk` | verify_warp_w4 | 175219 (174987 - 176782) | 161793 (161099 - 162725) | -7.7% | no overlap, faster |
+| `bench_zk` | verify_warp_w8 | 173842 (172427 - 175103) | 160483 (159964 - 161535) | -7.7% | no overlap, faster |
+| `bench_zk` | verify_warp_lut4 | 154008 (153385 - 154595) | 141973 (141390 - 142549) | -7.8% | no overlap, faster |
+| `bench_zk` | verify_p1par_lut4 | 13630.6 (13582.6 - 13786.7) | 11755.9 (11701.9 - 11836.0) | -13.8% | no overlap, faster |
+| `bench_snark_witness` | GPU ecdsa_snark_witness_batch_kernel | 225.2 (225.1 - 225.4) | 140.3 (140.2 - 140.5) | -37.7% | no overlap, faster |
+| `bench_compare` | ECDSA / verify (GPU) | 233.6 (227.8 - 233.7) | 149.4 (149.3 - 149.7) | -36.1% | no overlap, faster |
+| `bench_compare` | Schnorr / verify (GPU) | 168.4 (168.1 - 181.4) | 147.5 (145.3 - 148.7) | -12.4% | no overlap, faster |
+| `bench_compare` | Pipeline / ECDSA (keygen+sign+verify) (GPU) | 565.8 (564.9 - 566.1) | 476.9 (476.6 - 481.2) | -15.7% | no overlap, faster |
+| `bench_compare` | Pipeline / Schnorr (keygen+sign+verify) (GPU) | 547.6 (547.4 - 548.4) | 523.9 (523.3 - 525.8) | -4.3% | no overlap, faster |
+
+The other 32 rows of these four benches (field and point arithmetic, `k*G`,
+every signing row, the provers, Pedersen commit) have overlapping ranges.
+`gpu_bench_unified --suite all`, run the same way against the binary from before
+the inverse was added, overlaps on all 19 of its older rows. In
+`secp256k1_cuda_bench` the ECDSA rows vary by about 5% between runs for both
+binaries. Its ECDSA verify row is fed Jacobian public keys with Z != 1, so that
+row still pays one Fermat inverse for the input normalisation; the production
+backend passes decoded keys with Z = 1.
+
+**Limits.** CUDA only: the OpenCL and Metal verifiers keep their Fermat
+inverses; results are bit-identical, so cross-backend value parity is unchanged.
+`ecdsa_recover` has no bench row. The CT boundary for a qualified call rests on
+review; a CI deny-pattern gate for `_inv_var` / `_affine_var` in `ct/` and the
+signing functions is still open.
+
+## 2026-10-02 - CUDA: variable-time modular inverse added (additive; no caller switched)
+
+`src/cuda/include/modinv_var.cuh` adds two device functions, `field_inv_var`
+(mod p) and `scalar_inv_var` (mod n). They are a port of the library's own CPU
+SafeGCD code (`field_safegcd30` / `scalar_safegcd30`, adapted from
+bitcoin-core/secp256k1 `modinv32_var`, MIT): Bernstein-Yang divsteps in batches
+of 30 on 9 signed 30-bit limbs. The GPU version adds a hard cap of 25 outer
+iterations (750 divsteps; 741 are proven sufficient for 256-bit inputs), a
+table-free 6-bit inner step, input reduction, and a fail-closed zero result if
+the cap is ever reached.
+
+**CT boundary.** These functions are variable time and are for public data only.
+Nothing calls them yet: `field_inv`, `scalar_inverse`, every `ct::` function and
+every existing call site are unchanged, and no file under `src/cuda/include/ct/`
+or any signing header references them. The only edit to an existing header is
+one `#include` at the end of `secp256k1.cuh`. Evidence that existing device code
+did not change: the SASS of every pre-existing kernel is identical before and
+after (`cuobjdump -sass`, sm_89 and sm_120): 68 of 68 kernels in
+`gpu_bench_unified`, 128 of 128 in `secp256k1_cuda_test` and 143 of 143 in
+`gpu_audit_runner`. Register and stack use of those kernels is identical as well.
+
+**Audit surface.**
+- `secp256k1_cuda_test`: new test `test_modinv_var_vectors` (52 tests, was 51).
+  64 field and 64 scalar vectors, including unreduced inputs, zero and the
+  modulus itself. Each vector is checked through the public function, in place
+  (`a == r`), for its outer-iteration count, and with the cap forced to 10,
+  where the result must be the inverse if 10 iterations suffice and exactly
+  zero otherwise. Largest iteration count in the vectors: 19 (field), 20 (scalar).
+- `gpu_audit_runner`: new module `inv_var_diff` in section `differential`
+  (46 modules, was 45). On the device it compares `field_inv_var` with
+  `field_inv` and `scalar_inv_var` with `scalar_inverse` as raw limbs and checks
+  `a * inv(a) == 1`, on 559 edge inputs per modulus (0, 1..3, m-1..m-3, 2^k,
+  m-2^k, and unreduced m, m+1..m+3, m+2^k, 2^256-1..2^256-4) plus 4,194,304
+  pseudo-random inputs per modulus, every 16th of them unreduced. The module
+  also fails if the number of elements checked differs from the number
+  launched. Negative control, run on a standalone copy of the module rather
+  than in the runner: flipping one result bit, once in the edge part and once
+  in the random part, makes it return failure.
+- `gpu_bench_unified`: new rows `inv (var)`, `scalar inv` and `scalar inv (var)`,
+  with the batch size, inputs and launch shape of the existing `inv` row.
+
+**Measured.** RTX 5060 Ti (sm_120), CUDA 13.2, driver 580.178.04, no other GPU
+compute process; the host CPU was busy with unrelated jobs. `--suite all`,
+3 warmup + 5 passes, five whole-binary runs. Artifacts:
+`docs/benchmark_artifacts/gpu_bench_unified_2026-10-02_rtx5060ti_run{1..5}.json`.
+
+| row | ns/op median (min - max) | M/s median | batch | kernel registers (sm_120) |
+|-----|-------------------------:|-----------:|------:|--------------------------:|
+| `inv` (Fermat chain) | 11.06 (11.05 - 11.14) | 90.45 | 65536 | 70 |
+| `inv (var)` | 1.67 (1.67 - 1.67) | 599.36 | 65536 | 58 |
+| `scalar inv` (Fermat) | 60.78 (60.74 - 60.86) | 16.45 | 65536 | 48 |
+| `scalar inv (var)` | 1.67 (1.66 - 1.68) | 599.53 | 65536 | 62 |
+
+The 19 pre-existing rows were compared against the pre-change binary run
+alternately in the same session, five runs each, in both orders. 16 rows overlap
+in both orders. The three MSM rows read 0.05% to 0.07% higher, with ranges that
+do not overlap in five of the six comparisons (for example `msm scatter only`
+171.34 - 171.39 before, 171.44 - 171.47 after), although their kernels are
+byte-identical. A build that
+runs the three new rows after all existing ones instead of next to `inv` (not
+shipped) overlaps on all 19 rows, so the shift follows the position of the new
+rows in the run, not the device code.
+
+**Limits.** CUDA only: OpenCL and Metal have no port and still invert with their
+Fermat chains. The 32-bit-limb configuration, and the field function in
+Montgomery mode, forward to the existing Fermat inverses. No GPU operation is
+faster yet; switching call sites is separate work, one site at a time, each with
+its own check that the inverted value is public.
+
 ## 2026-09-26 - GH-436 static-inline guard was vacuous; OpenCL FROST program did not build (#440)
 
 `regression_opencl_static_inline_link`, registered on 2026-09-25 as the GH-436

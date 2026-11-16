@@ -148,8 +148,11 @@ int main(int argc, char** argv) {
 
     int dev; cudaGetDevice(&dev);
     cudaDeviceProp prop; cudaGetDeviceProperties(&prop, dev);
+    // cudaDeviceProp::clockRate was removed in CUDA 13; query the attribute instead.
+    int clock_khz = 0;
+    cudaDeviceGetAttribute(&clock_khz, cudaDevAttrClockRate, dev);
     std::printf("GPU: %s | SM=%d | %d MHz | Batch=%d\n\n",
-                prop.name, prop.multiProcessorCount, prop.clockRate/1000, batch);
+                prop.name, prop.multiProcessorCount, clock_khz/1000, batch);
 
     // Generate test data
     std::mt19937_64 rng(0xDEC0DEC0);

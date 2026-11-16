@@ -1033,6 +1033,16 @@ target_compile_definitions(test_exploit_batch_schnorr_standalone PRIVATE STANDAL
 add_test(NAME exploit_batch_schnorr COMMAND test_exploit_batch_schnorr_standalone)
 set_tests_properties(exploit_batch_schnorr PROPERTIES TIMEOUT 60 LABELS "audit;exploit;schnorr")
 
+add_executable(test_regression_schnorr_batch_short_weights_standalone
+    test_regression_schnorr_batch_short_weights.cpp)
+audit_target_defaults(test_regression_schnorr_batch_short_weights_standalone)
+target_compile_definitions(test_regression_schnorr_batch_short_weights_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME regression_schnorr_batch_short_weights
+    COMMAND test_regression_schnorr_batch_short_weights_standalone)
+# 4096-signature pool: ~24 s alone under Debug ASan+UBSan, >120 s on a shared CI runner.
+set_tests_properties(regression_schnorr_batch_short_weights PROPERTIES
+    TIMEOUT 600 LABELS "audit;regression;schnorr;batch")
+
 add_executable(test_exploit_segwit_encoding_standalone test_exploit_segwit_encoding.cpp)
 audit_target_defaults(test_exploit_segwit_encoding_standalone)
 target_compile_definitions(test_exploit_segwit_encoding_standalone PRIVATE STANDALONE_TEST)
@@ -1656,6 +1666,31 @@ audit_target_defaults(test_exploit_gpu_cpu_divergence_standalone)
 target_compile_definitions(test_exploit_gpu_cpu_divergence_standalone PRIVATE STANDALONE_TEST)
 add_test(NAME exploit_gpu_cpu_divergence COMMAND test_exploit_gpu_cpu_divergence_standalone)
 set_tests_properties(exploit_gpu_cpu_divergence PROPERTIES TIMEOUT 120 LABELS "audit;exploit;divergence;algebraic")
+
+# -- PoC: GPU C ABI non-canonical point encoding gate (x/y >= p) --------------
+# CPU-runnable: the predicate-boundary and CPU-ABI-parity checks need no GPU.
+# Compiles ufsecp_impl.cpp + ufsecp_gpu_impl.cpp + gpu_registry.cpp raw (same
+# shape as test_c_abi_negative_standalone) so the GPU entry-point checks run
+# whenever a GPU runtime is usable and self-skip otherwise.
+add_executable(test_exploit_gpu_noncanonical_point_encoding_standalone
+    test_exploit_gpu_noncanonical_point_encoding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/src/ufsecp_gpu_impl.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_registry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/src/gpu_backend_fallback.cpp)
+audit_target_defaults(test_exploit_gpu_noncanonical_point_encoding_standalone)
+audit_wire_real_gpu_backends(test_exploit_gpu_noncanonical_point_encoding_standalone)
+target_include_directories(test_exploit_gpu_noncanonical_point_encoding_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../include
+    ${CMAKE_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/gpu/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/cpu/include)
+target_compile_definitions(test_exploit_gpu_noncanonical_point_encoding_standalone PRIVATE
+    STANDALONE_TEST UFSECP_BUILDING)
+add_test(NAME exploit_gpu_noncanonical_point_encoding
+    COMMAND test_exploit_gpu_noncanonical_point_encoding_standalone)
+set_tests_properties(exploit_gpu_noncanonical_point_encoding PROPERTIES
+    TIMEOUT 120 LABELS "audit;exploit;gpu;point-encoding;sec1")
 
 # -- PoC: Field boundary / carry propagation exhaustive ----------------------
 add_executable(test_exploit_field_boundary_exhaustive_standalone test_exploit_field_boundary_exhaustive.cpp)
@@ -4044,6 +4079,7 @@ add_executable(unified_audit_runner
     test_carry_propagation.cpp
     test_u128_compat_parity.cpp
     test_fault_injection.cpp
+    test_lanes_verify_differential.cpp
     test_fiat_crypto_vectors.cpp
     test_cross_platform_kat.cpp
     test_debug_invariants.cpp
@@ -4141,6 +4177,7 @@ add_executable(unified_audit_runner
     test_exploit_batch_schnorr_forge.cpp
     test_exploit_batch_soundness.cpp
     test_exploit_batch_weight_seed_binding.cpp
+    test_regression_schnorr_batch_short_weights.cpp
     test_regression_single_affine_materialisation.cpp
     test_regression_scalar_decomposition_and_comb.cpp
     test_regression_pippenger_window_bands.cpp
@@ -4212,6 +4249,7 @@ add_executable(unified_audit_runner
     test_exploit_glv_endomorphism.cpp
     test_exploit_glv_kat.cpp
     test_exploit_gpu_cpu_divergence.cpp
+    test_exploit_gpu_noncanonical_point_encoding.cpp
     test_exploit_gpu_host_api_shape.cpp
     test_exploit_hedged_nonce_bias.cpp
     test_exploit_hkdf_kat.cpp
@@ -6081,6 +6119,48 @@ set_source_files_properties(
     PROPERTIES INCLUDE_DIRECTORIES
         "${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_bchn_shim/include;${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include")
 
+# BCH 2019 Schnorr batch-verification forgery probe (issue #466): cancellation
+# pair (s1+d, s2-d), one bad entry at every position for sizes 2..64, wrong
+# msg/key, r >= p / off-curve r / R = -R_valid, s >= n / s == 0, bad pubkey,
+# batch == AND of singles, and the engine's own weight/seed functions. Engine
+# API only (src/cpu/src/bch_schnorr.cpp) -- no shim source needed.
+add_executable(test_exploit_bch_schnorr_batch_forgery_standalone
+    test_exploit_bch_schnorr_batch_forgery.cpp)
+audit_target_defaults(test_exploit_bch_schnorr_batch_forgery_standalone)
+target_compile_definitions(test_exploit_bch_schnorr_batch_forgery_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME exploit_bch_schnorr_batch_forgery
+    COMMAND test_exploit_bch_schnorr_batch_forgery_standalone)
+# 5.6 s in Release; 116 s alone under Debug ASan+UBSan, past 180 s on the
+# loaded sanitizer runner -- same 600 s budget as the other batch soundness probes.
+set_tests_properties(exploit_bch_schnorr_batch_forgery PROPERTIES TIMEOUT 600
+    LABELS "audit;exploit;soundness;bch;schnorr;batch;bchn")
+target_sources(unified_audit_runner PRIVATE test_exploit_bch_schnorr_batch_forgery.cpp)
+
+# BCH 2019 Schnorr differential (issue #466): engine verifier (wire and parsed
+# key), the delegating BCHN shim verifier and the C ABI all equal a verbatim copy
+# of the pre-delegation shim verifier on valid and invalid inputs plus the
+# regression_bch_schnorr_spec vectors; shim/ABI batch == AND of singles. Needs the
+# BCH shim source (compiled into the runner above for regression_bch_schnorr_spec)
+# and its headers, scoped to this source for the same reason as above.
+add_executable(test_bch_schnorr_differential_standalone
+    test_bch_schnorr_differential.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_bchn_shim/src/shim_schnorr_bch.cpp)
+audit_target_defaults(test_bch_schnorr_differential_standalone)
+target_include_directories(test_bch_schnorr_differential_standalone PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_bchn_shim/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include)
+target_compile_definitions(test_bch_schnorr_differential_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME bch_schnorr_differential
+    COMMAND test_bch_schnorr_differential_standalone)
+set_tests_properties(bch_schnorr_differential PROPERTIES TIMEOUT 120
+    LABELS "audit;differential;bch;schnorr;batch;bchn;abi")
+target_sources(unified_audit_runner PRIVATE test_bch_schnorr_differential.cpp)
+set_source_files_properties(
+    test_bch_schnorr_differential.cpp
+    TARGET_DIRECTORY unified_audit_runner
+    PROPERTIES INCLUDE_DIRECTORIES
+        "${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_bchn_shim/include;${CMAKE_CURRENT_SOURCE_DIR}/../compat/libsecp256k1_shim/include")
+
 # EXTERNAL-ANCHOR KAT — NIST SHA-512 + official BIP-341 vectors (common-mode defence, 2026-06-11)
 add_executable(test_external_anchor_kat_standalone
     test_external_anchor_kat.cpp)
@@ -6446,6 +6526,20 @@ add_test(NAME fe52_compute_verify
 set_tests_properties(fe52_compute_verify PROPERTIES TIMEOUT 60
     LABELS "audit;differential;verify;fe52;perf")
 target_sources(unified_audit_runner PRIVATE test_fe52_compute_verify.cpp)
+
+# Lane-parallel ECDSA / BIP-340 verify differential (RM-2026-00009 part 2):
+# ecdsa_verify_lanes / schnorr_verify_lanes == ecdsa_verify / schnorr_verify on
+# every available lane backend. advisory=false (unified runner, section
+# differential). Exits 77 when no lane backend is available (CTest skip);
+# --require=<backend> makes absence a failure for runs under Intel SDE.
+add_executable(test_lanes_verify_differential_standalone
+    test_lanes_verify_differential.cpp)
+audit_target_defaults(test_lanes_verify_differential_standalone)
+target_compile_definitions(test_lanes_verify_differential_standalone PRIVATE STANDALONE_TEST)
+add_test(NAME lanes_verify_differential
+    COMMAND test_lanes_verify_differential_standalone)
+set_tests_properties(lanes_verify_differential PROPERTIES TIMEOUT 600 SKIP_RETURN_CODE 77
+    LABELS "audit;differential;verify;lanes")
 
 # hash256_var batch structural/boundary KAT vs SHA256::hash256 CPU oracle.
 # advisory=false: CPU/GPU C ABI only (ufsecp_gpu.h), no shim dependency;

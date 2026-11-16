@@ -1,6 +1,9 @@
-# Adopters
+# Who uses UltrafastSecp256k1: adopters and integrations
 
-Organizations and projects using UltrafastSecp256k1 in production or development.
+Organizations and projects using UltrafastSecp256k1 in production or development, including
+[Sparrow Wallet's Frigate](https://github.com/sparrowwallet/frigate) (BIP-352 Silent Payments GPU scanning).
+Former integrations, such as libbitcoin's `--with-ultrafast` build option, are listed under
+[Former Integrations](#former-integrations).
 This page also tracks public ecosystem signals so adoption evidence is not scattered
 across package registries and release notes.
 
@@ -16,17 +19,32 @@ so we can list you here.
 
 | Organization | Use Case | Features Used | Since |
 |---|---|---|---|
-| [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate) | DuckDB-based Silent Payments scanning via `ufsecp.duckdb_extension` wrapping UltrafastSecp256k1; uses `ufsecp_scan(...)` with CUDA, OpenCL and Metal backends | ECDSA, Schnorr, ECDH, Silent Payments, GPU batch | 2026-03 (v1.4.0) |
+| [SparrowWallet Frigate](https://github.com/sparrowwallet/frigate) | DuckDB-based Silent Payments scanning via `ufsecp.duckdb_extension` ([sparrowwallet/duckdb-ufsecp-extension](https://github.com/sparrowwallet/duckdb-ufsecp-extension)) wrapping UltrafastSecp256k1; uses `ufsecp_scan(...)` with CUDA, OpenCL and Metal backends | ECDSA, Schnorr, ECDH, Silent Payments, GPU batch | 2026-03 (v1.4.0) |
 
 ## Development / Research
 
 | Organization | Use Case | Features Used | Since |
 |---|---|---|---|
+| [Robinhood Chain sequencer feed](https://github.com/groovg/ultrafast-robinhood-sequencer-feed) | Rust sequencer-feed client; UltrafastSecp256k1 is the opt-in (`--features ufsecp`) alternative to libsecp256k1 for ECDSA sender recovery, with a test that both give identical results | ECDSA recovery | 2026-09 |
+
+## Packaging & Distribution
+
+| Project | What it ships | Version | Since |
+|---|---|---|---|
+| [Satobox](https://github.com/embetrix/satobox) | Yocto/OE recipe in the `meta-satobox` layer (CPU build, x86-64 / AArch64 / RISC-V); `satobox-image` installs `ultrafastsecp256k1-examples`. Satobox is an embedded-Linux Bitcoin full-node distribution | v3.15.3 | 2026-02 |
+| [getUltrafastSecp256k1](https://github.com/eynhaender/getUltrafastSecp256k1) | NuGet packaging pipeline for `UltrafastSecp256k1-vc145` (Visual Studio 2026, x64, static/shared, Release/Debug); libbitcoin's MSVC builds consumed this package until 2026-10-02 | tracks `dev` | 2026-06 |
+
+## Former Integrations
+
+| Organization | Use Case | Features Used | Period |
+|---|---|---|---|
+| [libbitcoin](https://github.com/libbitcoin) | Build-time secp256k1 backend across libbitcoin-system, -database, -network, -node, -server, -explorer and libbitcoin-build: `--with-ultrafast` (GNU autotools), `-Dwith-ultrafast=ON` (CMake) and the `UltrafastSecp256k1-vc145` NuGet package (MSVC), with GPU detection and GPU-gated batch validation. It was on libbitcoin `master` only and never reached a tagged release (the latest is v3.8.0, 2023). [libbitcoin-system #2048](https://github.com/libbitcoin/libbitcoin-system/pull/2048) removed the option; libbitcoin `master` now uses its own internal secp256k1 and its own CUDA batch verification | Signature validation (ECDSA, Schnorr), GPU batch | 2026-06-13 to 2026-10-02 |
 
 ## Personal / Hobby Projects
 
 | Project | Use Case | Features Used | Since |
 |---|---|---|---|
+| [VanityPlate](https://github.com/zeroxbee/VanityPlate) | CUDA vanity address generator for 12 coins (Windows and Linux). It vendors 21 UltrafastSecp256k1 source files (CUDA field arithmetic, generator table and hash160; CPU field and hashing code for its CPU worker) and credits them in its THIRD-PARTY-NOTICES. Its register-only CUDA hash160 was merged back into this repository on 2026-11-02 | CUDA field arithmetic, hash160 (SHA-256 / RIPEMD-160) | v3.22.0 (`552f86d`, 2026-03) |
 
 ## Ecosystem Signals
 
@@ -44,6 +62,13 @@ These numbers are snapshots and will move over time.
 ### Disclosure Notes
 
 - The SparrowWallet Frigate entry is published with permission from Craig Raw.
+- The libbitcoin, Robinhood Chain sequencer feed, Satobox and getUltrafastSecp256k1 entries
+  cite those projects' own public repositories (merged PRs, READMEs, build recipes); see
+  [ADOPTION.md](ADOPTION.md) for the per-project evidence. They were checked on 2026-11-01.
+- The VanityPlate entry comes from its maintainer's post
+  ([Discussion #462](https://github.com/shrec/UltrafastSecp256k1/discussions/462), 2026-11-02) and
+  the project's README and THIRD-PARTY-NOTICES, checked the same day. Listing it is not a review of
+  VanityPlate's key generation.
 - Registry metrics were checked from the public npm and NuGet package endpoints on 2026-03-29.
 
 ---

@@ -15,6 +15,7 @@
 #include <cstdio>
 #include <vector>
 #include <limits>
+#include <mutex>
 
 /* -- Secure erase for private key zeroization ------------------------------ */
 #include "secp256k1/detail/secure_erase.hpp"
@@ -87,6 +88,144 @@ struct CudaBufferGuard {
     }
 };
 
+// Grow-only device scratch owned by ONE CudaBackend instance and used by its
+// C ABI batch methods instead of a cudaMalloc/cudaFree pair per call.
+//
+// - A call borrows buffers through a CudaScratchLease. Slots are handed out in
+//   stack order (the lease remembers where it started and gives everything
+//   back on destruction), so a nested lease on the same thread can never be
+//   handed a slot that an outer lease still holds.
+// - A slot only grows: a request that fits its current capacity reuses the
+//   allocation; a larger one replaces it (old block zeroed, then freed).
+// - Secret slots (private keys, nonces, ECDH secrets, AEAD keys/plaintext) are
+//   zeroed by the lease when it ends, on every exit path, with cudaMemset
+//   followed by cudaDeviceSynchronize (Rule 10). Public slots are not wiped
+//   between calls; every method writes the bytes it reads before reading them.
+// - release_all() zeroes then frees every slot; CudaBackend calls it from
+//   shutdown() and the destructor runs it again (idempotent).
+// - Thread safety: the lease holds the arena's recursive mutex for its whole
+//   lifetime, so concurrent calls on one backend serialise instead of sharing
+//   buffers. Recursive so a method may call another leasing method.
+class CudaScratchArena {
+public:
+    static constexpr int kSlots = 24;
+
+    CudaScratchArena() = default;
+    CudaScratchArena(const CudaScratchArena&) = delete;
+    CudaScratchArena& operator=(const CudaScratchArena&) = delete;
+    ~CudaScratchArena() { release_all(); }
+
+    void release_all() {
+        std::lock_guard<std::recursive_mutex> lk(mtx_);
+        for (Slot& s : slots_) free_slot(s);
+        next_ = 0;
+        device_ = -1;
+    }
+
+    // Total bytes currently held (diagnostics / tests).
+    std::size_t capacity_bytes() {
+        std::lock_guard<std::recursive_mutex> lk(mtx_);
+        std::size_t total = 0;
+        for (const Slot& s : slots_) total += s.cap;
+        return total;
+    }
+
+private:
+    friend class CudaScratchLease;
+
+    struct Slot { void* ptr = nullptr; std::size_t cap = 0; };
+
+    static void free_slot(Slot& s) {
+        if (s.ptr) {
+            cudaMemset(s.ptr, 0, s.cap);  // never return a dirty block to the driver
+            cudaFree(s.ptr);
+        }
+        s = Slot{};
+    }
+
+    // Called by the outermost lease: pointers from another device/context are
+    // never reused.
+    void check_device() {
+        int cur = -1;
+        if (cudaGetDevice(&cur) == cudaSuccess && cur != device_) {
+            for (Slot& s : slots_) free_slot(s);
+            device_ = cur;
+        }
+    }
+
+    cudaError_t take(std::size_t bytes, void** out) {
+        *out = nullptr;
+        if (next_ >= kSlots) return cudaErrorMemoryAllocation;
+        if (bytes == 0) bytes = 1;  // a zero-length request still gets a valid pointer
+        Slot& s = slots_[next_];
+        if (s.cap < bytes) {
+            free_slot(s);
+            void* p = nullptr;
+            const cudaError_t err = cudaMalloc(&p, bytes);
+            if (err != cudaSuccess) return err;
+            s.ptr = p;
+            s.cap = bytes;
+        }
+        ++next_;
+        *out = s.ptr;
+        return cudaSuccess;
+    }
+
+    std::recursive_mutex mtx_;
+    Slot slots_[kSlots];
+    int  next_   = 0;
+    int  device_ = -1;
+};
+
+class CudaScratchLease {
+public:
+    explicit CudaScratchLease(CudaScratchArena& arena)
+        : arena_(arena), lock_(arena.mtx_), base_(arena.next_) {
+        if (base_ == 0) arena_.check_device();
+    }
+    CudaScratchLease(const CudaScratchLease&) = delete;
+    CudaScratchLease& operator=(const CudaScratchLease&) = delete;
+
+    ~CudaScratchLease() {
+        // Rule 10: zero every secret slot this call used, then wait for the
+        // device so the erase has completed before the slot can be reused.
+        for (int i = 0; i < n_secret_; ++i)
+            cudaMemset(secret_[i].ptr, 0, secret_[i].bytes);
+        if (n_secret_ > 0) cudaDeviceSynchronize();
+        arena_.next_ = base_;
+    }
+
+    // Public-data buffer of at least `bytes` bytes.
+    template <class T>
+    cudaError_t alloc(T** out, std::size_t bytes) {
+        void* p = nullptr;
+        const cudaError_t err = arena_.take(bytes, &p);
+        *out = static_cast<T*>(p);
+        return err;
+    }
+
+    // Buffer that will hold secret material: zeroed when the lease ends.
+    template <class T>
+    cudaError_t alloc_secret(T** out, std::size_t bytes) {
+        const cudaError_t err = alloc(out, bytes);
+        if (err == cudaSuccess) {
+            secret_[n_secret_].ptr   = static_cast<void*>(*out);
+            secret_[n_secret_].bytes = bytes;
+            ++n_secret_;
+        }
+        return err;
+    }
+
+private:
+    struct SecretUse { void* ptr = nullptr; std::size_t bytes = 0; };
+
+    CudaScratchArena&                      arena_;
+    std::lock_guard<std::recursive_mutex>  lock_;
+    int                                    base_;
+    SecretUse                              secret_[CudaScratchArena::kSlots];
+    int                                    n_secret_ = 0;
+};
+
 namespace secp256k1 {
 
 /* Kernels defined in cuda/src/secp256k1.cu (namespace secp256k1::cuda).
@@ -104,6 +243,13 @@ extern __global__ void schnorr_verify_batch_kernel(
     const uint8_t* __restrict__ msgs,
     const SchnorrSignatureGPU* __restrict__ sigs,
     bool*          __restrict__ results,
+    int count);
+/* Bitcoin Cash 2019 Schnorr verify (src/cuda/include/bch_schnorr.cuh). */
+extern __global__ void bch_schnorr_verify_batch_kernel(
+    const uint8_t* __restrict__ msgs32,
+    const uint8_t* __restrict__ pubkeys33,
+    const uint8_t* __restrict__ sigs64,
+    uint8_t*       __restrict__ results,
     int count);
 extern __global__ void ecdsa_verify_collect_kernel(
     const uint8_t* __restrict__ msg_hashes,
@@ -1207,6 +1353,7 @@ public:
 
     void shutdown() override {
         msm_pool_.free_all();
+        scratch_.release_all();   // zeroes then frees every scratch slot
         g_cuda_batch_scratch.free_lbtc_device();
         ready_ = false;
     }
@@ -1230,20 +1377,31 @@ public:
         Scalar*        d_scalars = nullptr;
         JacobianPoint* d_results = nullptr;
         uint8_t*       d_out     = nullptr;
-        GpuError       ret       = GpuError::Ok;
 
-        /* Host copy — needed for secure_erase on all exit paths (NF-01 fix) */
-        std::vector<Scalar> h_scalars(count);
+        /* Host copy — secure_erase'd on all exit paths by the guard (NF-01 fix) */
+        struct SecureScalarVec {
+            std::vector<Scalar> v;
+            explicit SecureScalarVec(size_t n) : v(n) {}
+            ~SecureScalarVec() {
+                secp256k1::detail::secure_erase(v.data(), v.size() * sizeof(Scalar));
+            }
+        } h_scalars_guard(count);
+        auto& h_scalars = h_scalars_guard.v;
         for (size_t i = 0; i < count; ++i)
             bytes_to_scalar(scalars32 + i * 32, &h_scalars[i]);
 
-        if (cudaMalloc(&d_scalars, count * sizeof(Scalar)) != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "generator_mul d_scalars"); goto gmb_cleanup; }
-        if (cudaMalloc(&d_results, count * sizeof(JacobianPoint)) != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "generator_mul d_results"); goto gmb_cleanup; }
+        // NF-01 / Rule 10: d_scalars holds private keys -- a secret slot of the
+        // per-backend scratch, zeroed (cudaMemset + sync) by the lease on ALL
+        // exit paths before the slot can be reused. The results are public
+        // keys (no erase).
+        CudaScratchLease lease(scratch_);
+        if (lease.alloc_secret(&d_scalars, count * sizeof(Scalar)) != cudaSuccess)
+            return set_error(GpuError::Memory, "generator_mul d_scalars");
+        if (lease.alloc(&d_results, count * sizeof(JacobianPoint)) != cudaSuccess)
+            return set_error(GpuError::Memory, "generator_mul d_results");
         if (cudaMemcpy(d_scalars, h_scalars.data(),
-                       count * sizeof(Scalar), cudaMemcpyHostToDevice) != cudaSuccess) {
-            ret = set_error(GpuError::Launch, "generator_mul upload"); goto gmb_cleanup; }
+                       count * sizeof(Scalar), cudaMemcpyHostToDevice) != cudaSuccess)
+            return set_error(GpuError::Launch, "generator_mul upload");
         {
             int threads = 128;
             int blocks  = (static_cast<int>(count) + threads - 1) / threads;
@@ -1253,35 +1411,31 @@ public:
             // generator_mul_windowed_batch_kernel exposes on secret inputs.
             ct_generator_mul_batch_kernel<<<blocks, threads>>>(
                 d_scalars, d_results, static_cast<int>(count));
-            if (cudaGetLastError() != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "generator_mul kernel"); goto gmb_cleanup; }
-            if (cudaMalloc(&d_out, count * 33) != cudaSuccess) {
-                ret = set_error(GpuError::Memory, "generator_mul d_out"); goto gmb_cleanup; }
+            if (cudaGetLastError() != cudaSuccess)
+                return set_error(GpuError::Launch, "generator_mul kernel");
+            if (lease.alloc(&d_out, count * 33) != cudaSuccess)
+                return set_error(GpuError::Memory, "generator_mul d_out");
             batch_jac_to_compressed_kernel<<<blocks, threads>>>(
                 d_results, d_out, static_cast<int>(count));
-            if (cudaGetLastError() != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "jac_to_compressed"); goto gmb_cleanup; }
-            if (cudaDeviceSynchronize() != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "generator_mul sync"); goto gmb_cleanup; }
+            if (cudaGetLastError() != cudaSuccess)
+                return set_error(GpuError::Launch, "jac_to_compressed");
+            if (cudaDeviceSynchronize() != cudaSuccess)
+                return set_error(GpuError::Launch, "generator_mul sync");
             if (cudaMemcpy(out_pubkeys33, d_out, count * 33,
-                           cudaMemcpyDeviceToHost) != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "generator_mul download"); goto gmb_cleanup; }
-            clear_error();
+                           cudaMemcpyDeviceToHost) != cudaSuccess)
+                return set_error(GpuError::Launch, "generator_mul download");
         }
-
-gmb_cleanup:
-        // NF-01: Rule 10 — erase private scalars from GPU VRAM on ALL exit paths
-        if (d_scalars) {
-            cudaMemset(d_scalars, 0, count * sizeof(Scalar));
-            cudaFree(d_scalars);
-        }
-        if (d_results) cudaFree(d_results);
-        if (d_out)     cudaFree(d_out);
-        secp256k1::detail::secure_erase(h_scalars.data(),
-                                        h_scalars.size() * sizeof(Scalar));
-        return ret;
+        clear_error();
+        return GpuError::Ok;
     }
 
+    /* ecdsa_verify_batch, schnorr_verify_batch, frost_verify_partial_batch,
+     * snark_witness_batch and schnorr_snark_witness_batch keep per-call
+     * allocation with an immediate CudaBufferGuard per buffer and do not use
+     * scratch_: audit/test_regression_cuda_buffer_raii.cpp (CBR-4..CBR-8)
+     * pins exactly that ownership pattern in these five method bodies.
+     * Moving them to scratch_ needs that source-coupled audit updated in
+     * the same change. */
     GpuError ecdsa_verify_batch(
         const uint8_t* msg_hashes32, const uint8_t* pubkeys33,
         const uint8_t* sigs64, size_t count,
@@ -1448,6 +1602,56 @@ gmb_cleanup:
         return GpuError::Ok;
     }
 
+    /* Bitcoin Cash 2019 Schnorr (NOT BIP-340) batch verify, one thread per
+     * signature. PUBLIC data: buffers come from the scratch arena and are not
+     * erased between calls. Key decompression, the 97-byte challenge hash and
+     * the r/s range checks all run in the kernel. */
+    GpuError bch_schnorr_verify_batch(
+        const uint8_t* msgs32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results) override
+    {
+        if (!ready_) return set_error(GpuError::Device, "context not initialised");
+        if (count == 0) { clear_error(); return GpuError::Ok; }
+        if (!msgs32 || !pubkeys33 || !sigs64 || !out_results)
+            return set_error(GpuError::NullArg, "NULL buffer");
+        if (count > static_cast<size_t>(std::numeric_limits<int>::max()))
+            return set_error(GpuError::BadInput, "bch_schnorr_verify count too large");
+
+        uint8_t *d_msgs = nullptr, *d_pubs = nullptr, *d_sigs = nullptr, *d_res = nullptr;
+        GpuError ret = GpuError::Ok;
+        const int n_int   = static_cast<int>(count);
+        const int threads = 128;
+        const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public data: reused, no erase
+
+        if (lease.alloc(&d_msgs, count * 32) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bch_schnorr d_msgs"); goto bch_cleanup; }
+        if (lease.alloc(&d_pubs, count * 33) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bch_schnorr d_pubs"); goto bch_cleanup; }
+        if (lease.alloc(&d_sigs, count * 64) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bch_schnorr d_sigs"); goto bch_cleanup; }
+        if (lease.alloc(&d_res, count) != cudaSuccess) {
+            ret = set_error(GpuError::Memory, "bch_schnorr d_res"); goto bch_cleanup; }
+        if (cudaMemcpy(d_msgs, msgs32, count * 32, cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr upload msgs"); goto bch_cleanup; }
+        if (cudaMemcpy(d_pubs, pubkeys33, count * 33, cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr upload pubs"); goto bch_cleanup; }
+        if (cudaMemcpy(d_sigs, sigs64, count * 64, cudaMemcpyHostToDevice) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr upload sigs"); goto bch_cleanup; }
+        bch_schnorr_verify_batch_kernel<<<blocks, threads>>>(
+            d_msgs, d_pubs, d_sigs, d_res, n_int);
+        if (cudaGetLastError() != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr kernel launch"); goto bch_cleanup; }
+        if (cudaDeviceSynchronize() != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr kernel sync"); goto bch_cleanup; }
+        if (cudaMemcpy(out_results, d_res, count, cudaMemcpyDeviceToHost) != cudaSuccess) {
+            ret = set_error(GpuError::Launch, "bch_schnorr download"); goto bch_cleanup; }
+        clear_error();
+bch_cleanup:
+        return ret;
+    }
+
     // Engine-owned, memory-aware chunk size (rows). Bounds a chunk by half of free
     // device memory and a hard cap so a large batch cannot force a giant one-shot
     // allocation. UFSECP_GPU_COLUMNS_CHUNK is an internal/test knob only — the
@@ -1607,12 +1811,15 @@ gmb_cleanup:
         ECDSASignatureGPU*  d_sigs   = nullptr;
         uint8_t*            d_keys   = nullptr;   /* 1 byte/row verdict channel */
 
-        CUDA_TRY(cudaMalloc(&d_msgs, count * 32));
-        CUDA_TRY(cudaMalloc(&d_pubs33, count * 33));
-        CUDA_TRY(cudaMalloc(&d_pubs, count * sizeof(JacobianPoint)));
-        CUDA_TRY(cudaMalloc(&d_pub_ok, count * sizeof(bool)));
-        CUDA_TRY(cudaMalloc(&d_sigs, count * sizeof(ECDSASignatureGPU)));
-        CUDA_TRY(cudaMalloc(&d_keys, count));
+        // Public verify data: grow-only per-backend scratch, no erase. The
+        // lease also owns the buffers across CUDA_TRY early returns.
+        CudaScratchLease lease(scratch_);
+        CUDA_TRY(lease.alloc(&d_msgs, count * 32));
+        CUDA_TRY(lease.alloc(&d_pubs33, count * 33));
+        CUDA_TRY(lease.alloc(&d_pubs, count * sizeof(JacobianPoint)));
+        CUDA_TRY(lease.alloc(&d_pub_ok, count * sizeof(bool)));
+        CUDA_TRY(lease.alloc(&d_sigs, count * sizeof(ECDSASignatureGPU)));
+        CUDA_TRY(lease.alloc(&d_keys, count));
 
         CUDA_TRY(cudaMemcpy(d_msgs, msg_hashes32, count * 32, cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pubs33, pubkeys33, count * 33, cudaMemcpyHostToDevice));
@@ -1635,13 +1842,7 @@ gmb_cleanup:
 
         /* verdict already collapsed on device; no host scatter loop */
         CUDA_TRY(cudaMemcpy(key_buffer, d_keys, count, cudaMemcpyDeviceToHost));
-
-        cudaFree(d_keys);
-        cudaFree(d_sigs);
-        cudaFree(d_pub_ok);
-        cudaFree(d_pubs);
-        cudaFree(d_pubs33);
-        cudaFree(d_msgs);
+        // Device buffers stay in scratch_; the lease hands the slots back.
         clear_error();
         return GpuError::Ok;
     }
@@ -1663,12 +1864,15 @@ gmb_cleanup:
         uint8_t*             d_pks  = nullptr;
         uint8_t*             d_msgs = nullptr;
         SchnorrSignatureGPU* d_sigs = nullptr;
-        uint8_t*             d_keys = nullptr;
+        uint8_t*             d_keys = nullptr;   /* 1 byte/row verdict channel */
 
-        CUDA_TRY(cudaMalloc(&d_pks, count * 32));
-        CUDA_TRY(cudaMalloc(&d_msgs, count * 32));
-        CUDA_TRY(cudaMalloc(&d_sigs, count * sizeof(SchnorrSignatureGPU)));
-        CUDA_TRY(cudaMalloc(&d_keys, count));
+        // Public verify data: grow-only per-backend scratch, no erase. The
+        // lease also owns the buffers across CUDA_TRY early returns.
+        CudaScratchLease lease(scratch_);
+        CUDA_TRY(lease.alloc(&d_pks, count * 32));
+        CUDA_TRY(lease.alloc(&d_msgs, count * 32));
+        CUDA_TRY(lease.alloc(&d_sigs, count * sizeof(SchnorrSignatureGPU)));
+        CUDA_TRY(lease.alloc(&d_keys, count));
 
         CUDA_TRY(cudaMemcpy(d_pks, pubkeys_x32, count * 32, cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_msgs, msg_hashes32, count * 32, cudaMemcpyHostToDevice));
@@ -1683,11 +1887,7 @@ gmb_cleanup:
         CUDA_TRY(cudaDeviceSynchronize());
 
         CUDA_TRY(cudaMemcpy(key_buffer, d_keys, count, cudaMemcpyDeviceToHost));
-
-        cudaFree(d_keys);
-        cudaFree(d_sigs);
-        cudaFree(d_msgs);
-        cudaFree(d_pks);
+        // Device buffers stay in scratch_; the lease hands the slots back.
         clear_error();
         return GpuError::Ok;
     }
@@ -1717,21 +1917,24 @@ gmb_cleanup:
         for (size_t i = 0; i < count; ++i)
             bytes_to_scalar(privkeys32 + i * 32, &h_keys[i]);
 
-        // CudaKeyGuard zeroes + frees d_keys on all exit paths (destructor).
+        // Grow-only per-backend scratch. Rule 10: the private scalars and the
+        // ECDH shared secrets are secret slots -- the lease zeroes both
+        // (cudaMemset + sync) on every exit path, including CUDA_TRY early
+        // returns, before any later call can reuse the slot.
+        CudaScratchLease lease(scratch_);
         Scalar* d_keys_raw = nullptr;
-        CUDA_TRY(cudaMalloc(&d_keys_raw, count * sizeof(Scalar)));
-        CudaKeyGuard d_keys_guard(d_keys_raw, count * sizeof(Scalar));
+        CUDA_TRY(lease.alloc_secret(&d_keys_raw, count * sizeof(Scalar)));
 
         uint8_t*       d_pubs33 = nullptr;
         JacobianPoint* d_pubs   = nullptr;
         bool*          d_pub_ok = nullptr;
         uint8_t*       d_out    = nullptr;
         bool*          d_ok     = nullptr;
-        CUDA_TRY(cudaMalloc(&d_pubs33, count * 33));
-        CUDA_TRY(cudaMalloc(&d_pubs, count * sizeof(JacobianPoint)));
-        CUDA_TRY(cudaMalloc(&d_pub_ok, count * sizeof(bool)));
-        CUDA_TRY(cudaMalloc(&d_out, count * 32));
-        CUDA_TRY(cudaMalloc(&d_ok, count * sizeof(bool)));
+        CUDA_TRY(lease.alloc(&d_pubs33, count * 33));
+        CUDA_TRY(lease.alloc(&d_pubs, count * sizeof(JacobianPoint)));
+        CUDA_TRY(lease.alloc(&d_pub_ok, count * sizeof(bool)));
+        CUDA_TRY(lease.alloc_secret(&d_out, count * 32));
+        CUDA_TRY(lease.alloc(&d_ok, count * sizeof(bool)));
 
         CUDA_TRY(cudaMemcpy(d_keys_raw, h_keys.data(), count * sizeof(Scalar), cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pubs33, peer_pubkeys33, count * 33, cudaMemcpyHostToDevice));
@@ -1748,19 +1951,14 @@ gmb_cleanup:
 
         CUDA_TRY(cudaMemcpy(out_secrets32, d_out, count * 32, cudaMemcpyDeviceToHost));
 
-        std::vector<uint8_t> h_ok_buf(count);
-        CUDA_TRY(cudaMemcpy(h_ok_buf.data(), d_ok, count * sizeof(bool), cudaMemcpyDeviceToHost));
+        uint8_t* const h_ok_buf = g_cuda_batch_scratch.ensure_results(count);
+        CUDA_TRY(cudaMemcpy(h_ok_buf, d_ok, count * sizeof(bool), cudaMemcpyDeviceToHost));
         for (size_t i = 0; i < count; ++i) {
             if (!h_ok_buf[i]) std::memset(out_secrets32 + i * 32, 0, 32);
         }
 
-        // d_keys_guard destructor zeroes + frees d_keys_raw here.
-        // h_keys_guard destructor secure_erases h_keys here.
-        cudaFree(d_ok);
-        cudaFree(d_out);
-        cudaFree(d_pub_ok);
-        cudaFree(d_pubs);
-        cudaFree(d_pubs33);
+        // On return: the lease zeroes d_keys_raw and d_out, then
+        // h_keys_guard secure_erases the host scalars.
         clear_error();
         return GpuError::Ok;
 #else
@@ -1781,8 +1979,11 @@ gmb_cleanup:
         uint8_t* d_pubs = nullptr;
         uint8_t* d_hash = nullptr;
 
-        CUDA_TRY(cudaMalloc(&d_pubs, count * 33));
-        CUDA_TRY(cudaMalloc(&d_hash, count * 20));
+        // Public pubkeys/hashes: grow-only per-backend scratch, no erase. The
+        // lease also owns the buffers across CUDA_TRY early returns.
+        CudaScratchLease lease(scratch_);
+        CUDA_TRY(lease.alloc(&d_pubs, count * 33));
+        CUDA_TRY(lease.alloc(&d_hash, count * 20));
         CUDA_TRY(cudaMemcpy(d_pubs, pubkeys33, count * 33, cudaMemcpyHostToDevice));
 
         int threads = 256;
@@ -1793,9 +1994,7 @@ gmb_cleanup:
         CUDA_TRY(cudaDeviceSynchronize());
 
         CUDA_TRY(cudaMemcpy(out_hash160, d_hash, count * 20, cudaMemcpyDeviceToHost));
-
-        cudaFree(d_hash);
-        cudaFree(d_pubs);
+        // Device buffers stay in scratch_; the lease hands the slots back.
         clear_error();
         return GpuError::Ok;
 #else
@@ -1924,10 +2123,11 @@ gmb_cleanup:
         const int n_int   = static_cast<int>(n);
         const int threads = 256;
         const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public x-only keys: reused, no erase
 
-        if (cudaMalloc(&d_keys, n * 32) != cudaSuccess) {
+        if (lease.alloc(&d_keys, n * 32) != cudaSuccess) {
             ret = set_error(GpuError::Memory, "xonly_validate d_keys"); goto xv_cleanup; }
-        if (cudaMalloc(&d_res, n) != cudaSuccess) {
+        if (lease.alloc(&d_res, n) != cudaSuccess) {
             ret = set_error(GpuError::Memory, "xonly_validate d_res"); goto xv_cleanup; }
         if (cudaMemcpy(d_keys, keys32, n * 32, cudaMemcpyHostToDevice) != cudaSuccess) {
             ret = set_error(GpuError::Launch, "xonly_validate upload"); goto xv_cleanup; }
@@ -1940,8 +2140,6 @@ gmb_cleanup:
             ret = set_error(GpuError::Launch, "xonly_validate download"); goto xv_cleanup; }
         clear_error();
 xv_cleanup:
-        if (d_keys) cudaFree(d_keys);
-        if (d_res)  cudaFree(d_res);
         return ret;
     }
 
@@ -1962,12 +2160,13 @@ xv_cleanup:
         const int n_int   = static_cast<int>(n);
         const int threads = 256;
         const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public data: reused, no erase
 
-        if (cudaMalloc(&d_ix, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_ix"); goto cv_cleanup; }
-        if (cudaMalloc(&d_tw, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_tw"); goto cv_cleanup; }
-        if (cudaMalloc(&d_tx, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_tx"); goto cv_cleanup; }
-        if (cudaMalloc(&d_par, n)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_par"); goto cv_cleanup; }
-        if (cudaMalloc(&d_res, n)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_res"); goto cv_cleanup; }
+        if (lease.alloc(&d_ix, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_ix"); goto cv_cleanup; }
+        if (lease.alloc(&d_tw, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_tw"); goto cv_cleanup; }
+        if (lease.alloc(&d_tx, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_tx"); goto cv_cleanup; }
+        if (lease.alloc(&d_par, n)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_par"); goto cv_cleanup; }
+        if (lease.alloc(&d_res, n)!=cudaSuccess){ ret=set_error(GpuError::Memory,"commit d_res"); goto cv_cleanup; }
         if (cudaMemcpy(d_ix, internal_x32, n*32, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"commit up ix"); goto cv_cleanup; }
         if (cudaMemcpy(d_tw, tweak32, n*32, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"commit up tw"); goto cv_cleanup; }
         if (cudaMemcpy(d_tx, tweaked_x32, n*32, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"commit up tx"); goto cv_cleanup; }
@@ -1978,8 +2177,6 @@ xv_cleanup:
         if (cudaMemcpy(results, d_res, n, cudaMemcpyDeviceToHost)!=cudaSuccess){ ret=set_error(GpuError::Launch,"commit download"); goto cv_cleanup; }
         clear_error();
 cv_cleanup:
-        if(d_ix)cudaFree(d_ix); if(d_tw)cudaFree(d_tw); if(d_tx)cudaFree(d_tx);
-        if(d_par)cudaFree(d_par); if(d_res)cudaFree(d_res);
         return ret;
     }
 
@@ -2000,10 +2197,11 @@ cv_cleanup:
         const int ml      = static_cast<int>(msg_len);
         const int threads = 256;
         const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public data: reused, no erase
 
-        if (cudaMalloc(&d_th, 32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagged d_th"); goto th_cleanup; }
-        if (cudaMalloc(&d_msgs, n*msg_len)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagged d_msgs"); goto th_cleanup; }
-        if (cudaMalloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagged d_out"); goto th_cleanup; }
+        if (lease.alloc(&d_th, 32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagged d_th"); goto th_cleanup; }
+        if (lease.alloc(&d_msgs, n*msg_len)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagged d_msgs"); goto th_cleanup; }
+        if (lease.alloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagged d_out"); goto th_cleanup; }
         if (cudaMemcpy(d_th, tag_hash32, 32, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"tagged up th"); goto th_cleanup; }
         if (cudaMemcpy(d_msgs, msgs, n*msg_len, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"tagged up msgs"); goto th_cleanup; }
         lbtc_tagged_hash_kernel<<<blocks,threads>>>(d_th,d_msgs,ml,n_int,d_out);
@@ -2012,7 +2210,6 @@ cv_cleanup:
         if (cudaMemcpy(out32, d_out, n*32, cudaMemcpyDeviceToHost)!=cudaSuccess){ ret=set_error(GpuError::Launch,"tagged download"); goto th_cleanup; }
         clear_error();
 th_cleanup:
-        if(d_th)cudaFree(d_th); if(d_msgs)cudaFree(d_msgs); if(d_out)cudaFree(d_out);
         return ret;
     }
 
@@ -2029,9 +2226,10 @@ th_cleanup:
         const int n_int = static_cast<int>(n);
         const int threads = 256;
         const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public data: reused, no erase
 
-        if (cudaMalloc(&d_pk, n*33)!=cudaSuccess){ ret=set_error(GpuError::Memory,"pkvalidate d_pk"); goto pv2_cleanup; }
-        if (cudaMalloc(&d_res, n)!=cudaSuccess){ ret=set_error(GpuError::Memory,"pkvalidate d_res"); goto pv2_cleanup; }
+        if (lease.alloc(&d_pk, n*33)!=cudaSuccess){ ret=set_error(GpuError::Memory,"pkvalidate d_pk"); goto pv2_cleanup; }
+        if (lease.alloc(&d_res, n)!=cudaSuccess){ ret=set_error(GpuError::Memory,"pkvalidate d_res"); goto pv2_cleanup; }
         if (cudaMemcpy(d_pk, pubkeys33, n*33, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"pkvalidate up"); goto pv2_cleanup; }
         lbtc_pubkey_validate_kernel<<<blocks,threads>>>(d_pk, n_int, d_res);
         if (cudaGetLastError()!=cudaSuccess){ ret=set_error(GpuError::Launch,"pkvalidate kernel"); goto pv2_cleanup; }
@@ -2039,7 +2237,6 @@ th_cleanup:
         if (cudaMemcpy(results, d_res, n, cudaMemcpyDeviceToHost)!=cudaSuccess){ ret=set_error(GpuError::Launch,"pkvalidate download"); goto pv2_cleanup; }
         clear_error();
 pv2_cleanup:
-        if(d_pk)cudaFree(d_pk); if(d_res)cudaFree(d_res);
         return ret;
     }
 
@@ -2059,11 +2256,12 @@ pv2_cleanup:
         const int st = static_cast<int>(stride);
         const int threads = 256;
         const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public data: reused, no erase
 
-        if (cudaMalloc(&d_th, 32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagvar d_th"); goto tv_cleanup; }
-        if (cudaMalloc(&d_msgs, n*stride)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagvar d_msgs"); goto tv_cleanup; }
-        if (cudaMalloc(&d_lens, n*sizeof(uint32_t))!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagvar d_lens"); goto tv_cleanup; }
-        if (cudaMalloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagvar d_out"); goto tv_cleanup; }
+        if (lease.alloc(&d_th, 32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagvar d_th"); goto tv_cleanup; }
+        if (lease.alloc(&d_msgs, n*stride)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagvar d_msgs"); goto tv_cleanup; }
+        if (lease.alloc(&d_lens, n*sizeof(uint32_t))!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagvar d_lens"); goto tv_cleanup; }
+        if (lease.alloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"tagvar d_out"); goto tv_cleanup; }
         if (cudaMemcpy(d_th, tag_hash32, 32, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"tagvar up th"); goto tv_cleanup; }
         if (cudaMemcpy(d_msgs, msgs, n*stride, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"tagvar up msgs"); goto tv_cleanup; }
         if (cudaMemcpy(d_lens, msg_lens, n*sizeof(uint32_t), cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"tagvar up lens"); goto tv_cleanup; }
@@ -2073,7 +2271,6 @@ pv2_cleanup:
         if (cudaMemcpy(out32, d_out, n*32, cudaMemcpyDeviceToHost)!=cudaSuccess){ ret=set_error(GpuError::Launch,"tagvar download"); goto tv_cleanup; }
         clear_error();
 tv_cleanup:
-        if(d_th)cudaFree(d_th); if(d_msgs)cudaFree(d_msgs); if(d_lens)cudaFree(d_lens); if(d_out)cudaFree(d_out);
         return ret;
     }
 
@@ -2092,9 +2289,10 @@ tv_cleanup:
         const int il = static_cast<int>(input_len);
         const int threads = 256;
         const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public data: reused, no erase
 
-        if (cudaMalloc(&d_in, n*input_len)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256 d_in"); goto h2_cleanup; }
-        if (cudaMalloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256 d_out"); goto h2_cleanup; }
+        if (lease.alloc(&d_in, n*input_len)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256 d_in"); goto h2_cleanup; }
+        if (lease.alloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256 d_out"); goto h2_cleanup; }
         if (cudaMemcpy(d_in, inputs, n*input_len, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256 up"); goto h2_cleanup; }
         lbtc_hash256_kernel<<<blocks,threads>>>(d_in, il, n_int, d_out);
         if (cudaGetLastError()!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256 kernel"); goto h2_cleanup; }
@@ -2102,7 +2300,6 @@ tv_cleanup:
         if (cudaMemcpy(out32, d_out, n*32, cudaMemcpyDeviceToHost)!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256 download"); goto h2_cleanup; }
         clear_error();
 h2_cleanup:
-        if(d_in)cudaFree(d_in); if(d_out)cudaFree(d_out);
         return ret;
     }
 
@@ -2124,10 +2321,11 @@ h2_cleanup:
         const int n_int = static_cast<int>(n);
         const int threads = 256;
         const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public data: reused, no erase
 
-        if (cudaMalloc(&d_in, n*stride)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256var d_in"); goto h2v_cleanup; }
-        if (cudaMalloc(&d_lens, n*sizeof(uint32_t))!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256var d_lens"); goto h2v_cleanup; }
-        if (cudaMalloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256var d_out"); goto h2v_cleanup; }
+        if (lease.alloc(&d_in, n*stride)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256var d_in"); goto h2v_cleanup; }
+        if (lease.alloc(&d_lens, n*sizeof(uint32_t))!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256var d_lens"); goto h2v_cleanup; }
+        if (lease.alloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"hash256var d_out"); goto h2v_cleanup; }
         if (cudaMemcpy(d_in, inputs, n*stride, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256var up in"); goto h2v_cleanup; }
         if (cudaMemcpy(d_lens, input_lens, n*sizeof(uint32_t), cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256var up lens"); goto h2v_cleanup; }
         lbtc_hash256_var_kernel<<<blocks,threads>>>(d_in, d_lens, stride, n_int, d_out);
@@ -2136,7 +2334,6 @@ h2_cleanup:
         if (cudaMemcpy(out32, d_out, n*32, cudaMemcpyDeviceToHost)!=cudaSuccess){ ret=set_error(GpuError::Launch,"hash256var download"); goto h2v_cleanup; }
         clear_error();
 h2v_cleanup:
-        if(d_in)cudaFree(d_in); if(d_lens)cudaFree(d_lens); if(d_out)cudaFree(d_out);
         return ret;
     }
 
@@ -2155,10 +2352,11 @@ h2v_cleanup:
         const int n_int = static_cast<int>(n);
         const int threads = 256;
         const int blocks  = (n_int + threads - 1) / threads;
+        CudaScratchLease lease(scratch_);  // public data: reused, no erase
 
-        if (cudaMalloc(&d_left, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"merklepair d_left"); goto mp_cleanup; }
-        if (cudaMalloc(&d_right, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"merklepair d_right"); goto mp_cleanup; }
-        if (cudaMalloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"merklepair d_out"); goto mp_cleanup; }
+        if (lease.alloc(&d_left, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"merklepair d_left"); goto mp_cleanup; }
+        if (lease.alloc(&d_right, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"merklepair d_right"); goto mp_cleanup; }
+        if (lease.alloc(&d_out, n*32)!=cudaSuccess){ ret=set_error(GpuError::Memory,"merklepair d_out"); goto mp_cleanup; }
         if (cudaMemcpy(d_left, left32, n*32, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"merklepair up left"); goto mp_cleanup; }
         if (cudaMemcpy(d_right, right32, n*32, cudaMemcpyHostToDevice)!=cudaSuccess){ ret=set_error(GpuError::Launch,"merklepair up right"); goto mp_cleanup; }
         lbtc_merkle_pair_kernel<<<blocks,threads>>>(d_left, d_right, n_int, d_out);
@@ -2167,7 +2365,6 @@ h2v_cleanup:
         if (cudaMemcpy(out32, d_out, n*32, cudaMemcpyDeviceToHost)!=cudaSuccess){ ret=set_error(GpuError::Launch,"merklepair download"); goto mp_cleanup; }
         clear_error();
 mp_cleanup:
-        if(d_left)cudaFree(d_left); if(d_right)cudaFree(d_right); if(d_out)cudaFree(d_out);
         return ret;
     }
 
@@ -2573,12 +2770,15 @@ sh_decline:
         bool*               d_res    = nullptr;
         uint8_t*            d_out33  = nullptr;
 
-        CUDA_TRY(cudaMalloc(&d_msgs,   count * 32));
-        CUDA_TRY(cudaMalloc(&d_sigs,   count * sizeof(ECDSASignatureGPU)));
-        CUDA_TRY(cudaMalloc(&d_recids, count * sizeof(int)));
-        CUDA_TRY(cudaMalloc(&d_keys,   count * sizeof(JacobianPoint)));
-        CUDA_TRY(cudaMalloc(&d_res,    count * sizeof(bool)));
-        CUDA_TRY(cudaMalloc(&d_out33,  count * 33));
+        // Public data (recovery is a verifier op): grow-only per-backend
+        // scratch, no erase needed.
+        CudaScratchLease lease(scratch_);
+        CUDA_TRY(lease.alloc(&d_msgs,   count * 32));
+        CUDA_TRY(lease.alloc(&d_sigs,   count * sizeof(ECDSASignatureGPU)));
+        CUDA_TRY(lease.alloc(&d_recids, count * sizeof(int)));
+        CUDA_TRY(lease.alloc(&d_keys,   count * sizeof(JacobianPoint)));
+        CUDA_TRY(lease.alloc(&d_res,    count * sizeof(bool)));
+        CUDA_TRY(lease.alloc(&d_out33,  count * 33));
 
         CUDA_TRY(cudaMemcpy(d_msgs,   msg_hashes32,    count * 32,                     cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_sigs,   h_sigs.data(),   count * sizeof(ECDSASignatureGPU), cudaMemcpyHostToDevice));
@@ -2600,17 +2800,14 @@ sh_decline:
 
         CUDA_TRY(cudaMemcpy(out_pubkeys33, d_out33, count * 33, cudaMemcpyDeviceToHost));
 
-            std::vector<uint8_t> h_res(count);
-            CUDA_TRY(cudaMemcpy(h_res.data(), d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+        uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(count);
+        CUDA_TRY(cudaMemcpy(h_res, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
         for (size_t i = 0; i < count; ++i) {
             out_valid[i] = h_res[i] ? 1 : 0;
             if (!h_res[i])
                 std::memset(out_pubkeys33 + i * 33, 0, 33); /* zero failed entries */
         }
-
-        cudaFree(d_out33);
-        cudaFree(d_res);   cudaFree(d_keys);
-        cudaFree(d_recids); cudaFree(d_sigs);  cudaFree(d_msgs);
+        // Device buffers stay in scratch_; the lease hands the slots back.
         clear_error();
         return GpuError::Ok;
 #else
@@ -2652,10 +2849,12 @@ sh_decline:
         uint8_t*           d_msgs   = nullptr;
         bool*              d_res    = nullptr;
 
-        CUDA_TRY(cudaMalloc(&d_proofs, count * sizeof(KnowledgeProofGPU)));
-        CUDA_TRY(cudaMalloc(&d_pubs,   count * sizeof(AffinePoint)));
-        CUDA_TRY(cudaMalloc(&d_msgs,   count * 32));
-        CUDA_TRY(cudaMalloc(&d_res,    count * sizeof(bool)));
+        // Public verify data: grow-only per-backend scratch, no erase needed.
+        CudaScratchLease lease(scratch_);
+        CUDA_TRY(lease.alloc(&d_proofs, count * sizeof(KnowledgeProofGPU)));
+        CUDA_TRY(lease.alloc(&d_pubs,   count * sizeof(AffinePoint)));
+        CUDA_TRY(lease.alloc(&d_msgs,   count * 32));
+        CUDA_TRY(lease.alloc(&d_res,    count * sizeof(bool)));
 
         CUDA_TRY(cudaMemcpy(d_proofs, h_proofs.data(), count * sizeof(KnowledgeProofGPU), cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_pubs,   h_pubs.data(),   count * sizeof(AffinePoint),       cudaMemcpyHostToDevice));
@@ -2672,8 +2871,7 @@ sh_decline:
         CUDA_TRY(cudaMemcpy(h_res, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
         for (size_t i = 0; i < count; ++i)
             out_results[i] = h_res[i] ? 1 : 0;
-
-        cudaFree(d_res); cudaFree(d_msgs); cudaFree(d_pubs); cudaFree(d_proofs);
+        // Device buffers stay in scratch_; the lease hands the slots back.
         clear_error();
         return GpuError::Ok;
 #else
@@ -2714,12 +2912,14 @@ sh_decline:
         AffinePoint*  d_G = nullptr, *d_H = nullptr, *d_P = nullptr, *d_Q = nullptr;
         bool*         d_res = nullptr;
 
-        CUDA_TRY(cudaMalloc(&d_proofs, count * sizeof(DLEQProofGPU)));
-        CUDA_TRY(cudaMalloc(&d_G,     count * sizeof(AffinePoint)));
-        CUDA_TRY(cudaMalloc(&d_H,     count * sizeof(AffinePoint)));
-        CUDA_TRY(cudaMalloc(&d_P,     count * sizeof(AffinePoint)));
-        CUDA_TRY(cudaMalloc(&d_Q,     count * sizeof(AffinePoint)));
-        CUDA_TRY(cudaMalloc(&d_res,   count * sizeof(bool)));
+        // Public verify data: grow-only per-backend scratch, no erase needed.
+        CudaScratchLease lease(scratch_);
+        CUDA_TRY(lease.alloc(&d_proofs, count * sizeof(DLEQProofGPU)));
+        CUDA_TRY(lease.alloc(&d_G,     count * sizeof(AffinePoint)));
+        CUDA_TRY(lease.alloc(&d_H,     count * sizeof(AffinePoint)));
+        CUDA_TRY(lease.alloc(&d_P,     count * sizeof(AffinePoint)));
+        CUDA_TRY(lease.alloc(&d_Q,     count * sizeof(AffinePoint)));
+        CUDA_TRY(lease.alloc(&d_res,   count * sizeof(bool)));
 
         CUDA_TRY(cudaMemcpy(d_proofs, h_proofs.data(), count * sizeof(DLEQProofGPU), cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_G, h_G.data(), count * sizeof(AffinePoint), cudaMemcpyHostToDevice));
@@ -2735,17 +2935,12 @@ sh_decline:
         CUDA_TRY(cudaDeviceSynchronize());
 
         {
-            /* RAII buffer: leaks avoided if cudaMemcpy fails and CUDA_TRY
-             * returns early on the failure path. */
-            std::vector<uint8_t> h_res_raw(count);
-            CUDA_TRY(cudaMemcpy(h_res_raw.data(), d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+            uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(count);
+            CUDA_TRY(cudaMemcpy(h_res, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
             for (size_t i = 0; i < count; ++i)
-                out_results[i] = h_res_raw[i] ? 1 : 0;
+                out_results[i] = h_res[i] ? 1 : 0;
         }
-
-        cudaFree(d_res);
-        cudaFree(d_Q); cudaFree(d_P); cudaFree(d_H); cudaFree(d_G);
-        cudaFree(d_proofs);
+        // Device buffers stay in scratch_; the lease hands the slots back.
         clear_error();
         return GpuError::Ok;
 #else
@@ -2798,10 +2993,12 @@ sh_decline:
         AffinePoint*       d_hgen     = nullptr;
         bool*              d_res      = nullptr;
 
-        CUDA_TRY(cudaMalloc(&d_proofs,  count * sizeof(RangeProofPolyGPU)));
-        CUDA_TRY(cudaMalloc(&d_commits, count * sizeof(AffinePoint)));
-        CUDA_TRY(cudaMalloc(&d_hgen,    sizeof(AffinePoint)));
-        CUDA_TRY(cudaMalloc(&d_res,     count * sizeof(bool)));
+        // Public verify data: grow-only per-backend scratch, no erase needed.
+        CudaScratchLease lease(scratch_);
+        CUDA_TRY(lease.alloc(&d_proofs,  count * sizeof(RangeProofPolyGPU)));
+        CUDA_TRY(lease.alloc(&d_commits, count * sizeof(AffinePoint)));
+        CUDA_TRY(lease.alloc(&d_hgen,    sizeof(AffinePoint)));
+        CUDA_TRY(lease.alloc(&d_res,     count * sizeof(bool)));
 
         CUDA_TRY(cudaMemcpy(d_proofs,  h_proofs.data(),  count * sizeof(RangeProofPolyGPU), cudaMemcpyHostToDevice));
         CUDA_TRY(cudaMemcpy(d_commits, h_commits.data(), count * sizeof(AffinePoint),       cudaMemcpyHostToDevice));
@@ -2815,15 +3012,12 @@ sh_decline:
         CUDA_TRY(cudaDeviceSynchronize());
 
         {
-            /* RAII buffer: leaks avoided if cudaMemcpy fails and CUDA_TRY
-             * returns early on the failure path. */
-            std::vector<uint8_t> h_res_raw(count);
-            CUDA_TRY(cudaMemcpy(h_res_raw.data(), d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
+            uint8_t* const h_res = g_cuda_batch_scratch.ensure_results(count);
+            CUDA_TRY(cudaMemcpy(h_res, d_res, count * sizeof(bool), cudaMemcpyDeviceToHost));
             for (size_t i = 0; i < count; ++i)
-                out_results[i] = h_res_raw[i] ? 1 : 0;
+                out_results[i] = h_res[i] ? 1 : 0;
         }
-
-        cudaFree(d_res); cudaFree(d_hgen); cudaFree(d_commits); cudaFree(d_proofs);
+        // Device buffers stay in scratch_; the lease hands the slots back.
         clear_error();
         return GpuError::Ok;
 #else
@@ -2851,24 +3045,27 @@ sh_decline:
         uint8_t*  d_pt     = nullptr;
         uint32_t* d_sizes  = nullptr;
         uint8_t*  d_wire   = nullptr;
-        GpuError  ret      = GpuError::Ok;
 
-        if (cudaMalloc(&d_keys,   count * 32)               != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324e key");   goto enc_cleanup; }
-        if (cudaMalloc(&d_nonces, count * 12)               != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324e nonce"); goto enc_cleanup; }
-        if (cudaMalloc(&d_pt,     count * max_payload)      != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324e pt");    goto enc_cleanup; }
-        if (cudaMalloc(&d_sizes,  count * sizeof(uint32_t)) != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324e sizes"); goto enc_cleanup; }
-        if (cudaMalloc(&d_wire,   count * wire_stride)      != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324e wire");  goto enc_cleanup; }
+        // NF-01b / Rule 10: the AEAD session keys and the plaintext are secret
+        // slots -- the lease zeroes them (cudaMemset + sync) on ALL exit paths
+        // (success + error) before the slot can be reused.
+        CudaScratchLease lease(scratch_);
+        if (lease.alloc_secret(&d_keys, count * 32)          != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324e key");
+        if (lease.alloc(&d_nonces, count * 12)               != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324e nonce");
+        if (lease.alloc_secret(&d_pt, count * max_payload)   != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324e pt");
+        if (lease.alloc(&d_sizes,  count * sizeof(uint32_t)) != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324e sizes");
+        if (lease.alloc(&d_wire,   count * wire_stride)      != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324e wire");
 
         if (cudaMemcpy(d_keys,   keys32,     count * 32,               cudaMemcpyHostToDevice) != cudaSuccess ||
             cudaMemcpy(d_nonces, nonces12,   count * 12,               cudaMemcpyHostToDevice) != cudaSuccess ||
             cudaMemcpy(d_pt,     plaintexts, count * max_payload,      cudaMemcpyHostToDevice) != cudaSuccess ||
-            cudaMemcpy(d_sizes,  sizes,      count * sizeof(uint32_t), cudaMemcpyHostToDevice) != cudaSuccess) {
-            ret = set_error(GpuError::Launch, "bip324e upload"); goto enc_cleanup; }
+            cudaMemcpy(d_sizes,  sizes,      count * sizeof(uint32_t), cudaMemcpyHostToDevice) != cudaSuccess)
+            return set_error(GpuError::Launch, "bip324e upload");
         {
             int threads = 128;
             int blocks  = (static_cast<int>(count) + threads - 1) / threads;
@@ -2876,22 +3073,14 @@ sh_decline:
                 d_keys, d_nonces, d_pt, d_sizes, d_wire,
                 max_payload, static_cast<int>(count));
             if (cudaGetLastError()      != cudaSuccess ||
-                cudaDeviceSynchronize() != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "bip324e kernel"); goto enc_cleanup; }
+                cudaDeviceSynchronize() != cudaSuccess)
+                return set_error(GpuError::Launch, "bip324e kernel");
             if (cudaMemcpy(wire_out, d_wire, count * wire_stride,
-                           cudaMemcpyDeviceToHost) != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "bip324e download"); goto enc_cleanup; }
-            clear_error();
+                           cudaMemcpyDeviceToHost) != cudaSuccess)
+                return set_error(GpuError::Launch, "bip324e download");
         }
-
-enc_cleanup:
-        // NF-01b: Rule 10 — zero AES session keys on ALL exit paths (success + error)
-        if (d_keys) { cudaMemset(d_keys, 0, count * 32); cudaFree(d_keys); }
-        if (d_nonces) cudaFree(d_nonces);
-        if (d_pt)     cudaFree(d_pt);
-        if (d_sizes)  cudaFree(d_sizes);
-        if (d_wire)   cudaFree(d_wire);
-        return ret;
+        clear_error();
+        return GpuError::Ok;
 #else
         return set_error(GpuError::Unsupported, "GPU BIP-324 module disabled at build time");
 #endif
@@ -2916,26 +3105,29 @@ enc_cleanup:
         uint32_t* d_sizes  = nullptr;
         uint8_t*  d_pt     = nullptr;
         uint32_t* d_ok     = nullptr;
-        GpuError  ret      = GpuError::Ok;
 
-        if (cudaMalloc(&d_keys,   count * 32)               != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324d key");   goto dec_cleanup; }
-        if (cudaMalloc(&d_nonces, count * 12)               != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324d nonce"); goto dec_cleanup; }
-        if (cudaMalloc(&d_wire,   count * wire_stride)      != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324d wire");  goto dec_cleanup; }
-        if (cudaMalloc(&d_sizes,  count * sizeof(uint32_t)) != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324d sizes"); goto dec_cleanup; }
-        if (cudaMalloc(&d_pt,     count * max_payload)      != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324d pt");    goto dec_cleanup; }
-        if (cudaMalloc(&d_ok,     count * sizeof(uint32_t)) != cudaSuccess) {
-            ret = set_error(GpuError::Memory, "bip324d ok");    goto dec_cleanup; }
+        // NF-01b / Rule 10: the AEAD session keys and the recovered plaintext
+        // are secret slots -- the lease zeroes them (cudaMemset + sync) on
+        // ALL exit paths (success + error) before the slot can be reused.
+        CudaScratchLease lease(scratch_);
+        if (lease.alloc_secret(&d_keys, count * 32)          != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324d key");
+        if (lease.alloc(&d_nonces, count * 12)               != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324d nonce");
+        if (lease.alloc(&d_wire,   count * wire_stride)      != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324d wire");
+        if (lease.alloc(&d_sizes,  count * sizeof(uint32_t)) != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324d sizes");
+        if (lease.alloc_secret(&d_pt, count * max_payload)   != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324d pt");
+        if (lease.alloc(&d_ok,     count * sizeof(uint32_t)) != cudaSuccess)
+            return set_error(GpuError::Memory, "bip324d ok");
 
         if (cudaMemcpy(d_keys,   keys32,   count * 32,               cudaMemcpyHostToDevice) != cudaSuccess ||
             cudaMemcpy(d_nonces, nonces12, count * 12,               cudaMemcpyHostToDevice) != cudaSuccess ||
             cudaMemcpy(d_wire,   wire_in,  count * wire_stride,      cudaMemcpyHostToDevice) != cudaSuccess ||
-            cudaMemcpy(d_sizes,  sizes,    count * sizeof(uint32_t), cudaMemcpyHostToDevice) != cudaSuccess) {
-            ret = set_error(GpuError::Launch, "bip324d upload"); goto dec_cleanup; }
+            cudaMemcpy(d_sizes,  sizes,    count * sizeof(uint32_t), cudaMemcpyHostToDevice) != cudaSuccess)
+            return set_error(GpuError::Launch, "bip324d upload");
         {
             int threads = 128;
             int blocks  = (static_cast<int>(count) + threads - 1) / threads;
@@ -2943,31 +3135,22 @@ enc_cleanup:
                 d_keys, d_nonces, d_wire, d_sizes, d_pt, d_ok,
                 max_payload, static_cast<int>(count));
             if (cudaGetLastError()      != cudaSuccess ||
-                cudaDeviceSynchronize() != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "bip324d kernel"); goto dec_cleanup; }
+                cudaDeviceSynchronize() != cudaSuccess)
+                return set_error(GpuError::Launch, "bip324d kernel");
             if (cudaMemcpy(plaintext_out, d_pt, count * max_payload,
-                           cudaMemcpyDeviceToHost) != cudaSuccess) {
-                ret = set_error(GpuError::Launch, "bip324d pt dl"); goto dec_cleanup; }
+                           cudaMemcpyDeviceToHost) != cudaSuccess)
+                return set_error(GpuError::Launch, "bip324d pt dl");
             {
                 std::vector<uint32_t> h_ok(count);
                 if (cudaMemcpy(h_ok.data(), d_ok, count * sizeof(uint32_t),
-                               cudaMemcpyDeviceToHost) != cudaSuccess) {
-                    ret = set_error(GpuError::Launch, "bip324d ok dl"); goto dec_cleanup; }
+                               cudaMemcpyDeviceToHost) != cudaSuccess)
+                    return set_error(GpuError::Launch, "bip324d ok dl");
                 for (size_t i = 0; i < count; ++i)
                     out_valid[i] = h_ok[i] ? 1 : 0;
             }
-            clear_error();
         }
-
-dec_cleanup:
-        // NF-01b: Rule 10 — zero AES session keys on ALL exit paths (success + error)
-        if (d_keys) { cudaMemset(d_keys, 0, count * 32); cudaFree(d_keys); }
-        if (d_ok)     cudaFree(d_ok);
-        if (d_pt)     cudaFree(d_pt);
-        if (d_sizes)  cudaFree(d_sizes);
-        if (d_wire)   cudaFree(d_wire);
-        if (d_nonces) cudaFree(d_nonces);
-        return ret;
+        clear_error();
+        return GpuError::Ok;
 #else
         return set_error(GpuError::Unsupported, "GPU BIP-324 module disabled at build time");
 #endif
@@ -3177,32 +3360,33 @@ dec_cleanup:
 
         /* -- 2. Upload 33-byte pubkeys directly (GPU decompresses in scan kernel) -- */
 
+        // Grow-only per-backend scratch. Every buffer of this call is taken as
+        // secret, exactly as the per-call CudaKeyGuard ownership it replaces:
+        // the lease zeroes each of them (cudaMemset + sync) when it ends, on
+        // every exit path, so nothing from this scan survives into the next
+        // call that reuses the slot (Rule 10).
+        CudaScratchLease lease(scratch_);
+
         cuda::Scalar* d_scan_k = nullptr;
-        CUDA_TRY(cudaMalloc(&d_scan_k, sizeof(cuda::Scalar)));
-        CudaKeyGuard d_scan_k_guard(d_scan_k, sizeof(cuda::Scalar));
+        CUDA_TRY(lease.alloc_secret(&d_scan_k, sizeof(cuda::Scalar)));
         CUDA_TRY(cudaMemcpy(d_scan_k, &h_scan_k, sizeof(cuda::Scalar), cudaMemcpyHostToDevice));
 
         uint8_t* d_tweaks33 = nullptr;
-        CUDA_TRY(cudaMalloc(&d_tweaks33, n_tweaks * 33));
-        CudaKeyGuard d_tweaks33_guard(d_tweaks33, n_tweaks * 33);
+        CUDA_TRY(lease.alloc_secret(&d_tweaks33, n_tweaks * 33));
         CUDA_TRY(cudaMemcpy(d_tweaks33, tweak_pubkeys33, n_tweaks * 33, cudaMemcpyHostToDevice));
 
         uint8_t* d_spend33 = nullptr;
-        CUDA_TRY(cudaMalloc(&d_spend33, n_spend * 33));
-        CudaKeyGuard d_spend33_guard(d_spend33, n_spend * 33);
+        CUDA_TRY(lease.alloc_secret(&d_spend33, n_spend * 33));
         CUDA_TRY(cudaMemcpy(d_spend33, spend_pubkeys33, n_spend * 33, cudaMemcpyHostToDevice));
 
         cuda::AffinePoint* d_spend_aff = nullptr;
-        CUDA_TRY(cudaMalloc(&d_spend_aff, n_spend * sizeof(cuda::AffinePoint)));
-        CudaKeyGuard d_spend_aff_guard(d_spend_aff, n_spend * sizeof(cuda::AffinePoint));
+        CUDA_TRY(lease.alloc_secret(&d_spend_aff, n_spend * sizeof(cuda::AffinePoint)));
 
         uint8_t* d_spend_valid = nullptr;
-        CUDA_TRY(cudaMalloc(&d_spend_valid, n_spend * sizeof(uint8_t)));
-        CudaKeyGuard d_spend_valid_guard(d_spend_valid, n_spend * sizeof(uint8_t));
+        CUDA_TRY(lease.alloc_secret(&d_spend_valid, n_spend * sizeof(uint8_t)));
 
         uint64_t* d_prefixes = nullptr;
-        CUDA_TRY(cudaMalloc(&d_prefixes, n_rows * sizeof(uint64_t)));
-        CudaKeyGuard d_prefixes_guard(d_prefixes, n_rows * sizeof(uint64_t));
+        CUDA_TRY(lease.alloc_secret(&d_prefixes, n_rows * sizeof(uint64_t)));
 
         /* -- 3. Decompress the n_spend spend-key candidates ONCE, independent
          *      of n_tweaks (issue #335 Blocker 1: marginal cost per extra
@@ -3253,7 +3437,12 @@ dec_cleanup:
      * hygiene, same fail-closed guard) with cudaEvent_t timestamps inserted
      * at each phase boundary; kept as a separate method rather than
      * refactored to share a common body, to avoid touching the already
-     * validated production dispatch path for a benchmark-only feature. */
+     * validated production dispatch path for a benchmark-only feature.
+     *
+     * Deliberately keeps per-call cudaMalloc/CudaKeyGuard instead of the
+     * per-backend scratch_: its setup_ms phase (e0 -> e1) is defined as the
+     * device allocation cost, so reusing scratch would change what this
+     * diagnostic measures. */
     GpuError bip352_scan_batch_multispend_timed(
         const uint8_t  scan_privkey32[32],
         const uint8_t* spend_pubkeys33,
@@ -3404,6 +3593,16 @@ private:
     uint32_t   device_idx_ = 0;
     GpuError   last_err_   = GpuError::Ok;
     char       last_msg_[256] = {};
+
+    /* -- Per-backend grow-only device scratch for the C ABI batch methods.
+     * One owner (this backend), released in shutdown() and the destructor.
+     * Every method that uses it holds scratch_.mutex() for its whole
+     * dispatch through a CudaScratchLease, so two threads sharing one
+     * backend serialise on the buffers instead of racing on them. The
+     * per-call path this replaces finished every call with
+     * cudaDeviceSynchronize(), which already serialised device work, so
+     * the lock removes no real overlap. --------------------------------- */
+    CudaScratchArena scratch_;
 
     /* -- Persistent MSM device buffer pool (avoids per-call cudaMalloc) --- */
     struct MsmPool {

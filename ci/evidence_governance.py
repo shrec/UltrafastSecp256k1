@@ -242,6 +242,7 @@ def validate_chain() -> dict:
     tampered: list[int] = []
     orphaned: list[int] = []
     legacy_default_signed: list[int] = []
+    ci_signed_unverified: list[int] = []
 
     for i, record in enumerate(chain):
         # Check required fields (run_id is metadata-only — not required for backward compat)
@@ -263,6 +264,14 @@ def validate_chain() -> dict:
                 if (not record.get("signed_by_ci", False)
                         and record["signature"] == legacy_expected):
                     legacy_default_signed.append(i)
+                elif _HMAC_KEY_IS_DEFAULT and record.get("signed_by_ci", False):
+                    # Signed in CI with the CAAS_HMAC_KEY secret, which this
+                    # environment (a local checkout, a fork PR) does not hold, so
+                    # the signature cannot be checked here. Not a tamper finding:
+                    # wherever the secret is present the mismatch branch below
+                    # still applies, and signed_by_ci is outside the HMAC payload,
+                    # so flipping it on a local record is caught there too.
+                    ci_signed_unverified.append(i)
                 else:
                     tampered.append(i)
                     issues.append(f"record[{i}]: HMAC mismatch — possible tamper")
@@ -291,6 +300,7 @@ def validate_chain() -> dict:
         "tampered_records": tampered,
         "orphaned_records": orphaned,
         "legacy_default_signed_records": legacy_default_signed,
+        "ci_signed_unverified_records": ci_signed_unverified,
         "issues": issues,
         "chain_valid": len(issues) == 0,
     }
@@ -313,6 +323,7 @@ def run(mode: str, json_mode: bool, out_file: str | None,
             "orphaned_verdicts": len(result["orphaned_records"]),
             "tampered_count": len(result["tampered_records"]),
             "legacy_default_signed_records": len(result["legacy_default_signed_records"]),
+            "ci_signed_unverified_records": len(result["ci_signed_unverified_records"]),
             "issues": result["issues"],
             "hmac_key_is_default": _HMAC_KEY_IS_DEFAULT,
         }

@@ -1,0 +1,44 @@
+{
+ "report_type": "bench_unified_quick_bisect",
+ "generated_by": "bench_unified --quick --json, one run per binary, taskset -c 0, turbo off; values copied from each JSON by a script",
+ "date": "2026-11-04",
+ "cpu": "Intel Core i5-14400F",
+ "note": "--quick is the CI smoke mode (3 passes); used only to locate the regression, not to size it. The dev column ran right after turbo was switched off and its verify rows are inflated; the CT rows match the other runs.",
+ "points": {
+  "bc5aa9f4": {
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_complete (11M+6S)": 359.42,
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_mixed_complete (7M+5S)": 263.29,
+   "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-144 tx_weight": 102.23,
+   "MESSAGE SIGNING & HASHING / SHA-256 (32B input)": 74.05,
+   "CT SIGNING (Ultra CT) / ct::ecdsa_sign": 19755.32
+  },
+  "a2d93fa0": {
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_complete (11M+6S)": 468.63,
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_mixed_complete (7M+5S)": 335.28,
+   "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-144 tx_weight": 231.31,
+   "MESSAGE SIGNING & HASHING / SHA-256 (32B input)": 104.21,
+   "CT SIGNING (Ultra CT) / ct::ecdsa_sign": 19668.02
+  },
+  "0d438204": {
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_complete (11M+6S)": 463.53,
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_mixed_complete (7M+5S)": 338.78,
+   "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-144 tx_weight": 210.12,
+   "MESSAGE SIGNING & HASHING / SHA-256 (32B input)": 113.9,
+   "CT SIGNING (Ultra CT) / ct::ecdsa_sign": 19402.88
+  },
+  "022e06d3 (dev)": {
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_complete (11M+6S)": 468.52,
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_mixed_complete (7M+5S)": 337.6,
+   "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-144 tx_weight": 233.24,
+   "MESSAGE SIGNING & HASHING / SHA-256 (32B input)": 104.35,
+   "CT SIGNING (Ultra CT) / ct::ecdsa_sign": 19430.31
+  },
+  "022e06d3 + lane TUs -fno-lto": {
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_complete (11M+6S)": 353.09,
+   "CT POINT ARITHMETIC (sub-ops) / ct::point_add_mixed_complete (7M+5S)": 261.73,
+   "BIP-141/143/144/342 SEGWIT & TAPSCRIPT / BIP-144 tx_weight": 93.87,
+   "MESSAGE SIGNING & HASHING / SHA-256 (32B input)": 104.05,
+   "CT SIGNING (Ultra CT) / ct::ecdsa_sign": 19600.93
+  }
+ }
+}

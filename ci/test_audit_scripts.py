@@ -91,6 +91,7 @@ AUDIT_SCRIPTS = [
     "check_bench_target_context.py",
     "check_research_signal_matrix.py",
     "check_evidence_refresh_coverage.py",
+    "refresh_residual_evidence.py",
     "check_package_provenance_binding.py",
     "check_release_package_contents.py",
     "check_libbitcoin_perf_matrix.py",
@@ -110,6 +111,7 @@ HELPABLE_SCRIPTS = [
     "preflight.py",
     "run_code_quality.py",
     "check_release_package_contents.py",
+    "refresh_residual_evidence.py",
 ]
 
 # ANSI
@@ -1581,6 +1583,306 @@ def check_audit_sla_pre_alert_and_block() -> None:
         ok(tag, "SLA blocks at deadline, pre-alerts in buffer window, reports days_until_block")
 
 
+def check_audit_sla_as_of_release_snapshot() -> None:
+    """B3 regression: AUDIT_SLA_AS_OF=head ages evidence as of HEAD, not as of today.
+
+    GitHub runs scheduled workflows on the default branch, which is main, and main
+    is the release branch: it only changes when a version is cut, so nothing on it
+    can refresh evidence between releases. audit_sla_check.py aged every file as
+    "wall clock minus its last commit", so main's evidence crossed the 30-day SLO
+    about 30 days after each release; the 6-hourly CAAS Freshness Check then failed
+    on every run, and the weekly Audit Report failed its autonomy step, whose
+    audit_sla gate runs this script.
+
+    The fix has three parts and this pins all of them:
+      * audit_sla_check.py: AUDIT_SLA_AS_OF unset (or anything but exactly "head")
+        keeps the wall clock; "head" measures every age against HEAD's commit time,
+        never negative; an unreadable HEAD falls back to the wall clock; and the
+        JSON report's as_of field says which reference was applied.
+      * audit-report.yml audits a release snapshot (main on schedule, a v* tag on
+        push), so it sets AUDIT_SLA_AS_OF: head at workflow level, and every job that
+        runs security_autonomy_check.py (and so audit_sla_check.py) checks out full
+        history: in a shallow clone git dates every tracked file at the one boundary
+        commit, which is HEAD, so every head age would read 0.0 and the gate would pass
+        however old the evidence was when the release was cut.
+      * caas-freshness-check.yml is the wall-clock watch, so it checks out dev,
+        where evidence is refreshed, instead of main.
+
+    The reference instant and one tracked file are checked against this checkout's
+    own git history. The age arithmetic runs against a stand-in for the git calls,
+    with commits 40 and 100 days old, so it stays hermetic: a checkout's own history
+    cannot give a fixed separation between HEAD and today (a CI clone is shallow and
+    its HEAD is minutes old), and a wrong ageing source could pass there. The per-job
+    checkout parser is run on a small synthetic workflow too, so it cannot go quiet.
+    """
+    from types import SimpleNamespace
+
+    tag = "B3:audit_sla_as_of_head"
+    path = SCRIPT_DIR / "audit_sla_check.py"
+    try:
+        spec = importlib.util.spec_from_file_location("audit_sla_as_of_selftest", str(path))
+        if spec is None or spec.loader is None:
+            fail(tag, "could not build module spec for audit_sla_check.py")
+            return
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    gone = [n for n in ("LIB_ROOT", "SUITE_ROOT", "subprocess", "_age_reference",
+                        "_file_age_days", "run") if not hasattr(mod, n)]
+    if gone:
+        fail(tag, f"audit_sla_check.{', '.join(gone)} is gone -- this check drives the "
+                  "reference instant, the age arithmetic and the report through them")
+        return
+
+    failures = []
+    saved_env = dict(os.environ)
+    saved_attrs = {n: getattr(mod, n) for n in ("LIB_ROOT", "SUITE_ROOT", "subprocess")}
+
+    def wall_clock_reference(label):
+        as_of, ref = mod._age_reference()
+        if as_of != "wall_clock" or abs(ref - time.time()) > 5.0:
+            failures.append(f"{label}: reference was ({as_of!r}, {ref}), want the wall clock")
+
+    def reported_as_of():
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            mod.run(True, None)
+        try:
+            return json.loads(buf.getvalue()).get("as_of")
+        except ValueError:
+            return None
+
+    def git_ct(*args):
+        r = subprocess.run(["git", "log", "-1", "--format=%ct", *args],
+                           cwd=str(LIB_ROOT), capture_output=True, text=True)
+        out = r.stdout.strip()
+        return int(out) if r.returncode == 0 and out.isdigit() else None
+
+    def gate_job_checkouts(yml):
+        """Names of the jobs that run security_autonomy_check.py, and what ails their checkouts.
+
+        Parsed per job, not counted across the file: the gh-pages checkout and the
+        verdict job's fetch-depth: 1 checkout sit in jobs that never run the gate and
+        stay as they are. A comment line does not run anything.
+        """
+        gate_jobs, problems = [], []
+        jobs = re.search(r"(?m)^jobs:[ \t]*(?:#.*)?\n", yml)
+        chunks = re.split(r"(?m)^(?=  [\w-]+:[ \t]*(?:#.*)?$)", yml[jobs.end():]) if jobs else []
+        for chunk in chunks:
+            body = "\n".join(ln for ln in chunk.splitlines() if not ln.lstrip().startswith("#"))
+            if "security_autonomy_check.py" not in body:
+                continue
+            name = body.split(":", 1)[0].strip()
+            gate_jobs.append(name)
+            first = re.search(r"(?m)^[ \t]+steps:[ \t]*\n(?:[ \t]*\n)*([ \t]+)- ", body)
+            if first is None:
+                problems.append(f"{name}: no steps: list found")
+                continue
+            steps = re.split(r"(?m)^(?=" + re.escape(first.group(1)) + r"- )", body)
+            checkouts = [s for s in steps
+                         if re.search(r"(?m)^[ \t]*(?:-[ \t]+)?uses:[ \t]*actions/checkout@", s)]
+            if not checkouts:
+                problems.append(f"{name}: no actions/checkout step")
+            problems += [f"{name}: actions/checkout without fetch-depth: 0" for s in checkouts
+                         if not re.search(r"(?m)^[ \t]+fetch-depth:[ \t]*0[ \t]*(?:#.*)?$", s)]
+        return gate_jobs, problems
+
+    # One job per case the parser must sort: only a gate job that lacks full history or a
+    # checkout may be flagged. The last is shallow on purpose, like the verdict job, and
+    # names the gate only in a comment.
+    gate_probe = "\n".join((
+        "jobs:",
+        "  full:",
+        "    steps:",
+        "      - uses: actions/checkout@x # v6",
+        "        with:",
+        "          fetch-depth: 0",
+        "      - run: python3 ci/security_autonomy_check.py",
+        "  shallow:",
+        "    steps:",
+        "      - uses: actions/checkout@x # v6",
+        "      - run: python3 ci/security_autonomy_check.py",
+        "  depth-one:",
+        "    steps:",
+        "      - name: Checkout",
+        "        uses: actions/checkout@x # v6",
+        "        with:",
+        "          fetch-depth: 1",
+        "      - run: python3 ci\\security_autonomy_check.py",
+        "  no-checkout:",
+        "    steps:",
+        "      - run: python3 ci/security_autonomy_check.py",
+        "  not-a-gate:",
+        "    steps:",
+        "      - uses: actions/checkout@x # v6",
+        "        with:",
+        "          fetch-depth: 1",
+        "      # security_autonomy_check.py is only named in this comment",
+        "      - run: python3 ci/audit_verdict.py",
+        "",
+    ))
+
+    try:
+        # -- This checkout's own history: the real git calls ---------------------
+        os.environ.pop("AUDIT_SLA_AS_OF", None)
+        wall_clock_reference("AUDIT_SLA_AS_OF unset")
+
+        os.environ["AUDIT_SLA_AS_OF"] = "head"
+        head_ct = git_ct("HEAD", "--")
+        file_ct = git_ct("--", "ci/audit_sla_check.py")
+        if head_ct is None or file_ct is None:
+            failures.append("git could not give HEAD's and ci/audit_sla_check.py's commit times here")
+        else:
+            as_of, ref = mod._age_reference()
+            if (as_of, ref) != ("head", float(head_ct)):
+                failures.append(f"AUDIT_SLA_AS_OF=head: reference was ({as_of!r}, {ref}), "
+                                f"want ('head', {head_ct}) = HEAD's commit time")
+            age = mod._file_age_days(path)
+            want = max((head_ct - file_ct) / 86400.0, 0.0)
+            if age is None or age < 0.0 or abs(age - want) > 1e-6:
+                failures.append(f"AUDIT_SLA_AS_OF=head: ci/audit_sla_check.py aged {age} days, "
+                                f"want {want} = (HEAD - its last commit) / 86400")
+
+        # -- The age arithmetic, against a stand-in for git ----------------------
+        t_head = int(time.time()) - 40 * 86400   # the snapshot was cut 40 days ago
+        t_old = t_head - 60 * 86400              # tracked.json last changed 100 days ago
+        t_skew = t_head + 5 * 86400              # skewed.json: dated after the HEAD that holds it
+        last_commit = {"tracked.json": t_old, "skewed.json": t_skew}
+        head_reply = ["ok"]
+        head_time = [t_head]
+
+        def fake_run(cmd, **_kwargs):
+            if head_reply[0] == "no git":
+                raise OSError("git: command not found")
+            if cmd[1] == "ls-files":
+                tracked = Path(cmd[-1]).name in last_commit
+                return SimpleNamespace(returncode=0 if tracked else 1, stdout="", stderr="")
+            if "HEAD" in cmd:
+                if head_reply[0] == "exit 128":
+                    return SimpleNamespace(returncode=128, stdout="", stderr="fatal: no commits")
+                if head_reply[0] == "garbage":
+                    return SimpleNamespace(returncode=0, stdout="not-a-time\n", stderr="")
+                return SimpleNamespace(returncode=0, stdout=f"{head_time[0]}\n", stderr="")
+            return SimpleNamespace(
+                returncode=0, stdout=f"{last_commit[Path(cmd[-1]).name]}\n", stderr="")
+
+        with tempfile.TemporaryDirectory(prefix="ufsecp_sla_asof_") as tmp:
+            root = Path(tmp)
+            for name in ("tracked.json", "skewed.json", "generated.json"):
+                (root / name).write_text("{}\n", encoding="utf-8")
+            # Nothing under root is evidence, so run() stays cheap and hermetic.
+            mod.LIB_ROOT = mod.SUITE_ROOT = root
+            mod.subprocess = SimpleNamespace(
+                run=fake_run, SubprocessError=subprocess.SubprocessError)
+
+            os.environ["AUDIT_SLA_AS_OF"] = "head"
+            as_of, ref = mod._age_reference()
+            if (as_of, ref) != ("head", float(t_head)):
+                failures.append(
+                    f"head: reference was ({as_of!r}, {ref}), want ('head', {float(t_head)})")
+            for name, want, why in (
+                    ("tracked.json", 60.0, "its commit is 60 days older than HEAD"),
+                    ("skewed.json", 0.0, "its commit is dated 5 days after HEAD: current, not -5"),
+                    ("generated.json", 0.0, "untracked and newer than HEAD: current, not -40")):
+                age = mod._file_age_days(root / name)
+                if age is None or age < 0.0 or abs(age - want) > 1e-6:
+                    failures.append(f"head: {name} aged {age} days, want {want} ({why})")
+            if reported_as_of() != "head":
+                failures.append("head: the JSON report's as_of is not 'head'")
+
+            # The mtime fallback follows the reference too: written at m, with HEAD dated
+            # 10 days after m, an untracked file is 10 days old as of HEAD (not ~0 as of now).
+            written = os.path.getmtime(root / "generated.json")
+            head_time[0] = int(written) + 10 * 86400
+            age = mod._file_age_days(root / "generated.json")
+            want = (head_time[0] - written) / 86400.0
+            if age is None or abs(age - want) > 1e-6:
+                failures.append(f"head: untracked generated.json aged {age} days, want {want} "
+                                "(its mtime against a HEAD dated 10 days later)")
+            head_time[0] = t_head
+
+            # Unset, or any value but exactly "head": today's wall clock, untouched.
+            for value in (None, "", "HEAD", "head ", "1"):
+                if value is None:
+                    os.environ.pop("AUDIT_SLA_AS_OF", None)
+                else:
+                    os.environ["AUDIT_SLA_AS_OF"] = value
+                label = "AUDIT_SLA_AS_OF unset" if value is None else f"AUDIT_SLA_AS_OF={value!r}"
+                wall_clock_reference(label)
+                age = mod._file_age_days(root / "tracked.json")
+                if age is None or abs(age - 100.0) > 0.05:
+                    failures.append(
+                        f"{label}: tracked.json aged {age} days, want ~100 (now - its commit)")
+            if reported_as_of() != "wall_clock":
+                failures.append("wall clock: the JSON report's as_of is not 'wall_clock'")
+
+            # HEAD asked for but unreadable: the wall clock, never an invented instant,
+            # and the report says so (it names the reference that was applied).
+            os.environ["AUDIT_SLA_AS_OF"] = "head"
+            for broken in ("exit 128", "garbage", "no git"):
+                head_reply[0] = broken
+                wall_clock_reference(f"head with an unreadable HEAD ({broken})")
+            head_reply[0] = "exit 128"
+            if reported_as_of() != "wall_clock":
+                failures.append("head with an unreadable HEAD: the JSON report's as_of is not "
+                                "'wall_clock' (the reference that was actually applied)")
+            head_reply[0] = "ok"
+
+        # -- The workflows that choose the reference -----------------------------
+        workflows = LIB_ROOT / ".github" / "workflows"
+        try:
+            report_yml = (workflows / "audit-report.yml").read_text(encoding="utf-8")
+            freshness_yml = (workflows / "caas-freshness-check.yml").read_text(encoding="utf-8")
+        except OSError as exc:
+            failures.append(f"could not read the workflows: {exc}")
+        else:
+            env_block = re.search(r"(?m)^env:[ \t]*\n((?:[ \t]+.*\n|[ \t]*\n)*)", report_yml)
+            if not (env_block and re.search(
+                    r"(?m)^[ \t]+AUDIT_SLA_AS_OF:[ \t]*head[ \t]*(?:#.*)?$", env_block.group(1))):
+                failures.append(
+                    "audit-report.yml has no workflow-level env: setting AUDIT_SLA_AS_OF: head")
+            if not re.search(r"(?m)^[ \t]+ref:[ \t]*dev[ \t]*(?:#.*)?$", freshness_yml):
+                failures.append("caas-freshness-check.yml does not check out dev (ref: dev)")
+            if not re.search(r"(?m)^[ \t]+fetch-depth:[ \t]*0[ \t]*(?:#.*)?$", freshness_yml):
+                failures.append(
+                    "caas-freshness-check.yml lost fetch-depth: 0 (per-file commit dates need history)")
+
+            # The gate jobs reach audit_sla_check.py through security_autonomy_check.py,
+            # and in a shallow clone git dates every tracked file at the one boundary
+            # commit, which is HEAD: under head every age would read 0.0 and the gate
+            # would pass however old the evidence was when the release was cut. So each
+            # of those jobs must check out full history. The per-job parser is run on a
+            # synthetic workflow first, so finding nothing in the real one cannot pass.
+            probe_jobs, probe_problems = gate_job_checkouts(gate_probe)
+            if (probe_jobs, [p.split(":")[0] for p in probe_problems]) != (
+                    ["full", "shallow", "depth-one", "no-checkout"],
+                    ["shallow", "depth-one", "no-checkout"]):
+                failures.append("the per-job checkout parser is broken: on a synthetic workflow "
+                                f"it saw gate jobs {probe_jobs} with problems {probe_problems}")
+            gate_jobs, shallow = gate_job_checkouts(report_yml)
+            if not gate_jobs:
+                failures.append("audit-report.yml has no job that runs security_autonomy_check.py")
+            failures.extend(f"audit-report.yml job {p} (per-file commit dates need full history "
+                            "for AUDIT_SLA_AS_OF=head)" for p in shallow)
+    except Exception as exc:
+        failures.append(f"check crashed: {exc!r}")
+    finally:
+        for name, value in saved_attrs.items():
+            setattr(mod, name, value)
+        os.environ.clear()
+        os.environ.update(saved_env)
+
+    if failures:
+        fail(tag, "; ".join(failures))
+    else:
+        ok(tag, "AUDIT_SLA_AS_OF=head ages against HEAD (never negative, reported as as_of); "
+                "unset or any other value keeps the wall clock; workflows wired; the jobs "
+                "that run the gate fetch full history")
+
+
 def check_audit_sla_build_report_not_tracked() -> None:
     """B3 regression: risk_surface_report is a build-scoped generated artifact.
 
@@ -2720,7 +3022,9 @@ def check_evidence_refresh_coverage_fixtures() -> None:
         return
 
     ev = mod.evaluate
-    tracked = {"assurance_report", "incident_drill_log", "ct_evidence"}
+    # risk_coverage_report is the artifact that stays a documented residual (RR-BAS-01
+    # promoted the CT evidence, golden, API-contract and claims files to `auto`).
+    tracked = {"assurance_report", "incident_drill_log", "risk_coverage_report"}
     committed = {"assurance_report.json", "docs/INCIDENT_DRILL_LOG.json"}
     rids = {"RR-BAS-01"}
     wfs = {".github/workflows/caas-evidence-refresh.yml"}
@@ -2736,7 +3040,7 @@ def check_evidence_refresh_coverage_fixtures() -> None:
 
     healthy = [auto("assurance_report", "assurance_report.json"),
                auto("incident_drill_log", "docs/INCIDENT_DRILL_LOG.json", sev="warning"),
-               residual("ct_evidence")]
+               residual("risk_coverage_report")]
 
     failures = []
 
@@ -2759,14 +3063,14 @@ def check_evidence_refresh_coverage_fixtures() -> None:
         failures.append("malformed refresh mode did not fail")
 
     # (3) residual with an unresolved id -> fail
-    bad = healthy[:2] + [residual("ct_evidence", rid="RR-DOES-NOT-EXIST")]
+    bad = healthy[:2] + [residual("risk_coverage_report", rid="RR-DOES-NOT-EXIST")]
     r = ev(bad, tracked, committed, rids, wfs)
-    if r["overall_pass"] or "ct_evidence" not in r["unresolved_residual"]:
+    if r["overall_pass"] or "risk_coverage_report" not in r["unresolved_residual"]:
         failures.append("unresolved residual id did not fail")
 
     # (4) tracked artifact missing a disposition -> fail
     r = ev(healthy[:2], tracked, committed, rids, wfs)
-    if r["overall_pass"] or "ct_evidence" not in r["uncovered_tracked"]:
+    if r["overall_pass"] or "risk_coverage_report" not in r["uncovered_tracked"]:
         failures.append("tracked artifact without a disposition did not fail")
 
     # (5) the committed manifest passes for real
@@ -2818,6 +3122,586 @@ def check_evidence_refresh_coverage_fixtures() -> None:
     else:
         ok(tag, "missing producer / malformed mode / unresolved residual / uncovered tracked all fail; "
                 "real manifest passes; stale drill blocks under blocking severity, only warns under advisory")
+
+
+# --- RR-BAS-01: ci/refresh_residual_evidence.py fixtures -------------------------------
+# Every scenario runs the real script against a throwaway tree of fake verifiers and fake
+# suite executables; the real evidence files are never read or written.
+
+_RRE_SUITE_OUTPUT = {
+    "adversarial_protocol": (
+        "\n=== Adversarial Protocol & FFI Hostile-Caller Tests ===\n"
+        "  [A.1] MuSig2: nonce reuse detection\n\n"
+        "--- Adversarial Summary: 793 passed, 0 failed ---\n\n"),
+    "ecies_regression": (
+        "\n[ECIES Regression + C ABI Prefix Enforcement]\n"
+        "  -- ECIES regression: 92 passed, 0 failed\n"),
+    "regression_ct_ops": "[regression_ct_ops] CT operation regressions\n\n  pass=42  fail=0\n",
+    "fuzz_parsers": (
+        "============================\n  Parser Fuzz Tests\n============================\n"
+        "  TOTAL: 580019 passed, 0 failed\n"),
+    "fuzz_address_bip32_ffi": (
+        "=== Fuzz: Address Encoders + BIP32 + FFI Boundary ===\n"
+        "  PASSED: 82976   FAILED: 0   CRASHES: 0\n"),
+}
+
+# Hand-formatted on purpose: a 4-space indent, inline arrays/objects, a missing final
+# newline and nested twins of the stamped keys, so a stamp that re-serialises the file or
+# finds a key by name instead of by position shows up as extra changed lines.
+_RRE_API_DOC = (
+    '{\n'
+    '    "version": "1.5.0",\n'
+    '    "last_updated": "2020-01-01",\n'
+    '    "update_note": "old note \\u2014 with a \\"quote\\"",\n'
+    '    "entries": [\n'
+    '        {"api": "ufsecp_a", "last_updated": "keep-me", "tags": ["x", "y"]},\n'
+    '        {"api": "ufsecp_b", "update_note": "keep-me-too", "tags": []}\n'
+    '    ]\n'
+    '}\n')
+_RRE_CLAIMS_DOC = (
+    '{\n'
+    '  "schema_version": 1,\n'
+    '  "updated_at": "2020-01-01",\n'
+    '  "source": "docs/ASSURANCE_LEDGER.md",\n'
+    '  "claims": [ {"id": "C1", "updated_at": "keep-me"} ]\n'
+    '}')
+
+
+def _rre_int_doc(shim_date: str) -> str:
+    return (
+        '{\n'
+        '  "schema_version": "1.0.0",\n'
+        '  "rows": [\n'
+        '    {"id": "INT-OTHER", "last_verified": "2020-01-01", "notes": "decoy", "status": "pass"},\n'
+        '    {\n'
+        '      "id": "INT-SHIM-PARITY",\n'
+        '      "severity": "blocking",\n'
+        f'      "last_verified": "{shim_date}",\n'
+        '      "status": "pass",\n'
+        '      "notes": "old"\n'
+        '    }\n'
+        '  ]\n'
+        '}\n')
+
+
+def _rre_golden(generated_at, library, deterministic=True, overall=True, issues=()):
+    return {
+        "generated_at": generated_at, "library": library, "repeat": 5,
+        "overall_pass": overall, "issues": list(issues),
+        "checks": {"ecdsa_vectors": [
+            {"name": "v1", "deterministic": deterministic, "verify_ok": True}]},
+    }
+
+
+def _rre_script_body(marks: Path, label: str, rc: int, stdout: str, report=None) -> str:
+    """A fake verifier/suite: records that it ran, optionally writes the -o report the
+    determinism gate would write, prints STDOUT and exits RC."""
+    body = ("import sys\n"
+            f"with open({str(marks)!r}, 'a') as h:\n    h.write({label!r} + '\\n')\n")
+    if report is not None:
+        body += ("out = sys.argv[sys.argv.index('-o') + 1]\n"
+                 f"with open(out, 'w', encoding='utf-8') as h:\n    h.write({report!r})\n")
+    return body + f"sys.stdout.write({stdout!r})\nsys.exit({rc})\n"
+
+
+def _rre_write_exec(path: Path, marks: Path, label: str, rc: int, output: str) -> None:
+    """An executable created with mode 0755 at open() time, so no chmod is needed."""
+    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o755)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        handle.write(f"#!{sys.executable}\n" + _rre_script_body(marks, label, rc, output))
+
+
+def _rre_tree(mod, base: Path, **over):
+    """A throwaway library tree: fake verifiers under ci/, hand-formatted evidence docs,
+    five old dated snapshots and fake suite executables under build/audit/. Every fake
+    appends its name to MARKS (outside the tree) when it runs."""
+    root, marks = base / "tree", base / "marks.txt"
+    suites = {s.stem: (0, _RRE_SUITE_OUTPUT[s.stem]) for s in mod.SUITES}
+    suites.update(over.pop("suites", {}))
+    cfg = {
+        "missing": (),
+        "api": (0, json.dumps({"changed_files": [], "issues": [], "entries": 3})),
+        "claims": (0, "ASSURANCE VALIDATION PASSED\n"),
+        "shim": (0, json.dumps([{"function": f"f{i}", "status": "PASS"} for i in range(5)])),
+        "gate": (0, json.dumps(_rre_golden("2026-01-02T03:04:05+00:00",
+                                           "out/new/libufsecp.so.4.9.9"), indent=2)),
+        "golden": json.dumps(_rre_golden("2020-01-01T00:00:00+00:00",
+                                         "out/old/libufsecp.so.4.0.0"), indent=2),
+        "shim_date": "2020-01-01",
+    }
+    cfg.update(over)
+    cfg["suites"] = suites
+    for sub in ("ci", "docs", "audit/ci-evidence", "build/audit"):
+        (root / sub).mkdir(parents=True)
+    for stem in suites:
+        (root / "audit" / "ci-evidence" / f"{stem}_20200101.txt").write_text(
+            "old snapshot\n", encoding="utf-8")
+    for name, key in (("check_api_contracts.py", "api"), ("validate_assurance.py", "claims"),
+                      ("check_libsecp_shim_parity.py", "shim")):
+        rc, out = cfg[key]
+        (root / "ci" / name).write_text(_rre_script_body(marks, name, rc, out), encoding="utf-8")
+    rc, report = cfg["gate"]
+    (root / "ci" / "check_determinism_gate.py").write_text(
+        _rre_script_body(marks, "check_determinism_gate.py", rc, "", report=report),
+        encoding="utf-8")
+    docs = {"API_SECURITY_CONTRACTS.json": _RRE_API_DOC,
+            "ASSURANCE_CLAIMS.json": _RRE_CLAIMS_DOC,
+            "INTEGRATION_EVIDENCE_STATUS.json": _rre_int_doc(cfg["shim_date"]),
+            "DETERMINISM_GOLDEN.json": cfg["golden"]}
+    for name, text in docs.items():
+        if text is not None:
+            (root / "docs" / name).write_text(text, encoding="utf-8")
+    for s in mod.SUITES:
+        if s.binary not in cfg["missing"]:
+            rc, out = suites[s.stem]
+            _rre_write_exec(root / "build" / "audit" / s.binary, marks, s.binary, rc, out)
+    return root, marks, cfg
+
+
+def _rre_run(mod, root: Path, *args, head: str = "abcdef12"):
+    """Run mod.main() in-process against ROOT with a stubbed HEAD; return (exit, JSON, stderr)."""
+    out, err = io.StringIO(), io.StringIO()
+    saved = mod.head_short
+    mod.head_short = lambda _root: head
+    try:
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = mod.main(["--root", str(root), "--build-dir", str(root / "build"), *args])
+    finally:
+        mod.head_short = saved
+    try:
+        doc = json.loads(out.getvalue())
+    except ValueError:
+        doc = None
+    return rc, doc, err.getvalue()
+
+
+def _rre_snapshot(root: Path) -> dict:
+    return {str(p.relative_to(root)): p.read_bytes()
+            for p in sorted(root.rglob("*")) if p.is_file()}
+
+
+def _rre_changed_lines(before: bytes, after: bytes):
+    """Indexes of the lines that differ, or None when the line count changed."""
+    old = before.decode("utf-8").splitlines(keepends=True)
+    new = after.decode("utf-8").splitlines(keepends=True)
+    if len(old) != len(new):
+        return None
+    return [i for i, (a, b) in enumerate(zip(old, new)) if a != b]
+
+
+def _rre_marks(marks: Path) -> list:
+    return sorted(marks.read_text(encoding="utf-8").split()) if marks.exists() else []
+
+
+def check_refresh_residual_evidence_fixtures() -> None:
+    """RR-BAS-01 (owner promotion, 2026-11-02): ci/refresh_residual_evidence.py refreshes the
+    residual evidence ONLY by re-running its real verifier and writes ONLY when it passes.
+
+    Each scenario runs the real script against a throwaway tree and fails if: a failing
+    suite, a non-zero failed/crash count, a missing summary or a missing binary writes any
+    audit/ci-evidence file; an old snapshot is rewritten or re-dated; a failing verifier
+    stamps a JSON; a stamp changes a field outside its allowed set or reformats the file; a
+    determinism regeneration with different content (or overall_pass false) is accepted; an
+    artifact younger than --min-age-days is refreshed without --force; --plan or --dry-run
+    writes anything. It also pins the committed wiring: the four artifacts are `auto` in
+    docs/AUDIT_SLA.json, their commit paths are staged on the workflow's success path only,
+    the audit/fuzz build is gated on the plan, and the script outcome feeds GATE_VERDICT.
+
+    The trees are not git repositories: ages come from file mtimes (the documented
+    audit_sla_check fallback for an untracked file) and HEAD is stubbed.
+    """
+    tag = "RR-BAS-01:refresh_residual_evidence"
+    if os.name == "nt":
+        skip(tag, "fake suite executables are POSIX-only")
+        return
+    try:
+        mod = _load_ci_module("refresh_residual_evidence.py", "rre_selftest")
+    except Exception as exc:
+        fail(tag, f"import failed: {exc}")
+        return
+
+    import traceback
+    from datetime import datetime, timezone
+
+    failures: list = []
+
+    def expect(cond, msg):
+        if not cond:
+            failures.append(msg)
+
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    docs = ("docs/API_SECURITY_CONTRACTS.json", "docs/ASSURANCE_CLAIMS.json",
+            "docs/DETERMINISM_GOLDEN.json", "docs/INTEGRATION_EVIDENCE_STATUS.json")
+    every_fake = sorted(["check_api_contracts.py", "validate_assurance.py",
+                         "check_libsecp_shim_parity.py", "check_determinism_gate.py"]
+                        + [s.binary for s in mod.SUITES])
+    all_groups = [g.name for g in mod.GROUPS]
+    saved_as_of = os.environ.pop("AUDIT_SLA_AS_OF", None)
+    try:
+        with tempfile.TemporaryDirectory(prefix="ufsecp_rre_") as tmp:
+            base = Path(tmp)
+            _rre_write_exec(base / "probe", base / "probe_marks.txt", "probe", 0, "")
+            try:
+                subprocess.run([str(base / "probe")], capture_output=True, timeout=30, check=False)
+            except OSError as exc:
+                skip(tag, "validation_unsupported_in_sandbox: cannot execute a file created in "
+                          f"the temp dir ({exc})")
+                return
+
+            def tree(name, **over):
+                (base / name).mkdir()
+                return _rre_tree(mod, base / name, **over)
+
+            def run(root, *args, **kw):
+                return _rre_run(mod, root, *args, **kw)
+
+            def st(doc):
+                return {g["name"]: g["status"] for g in (doc or {}).get("groups", [])}
+
+            def changed(before, after):
+                return sorted(k for k in before if before[k] != after.get(k))
+
+            # (A) every group due and every verifier green: five NEW dated snapshots holding
+            #     the suite output verbatim, four stamped JSONs whose diff is exactly the
+            #     allowed lines, and nothing else touched.
+            root, marks, cfg = tree("a_healthy")
+            before = _rre_snapshot(root)
+            rc, doc, _ = run(root, "--min-age-days", "0")
+            after = _rre_snapshot(root)
+            date = (doc or {}).get("date") or ""
+            date8 = date.replace("-", "")
+            expect(rc == 0 and doc is not None and doc.get("ok") is True,
+                   f"healthy run: exit {rc}, failed={(doc or {}).get('failed')}")
+            expect(st(doc) == {n: "refreshed" for n in all_groups}, f"healthy run: {st(doc)}")
+            want_new = sorted(f"audit/ci-evidence/{s.stem}_{date8}.txt" for s in mod.SUITES)
+            expect(sorted(set(after) - set(before)) == want_new,
+                   f"healthy run wrote {sorted(set(after) - set(before))}, expected {want_new}")
+            for s in mod.SUITES:
+                expect(after.get(f"audit/ci-evidence/{s.stem}_{date8}.txt")
+                       == cfg["suites"][s.stem][1].encode("utf-8"),
+                       f"{s.stem}: the snapshot is not the suite output verbatim")
+            expect(changed(before, after) == sorted(docs),
+                   f"healthy run changed {changed(before, after)}; only {sorted(docs)} may "
+                   "change (an old snapshot is never rewritten or re-dated)")
+            for rel, want in (("docs/API_SECURITY_CONTRACTS.json", [2, 3]),
+                              ("docs/ASSURANCE_CLAIMS.json", [2]),
+                              ("docs/DETERMINISM_GOLDEN.json", [1, 2]),
+                              ("docs/INTEGRATION_EVIDENCE_STATUS.json", [7, 9])):
+                got = _rre_changed_lines(before[rel], after[rel])
+                expect(got == want, f"{rel}: changed lines {got}, expected {want}")
+            api = json.loads(after["docs/API_SECURITY_CONTRACTS.json"])
+            expect(api["last_updated"] == date and all(
+                t in api["update_note"] for t in (date, "abcdef12", "check_api_contracts.py", "PASS")),
+                f"API stamp does not name date/HEAD/verifier/verdict: {api['update_note']!r}")
+            expect(api["entries"][0]["last_updated"] == "keep-me"
+                   and api["entries"][1]["update_note"] == "keep-me-too",
+                   "the API stamp touched a nested twin of a stamped key")
+            claims = json.loads(after["docs/ASSURANCE_CLAIMS.json"])
+            expect(claims["updated_at"] == date and claims["claims"][0]["updated_at"] == "keep-me"
+                   and not after["docs/ASSURANCE_CLAIMS.json"].endswith(b"\n"),
+                   "the claims stamp is not exactly updated_at (or lost the final-newline convention)")
+            golden = after["docs/DETERMINISM_GOLDEN.json"]
+            expect(json.loads(golden) == json.loads(cfg["gate"][1]) and not golden.endswith(b"\n"),
+                   "the golden does not equal the verified report (or lost its final-newline convention)")
+            integ = json.loads(after["docs/INTEGRATION_EVIDENCE_STATUS.json"])
+            row, other = integ["rows"][1], integ["rows"][0]
+            expect(row["last_verified"] == date and row["status"] == "pass" and all(
+                t in row["notes"] for t in ("5/5", "abcdef12", date, "check_libsecp_shim_parity.py")),
+                f"shim stamp does not name count/HEAD/date/verifier: {row}")
+            expect(other == json.loads(_rre_int_doc("2020-01-01"))["rows"][0],
+                   "the shim stamp touched another row")
+            expect(_rre_marks(marks) == every_fake, f"healthy run executed {_rre_marks(marks)}")
+
+            # (B) the same tree again: today's snapshots exist so ct_evidence is skipped
+            #     (never rewritten), and the stamps are byte-identical.
+            rc, doc, _ = run(root, "--min-age-days", "0")
+            expect(rc == 0 and st(doc).get("ct_evidence") == "skipped", f"second run: {rc} {st(doc)}")
+            expect(_rre_snapshot(root) == after, "a second run changed files")
+
+            # (C) age gating: a young artifact is not refreshed without --force, an old one is.
+            root, marks, cfg = tree("c_young", shim_date=today)
+            before = _rre_snapshot(root)
+            rc, doc, _ = run(root)
+            expect(rc == 0 and set(st(doc).values()) == {"skipped"} and len(st(doc)) == 5,
+                   f"young artifacts were not skipped: {st(doc)}")
+            expect(_rre_snapshot(root) == before and _rre_marks(marks) == [],
+                   "a young artifact was refreshed (or a verifier ran) without --force")
+            rc, doc, _ = run(root, "--force")
+            expect(rc == 0 and st(doc) == {n: "refreshed" for n in all_groups},
+                   f"--force did not refresh everything: {st(doc)}")
+            root, marks, cfg = tree("c_mixed")     # shim row verified in 2020, the rest fresh
+            before = _rre_snapshot(root)
+            rc, doc, _ = run(root)
+            want = {n: "skipped" for n in all_groups}
+            want["shim_parity"] = "refreshed"
+            expect(rc == 0 and st(doc) == want, f"only the old artifact may refresh: {st(doc)}")
+            expect(changed(before, _rre_snapshot(root)) == ["docs/INTEGRATION_EVIDENCE_STATUS.json"],
+                   "an artifact younger than --min-age-days was refreshed")
+            rc, doc, _ = run(root)
+            expect(rc == 0 and set(st(doc).values()) == {"skipped"},
+                   f"a freshly stamped artifact was due again: {st(doc)}")
+            root, marks, cfg = tree("c_huge")
+            rc, doc, _ = run(root, "--min-age-days", "36500")
+            expect(rc == 0 and set(st(doc).values()) == {"skipped"} and _rre_marks(marks) == [],
+                   f"--min-age-days 36500 still refreshed something: {st(doc)}")
+
+            # (D) --plan and --dry-run write nothing; --plan runs nothing.
+            root, marks, cfg = tree("d_plan")
+            before = _rre_snapshot(root)
+            rc, plan, _ = run(root, "--plan", "--force")
+            expect(rc == 0 and plan is not None and plan.get("due") == all_groups
+                   and plan.get("needs_test_build") is True, f"--plan --force: {rc} {plan}")
+            rc, plan, _ = run(root, "--plan")
+            expect(rc == 0 and plan is not None and plan.get("due") == ["shim_parity"]
+                   and plan.get("needs_test_build") is False, f"--plan: {rc} {plan}")
+            expect(_rre_snapshot(root) == before and _rre_marks(marks) == [],
+                   "--plan wrote a file or ran a verifier")
+            rc, dry, _ = run(root, "--dry-run", "--min-age-days", "0")
+            expect(rc == 0 and st(dry) == {n: "verified" for n in all_groups}, f"--dry-run: {rc} {st(dry)}")
+            expect(_rre_snapshot(root) == before, "--dry-run wrote a file")
+            expect(_rre_marks(marks) == every_fake, "--dry-run did not run every verifier")
+            root, marks, cfg = tree("d_dry_fail", api=(1, "{}"))
+            before = _rre_snapshot(root)
+            rc, dry, _ = run(root, "--dry-run", "--min-age-days", "0")
+            expect(rc == 1 and st(dry).get("api_contracts") == "failed" and _rre_snapshot(root) == before,
+                   f"--dry-run with a failing verifier: {rc} {st(dry)}")
+
+            # (E) ct_evidence is all or none: no failing suite, failed count, crash count,
+            #     missing summary or missing binary writes any snapshot, and the other
+            #     groups still refresh.
+            ct_cases = {
+                "suite_exit_1": {"suites": {"adversarial_protocol": (
+                    1, _RRE_SUITE_OUTPUT["adversarial_protocol"])}},
+                "failed_count": {"suites": {"ecies_regression": (
+                    0, _RRE_SUITE_OUTPUT["ecies_regression"].replace("0 failed", "3 failed"))}},
+                "crash_count": {"suites": {"fuzz_address_bip32_ffi": (
+                    0, "  PASSED: 5   FAILED: 0   CRASHES: 2\n")}},
+                "no_summary": {"suites": {"regression_ct_ops": (0, "all good\n")}},
+                "not_built": {"missing": ("test_fuzz_parsers",)},
+            }
+            for label, over in ct_cases.items():
+                root, marks, cfg = tree(f"e_{label}", **over)
+                before = _rre_snapshot(root)
+                rc, doc, _ = run(root, "--min-age-days", "0")
+                after = _rre_snapshot(root)
+                expect(rc == 1 and (doc or {}).get("failed") == ["ct_evidence"],
+                       f"ct case {label}: exit {rc}, failed={(doc or {}).get('failed')}")
+                expect(not (set(after) - set(before)),
+                       f"ct case {label}: wrote {sorted(set(after) - set(before))}")
+                expect(st(doc).get("api_contracts") == "refreshed"
+                       and docs[0] in changed(before, after),
+                       f"ct case {label}: the other groups did not still refresh")
+
+            # (F) a failing verifier stamps nothing; the other groups still refresh.
+            verifier_cases = [
+                ("api_exit_1", {"api": (1, json.dumps({"issues": ["BAD"], "entries": 3}))},
+                 "api_contracts", docs[0]),
+                ("api_issues", {"api": (0, json.dumps({"issues": ["BAD"], "entries": 3}))},
+                 "api_contracts", docs[0]),
+                ("api_garbage", {"api": (0, "PASS\n")}, "api_contracts", docs[0]),
+                # The exit code is the verdict on its own: clean-looking output with a
+                # non-zero exit must not stamp.
+                ("api_exit_1_clean_output", {"api": (1, json.dumps({"issues": [], "entries": 3}))},
+                 "api_contracts", docs[0]),
+                ("claims_exit_1", {"claims": (1, "ASSURANCE VALIDATION: 2 issues\n")},
+                 "assurance_claims", docs[1]),
+                ("shim_exit_1", {"shim": (1, json.dumps([{"function": "f", "status": "FAIL"}]))},
+                 "shim_parity", docs[3]),
+                ("shim_exit_1_clean_output", {"shim": (1, json.dumps([{"function": "f", "status": "PASS"}]))},
+                 "shim_parity", docs[3]),
+                ("shim_fail_entry", {"shim": (0, json.dumps([{"function": "f", "status": "PASS"},
+                                                             {"function": "g", "status": "FAIL"}]))},
+                 "shim_parity", docs[3]),
+                ("shim_empty", {"shim": (0, "[]")}, "shim_parity", docs[3]),
+            ]
+            for label, over, group, rel in verifier_cases:
+                root, marks, cfg = tree(f"f_{label}", **over)
+                before = _rre_snapshot(root)
+                rc, doc, _ = run(root, "--min-age-days", "0")
+                after = _rre_snapshot(root)
+                expect(rc == 1 and (doc or {}).get("failed") == [group],
+                       f"verifier case {label}: exit {rc}, failed={(doc or {}).get('failed')}")
+                expect(after.get(rel) == before.get(rel), f"verifier case {label}: {rel} was stamped")
+                expect(all(s == "refreshed" for n, s in st(doc).items() if n != group),
+                       f"verifier case {label}: the other groups did not still refresh: {st(doc)}")
+
+            # (G) the determinism golden is replaced only by an identical-but-for-the-clock
+            #     passing report; everything else fails and leaves it untouched.
+            def golden_with(**kw):
+                return json.dumps(_rre_golden("2026-01-02T03:04:05+00:00",
+                                              "out/new/libufsecp.so.4.9.9", **kw), indent=2)
+            det_cases = [
+                ("content_drift", {"gate": (0, golden_with(deterministic=False))}),
+                ("gate_exit_1", {"gate": (1, golden_with(overall=False, issues=["ecdsa_nondeterministic:v1"]))}),
+                ("overall_false", {"gate": (0, golden_with(overall=False))}),
+                ("issues_listed", {"gate": (0, golden_with(issues=["x"]))}),
+                # A committed golden that is itself failing, regenerated identically: the
+                # content "did not change" but a failing report is never blessed.
+                ("golden_already_failing", {
+                    "golden": json.dumps(_rre_golden("2020-01-01T00:00:00+00:00",
+                                                     "out/old/libufsecp.so.4.0.0", overall=False), indent=2),
+                    "gate": (0, golden_with(overall=False))}),
+                ("golden_missing", {"golden": None}),
+            ]
+            for label, over in det_cases:
+                root, marks, cfg = tree(f"g_{label}", **over)
+                before = _rre_snapshot(root)
+                rc, doc, _ = run(root, "--min-age-days", "0")
+                after = _rre_snapshot(root)
+                expect(rc == 1 and (doc or {}).get("failed") == ["determinism_golden"],
+                       f"determinism case {label}: exit {rc}, failed={(doc or {}).get('failed')}")
+                expect(after.get(docs[2]) == before.get(docs[2]),
+                       f"determinism case {label}: the golden was written")
+                expect(all(s == "refreshed" for n, s in st(doc).items() if n != "determinism_golden"),
+                       f"determinism case {label}: the other groups did not still refresh: {st(doc)}")
+
+            # (H) a snapshot already dated today is never rewritten and no partial set is added.
+            root, marks, cfg = tree("h_exists")
+            sentinel = root / "audit" / "ci-evidence" / f"fuzz_parsers_{today.replace('-', '')}.txt"
+            sentinel.write_text("sentinel\n", encoding="utf-8")
+            before = _rre_snapshot(root)
+            rc, doc, _ = run(root, "--min-age-days", "0")
+            after = _rre_snapshot(root)
+            expect(rc == 0 and st(doc).get("ct_evidence") == "skipped", f"existing snapshot: {rc} {st(doc)}")
+            expect(sentinel.read_text(encoding="utf-8") == "sentinel\n" and not (set(after) - set(before)),
+                   "an existing dated snapshot was rewritten or a partial set was added")
+
+            # (I) a stamp that would change a field outside its allowed set is refused.
+            root, marks, cfg = tree("i_guard")
+            before = _rre_snapshot(root)
+            real_stamp = mod.stamp_strings
+            mod.stamp_strings = lambda text, edits: real_stamp(text, edits).replace(
+                '"version": "1.5.0"', '"version": "9.9.9"')
+            try:
+                rc, doc, _ = run(root, "--only", "api_contracts", "--min-age-days", "0")
+            finally:
+                mod.stamp_strings = real_stamp
+            expect(rc == 1 and st(doc).get("api_contracts") == "failed"
+                   and "outside the allowed set" in ((doc or {}).get("groups") or [{}])[0].get("detail", ""),
+                   f"a stamp changing a non-allowed field was not refused: {rc} {st(doc)}")
+            expect(_rre_snapshot(root) == before, "a stamp that changed a non-allowed field was written")
+
+            # (J) the building blocks.
+            suite = {s.stem: s for s in mod.SUITES}
+            for stem, out in _RRE_SUITE_OUTPUT.items():
+                expect(mod.judge_suite(suite[stem], 0, out) is None, f"{stem}: a passing run was rejected")
+                expect(mod.judge_suite(suite[stem], 1, out) is not None, f"{stem}: exit 1 was accepted")
+                expect(mod.judge_suite(suite[stem], None, out) is not None, f"{stem}: a timeout was accepted")
+                expect(mod.judge_suite(suite[stem], 0, "") is not None, f"{stem}: empty output was accepted")
+            expect(mod.judge_suite(suite["fuzz_parsers"], 0, "TOTAL: 0 passed, 0 failed") is not None,
+                   "a summary with no passing check was accepted")
+            expect(mod.judge_suite(suite["fuzz_parsers"], 0, "TOTAL: 5 passed, 1 failed") is not None,
+                   "a summary with a failure was accepted")
+            expect(mod.judge_suite(suite["fuzz_address_bip32_ffi"], 0,
+                                   "PASSED: 5   FAILED: 0   CRASHES: 1") is not None,
+                   "a summary with a crash was accepted")
+            new = mod.stamp_strings(_RRE_API_DOC, [(("last_updated",), "2026-11-02"),
+                                                   (("update_note",), 'n \u2014 "q"')])
+            expect(_rre_changed_lines(_RRE_API_DOC.encode(), new.encode()) == [2, 3]
+                   and json.loads(new)["update_note"] == 'n \u2014 "q"'
+                   and json.loads(new)["entries"][0]["last_updated"] == "keep-me",
+                   "stamp_strings changed more than the two top-level values")
+            tricky = '{"a": "}{\\"[,", "b": [1, 2.5e3, true, null, {"c": "x"}], "c": "old"}'
+            expect(mod.stamp_strings(tricky, [(("c",), "new")])
+                   == tricky.replace('"c": "old"', '"c": "new"'),
+                   "stamp_strings mis-parsed braces/escapes inside a string")
+            dup = _rre_int_doc("2020-01-01").replace('"INT-OTHER"', '"INT-SHIM-PARITY"')
+            for text, edits in ((_RRE_API_DOC, [(("entries",), "x")]),
+                                (_RRE_API_DOC, [(("missing",), "x")]),
+                                (_RRE_API_DOC, [(("version", "x"), "y")]),
+                                (dup, [(("rows", ("id", "INT-SHIM-PARITY"), "notes"), "n")])):
+                try:
+                    mod.stamp_strings(text, edits)
+                    expect(False, f"stamp_strings accepted an unsafe target {edits}")
+                except mod.StampError:
+                    pass
+            doctored = json.loads(new)
+            doctored["version"] = "9.9.9"
+            doctored["entries"][1]["tags"] = ["z"]
+            expect(mod.scope_violations(json.loads(_RRE_API_DOC), doctored,
+                                        {("last_updated",), ("update_note",)})
+                   == ["entries/1/tags", "version"],
+                   "scope_violations missed a change outside the allowed set")
+            wd = base / "write_new_files"
+            wd.mkdir()
+            (wd / "b.txt").write_text("keep", encoding="utf-8")
+            try:
+                mod.write_new_files({wd / "a.txt": b"1", wd / "b.txt": b"2"})
+                expect(False, "write_new_files overwrote an existing snapshot")
+            except FileExistsError:
+                pass
+            expect(not (wd / "a.txt").exists() and (wd / "b.txt").read_text(encoding="utf-8") == "keep",
+                   "write_new_files left a partial set or changed the existing file")
+
+            # (K) the committed manifest and workflow.
+            sla_doc = json.loads((LIB_ROOT / "docs" / "AUDIT_SLA.json").read_text(encoding="utf-8"))
+            arts = {a["name"]: a for a in sla_doc["freshness_artifacts"]["artifacts"]}
+            wf_rel = ".github/workflows/caas-evidence-refresh.yml"
+            workflow = (LIB_ROOT / wf_rel).read_text(encoding="utf-8", errors="replace")
+            erc = _load_ci_module("check_evidence_refresh_coverage.py", "erc_rre_selftest")
+            staged = erc._workflow_committed_paths(workflow)
+            for art, path in (("ct_evidence", "audit/ci-evidence"), ("api_contracts", docs[0]),
+                              ("assurance_claims", docs[1]), ("determinism_golden", docs[2])):
+                refresh = (arts.get(art) or {}).get("refresh") or {}
+                expect(refresh.get("mode") == "auto" and refresh.get("producer_workflow") == wf_rel,
+                       f"{art} is not marked auto in docs/AUDIT_SLA.json")
+                expect(path in (refresh.get("committed_paths") or []) and path in staged,
+                       f"{art}: {path} is not both declared and staged by the workflow")
+                expect(f"- name: {refresh.get('producer_step')}" in workflow,
+                       f"{art}: producer_step is not a step of the workflow")
+            expect(((arts.get("risk_coverage_report") or {}).get("refresh") or {}).get("mode") == "residual",
+                   "risk_coverage_report must stay a documented residual")
+            expect(docs[3] in staged, "the file holding the shim-parity row is not staged by the workflow")
+            fail_at = workflow.index('if [ "$GATE_VERDICT" = "fail" ]')
+            pass_at = workflow.index("# Success path", fail_at)
+            end_at = workflow.index('if [ "$CHANGED" -eq 0 ]', pass_at)
+            failure_branch, success_branch = workflow[fail_at:pass_at], workflow[pass_at:end_at]
+            for path in docs + ("audit/ci-evidence",):
+                expect(path in success_branch and path not in failure_branch,
+                       f"{path} must be staged on the success path only")
+            expect("steps.residual_evidence.outcome" in workflow[workflow.index('GATE_VERDICT="pass"'):fail_at],
+                   "the residual refresh outcome does not feed GATE_VERDICT")
+            expect("ci/refresh_residual_evidence.py --plan" in workflow
+                   and "needs_test_build == 'true'" in workflow,
+                   "the audit/fuzz build is not gated on the plan")
+            expect("SECP256K1_BUILD_FUZZ_TESTS=ON" in workflow and "BUILD_TESTING=ON" in workflow
+                   and all(s.binary in workflow for s in mod.SUITES),
+                   "the second build does not configure and build the five suites")
+            upload = workflow[workflow.index("Upload refreshed artifacts"):
+                              workflow.index("Commit and push if changed")]
+            for path in docs + ("audit/ci-evidence",):
+                expect(path in upload, f"{path} is not in the diagnostic upload")
+            budget = re.search(r"timeout-minutes:\s*(\d+)", workflow)
+            expect(budget is not None and int(budget.group(1)) >= 60,
+                   "timeout-minutes was not raised for the extra build and the fuzz runs")
+
+            # (L) the real command line: JSON only on stdout, --plan and --dry-run exclusive.
+            root, marks, cfg = tree("l_cli")
+            script = str(SCRIPT_DIR / "refresh_residual_evidence.py")
+            proc = subprocess.run([sys.executable, script, "--root", str(root), "--plan", "--force"],
+                                  capture_output=True, text=True, timeout=120)
+            try:
+                cli = json.loads(proc.stdout)
+            except ValueError:
+                cli = None
+            expect(proc.returncode == 0 and cli is not None and cli.get("due") == all_groups,
+                   f"CLI --plan: exit {proc.returncode}: {proc.stderr[:200]}")
+            proc = subprocess.run([sys.executable, script, "--root", str(root), "--plan", "--dry-run"],
+                                  capture_output=True, text=True, timeout=120)
+            expect(proc.returncode == 2, f"--plan with --dry-run was accepted (exit {proc.returncode})")
+    except Exception as exc:
+        failures.append(f"scenario crashed: {type(exc).__name__}: {exc} "
+                        f"[{' | '.join(traceback.format_exc().splitlines()[-3:])}]")
+    finally:
+        if saved_as_of is not None:
+            os.environ["AUDIT_SLA_AS_OF"] = saved_as_of
+
+    if failures:
+        fail(tag, "; ".join(failures)[:2500])
+    else:
+        ok(tag, "failing suites/verifiers write nothing, stamps touch only their fields, "
+                "a drifting determinism report is refused, young artifacts wait for --force, "
+                "--plan/--dry-run write nothing, and the manifest + workflow wiring is pinned")
 
 
 def check_package_provenance_binding_fixtures() -> None:
@@ -5002,6 +5886,7 @@ def check_caas_gate_negative_fixture_coverage() -> None:
         "check_bench_target_context.py": "check_bench_target_context_fixtures",
         "check_research_signal_matrix.py": "check_research_signal_matrix_fixtures",
         "check_evidence_refresh_coverage.py": "check_evidence_refresh_coverage_fixtures",
+        "refresh_residual_evidence.py": "check_refresh_residual_evidence_fixtures",
         "check_package_provenance_binding.py": "check_package_provenance_binding_fixtures",
         "check_release_package_contents.py": "check_release_package_contents_fixtures",
         "check_libbitcoin_perf_matrix.py": "check_libbitcoin_perf_matrix_fixtures",
@@ -5055,6 +5940,7 @@ def main() -> int:
     check_canonical_data_date_is_stable()
     check_p21_semantic_requirement_map()
     check_audit_sla_pre_alert_and_block()
+    check_audit_sla_as_of_release_snapshot()
     check_audit_sla_build_report_not_tracked()
     check_audit_sla_untracked_artifact_uses_mtime()
     check_external_audit_bundle_negative_fixtures()
@@ -5073,6 +5959,7 @@ def main() -> int:
     check_bench_target_context_fixtures()
     check_research_signal_matrix_fixtures()
     check_evidence_refresh_coverage_fixtures()
+    check_refresh_residual_evidence_fixtures()
     check_package_provenance_binding_fixtures()
     check_release_package_contents_fixtures()
     check_release_package_contents_gpu_export_closure_fixtures()

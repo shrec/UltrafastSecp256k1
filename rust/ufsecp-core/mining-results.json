@@ -1,0 +1,525 @@
+{
+  "schema": 1,
+  "date": "2026-09-27",
+  "device": "NVIDIA GeForce RTX 5070 Ti Laptop GPU",
+  "sm": "12.0",
+  "driver": "616.92",
+  "native_upstream_revision": "5536321b3af2322cd2b8e90221a5bb9e4587fb7d",
+  "rust_upstream_revision": "e346efe3239175ef5d8dc97ca6e46920658bdf97",
+  "pickaxe_integration_revision": "50eef73a9583e0316844be4f6ee7951eb7c00f8d",
+  "rust_gpu_compiler": "nightly-2026-04-02, LLVM 22",
+  "native_gpu_compiler": "CUDA 13.4, -O3 -arch=sm_120 -maxrregcount=128",
+  "method": {
+    "scope": "complete offline mining pipeline; synthetic keys; no broadcasts",
+    "rust_label": "upstream-derived Rust public arithmetic plus Pickaxe mining logic",
+    "native_upstream_adapter": "upstream field/point arithmetic, retained Pickaxe fixed-key Montgomery specialization",
+    "order": "ABBAABBA",
+    "warmup_seconds": 45,
+    "settling_seconds": 1,
+    "trial_seconds": 12,
+    "aggregation": "sum(candidates) / sum(seconds)",
+    "exclusions": "none; every trial retained, including clock fluctuations",
+    "gpu_exclusive": true,
+    "compilation_during_timing": false
+  },
+  "sha256": {
+    "initial_port_ptx": "3b08adae6e503d2330cd27cf07c535d81fb70cebac93bc7057a6b920a7822bb7",
+    "pinned_port_ptx": "b2081dc6a02bf0db86d83fd3b86879901087157ef6ef92ca1f92a449327247da",
+    "pinned_probe_sm120_ptx": "f4b92ce81d58c620f4bbfee625e63f28a9fe4b80a2be952024d1c9526dbf3ce0",
+    "pinned_probe_sm75_ptx": "005d78a441c36a3ec0bc0c8546af72c447c455eff68b9b6e3e75e2e38c942ca6",
+    "native_upstream_walk_ptx": "72515fea1552d07a964c1bfc387c5eed779c0d3b0d3a34858d6aefb6a2a306bc",
+    "native_upstream_c1_ptx": "32679446fe91100500d7234347d5639f21c8f8417e731e059d7f09e918656a74",
+    "native_upstream_c3_ptx": "e8c2440c62258dd4f6e370d65fef4ae8165e5d1db652c612c079ddabd49b4d48"
+  },
+  "sessions": [
+    {
+      "name": "initial_vs_pickaxe",
+      "aggregate_million_candidates_per_second": {
+        "pickaxe": 114.54137017976748,
+        "rust": 122.0913744575488
+      },
+      "gain_percent": 6.591508610323005,
+      "trials": [
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_c1_schnorr.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1386553344,
+          "million_candidates_per_second": 115.54043703886742,
+          "per_lane": 32,
+          "pipeline": "pickaxe",
+          "round": 0,
+          "seconds": 12.0005894,
+          "telemetry_csv": "84, 131.97, 2722, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1480384512,
+          "million_candidates_per_second": 123.34085172731488,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 1,
+          "seconds": 12.002386,
+          "telemetry_csv": "84, 134.09, 2715, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1474732032,
+          "million_candidates_per_second": 122.88754851107056,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 2,
+          "seconds": 12.0006628,
+          "telemetry_csv": "84, 134.63, 2715, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_c1_schnorr.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1367334912,
+          "million_candidates_per_second": 113.89971944299036,
+          "per_lane": 32,
+          "pipeline": "pickaxe",
+          "round": 3,
+          "seconds": 12.0047259,
+          "telemetry_csv": "84, 132.33, 2722, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_c1_schnorr.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1387118592,
+          "million_candidates_per_second": 115.5864676767288,
+          "per_lane": 32,
+          "pipeline": "pickaxe",
+          "round": 4,
+          "seconds": 12.0007006,
+          "telemetry_csv": "84, 132.16, 2722, 98"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1474166784,
+          "million_candidates_per_second": 122.8419119215312,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 5,
+          "seconds": 12.0005197,
+          "telemetry_csv": "84, 133.63, 2707, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1431773184,
+          "million_candidates_per_second": 119.2953089619734,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 6,
+          "seconds": 12.0019236,
+          "telemetry_csv": "75, 94.58, 1095, 0"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_c1_schnorr.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1357725696,
+          "million_candidates_per_second": 113.13905804521306,
+          "per_lane": 32,
+          "pipeline": "pickaxe",
+          "round": 7,
+          "seconds": 12.0005038,
+          "telemetry_csv": "84, 131.30, 2722, 99"
+        }
+      ]
+    },
+    {
+      "name": "initial_vs_native_upstream",
+      "aggregate_million_candidates_per_second": {
+        "ultrafast": 114.73466778023446,
+        "rust": 119.77292004750593
+      },
+      "gain_percent": 4.391220513159855,
+      "trials": [
+        {
+          "batch_size": 565248,
+          "c1_kernel": "ultrafast_c1_fixed_d.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1383727104,
+          "million_candidates_per_second": 115.27776857669392,
+          "per_lane": 32,
+          "pipeline": "ultrafast",
+          "round": 0,
+          "seconds": 12.0034168,
+          "telemetry_csv": "74, 16.02, 240, 0"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1374683136,
+          "million_candidates_per_second": 114.55542732390205,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 1,
+          "seconds": 12.0001572,
+          "telemetry_csv": "83, 127.07, 2670, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1465122816,
+          "million_candidates_per_second": 122.08484402052103,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 2,
+          "seconds": 12.0008575,
+          "telemetry_csv": "84, 131.10, 2700, 98"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "ultrafast_c1_fixed_d.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1374683136,
+          "million_candidates_per_second": 114.51290828378148,
+          "per_lane": 32,
+          "pipeline": "ultrafast",
+          "round": 3,
+          "seconds": 12.0046129,
+          "telemetry_csv": "84, 133.16, 2715, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "ultrafast_c1_fixed_d.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1369030656,
+          "million_candidates_per_second": 114.03954802965815,
+          "per_lane": 32,
+          "pipeline": "ultrafast",
+          "round": 4,
+          "seconds": 12.0048762,
+          "telemetry_csv": "84, 132.33, 2707, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1434034176,
+          "million_candidates_per_second": 119.47857393639526,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 5,
+          "seconds": 12.002438,
+          "telemetry_csv": "84, 130.50, 2692, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1475862528,
+          "million_candidates_per_second": 122.97237723147332,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 6,
+          "seconds": 12.0015776,
+          "telemetry_csv": "84, 132.81, 2700, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "ultrafast_c1_fixed_d.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1381466112,
+          "million_candidates_per_second": 115.10861524588556,
+          "per_lane": 32,
+          "pipeline": "ultrafast",
+          "round": 7,
+          "seconds": 12.0014137,
+          "telemetry_csv": "84, 133.05, 2715, 99"
+        }
+      ]
+    },
+    {
+      "name": "pinned_vs_pickaxe",
+      "aggregate_million_candidates_per_second": {
+        "pickaxe": 114.23909946468478,
+        "rust": 123.17055525622823
+      },
+      "gain_percent": 7.818212707729244,
+      "trials": [
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_c1_schnorr.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1390510080,
+          "million_candidates_per_second": 115.86286046305662,
+          "per_lane": 32,
+          "pipeline": "pickaxe",
+          "round": 0,
+          "seconds": 12.0013443,
+          "telemetry_csv": "82, 131.21, 2722, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1478123520,
+          "million_candidates_per_second": 123.16657500495081,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 1,
+          "seconds": 12.0010118,
+          "telemetry_csv": "83, 133.60, 2715, 98"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1480949760,
+          "million_candidates_per_second": 123.41153075964257,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 2,
+          "seconds": 12.0000923,
+          "telemetry_csv": "83, 133.76, 2715, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_c1_schnorr.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1369595904,
+          "million_candidates_per_second": 114.10105606524947,
+          "per_lane": 32,
+          "pipeline": "pickaxe",
+          "round": 3,
+          "seconds": 12.0033587,
+          "telemetry_csv": "73, 91.31, 247, 0"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_c1_schnorr.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1352073216,
+          "million_candidates_per_second": 112.65383370689972,
+          "per_lane": 32,
+          "pipeline": "pickaxe",
+          "round": 4,
+          "seconds": 12.0020169,
+          "telemetry_csv": "83, 130.07, 2715, 98"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1476427776,
+          "million_candidates_per_second": 123.01742296878717,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 5,
+          "seconds": 12.0017778,
+          "telemetry_csv": "83, 133.09, 2715, 98"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1477558272,
+          "million_candidates_per_second": 123.08674281688269,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 6,
+          "seconds": 12.0042032,
+          "telemetry_csv": "83, 133.96, 2715, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_c1_schnorr.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1372422144,
+          "million_candidates_per_second": 114.33874486059841,
+          "per_lane": 32,
+          "pipeline": "pickaxe",
+          "round": 7,
+          "seconds": 12.0031241,
+          "telemetry_csv": "83, 130.48, 2722, 98"
+        }
+      ]
+    },
+    {
+      "name": "pinned_vs_native_upstream",
+      "aggregate_million_candidates_per_second": {
+        "ultrafast": 115.20492498328731,
+        "rust": 120.48576851932047
+      },
+      "gain_percent": 4.583869601754653,
+      "trials": [
+        {
+          "batch_size": 565248,
+          "c1_kernel": "ultrafast_c1_fixed_d.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1384292352,
+          "million_candidates_per_second": 115.32324606331974,
+          "per_lane": 32,
+          "pipeline": "ultrafast",
+          "round": 0,
+          "seconds": 12.0035847,
+          "telemetry_csv": "75, 117.69, 1725, 65"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1383727104,
+          "million_candidates_per_second": 115.28555293861467,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 1,
+          "seconds": 12.0026063,
+          "telemetry_csv": "73, 46.11, 240, 0"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1434034176,
+          "million_candidates_per_second": 119.49000282469635,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 2,
+          "seconds": 12.00129,
+          "telemetry_csv": "83, 130.90, 2700, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "ultrafast_c1_fixed_d.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1382596608,
+          "million_candidates_per_second": 115.17877812894089,
+          "per_lane": 32,
+          "pipeline": "ultrafast",
+          "round": 3,
+          "seconds": 12.003918,
+          "telemetry_csv": "83, 133.08, 2722, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "ultrafast_c1_fixed_d.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1383727104,
+          "million_candidates_per_second": 115.26709404094541,
+          "per_lane": 32,
+          "pipeline": "ultrafast",
+          "round": 4,
+          "seconds": 12.0045284,
+          "telemetry_csv": "83, 133.15, 2722, 99"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1483776000,
+          "million_candidates_per_second": 123.62989852235802,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 5,
+          "seconds": 12.001757,
+          "telemetry_csv": "84, 134.03, 2715, 98"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "photon_rust.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1482645504,
+          "million_candidates_per_second": 123.53800590181253,
+          "per_lane": 32,
+          "pipeline": "rust",
+          "round": 6,
+          "seconds": 12.0015334,
+          "telemetry_csv": "83, 133.65, 2715, 98"
+        },
+        {
+          "batch_size": 565248,
+          "c1_kernel": "ultrafast_c1_fixed_d.ptx",
+          "c1_per_thread": 16,
+          "candidates": 1380900864,
+          "million_candidates_per_second": 115.05056431229207,
+          "per_lane": 32,
+          "pipeline": "ultrafast",
+          "round": 7,
+          "seconds": 12.0025562,
+          "telemetry_csv": "83, 132.10, 2722, 92"
+        }
+      ]
+    }
+  ],
+  "validation": {
+    "cpu_field_vectors": 1539,
+    "cpu_scalar_vectors": 1539,
+    "cpu_oracles": [
+      "num-bigint",
+      "libsecp256k1"
+    ],
+    "gpu_boundary_random_vectors": 773,
+    "mining_candidates_reconstructed": 13920,
+    "vm_accepted": 103,
+    "vm_rejected": 113,
+    "vm_modes": [
+      "standard policy",
+      "consensus"
+    ],
+    "pickaxe_suite": {
+      "passed": 266,
+      "ignored": 21,
+      "filtered": 1,
+      "filtered_test": "physical if_wgpu_present"
+    },
+    "native_suite": {
+      "initial_ctest_passed": 413,
+      "initial_failed": 25,
+      "rerun_passed": 24,
+      "rerun_setup": "source-root cwd, PYTHONIOENCODING=utf-8, PYTHONUTF8=1",
+      "remaining": "OpenSSL interoperability advisory exit 77: headers unavailable; no native code changed"
+    },
+    "native_optional_python_oracles_unavailable": [
+      "coincurve",
+      "noble-secp256k1"
+    ],
+    "physical_architectures": [
+      "sm_120"
+    ],
+    "compile_only_architectures": [
+      "sm_75"
+    ],
+    "scope_limitations": [
+      "no constant-time audit",
+      "no CPU performance parity claim",
+      "not the complete UltrafastSecp256k1 API",
+      "not deployed live or merged to master"
+    ]
+  },
+  "post_lint_rebuild": {
+    "measured_ptx_sha256": "b2081dc6a02bf0db86d83fd3b86879901087157ef6ef92ca1f92a449327247da",
+    "final_ptx_sha256": "8e0df066f08e4d0cc5d1f2c1f6343fe268cae01dff05cccc13a951472e38d1c1",
+    "changed_sections": [
+      ".func _RNvNtCsgQWlsu3hipw_19pickaxe_rust_engine5nonce11bch_rfc6979("
+    ],
+    "byte_identical_sections": 33,
+    "meaning": "Only the RFC6979 helper changed after the Clippy byte-encoding fix. Incremental-mining kernels and their called arithmetic/hash functions are byte-identical. Final physical GPU RFC6979 and full-pipeline correctness tests passed again; performance was not remeasured after this helper-only change.",
+    "pickaxe_revision": "45ec51b",
+    "repeated_checks": {
+      "gpu_vectors": 773,
+      "mining_candidates": 13920,
+      "vm_accepted": 103,
+      "vm_rejected": 113,
+      "pickaxe_suite_passed": 266,
+      "pickaxe_suite_ignored": 21,
+      "pickaxe_suite_filtered": 1,
+      "rfc6979_gpu_tests": "passed"
+    }
+  }
+}

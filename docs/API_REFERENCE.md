@@ -882,6 +882,75 @@ void point_dbl(const Point& p, Point& out);
 
 > [!] CT operations are ~5-7x slower than the fast variants. Use only for private key operations (signing, ECDH).
 
+### CPU Feature Detection and Dispatch
+
+`#include <secp256k1/cpu_features.hpp>` (namespace `secp256k1`). One cached,
+thread-safe view of the x86-64 CPU that every runtime dispatcher reads
+(`fast::has_bmi2_support`, `fast::has_adx_support`, `hash::detect_hash_tier`,
+`hash::sha_ni_available`, `hash::avx2_available`, `hash::avx512_available`).
+Non-x86 targets compile to an all-false view with `vendor == CpuVendor::Other`.
+This is a C++ API only; the C ABI (`include/ufsecp/ufsecp.h`) is unchanged.
+
+```cpp
+struct CpuFeatures {
+    CpuVendor vendor;                      // Intel / AMD / Other
+    uint32_t family, model, stepping;      // display family/model (extended fields folded in)
+    char brand[49];                        // CPUID 0x80000002..4, trimmed
+    bool avx2, bmi1, bmi2, adx, sha_ni;
+    bool avx512f, avx512vl, avx512ifma;    // CPUID.(7,0):EBX[16,31,21]
+    bool avx_ifma;                         // CPUID.(7,1):EAX[23] (VEX, no AVX-512 needed)
+    bool avx_vnni;                         // CPUID.(7,1):EAX[4]
+    uint32_t l2_cache_bytes, l3_cache_bytes; // Intel: leaf 4. AMD: leaf 0x8000001D (0 = unknown)
+};
+
+const CpuFeatures& cpu_features_raw();   // what the CPU + OS report
+const CpuFeatures& cpu_features();       // raw view minus the mask (use this to dispatch)
+void     set_cpu_disable_mask(uint32_t mask);  // API mask (cpu_mask::kAvx2 | kBmi2 | ...)
+uint32_t cpu_disable_mask();                   // effective mask (environment | API)
+
+// Pure decode over an injectable CPUID/XGETBV source (used by the unit test).
+CpuFeatures decode_cpu_features(const CpuidSource& src);
+```
+
+AVX / AVX-512 flags are true only when the OS saves that register state
+(XGETBV XCR0 bits 1-2 for AVX, plus 5-7 for AVX-512); a CPU that reports AVX2
+while the OS does not save YMM state decodes as AVX2 not usable.
+
+**Mask-down override (`UFSECP_CPU_DISABLE`).** A comma list of
+`avx2,bmi2,adx,sha_ni,avx512,ifma,avx_ifma` (case-insensitive; unknown names
+are ignored) turns those features off in `cpu_features()`. `avx2` also clears
+the vector flags layered on it, `avx512` clears `avx512f/vl/ifma`, `ifma`
+clears `avx512ifma`. The mask can only turn features off, never on: forcing a
+feature the CPU lacks would execute an unsupported instruction (SIGILL).
+`set_cpu_disable_mask()` is the same mask for tests and benchmarks; it adds to,
+and cannot lift, the environment mask. Dispatchers that cache their choice in a
+function-local static (the field mul path) see a mask only if it is set before
+their first call, so set `UFSECP_CPU_DISABLE` in the environment for those.
+A mask only moves a path to the portable implementation that non-x86 builds
+already use; it does not change any constant-time property.
+
+```bash
+UFSECP_CPU_DISABLE=adx,avx512 ./your_program
+```
+
+**`cpu_hwinfo`.** Built with the CPU library when tests are enabled
+(`cpu_hwinfo [--json]`). Prints vendor, family/model/stepping, brand, each
+feature flag raw and masked, the L2/L3 sizes and each dispatcher's choice.
+Text is one `key: value` line per fact:
+
+```
+cpu.vendor: Intel
+cpu.family: 6
+...
+feature.avx2: raw=1 masked=1
+cache.l2_bytes: <bytes>
+cache.l3_bytes: <bytes>
+dispatch.field_mul: bmi2_adx_asm | portable
+dispatch.hash_tier: SHA-NI | AVX2 | ... (as returned by hash_tier_name)
+```
+
+`--json` prints the same facts as one object (`features.<name>.raw/masked`).
+
 ---
 
 ## Address Generation API
@@ -1806,6 +1875,20 @@ __device__ void field_sqr(const FieldElement* a, FieldElement* r);
 __device__ void field_inv(const FieldElement* a, FieldElement* r);
 __device__ void field_neg(const FieldElement* a, FieldElement* r);
 
+// Variable-time inverses (modinv_var.cuh, included by secp256k1.cuh).
+// PUBLIC DATA ONLY: the iteration count depends on the value. Never call them
+// on a private key, a nonce, or a Z coordinate that came from a secret scalar
+// multiplication; those paths keep field_inv / ct::field_inv / ct::scalar_inverse
+// / jacobian_to_affine. An unqualified call from namespace ct does not compile.
+// Same results as field_inv / scalar_inverse / jacobian_to_affine (0 maps to 0,
+// a == r allowed). The verify functions (ecdsa_verify, schnorr_verify,
+// ecdsa_recover, the ECDSA SNARK witness, DLEQ / FROST partial / range verify)
+// call them.
+__device__ void field_inv_var(const FieldElement* a, FieldElement* r);   // a^-1 mod p
+__device__ void scalar_inv_var(const Scalar* a, Scalar* r);              // a^-1 mod n
+__device__ bool jacobian_to_affine_var(const JacobianPoint* p,           // public point -> affine
+                                       FieldElement* out_x, FieldElement* out_y);
+
 // Domain conversion (Montgomery mode only)
 __device__ void field_to_mont(const FieldElement* a, FieldElement* r);
 __device__ void field_from_mont(const FieldElement* a, FieldElement* r);
@@ -2487,6 +2570,116 @@ The C++ engine also provides `secp256k1::schnorr_batch_verify_mt(entries, n, max
 the multi-threaded twin of `ecdsa_batch_verify_mt` (same chunked design, `0`=auto/`1`=serial,
 result identical to serial for any thread count).
 
+<a id="c-abi-batch-lanes"></a>
+#### Lane-parallel batch verification (opt-in)
+
+The engine can verify several signatures per SIMD instruction stream with
+`secp256k1::lanes::ecdsa_verify_lanes` / `schnorr_verify_lanes`
+(`secp256k1/lanes.hpp`; backends `avx2`, `avx_ifma`, `ifma256`, `ifma512`).
+They return, entry by entry, the verdict of `ecdsa_verify` / `schnorr_verify`.
+(The BCH 2019 Schnorr twin, `bch_schnorr_verify_lanes`, is described under
+[BCH 2019 Schnorr verification](#bch-2019-schnorr-verification-not-bip-340);
+no batch API dispatches to it.)
+The batch APIs use them **only when a backend was chosen explicitly**. A lane
+variant becomes a default only after a `bench_unified` measurement on real
+hardware, so with no explicit choice every batch path runs the scalar code it
+ran before.
+
+The backend the batch APIs use is `secp256k1::lanes::lane_verify_backend()`:
+
+1. the override set by `secp256k1::lanes::set_lane_verify_backend(LaneBackend)`
+   (C++ only, for tests and benchmarks), if one is set. `LaneBackend::None`
+   forces the scalar path even when `UFSECP_LANES` is set. A backend that is
+   unavailable on this CPU, or out of range, is refused (`false`, override
+   unchanged). `reset_lane_verify_backend()` drops the override;
+2. otherwise the backend named by `UFSECP_LANES=avx2|avx_ifma|ifma256|ifma512`,
+   if it is available (`LaneSelectionReason::Forced`). `UFSECP_LANES=off`
+   gives the scalar path;
+3. otherwise none: the scalar path. The *default* pick of `lane_selection()`
+   (used by `cpu_hwinfo`) is not used for verification.
+
+Each batch call reads this once at entry (the `UFSECP_LANES` part is resolved
+once per process and cached), so a call never mixes paths. When a backend is
+selected:
+
+- **ECDSA** (`ecdsa_batch_verify`, `_mt`, `ecdsa_batch_identify_invalid`,
+  `ecdsa_batch_verify_opaque_rows` / `_columns`): the s-policy and r/s/infinity
+  prechecks run as before, then the signatures are verified in lane groups. A
+  batch of one entry stays scalar.
+- **BIP-340** (`schnorr_batch_verify`, `_mt`, `schnorr_batch_identify_invalid`,
+  `schnorr_batch_verify_bip340_rows` / `_columns`): batches of `n >= 28` keep
+  the randomized MSM. The lanes serve the individual path below that cutoff,
+  identify-invalid, and the per-row `out_results` pass of the row/column
+  APIs. The `SchnorrBatchCachedEntry` overloads always stay scalar.
+- Batch verdicts, invalid-index sets and per-row results are the same as with
+  the scalar path (`audit/test_lanes_verify_differential.cpp`, batch-integration
+  section). A GPU column hook, when installed, still runs first.
+
+C ABI calls that inherit the selection: `ufsecp_ecdsa_batch_verify`,
+`ufsecp_ecdsa_batch_verify_mt`, `ufsecp_ecdsa_batch_identify_invalid`,
+`ufsecp_schnorr_batch_verify`, `ufsecp_schnorr_batch_verify_mt` and
+`ufsecp_schnorr_batch_identify_invalid` (`src/cpu/src/impl/ufsecp_taproot.cpp`).
+The C ABI has no setter, so for these calls only `UFSECP_LANES` selects a
+backend. `ufsecp.h` is unchanged. The libbitcoin direct `*_opaque_*` /
+`*_bip340_*` entry points and the libsecp256k1 shim batch extension call the
+same engine functions and inherit the rule too. Public data only (verification);
+no `ct::` or secret path is involved.
+
+### BCH 2019 Schnorr verification (NOT BIP-340)
+
+Bitcoin Cash `OP_CHECKSIG` / `OP_CHECKDATASIG` 64-byte Schnorr, per the
+[2019-05-15 upgrade specification](https://upgradespecs.bitcoincashnode.org/2019-05-15-schnorr/):
+`sig = r || s`, `e = SHA256(r || pubkey33 || msg32) mod n`, `R = s*G - e*P`;
+valid iff `r < p`, `0 < s < n`, `P != O`, `R != O`, `R.y` is a quadratic residue
+and `x(R) == r`. (`s == 0` is rejected; the reference rejects only `s >= n`, an
+unobservable difference recorded in `docs/SHIM_KNOWN_DIVERGENCES.md`.) Public
+data only: variable-time by design, no `ct::` path. Engine:
+`src/cpu/include/secp256k1/bch_schnorr.hpp`.
+
+| C ABI | Contract |
+|-------|----------|
+| `ufsecp_bch_schnorr_verify(ctx, msg32, sig64, pubkey33)` | `UFSECP_OK` iff valid. `NULL_ARG`; `BAD_PUBKEY` (prefix not `02`/`03`, `x >= p`, off curve); `BAD_SIG` (`r >= p`, `s >= n`, `s == 0`); `VERIFY_FAIL`. |
+| `ufsecp_bch_schnorr_batch_verify(ctx, entries, n)` | Entries `[33-byte pubkey \| 32-byte msg \| 64-byte sig]` = 129 bytes, the BIP-340 batch layout with `pubkey33` in place of `xonly32`. `n == 0` -> `OK`; `n > 2^20` -> `BAD_INPUT`; a malformed entry fails the call with `BAD_PUBKEY` / `BAD_SIG`; otherwise `OK` iff all valid, else `VERIFY_FAIL`. |
+| `ufsecp_bch_schnorr_batch_identify(ctx, entries, n, results_out)` | Same layout; `results_out[i] = 1` if entry `i` is valid, else `0`. Results are zeroed first (fail closed). Same structural errors as the batch call; `OK` once the results are written. |
+
+C++ engine: `bch_schnorr_verify` (wire or pre-parsed key), `bch_schnorr_batch_verify`
+(`BchSchnorrBatchEntry` / `BchSchnorrBatchPointEntry`, optional `seed32`),
+`bch_schnorr_batch_verify_identify`, `bch_schnorr_pubkey_parse`.
+
+- **Single verify:** one dual multiplication, then no field inversion and no square
+  root: the residue test is the Jacobi symbol of `Y*Z` of the Jacobian result and the
+  x test is `r*Z^2 == X`.
+- **Batch:** checks `sum a_i*(s_i*G - e_i*P_i - R_i) == O` with `a_0 = 1` and 128-bit
+  odd `a_i = SHA256(seed || i)`, `seed = SHA256(tag, seed32?, every r||s||pubkey33||msg)`
+  XOR 32 CSPRNG bytes, and `R_i` the residue lift of `r_i`. One `pippenger_msm_glv_short`
+  over `3n` points (the `R_i` terms unsplit) plus one generator multiplication. Below
+  the individual-verify cutoff (27, the BIP-340 value; not yet measured for this path)
+  entries are verified one at a time. The verdict equals the AND of the single
+  verdicts (an all-valid batch is always accepted; any invalid entry is rejected with
+  probability `>= 1 - 2^-127`, one invalid entry with certainty). `n == 0` is valid;
+  `n == 1` is the single verifier. Without `SECP256K1_BUILD_PIPPENGER` every batch is
+  verified entry by entry.
+- **BCHN shim:** `secp256k1_schnorr_verify` delegates to the engine with identical
+  verdicts; `secp256k1_schnorr_verify_batch(ctx, sig64s, msg32s, pubkeys, n, seed32)`
+  (`compat/libsecp256k1_bchn_shim/include/secp256k1_schnorr.h`, Knuth PR #826 contract)
+  returns 1 iff all are valid, 1 for `n == 0`, 0 for NULL arrays with `n > 0`.
+- **Lanes (C++ only):** `secp256k1::lanes::bch_schnorr_verify_lanes(entries, n, results,
+  backend, stats = nullptr)` (`secp256k1/lanes.hpp`) verifies a `BchSchnorrBatchEntry`
+  array several signatures per SIMD instruction stream on an explicit `LaneBackend`
+  (`Avx2x4`, `AvxIfma256x4`, `Ifma256x4`, `Ifma512x8`; `None` or a backend this CPU
+  lacks runs the scalar verifier). `results[i] == bch_schnorr_verify(entry i)` for every
+  `i` and the return value is their AND; `n == 0` returns `true`; NULL `entries` or
+  `results` with `n > 0` returns `false` (non-NULL `results` cleared). Malformed entries
+  and lanes the group arithmetic flags as exceptional get the scalar verdict;
+  `LaneVerifyStats` counts each path. The kernel keeps both tests projective
+  (`X == r*Z^2`, Euler's criterion on `Y*Z`). `bch_schnorr_batch_verify` and the C ABI
+  do not dispatch to it. Timed by the `ufsecp lanes <backend>` rows of
+  `bench_bch_schnorr` ([BCH_SCHNORR_BATCH_BENCH.md](BCH_SCHNORR_BATCH_BENCH.md));
+  throughput: not yet measured.
+- **Tests:** `exploit_bch_schnorr_batch_forgery`, `bch_schnorr_differential`,
+  `regression_bch_schnorr_spec`, `lanes_verify_differential` (the lanes path, every
+  available backend).
+
 > **Standard integration surface (CPU):** for drop-in `libsecp256k1` compatibility, prefer the
 > shim batch extension in `compat/libsecp256k1_shim/include/secp256k1_batch.h`
 > (`secp256k1_ecdsa_verify_batch[_mt|_results]` / `secp256k1_schnorrsig_verify_batch[_mt|_results]`),
@@ -2549,13 +2742,35 @@ Size constants: `UFSECP_MUSIG2_PUBNONCE_LEN` (66), `UFSECP_MUSIG2_AGGNONCE_LEN` 
 
 | Function | Signature | Description |
 |----------|-----------|-------------|
-| `ufsecp_musig2_key_agg` | `(ctx, pubkeys, n, keyagg_out, agg_pubkey32_out) -> error_t` | Aggregate x-only pubkeys |
+| `ufsecp_musig2_key_agg` | `(ctx, pubkeys, n, keyagg_out, agg_pubkey32_out) -> error_t` | Aggregate `n * 33`-byte compressed public keys (BIP-327 plain public keys); the fixed-size keyagg/session format supports 2 to 3 participants |
 | `ufsecp_musig2_nonce_gen` | `(ctx, privkey, pubkey32, agg_pubkey32, msg32, extra_in, secnonce_out, pubnonce_out) -> error_t` | Generate nonce pair |
 | `ufsecp_musig2_nonce_agg` | `(ctx, pubnonces, n, aggnonce_out) -> error_t` | Aggregate public nonces |
 | `ufsecp_musig2_start_sign_session` | `(ctx, aggnonce, keyagg, msg32, session_out) -> error_t` | Start signing session |
 | `ufsecp_musig2_partial_sign` | `(ctx, secnonce, privkey, keyagg, session, signer_idx, partial_sig32_out) -> error_t` | Produce partial signature |
 | `ufsecp_musig2_partial_verify` | `(ctx, partial_sig32, pubnonce, pubkey32, keyagg, session, signer_idx) -> error_t` | Verify partial signature |
 | `ufsecp_musig2_partial_sig_agg` | `(ctx, partial_sigs, n, session, sig64_out) -> error_t` | Aggregate partials to final BIP-340 sig |
+
+**Session trust boundary.** The session blob is signer-local state.
+`ufsecp_musig2_partial_sign_v2` signs with the `b` and `e` stored in it and does
+not re-derive them (the same contract as libsecp256k1's `secp256k1_musig_session`
+from `secp256k1_musig_nonce_process`). Each signer must produce the session
+itself with `ufsecp_musig2_start_sign_session`, from the aggregate nonce it
+received and the message it intends to sign. A session blob received from a
+coordinator or peer must never be passed in.
+
+**`ufsecp_musig2_partial_verify` is parity-lenient.** It takes the signer key as
+a 32-byte x-only value, which does not carry the key's Y parity, so it accepts
+the partial signature if `s_i*G == R_i + e*a_i*g*gacc*P_i` holds for either
+parity of `P_i`. BIP-327 `PartialSigVerify` checks only `cpoint(pk_i)`, the key
+with its real parity. A dishonest signer can therefore return
+`s_i' = k1 + b*k2 - e*a_i*g*gacc*d_i` (the key term negated): it passes this
+function, but the aggregate signature is invalid, so the failure cannot be
+blamed on that signer through this call. The x-only signature is kept for ABI
+stability. When blame attribution matters, verify with the signer's 33-byte
+compressed key: the C++ overload
+`secp256k1::musig2_partial_verify(..., const std::array<uint8_t, 33>&, ...)`
+and the shim's `secp256k1_musig_partial_sig_verify` check only the real parity
+and reject that signature, as libsecp256k1 does.
 
 <a id="c-abi-frost"></a>
 ### FROST Threshold Signatures
@@ -2717,6 +2932,7 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_ecdsa_verify_batch` | `(ctx, msgs32[], pubs33[], sigs64[], n, results_out[]) -> error_t` | ECDSA batch verify |
 | `ufsecp_gpu_ecdsa_verify_opaque_rows` / `ufsecp_gpu_ecdsa_verify_lbtc_rows` | `(ctx, rows, stride, n, results_out[]) -> error_t` | Direct strided opaque ECDSA rows; CUDA/OpenCL/Metal parse and low-S normalize on device |
 | `ufsecp_gpu_schnorr_verify_batch` | `(ctx, msgs32[], pubs_x32[], sigs64[], n, results_out[]) -> error_t` | Schnorr/BIP-340 batch verify |
+| `ufsecp_gpu_bch_schnorr_verify_batch` | `(ctx, msgs32[], pubs33[], sigs64[], n, results_out[]) -> error_t` | Bitcoin Cash 2019 Schnorr batch verify (NOT BIP-340); per-item results equal `ufsecp_bch_schnorr_verify`. Same NULL / `n == 0` / fail-closed semantics as `ufsecp_gpu_schnorr_verify_batch`; a non-canonical SEC1 key is invalid for its own item only. Variable-time, public data. CUDA / OpenCL / Metal (Metal not runtime-verified on Linux). Throughput: not yet measured. |
 | `ufsecp_gpu_ecdsa_verify_lbtc_columns` | `(ctx, digests32[], pubs33[], sigs64[], n, results_out[]) -> error_t` | Direct libbitcoin ECDSA column (SoA) verify; opaque-LE sig parsed on device. **C ABI completeness only — the libbitcoin-direct surface is the C++ engine entrypoint, which reaches GPU via `install_gpu_columns_verify_hook` (see below), not this C ABI.** |
 | `ufsecp_gpu_schnorr_verify_lbtc_columns` | `(ctx, digests32[], xonly32[], sigs64[], n, results_out[]) -> error_t` | Direct libbitcoin Schnorr column (SoA) verify; BIP-340 parsed on device. **C ABI completeness only (see above).** |
 | `ufsecp_gpu_ecdsa_verify_collect` | `(ctx, msgs32[], pubs33[], sigs64[], n, key_buffer[]) -> error_t` | ECDSA batch verify, in-place 1-byte/row verdict (valid→0, invalid→left); libbitcoin collect. Native on CUDA, OpenCL, and Metal |
@@ -2727,7 +2943,7 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_hash256` | `(ctx, inputs, input_len, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) of fixed-length inputs; `input_len` must be in `[1,320]` |
 | `ufsecp_gpu_hash256_var` | `(ctx, inputs, input_lens[], stride, n, out32) -> error_t` | Batch Bitcoin HASH256 (double SHA-256) over per-item variable-length inputs; row `i` = `inputs[i*stride .. i*stride+input_lens[i])`, bytes beyond `input_lens[i]` up to `stride` are ignored padding. No tag prefix, no transaction parsing — GPU treats each row as an opaque byte string; rows up to `stride <= 4 MiB` (`kMaxHash256VarStride`). PUBLIC-DATA / variable-time |
 | `ufsecp_gpu_merkle_pair_hash` | `(ctx, left32, right32, n, out32) -> error_t` | Batch Merkle pair HASH256: `out32[i] = SHA256(SHA256(left32[i*32..+32] \|\| right32[i*32..+32]))` over two separate 32-byte column spans (Structure-of-Arrays). Fixed 64-byte combined input per row — no `input_len` parameter. `n==0` is a no-op (`out32` untouched); null `left32`/`right32`/`out32` -> `UFSECP_ERR_NULL_ARG`; `n` over `kMaxGpuBatchN` -> `UFSECP_ERR_BAD_INPUT`; non-OK leaves `out32` cleared. PUBLIC-DATA / variable-time |
-| `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication |
+| `ufsecp_gpu_msm` | `(ctx, scalars32[], points33[], n, result33_out) -> error_t` | Multi-scalar multiplication; any non-canonical point (prefix, x `>= p`) -> `UFSECP_ERR_BAD_PUBKEY` with `result33_out` cleared |
 | `ufsecp_gpu_frost_verify_partial_batch` | `(ctx, z_i32[], D_i33[], E_i33[], Y_i33[], rho_i32[], lambda_ie32[], negate_R[], negate_key[], n, results_out[]) -> error_t` | Batch FROST partial verification |
 | `ufsecp_gpu_ecrecover_batch` | `(ctx, msgs32[], sigs64[], recids[], n, pubkeys33_out[], valid_out[]) -> error_t` | Batch public-key recovery from recoverable ECDSA signatures |
 | `ufsecp_gpu_zk_knowledge_verify_batch` | `(ctx, proofs64[], pubkeys65[], msgs32[], n, results[]) -> error_t` | Batch ZK knowledge proof verification (PUBLIC) |
@@ -2737,9 +2953,25 @@ Current GPU C ABI failure semantics:
 | `ufsecp_gpu_bip324_aead_decrypt_batch` | `(ctx, keys32[], nonces12[], wire[], sizes[], max_payload, n, plain_out[], valid[]) -> error_t` | Batch BIP-324 ChaCha20-Poly1305 AEAD decrypt (SECRET) |
 | `ufsecp_gpu_zk_ecdsa_snark_witness_batch` | `(ctx, msgs32[], pubs33[], sigs64[], n, witnesses760_out[]) -> error_t` | Batch ECDSA SNARK witness generation — eprint 2025/695 (PUBLIC inputs) |
 | `ufsecp_gpu_zk_schnorr_snark_witness_batch` | `(ctx, msgs32[], pubkeys_x32[], sigs64[], n, witnesses472_out[]) -> error_t` | Batch BIP-340 Schnorr SNARK witness generation (PUBLIC inputs). GPU kernels pending — CPU fallback returns `Unsupported` via virtual dispatch. |
-| `ufsecp_gpu_bip352_scan_batch` | `(ctx, scan_privkey32, spend_pubkey33, tweaks33[], n, prefix64_out[]) -> error_t` | BIP-352 Silent Payment batch scan (single spend key) — returns upper-64-bit x-coordinate prefix per tweak (SECRET-BEARING: scan key sent to GPU). Thin wrapper delegating to `ufsecp_gpu_bip352_scan_batch_multispend` with `n_spend=1`; unchanged output/error semantics. |
+| `ufsecp_gpu_bip352_scan_batch` | `(ctx, scan_privkey32, spend_pubkey33, tweaks33[], n, prefix64_out[]) -> error_t` | BIP-352 Silent Payment batch scan (single spend key) — returns upper-64-bit x-coordinate prefix per tweak (SECRET-BEARING: scan key sent to GPU). Thin wrapper delegating to `ufsecp_gpu_bip352_scan_batch_multispend` with `n_spend=1`; same output/error semantics, including `UFSECP_ERR_BAD_INPUT` for a spend or tweak pubkey with x `>= p`. |
 | `ufsecp_gpu_bip352_scan_batch_multispend` | `(ctx, scan_privkey32, spend_pubkeys33[], n_spend, tweaks33[], n_tweaks, prefix64_out[]) -> error_t` | BIP-352 batch scan across `n_spend` candidate spend keys (issue #335, e.g. base + change-label spend keys). ECDH/tagged-hash/hash×G run once per tweak; one mixed point add per `(tweak, spend)` cell. Row-major `prefix64_out[tweak*n_spend+spend]`; native CUDA/OpenCL/Metal (SECRET-BEARING) |
 | `ufsecp_gpu_set_metal_shader_path` | `(absolute_dir) -> error_t` | Install an explicit, validated, absolute directory to locate the Metal shader library, for loadable-library consumers whose process CWD is unreliable (issue #335). Precedence: this call > `UFSECP_METAL_SHADER_PATH` env var > legacy CWD-relative search. Path-traversal rejection is component-based (a literal `..` path segment), not a raw substring match, so a directory name merely containing two dots (e.g. `v2..final`) is accepted. Behavior is IDENTICAL on Metal and non-Metal builds (validation/storage always run); on a build with no Metal backend the stored value is simply never consulted. |
+
+**Canonical point encodings (NF-2026-00029).** The GPU C ABI checks every
+caller-supplied SEC1 point on the host before dispatch: prefix, and every
+coordinate `< p` (the CPU parser's rule; the GPU kernels would reduce a
+coordinate `>= p` mod p). Entry points that take a batch of points as one
+input (`ecdh_batch`, `hash160_pubkey_batch`, `msm`, `frost_verify_partial_batch`,
+the ZK verifiers, `zk_ecdsa_snark_witness_batch`) return `UFSECP_ERR_BAD_PUBKEY`
+and clear their output; `bip352_scan_batch*` return `UFSECP_ERR_BAD_INPUT`.
+Per-item verifiers (`ecdsa_verify_batch`, `ecdsa_verify_opaque_rows` /
+`_lbtc_rows`, `ecdsa_` / `schnorr_verify_lbtc_columns`, `schnorr_verify_batch`,
+`xonly_validate`, `pubkey_validate`, `commitment_verify`) report an item with a
+non-canonical key (33-byte point, or x-only / internal / tweaked x `>= p`) as
+`0` and leave the other items' verdicts unchanged; the `*_verify_collect`
+variants leave that row's pre-seeded marker in place. The C++ `GpuBackend`
+methods called directly (for example by the libbitcoin direct entry point) do
+not go through this check.
 
 #### BIP-352 CPU utility
 
@@ -3211,6 +3443,6 @@ void secp256k1_musig_keyagg_cache_clear(secp256k1_musig_keyagg_cache *keyagg_cac
 
 ## Version
 
-UltrafastSecp256k1 v4.6.2
+UltrafastSecp256k1 v4.7.0
 
 For more information, see the [README](../README.md) or [GitHub repository](https://github.com/shrec/UltrafastSecp256k1).

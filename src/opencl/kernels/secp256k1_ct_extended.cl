@@ -84,7 +84,11 @@ __kernel void schnorr_sign(
     int ok = ct_schnorr_sign_impl(&priv, msg, aux, sig64);
     if (ok) {
         for (int i = 0; i < 32; i++) signatures[gid].r[i] = sig64[i];
-        scalar_from_bytes_impl(sig64 + 32, &signatures[gid].s);
+        // scalar_from_bytes_impl takes a private pointer; decode into a private
+        // Scalar and assign (passing &signatures[gid].s is an address-space error).
+        Scalar s_out;
+        scalar_from_bytes_impl(sig64 + 32, &s_out);
+        signatures[gid].s = s_out;
     } else {
         // Fail-closed: zero output on failure
         for (int i = 0; i < 32; i++) signatures[gid].r[i] = 0;

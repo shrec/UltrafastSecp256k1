@@ -429,3 +429,160 @@ No dependencies beyond the standard library. Raw results go to
 No number in this document came from running code on hardware. The weighted
 costs are model outputs. Until the benchmark harness exists and a controlled
 A/B run is recorded, every entry above is a *prediction*.
+
+## Cross-formula equivalence on a declared slice
+
+`repsearch/crossform.py`, driven by `tools/run_crossform.py`.
+
+The beam search in `rewrite.py` rewrites one straight-line program in place. Every
+candidate it builds uses the reference's own input list, its gate demands the
+candidate's output key set equal the reference's exactly, and equivalence is raw
+value equality on every coordinate. Those three commitments are right for a
+peephole substitution -- a caller reading `.z` must keep getting the same `.z` --
+and they are exactly why that search can never propose a **different formula**.
+
+Meloni's co-Z addition is the standing example:
+
+```text
+madd_production   inputs (X1, Y1, Z1, X2, Y2)   8M+3S+3neg+7add   weighted 11.33  depth 5.26
+zaddu             inputs (X1, Y1, X2, Y2, Z)    5M+2S+7sub        weighted  7.28  depth 3.23
+```
+
+Same arity, four shared names, but the fifth position means different things: `Z1`
+belongs to P alone with Q implicitly affine, while `Z` is shared by P and Q. No
+local rewrite bridges that.
+
+This module does not weaken the equivalence test. The raw-value comparison stays
+exactly as strong. What it adds is the ability to state the **precondition** under
+which two different formulas agree:
+
+```text
+madd_production(X1, Y1, 1, X2, Y2) == zaddu_sum_only(X1, Y1, X2, Y2, 1)
+```
+
+Both sides are affine there, which is one situation described twice.
+
+Running it against the whole registry:
+
+```text
+formula                  slice               weighted     depth  extra outputs
+zaddu                    Z=1, Z1=1             -33.3%    -34.8%  Xp, Yp, Zp
+zaddu_sum_only           Z=1, Z1=1             -33.3%    -34.8%  -
+madd_prod_no_signfold    everywhere             +1.0%     +1.9%  -
+madd_prod_s2_reassoc     everywhere             +0.0%     +0.0%  -
+```
+
+The −35.7% is the same transformation the engine measured at 34.7% on hardware.
+
+**The control is the part that matters.** An unpinned input takes a random field
+value, so the empty slice is a real test rather than an error, and co-Z must be
+seen to fail it:
+
+```text
+off the slice (Z1 free): agreed  0/64   holds=False
+on the slice  (Z1 = 1) : agreed 64/64   holds=True
+```
+
+Zero of sixty-four. The two `madd_prod_*` variants, which are genuine rewrites,
+hold with no precondition at all. A tool that could not tell those two situations
+apart would licence substituting a formula whose precondition the caller does not
+meet, which is worse than having no tool.
+
+Extra outputs are reported, never dropped: `zaddu` hands back P on the new Z
+alongside P+Q, and those three values are the reason the formula exists -- a chain
+of them needs no normalisation between steps.
+
+Slices are **declared**, never inferred from whether they happen to pass.
+
+### What the all-pairs sweep found, and the two defects it found first
+
+Running every ordered pair in the registry against every other -- doublings against
+doublings, mixed adds against mixed adds and against co-Z -- was supposed to answer
+one question: is there anything cheaper than what the engine ships? It answered a
+different one twice before getting there.
+
+**Defect 1: the cost model discounted a spelling the engine cannot emit.**
+
+The sweep reported four *unconditional* improvements over shipped formulas:
+
+```text
+dbl_production        -> dbl_prod_alt_sign       -1.1% weighted   -2.5% depth
+madd_production       -> madd_prod_no_signfold   -1.1% weighted   -1.9% depth
+```
+
+Their operation multisets say why that was not credible:
+
+```text
+formula                   mul  sqr  add  sub  neg  half  mulint | M+S  add-layer
+dbl_production              3    4    4    0    2     1       1 |   7          8
+dbl_prod_alt_sign           3    4    1    3    0     1       1 |   7          6
+madd_production             8    3    7    0    3     0       0 |  11         10
+madd_prod_no_signfold       8    3    1    6    0     0       0 |  11          7
+```
+
+Identical multiplies and squares. The whole delta sat in the additive layer, and
+the size of each was exactly the reference formula's `neg` count. FE52 has no
+subtract -- `point.cpp`'s kernels are written in `add_assign` and `negate_assign`,
+and those are the only additive primitives there is -- so `sub(a, b)` and
+`add(a, neg(b))` compile to the same instructions. Weighting `sub` at 0.06 against
+`neg + add` at 0.10 handed a formula a 40% discount on every subtraction for
+choosing one spelling over the other.
+
+`sub` now costs `neg + add`, pinned by a test. The correction **reverses both
+comparisons**: the shipped formulas win, which is what the in-tree note on
+`madd_production` said all along -- the engine spends an extra multiply to remove a
+squaring *and* turn every subtraction into an addition, and that was measured on
+hardware, not modelled.
+
+**Defect 2: the doubling family had never actually been compared.**
+
+A doubling names its input `(X, Y)`; an addition names the first point `(X1, Y1)`.
+The harness seeded only the two-point names, so a doubling reference read random
+field values while its candidate read the on-curve point -- two formulas evaluated
+at different inputs. Every doubling pair came back disagreeing, which read as "the
+doubling family is exhausted" when it had never been tested. Both naming
+conventions now denote the same point.
+
+**The registry holds two Jacobian conventions, and they could not meet.**
+
+libsecp's doubling ends `Z3 = Y*Z`; the EFD formulas end `Z3 = 2*Y*Z`. Those are
+the same affine point through different representatives, and raw-value equality
+correctly rejects the pair. Correctly -- but it also meant a third of the registry
+was unreachable. `slice_agreement(..., projective=True)` compares
+`X1*Z2^2 == X2*Z1^2` and `Y1*Z2^3 == Y2*Z1^3` instead, and unlocks 40 more pairs:
+
+```text
+raw gate         34 agreeing pairs
+projective gate  74 agreeing pairs      (+40 by change of representative)
+```
+
+It stays opt-in and stays a gate: co-Z off its slice is a different map, not a
+rescaled one, and the projective comparison still rejects it. Substituting across
+it is sound only where the caller reads the point rather than the coordinates -- a
+call site that tests `Z == 1`, or carries a `Z` forward, is not such a caller.
+
+**The answer to the original question.**
+
+Every role's cheapest formula is one the engine already ships:
+
+```text
+dbl     dbl_z1_production   6.14   in_tree: jac52_double_z1_to
+        dbl_production      7.14   in_tree: jac52_double_coords
+madd    madd_production    11.33   in_tree: jac52_add_mixed_inplace   (tied)
+co-Z    zaddu               7.56   applied at the call site
+```
+
+All 22 cross-convention improvements point *from* an EFD reference formula *to* a
+shipped one. The sweep re-derived the choices already made and found nothing past
+them. Getting a new answer out of it needs new formulas in the registry --
+Chudnovsky coordinates, ZADDC, mixed-Z variants, dbl-then-add fusions -- not more
+searching over these.
+
+One live-code observation came out of it. `precompute.cpp` carries its own
+`jacobian_double` (dbl-2009-l) and `jacobian_add_mixed_local` (madd-2007-bl),
+unguarded and compiled into every build, and the projective gate proves both are
+interchangeable with the cheaper FE52-path formulas. It is **not** a claimed win:
+the substitution trades one squaring for one multiply rather than removing work,
+these kernels run on 4x64 `FieldElement` whose mul/sqr ratio differs from the FE52
+weights used here, and `FieldElement` has no modular halve for the `(3/2)X^2` the
+better doubling needs. A 4x64-calibrated measurement would have to decide it.

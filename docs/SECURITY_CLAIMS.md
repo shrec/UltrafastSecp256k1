@@ -1,6 +1,89 @@
 # Security Claims & API Contract
 
-**UltrafastSecp256k1 v4.6.2** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+**UltrafastSecp256k1 v4.7.0** -- FAST / CT Dual-Layer Architecture (CPU + GPU)
+
+### 2026-11-04 - BCH 2019 Schnorr batch verification on the GPU (issue #466)
+
+`ufsecp_gpu_bch_schnorr_verify_batch` (`include/ufsecp/ufsecp_gpu.h`) runs the
+same BCH 2019 rule as `ufsecp_bch_schnorr_verify`, one thread per signature, on
+CUDA (`src/cuda/include/bch_schnorr.cuh`), OpenCL
+(`src/opencl/kernels/secp256k1_extended.cl`) and Metal
+(`src/metal/shaders/secp256k1_kernels.metal`, code-complete but not
+runtime-verified on Linux). Every input is public, so the kernels are
+variable-time by design. No key, nonce or other secret reaches the GPU on this
+path, so there is no device buffer to erase.
+
+**Claim:** `out_results[i] == 1` exactly when `ufsecp_bch_schnorr_verify`
+accepts item i, and the call fails closed under the same rules as
+`ufsecp_gpu_schnorr_verify_batch` (`docs/FFI_HOSTILE_CALLER.md` I.5d).
+Validation: `audit/test_gpu_ops_equivalence.cpp` (GPU against CPU per item, for
+valid signatures and every invalid class) and the GPU audit runners'
+differential modules.
+
+### 2026-11-04 - BCH 2019 Schnorr verification in the C ABI (issue #466)
+
+Three verify-only functions join the stable ABI: `ufsecp_bch_schnorr_verify`,
+`ufsecp_bch_schnorr_batch_verify` and `ufsecp_bch_schnorr_batch_identify`
+(`src/cpu/src/impl/ufsecp_bch_schnorr.cpp`, engine `src/cpu/src/bch_schnorr.cpp`).
+They implement the Bitcoin Cash 2019-05-15 Schnorr rule, not BIP-340. No input
+is secret, so the engine is variable-time by design (CT-VERIFY). No secret
+enters or leaves these functions, and they allocate no secret-bearing buffer.
+
+**Claim:** each function returns `UFSECP_OK` only for signatures that the BCH
+specification accepts, with one exception: `s == 0` is rejected up front, and no
+producible signature behaves differently (`docs/SHIM_KNOWN_DIVERGENCES.md`). The
+batch accepts only if every entry verifies; an invalid entry is rejected with
+probability at least `1 - 2^-127`, because the weights are bound to every input
+and mixed with fresh CSPRNG bytes. Identify fails closed: on a structural error
+it zeroes every result. Validation: `audit/test_exploit_bch_schnorr_batch_forgery.cpp`
+(cancellation pair, R = -R twin, one bad entry at every position, range and key
+rejects) and `audit/test_bch_schnorr_differential.cpp` (engine, C ABI and BCHN
+shim against each other). Hostile-caller contract: `docs/FFI_HOSTILE_CALLER.md`
+I.5c.
+
+### 2026-11-04 - MuSig2 partial verify: strict BIP-327 parity with the 33-byte key
+
+This entry supersedes the 2026-06-22 entry below for the paths that hold the
+signer's compressed key. That entry calls both-parity acceptance safe, but it
+is not harmless. A signer can return `s' = k1 + b*k2 - e*a_i*g*gacc*d_i`. That
+value passes the both-parity check, yet it makes the aggregate signature
+invalid. The coordinator then cannot tell which signer misbehaved
+(NF-2026-00028). It still does not enable aggregate forgery.
+
+`d5a2cdf3` adds a `musig2_partial_verify` overload that takes the signer's
+33-byte compressed key. It accepts only `s*G == R_eff + ea*cpoint(pk_i)` with
+the key's real Y parity, which is BIP-327 PartialSigVerify.
+`secp256k1_musig_partial_sig_verify` in the shim now uses it and rejects the
+negated-key-term signature as upstream libsecp256k1 does.
+
+The x-only overload and the C ABI `ufsecp_musig2_partial_verify` are unchanged.
+They stay parity-lenient, because an x-only key carries no parity. This is
+documented in `docs/API_REFERENCE.md` and `docs/SHIM_KNOWN_DIVERGENCES.md`.
+
+**Claim:** with the 33-byte key, partial verify rejects any partial signature
+that BIP-327 rejects, so blame is reliable. The x-only path keeps the weaker
+2026-06-22 property. Secret handling is unchanged (`docs/SECRET_LIFECYCLE.md`
+2026-11-04). Validation: `audit/test_regression_musig2_session_token.cpp`. The
+shim and the 33-byte overload reject the negated-key-term signature, and the
+honest one verifies.
+
+### 2026-11-02 - MuSig2: session blob is signer-local; key_agg input is 33-byte keys (doc-only)
+
+No claim moves. `include/ufsecp/ufsecp.h` now states that the MuSig2 session
+blob is signer-local state: `ufsecp_musig2_partial_sign_v2` signs with the
+stored nonce coefficient `b` and challenge `e`, and does not recompute them
+from the aggregate nonce and message. This is the libsecp256k1
+`secp256k1_musig_session` contract. The MuSig2 security claim therefore holds
+only when each signer computes its own session with
+`ufsecp_musig2_start_sign_session`. A session supplied by another party lets
+that party choose what the signer signs.
+
+The header also corrects the `ufsecp_musig2_key_agg` input to `n * 33`-byte
+compressed public keys, which is what BIP-327 KeyAgg hashes and what the code
+reads. KeyAgg conformance is checked against the official BIP-327
+key_agg_vectors in both the core test (`musig2_bip327`) and the shim
+conformance job (`bip327_keyagg_vectors`). See
+[`FFI_HOSTILE_CALLER.md`](FFI_HOSTILE_CALLER.md) for the caller contract.
 
 ### 2026-09-24 - ECDH serialization and x-only input contracts
 
@@ -2093,4 +2176,4 @@ Every release must answer: **"Did the CT scope change?"**
 
 <!-- 2026-05-28: shim_ecdsa.cpp + shim_recovery.cpp + shim_ellswift.cpp + bip32.cpp — secret-key stack-residue hardening (CT-01/SHIM-01/02/CT-02). Claim: parsed private-key scalars and BIP-324 handshake key material do not persist on the stack after the call returns. (CT-01) shim ECDSA sign / sign_recoverable secure_erase the parsed key scalar (`k` / `privkey_scalar`) on every return path; (SHIM-01/02) ellswift_create and ellswift_xdh erase `sk`+`kb` on all returns (success, parse-fail, and the three xdh error branches), completing SHIM-006; (CT-02) BIP-32 hardened derive_child erases the HMAC-derived `il_scalar` on all 7 return paths. Also RT-02: secp256k1_ecdsa_signature_parse_der now requires exact SEQUENCE consumption (`p == end`), rejecting trailing bytes inside the SEQUENCE — matching upstream + the native C ABI parser. Output bytes written before erase; no behavioral change. Regression guard: audit/test_regression_shim_seckey_erase.cpp. -->
 
-*UltrafastSecp256k1 v4.6.2 -- Security Claims*
+*UltrafastSecp256k1 v4.7.0 -- Security Claims*

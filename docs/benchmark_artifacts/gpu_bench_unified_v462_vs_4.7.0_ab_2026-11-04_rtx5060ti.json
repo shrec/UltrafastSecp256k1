@@ -1,0 +1,642 @@
+{
+ "report_type": "ab_gpu-unified",
+ "generated_by": "ab_driver.py (scratch driver; every number parsed from tool output, none typed by hand)",
+ "date": "2026-11-04T07:25:26.975254+00:00",
+ "host": "parking",
+ "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+ "rounds": 5,
+ "order": "alternating per round (base,new / new,base)",
+ "verdict_rule": "improvement iff new_max < base_min; regression iff new_min > base_max; else inconclusive",
+ "what_changed": "v4.6.2 release (80b08d5a) vs dev 022e06d3 (4.7.0 staged): every CUDA change between the two releases",
+ "base_commit": "80b08d5a (v4.6.2)",
+ "new_commit": "022e06d3 (dev, 4.7.0 staged)",
+ "gpu": "NVIDIA GeForce RTX 5060 Ti, driver 580.196.07",
+ "build": "cuda-release-5060ti preset in each tree, CUDA 13.2",
+ "bench_invocation": "gpu_bench_unified --suite all --passes 11 --json <file>",
+ "binaries": {
+  "base": {
+   "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/out/wt-v4.6.2/out/cuda-release-5060ti/src/cuda/gpu_bench_unified",
+   "sha256": "66d691cd71f1677ca8b3df241c31727c1362254e48926a86ee19f32b68f266c4"
+  },
+  "new": {
+   "path": "/home/shrek/Secp256k1/Secp256K1fast/libs/UltrafastSecp256k1/out/cuda-release-5060ti/src/cuda/gpu_bench_unified",
+   "sha256": "c6c075fd089b5735b91591942ea094e7ef773c5c980f432d5743d93b27cdf3d6"
+  }
+ },
+ "json_headers": {
+  "base": {
+   "report_type": "gpu_benchmark",
+   "library": "UltrafastSecp256k1",
+   "library_version": "unknown",
+   "git_hash": "unknown",
+   "timestamp": "2026-11-04T07:24:06",
+   "metadata": {
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "compute_capability": "12.0",
+    "sm_count": 36,
+    "clock_mhz": 2602,
+    "memory_mb": 15844,
+    "backend": "CUDA",
+    "driver": "13.0",
+    "compiler": "GCC 14.2",
+    "arch": "x86-64",
+    "passes": 11,
+    "warmup": 3,
+    "batch_size": 1048576
+   }
+  },
+  "new": {
+   "report_type": "gpu_benchmark",
+   "library": "UltrafastSecp256k1",
+   "library_version": "unknown",
+   "git_hash": "unknown",
+   "timestamp": "2026-11-04T07:24:15",
+   "metadata": {
+    "gpu": "NVIDIA GeForce RTX 5060 Ti",
+    "compute_capability": "12.0",
+    "sm_count": 36,
+    "clock_mhz": 2602,
+    "memory_mb": 15844,
+    "backend": "CUDA",
+    "driver": "13.0",
+    "compiler": "GCC 14.2",
+    "arch": "x86-64",
+    "passes": 11,
+    "warmup": 3,
+    "batch_size": 1048576
+   }
+  }
+ },
+ "ops": {
+  "Field Arithmetic / mul": {
+   "base": {
+    "rounds": [
+     0.24,
+     0.24,
+     0.24,
+     0.24,
+     0.24
+    ],
+    "median": 0.24,
+    "min": 0.24,
+    "max": 0.24,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     0.24,
+     0.24,
+     0.24,
+     0.24,
+     0.24
+    ],
+    "median": 0.24,
+    "min": 0.24,
+    "max": 0.24,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "Field Arithmetic / sqr": {
+   "base": {
+    "rounds": [
+     0.16,
+     0.16,
+     0.16,
+     0.16,
+     0.16
+    ],
+    "median": 0.16,
+    "min": 0.16,
+    "max": 0.16,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     0.16,
+     0.16,
+     0.16,
+     0.16,
+     0.16
+    ],
+    "median": 0.16,
+    "min": 0.16,
+    "max": 0.16,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "Field Arithmetic / add": {
+   "base": {
+    "rounds": [
+     0.24,
+     0.24,
+     0.24,
+     0.24,
+     0.24
+    ],
+    "median": 0.24,
+    "min": 0.24,
+    "max": 0.24,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     0.24,
+     0.24,
+     0.24,
+     0.24,
+     0.24
+    ],
+    "median": 0.24,
+    "min": 0.24,
+    "max": 0.24,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "Field Arithmetic / sub": {
+   "base": {
+    "rounds": [
+     0.24,
+     0.24,
+     0.24,
+     0.24,
+     0.24
+    ],
+    "median": 0.24,
+    "min": 0.24,
+    "max": 0.24,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     0.24,
+     0.24,
+     0.24,
+     0.24,
+     0.24
+    ],
+    "median": 0.24,
+    "min": 0.24,
+    "max": 0.24,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "Field Arithmetic / inv": {
+   "base": {
+    "rounds": [
+     11.01,
+     11.01,
+     11.01,
+     11.01,
+     11.01
+    ],
+    "median": 11.01,
+    "min": 11.01,
+    "max": 11.01,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     11.01,
+     11.01,
+     11.01,
+     11.01,
+     11.01
+    ],
+    "median": 11.01,
+    "min": 11.01,
+    "max": 11.01,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "Point Operations / add (Jacobian)": {
+   "base": {
+    "rounds": [
+     0.94,
+     0.93,
+     0.94,
+     0.93,
+     0.94
+    ],
+    "median": 0.94,
+    "min": 0.93,
+    "max": 0.94,
+    "spread_pct": 1.0638297872340319
+   },
+   "new": {
+    "rounds": [
+     0.94,
+     0.94,
+     0.94,
+     0.94,
+     0.94
+    ],
+    "median": 0.94,
+    "min": 0.94,
+    "max": 0.94,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "Point Operations / double": {
+   "base": {
+    "rounds": [
+     0.74,
+     0.74,
+     0.74,
+     0.74,
+     0.74
+    ],
+    "median": 0.74,
+    "min": 0.74,
+    "max": 0.74,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     0.74,
+     0.74,
+     0.74,
+     0.74,
+     0.74
+    ],
+    "median": 0.74,
+    "min": 0.74,
+    "max": 0.74,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "Point Operations / Jac->Affine": {
+   "base": {
+    "rounds": [
+     11.14,
+     11.14,
+     11.14,
+     11.14,
+     11.14
+    ],
+    "median": 11.14,
+    "min": 11.14,
+    "max": 11.14,
+    "spread_pct": 0.0
+   },
+   "new": {
+    "rounds": [
+     11.14,
+     11.14,
+     11.14,
+     11.14,
+     11.14
+    ],
+    "median": 11.14,
+    "min": 11.14,
+    "max": 11.14,
+    "spread_pct": 0.0
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0
+  },
+  "Scalar Multiplication / k*G (generator)": {
+   "base": {
+    "rounds": [
+     136.29,
+     135.97,
+     135.98,
+     136.05,
+     136.01
+    ],
+    "median": 136.01,
+    "min": 135.97,
+    "max": 136.29,
+    "spread_pct": 0.23527681788103313
+   },
+   "new": {
+    "rounds": [
+     136.08,
+     136.19,
+     136.11,
+     136.05,
+     135.97
+    ],
+    "median": 136.08,
+    "min": 135.97,
+    "max": 136.19,
+    "spread_pct": 0.1616696061140497
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.000514668039115
+  },
+  "Affine Pipeline / affine add (2M+1S+inv)": {
+   "base": {
+    "rounds": [
+     9.9,
+     9.91,
+     9.92,
+     9.92,
+     9.91
+    ],
+    "median": 9.91,
+    "min": 9.9,
+    "max": 9.92,
+    "spread_pct": 0.20181634712411275
+   },
+   "new": {
+    "rounds": [
+     9.91,
+     9.92,
+     9.92,
+     9.92,
+     9.92
+    ],
+    "median": 9.92,
+    "min": 9.91,
+    "max": 9.92,
+    "spread_pct": 0.10080645161290108
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0010090817356205
+  },
+  "ECDSA / sign (RFC 6979)": {
+   "base": {
+    "rounds": [
+     185.0,
+     185.13,
+     185.23,
+     185.61,
+     185.0
+    ],
+    "median": 185.13,
+    "min": 185.0,
+    "max": 185.61,
+    "spread_pct": 0.3294981904607647
+   },
+   "new": {
+    "rounds": [
+     185.54,
+     185.97,
+     185.75,
+     185.48,
+     185.63
+    ],
+    "median": 185.63,
+    "min": 185.48,
+    "max": 185.97,
+    "spread_pct": 0.2639659537790277
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0027008048398423
+  },
+  "Schnorr/BIP-340 / sign": {
+   "base": {
+    "rounds": [
+     217.84,
+     218.12,
+     217.96,
+     216.05,
+     217.83
+    ],
+    "median": 217.84,
+    "min": 216.05,
+    "max": 218.12,
+    "spread_pct": 0.9502387073081129
+   },
+   "new": {
+    "rounds": [
+     217.36,
+     216.8,
+     215.1,
+     217.48,
+     217.48
+    ],
+    "median": 217.36,
+    "min": 215.1,
+    "max": 217.48,
+    "spread_pct": 1.0949576739050402
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9977965479250827
+  },
+  "CT Point Ops / ct::k*G (generator)": {
+   "base": {
+    "rounds": [
+     95.45,
+     95.63,
+     95.7,
+     94.68,
+     95.65
+    ],
+    "median": 95.63,
+    "min": 94.68,
+    "max": 95.7,
+    "spread_pct": 1.066610896162288
+   },
+   "new": {
+    "rounds": [
+     95.39,
+     95.17,
+     94.33,
+     95.38,
+     94.8
+    ],
+    "median": 95.17,
+    "min": 94.33,
+    "max": 95.39,
+    "spread_pct": 1.1137963644005486
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 0.9951897939976996
+  },
+  "CT Point Ops / ct::k*P (scalar mul)": {
+   "base": {
+    "rounds": [
+     158.71,
+     161.08,
+     161.33,
+     158.01,
+     159.32
+    ],
+    "median": 159.32,
+    "min": 158.01,
+    "max": 161.33,
+    "spread_pct": 2.083856389656052
+   },
+   "new": {
+    "rounds": [
+     163.35,
+     161.31,
+     160.34,
+     160.96,
+     160.54
+    ],
+    "median": 160.96,
+    "min": 160.34,
+    "max": 163.35,
+    "spread_pct": 1.870029821073553
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0102937484308312
+  },
+  "MSM / msm scatter only": {
+   "base": {
+    "rounds": [
+     171.41,
+     171.4,
+     171.39,
+     172.02,
+     172.06
+    ],
+    "median": 171.41,
+    "min": 171.39,
+    "max": 172.06,
+    "spread_pct": 0.3908756781984808
+   },
+   "new": {
+    "rounds": [
+     171.63,
+     171.62,
+     172.0,
+     172.28,
+     172.31
+    ],
+    "median": 172.0,
+    "min": 171.62,
+    "max": 172.31,
+    "spread_pct": 0.4011627906976731
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0034420395542851
+  },
+  "MSM / msm scatter+blockreduce": {
+   "base": {
+    "rounds": [
+     173.4,
+     173.41,
+     173.39,
+     174.04,
+     174.07
+    ],
+    "median": 173.41,
+    "min": 173.39,
+    "max": 174.07,
+    "spread_pct": 0.39213424831324994
+   },
+   "new": {
+    "rounds": [
+     173.65,
+     173.65,
+     174.32,
+     174.31,
+     174.37
+    ],
+    "median": 174.31,
+    "min": 173.65,
+    "max": 174.37,
+    "spread_pct": 0.4130571969479656
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0051900121100283
+  },
+  "MSM / msm sum(k_i*P_i)": {
+   "base": {
+    "rounds": [
+     173.5,
+     173.53,
+     174.16,
+     174.17,
+     174.17
+    ],
+    "median": 174.16,
+    "min": 173.5,
+    "max": 174.17,
+    "spread_pct": 0.38470372071657527
+   },
+   "new": {
+    "rounds": [
+     173.75,
+     173.74,
+     174.42,
+     174.42,
+     174.42
+    ],
+    "median": 174.42,
+    "min": 173.74,
+    "max": 174.42,
+    "spread_pct": 0.38986354775827226
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0014928801102434
+  },
+  "CT ECDSA / ct::ecdsa_sign": {
+   "base": {
+    "rounds": [
+     175.5,
+     174.32,
+     175.75,
+     176.61,
+     175.85
+    ],
+    "median": 175.75,
+    "min": 174.32,
+    "max": 176.61,
+    "spread_pct": 1.3029871977240515
+   },
+   "new": {
+    "rounds": [
+     175.9,
+     176.28,
+     174.37,
+     176.77,
+     176.63
+    ],
+    "median": 176.28,
+    "min": 174.37,
+    "max": 176.77,
+    "spread_pct": 1.3614703880190637
+   },
+   "verdict": "inconclusive",
+   "new_over_base_median": 1.0030156472261735
+  },
+  "CT Schnorr / ct::schnorr_sign": {
+   "base": {
+    "rounds": [
+     210.48,
+     210.84,
+     209.49,
+     211.64,
+     210.61
+    ],
+    "median": 210.61,
+    "min": 209.49,
+    "max": 211.64,
+    "spread_pct": 1.0208442144247554
+   },
+   "new": {
+    "rounds": [
+     207.99,
+     209.02,
+     208.29,
+     208.38,
+     208.91
+    ],
+    "median": 208.38,
+    "min": 207.99,
+    "max": 209.02,
+    "spread_pct": 0.49428927920145943
+   },
+   "verdict": "improvement",
+   "new_over_base_median": 0.9894117088457337
+  }
+ }
+}

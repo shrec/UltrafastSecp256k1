@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to release (e.g. v4.6.2)'
+        description: 'Tag to release (e.g. v4.7.0)'
         required: true
 
 permissions:
@@ -1138,6 +1138,14 @@ jobs:
     needs: [release-caas-gate, build-desktop, build-linux-arm64]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
+    # id-token: write lets NuGet/login exchange this job's GitHub OIDC token for
+    # a short-lived nuget.org API key (trusted publishing), so no long-lived key
+    # is stored. A job-level block replaces the workflow-level one, so the two
+    # read permissions are repeated here.
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
@@ -1228,12 +1236,26 @@ jobs:
             --api-key "${{ secrets.GITHUB_TOKEN }}" \
             --skip-duplicate
 
-      - name: Publish to nuget.org (public registry)
+      # Trusted publishing: nuget.org has a policy that trusts this workflow file
+      # (release.yml) in shrec/UltrafastSecp256k1. NUGET_USER is the nuget.org
+      # profile name, not an e-mail. The key is valid for one hour, so the login
+      # runs right before the push.
+      - name: NuGet login (OIDC -> short-lived API key)
+        id: nuget-login
         continue-on-error: true
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: Publish to nuget.org (public registry)
+        if: steps.nuget-login.outcome == 'success'
+        continue-on-error: true
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
         run: |
           dotnet nuget push bindings/csharp/Ufsecp/nupkgs/*.nupkg \
             --source "https://api.nuget.org/v3/index.json" \
-            --api-key "${{ secrets.NUGET_TOKEN }}" \
+            --api-key "$NUGET_API_KEY" \
             --skip-duplicate
 
   # ==========================================================================
@@ -1253,7 +1275,7 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
 
-      - uses: ruby/setup-ruby@9eb537ca036ebaed86729dcb9309076e4c5c3b74 # v1
+      - uses: ruby/setup-ruby@14594264cd68ce8a2345dd349bc3d138a4ef85c8 # v1
         with:
           ruby-version: '3.3'
 
@@ -1341,7 +1363,7 @@ jobs:
         with:
           ref: ${{ env.RELEASE_TAG }}
 
-      - uses: actions/setup-java@ad2b38190b15e4d6bdf0c97fb4fca8412226d287 # v5
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
           distribution: temurin
           java-version: '17'

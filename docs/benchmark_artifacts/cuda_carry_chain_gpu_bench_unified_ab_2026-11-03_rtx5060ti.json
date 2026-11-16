@@ -1,0 +1,731 @@
+{
+  "report_type": "ab_gpu-unified",
+  "generated_by": "scratch A/B driver (ab_driver.py): every value parsed from the tool's own output; no number typed by hand",
+  "date": "2026-11-03T15:56:11.643677+00:00",
+  "host": "parking",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "rounds": 5,
+  "order": "alternating per round (base,new / new,base)",
+  "verdict_rule": "improvement iff new_max < base_min; regression iff new_min > base_max; else inconclusive",
+  "what_changed": "38871726 (rebased 5cac5999): add_cc/sub_cc/muladd64 native __int128 carry chain on nvcc instead of compare-based carry (NF-2026-00031)",
+  "base_commit": "5402d9e0",
+  "new_commit": "5cac5999",
+  "gpu": "NVIDIA GeForce RTX 5060 Ti, 580.196.07, 3090 MHz",
+  "bench_invocation": "gpu_bench_unified --suite all --passes 11 --json",
+  "binaries": {
+    "base": {
+      "path": "gpu_bench_unified built at 5402d9e0 (cuda-release-5060ti preset)",
+      "sha256": "af35693035a40318f639facee92ab372a0fd9fe4adeb539d7a4cb83d49c01ab9"
+    },
+    "new": {
+      "path": "gpu_bench_unified built at 5cac5999 (cuda-release-5060ti preset)",
+      "sha256": "a11dc6c935656b38ac862423f94880f302fe7da826806dcefb8e80b69f6b4a78"
+    }
+  },
+  "json_headers": {
+    "base": {
+      "report_type": "gpu_benchmark",
+      "library": "UltrafastSecp256k1",
+      "library_version": "unknown",
+      "git_hash": "unknown",
+      "timestamp": "2026-11-03T15:54:51",
+      "metadata": {
+        "gpu": "NVIDIA GeForce RTX 5060 Ti",
+        "compute_capability": "12.0",
+        "sm_count": 36,
+        "clock_mhz": 2602,
+        "memory_mb": 15844,
+        "backend": "CUDA",
+        "driver": "13.0",
+        "compiler": "GCC 14.2",
+        "arch": "x86-64",
+        "passes": 11,
+        "warmup": 3,
+        "batch_size": 1048576
+      }
+    },
+    "new": {
+      "report_type": "gpu_benchmark",
+      "library": "UltrafastSecp256k1",
+      "library_version": "unknown",
+      "git_hash": "unknown",
+      "timestamp": "2026-11-03T15:55:00",
+      "metadata": {
+        "gpu": "NVIDIA GeForce RTX 5060 Ti",
+        "compute_capability": "12.0",
+        "sm_count": 36,
+        "clock_mhz": 2602,
+        "memory_mb": 15844,
+        "backend": "CUDA",
+        "driver": "13.0",
+        "compiler": "GCC 14.2",
+        "arch": "x86-64",
+        "passes": 11,
+        "warmup": 3,
+        "batch_size": 1048576
+      }
+    }
+  },
+  "ops": {
+    "Field Arithmetic / mul": {
+      "base": {
+        "rounds": [
+          0.24,
+          0.24,
+          0.24,
+          0.24,
+          0.24
+        ],
+        "median": 0.24,
+        "min": 0.24,
+        "max": 0.24,
+        "spread_pct": 0.0
+      },
+      "new": {
+        "rounds": [
+          0.24,
+          0.24,
+          0.24,
+          0.24,
+          0.24
+        ],
+        "median": 0.24,
+        "min": 0.24,
+        "max": 0.24,
+        "spread_pct": 0.0
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0
+    },
+    "Field Arithmetic / sqr": {
+      "base": {
+        "rounds": [
+          0.16,
+          0.16,
+          0.16,
+          0.16,
+          0.16
+        ],
+        "median": 0.16,
+        "min": 0.16,
+        "max": 0.16,
+        "spread_pct": 0.0
+      },
+      "new": {
+        "rounds": [
+          0.16,
+          0.16,
+          0.16,
+          0.16,
+          0.16
+        ],
+        "median": 0.16,
+        "min": 0.16,
+        "max": 0.16,
+        "spread_pct": 0.0
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0
+    },
+    "Field Arithmetic / add": {
+      "base": {
+        "rounds": [
+          0.24,
+          0.24,
+          0.24,
+          0.24,
+          0.24
+        ],
+        "median": 0.24,
+        "min": 0.24,
+        "max": 0.24,
+        "spread_pct": 0.0
+      },
+      "new": {
+        "rounds": [
+          0.24,
+          0.24,
+          0.24,
+          0.24,
+          0.24
+        ],
+        "median": 0.24,
+        "min": 0.24,
+        "max": 0.24,
+        "spread_pct": 0.0
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0
+    },
+    "Field Arithmetic / sub": {
+      "base": {
+        "rounds": [
+          0.24,
+          0.24,
+          0.24,
+          0.24,
+          0.24
+        ],
+        "median": 0.24,
+        "min": 0.24,
+        "max": 0.24,
+        "spread_pct": 0.0
+      },
+      "new": {
+        "rounds": [
+          0.24,
+          0.24,
+          0.24,
+          0.24,
+          0.24
+        ],
+        "median": 0.24,
+        "min": 0.24,
+        "max": 0.24,
+        "spread_pct": 0.0
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0
+    },
+    "Field Arithmetic / inv": {
+      "base": {
+        "rounds": [
+          11.01,
+          11.02,
+          11.01,
+          11.01,
+          11.01
+        ],
+        "median": 11.01,
+        "min": 11.01,
+        "max": 11.02,
+        "spread_pct": 0.09082652134423058
+      },
+      "new": {
+        "rounds": [
+          11.01,
+          11.01,
+          11.01,
+          11.01,
+          11.01
+        ],
+        "median": 11.01,
+        "min": 11.01,
+        "max": 11.01,
+        "spread_pct": 0.0
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0
+    },
+    "Field Arithmetic / inv (var)": {
+      "base": {
+        "rounds": [
+          1.66,
+          1.64,
+          1.64,
+          1.64,
+          1.65
+        ],
+        "median": 1.64,
+        "min": 1.64,
+        "max": 1.66,
+        "spread_pct": 1.2195121951219523
+      },
+      "new": {
+        "rounds": [
+          1.64,
+          1.64,
+          1.65,
+          1.64,
+          1.64
+        ],
+        "median": 1.64,
+        "min": 1.64,
+        "max": 1.65,
+        "spread_pct": 0.6097560975609762
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0
+    },
+    "Scalar Arithmetic / scalar inv": {
+      "base": {
+        "rounds": [
+          60.65,
+          60.64,
+          60.63,
+          60.64,
+          60.64
+        ],
+        "median": 60.64,
+        "min": 60.63,
+        "max": 60.65,
+        "spread_pct": 0.03298153034300136
+      },
+      "new": {
+        "rounds": [
+          60.28,
+          60.29,
+          60.29,
+          60.3,
+          60.25
+        ],
+        "median": 60.29,
+        "min": 60.25,
+        "max": 60.3,
+        "spread_pct": 0.08293249295073338
+      },
+      "verdict": "improvement",
+      "new_over_base_median": 0.9942282321899736
+    },
+    "Scalar Arithmetic / scalar inv (var)": {
+      "base": {
+        "rounds": [
+          1.63,
+          1.63,
+          1.64,
+          1.63,
+          1.63
+        ],
+        "median": 1.63,
+        "min": 1.63,
+        "max": 1.64,
+        "spread_pct": 0.6134969325153381
+      },
+      "new": {
+        "rounds": [
+          1.63,
+          1.64,
+          1.64,
+          1.64,
+          1.64
+        ],
+        "median": 1.64,
+        "min": 1.63,
+        "max": 1.64,
+        "spread_pct": 0.6097560975609762
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0061349693251533
+    },
+    "Point Operations / add (Jacobian)": {
+      "base": {
+        "rounds": [
+          0.94,
+          0.93,
+          0.93,
+          0.93,
+          0.94
+        ],
+        "median": 0.93,
+        "min": 0.93,
+        "max": 0.94,
+        "spread_pct": 1.0752688172042901
+      },
+      "new": {
+        "rounds": [
+          0.93,
+          0.94,
+          0.94,
+          0.93,
+          0.94
+        ],
+        "median": 0.94,
+        "min": 0.93,
+        "max": 0.94,
+        "spread_pct": 1.0638297872340319
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.010752688172043
+    },
+    "Point Operations / double": {
+      "base": {
+        "rounds": [
+          0.74,
+          0.73,
+          0.74,
+          0.74,
+          0.73
+        ],
+        "median": 0.74,
+        "min": 0.73,
+        "max": 0.74,
+        "spread_pct": 1.3513513513513526
+      },
+      "new": {
+        "rounds": [
+          0.73,
+          0.73,
+          0.74,
+          0.74,
+          0.73
+        ],
+        "median": 0.73,
+        "min": 0.73,
+        "max": 0.74,
+        "spread_pct": 1.3698630136986314
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 0.9864864864864865
+    },
+    "Point Operations / Jac->Affine": {
+      "base": {
+        "rounds": [
+          11.14,
+          11.14,
+          11.14,
+          11.14,
+          11.14
+        ],
+        "median": 11.14,
+        "min": 11.14,
+        "max": 11.14,
+        "spread_pct": 0.0
+      },
+      "new": {
+        "rounds": [
+          11.14,
+          11.14,
+          11.14,
+          11.14,
+          11.14
+        ],
+        "median": 11.14,
+        "min": 11.14,
+        "max": 11.14,
+        "spread_pct": 0.0
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0
+    },
+    "Scalar Multiplication / k*G (generator)": {
+      "base": {
+        "rounds": [
+          136.11,
+          136.03,
+          136.11,
+          136.22,
+          136.17
+        ],
+        "median": 136.11,
+        "min": 136.03,
+        "max": 136.22,
+        "spread_pct": 0.13959297626919234
+      },
+      "new": {
+        "rounds": [
+          136.08,
+          136.15,
+          136.0,
+          136.17,
+          136.07
+        ],
+        "median": 136.08,
+        "min": 136.0,
+        "max": 136.17,
+        "spread_pct": 0.12492651381539349
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 0.9997795900374696
+    },
+    "Affine Pipeline / affine add (2M+1S+inv)": {
+      "base": {
+        "rounds": [
+          9.9,
+          9.92,
+          9.91,
+          9.92,
+          9.92
+        ],
+        "median": 9.92,
+        "min": 9.9,
+        "max": 9.92,
+        "spread_pct": 0.20161290322580216
+      },
+      "new": {
+        "rounds": [
+          9.91,
+          9.91,
+          9.91,
+          9.92,
+          9.91
+        ],
+        "median": 9.91,
+        "min": 9.91,
+        "max": 9.92,
+        "spread_pct": 0.10090817356205638
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 0.998991935483871
+    },
+    "ECDSA / sign (RFC 6979)": {
+      "base": {
+        "rounds": [
+          184.84,
+          184.95,
+          184.99,
+          184.99,
+          185.01
+        ],
+        "median": 184.99,
+        "min": 184.84,
+        "max": 185.01,
+        "spread_pct": 0.09189685928968457
+      },
+      "new": {
+        "rounds": [
+          185.33,
+          185.48,
+          185.48,
+          186.01,
+          185.71
+        ],
+        "median": 185.48,
+        "min": 185.33,
+        "max": 186.01,
+        "spread_pct": 0.3666163467759211
+      },
+      "verdict": "regression",
+      "new_over_base_median": 1.0026487918265852
+    },
+    "Schnorr/BIP-340 / sign": {
+      "base": {
+        "rounds": [
+          217.49,
+          217.88,
+          218.01,
+          218.2,
+          214.07
+        ],
+        "median": 217.88,
+        "min": 214.07,
+        "max": 218.2,
+        "spread_pct": 1.895538828713051
+      },
+      "new": {
+        "rounds": [
+          217.69,
+          212.86,
+          214.6,
+          217.53,
+          217.26
+        ],
+        "median": 217.26,
+        "min": 212.86,
+        "max": 217.69,
+        "spread_pct": 2.2231427782380484
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 0.9971543969157334
+    },
+    "CT Point Ops / ct::k*G (generator)": {
+      "base": {
+        "rounds": [
+          95.58,
+          95.68,
+          95.67,
+          95.68,
+          93.99
+        ],
+        "median": 95.67,
+        "min": 93.99,
+        "max": 95.68,
+        "spread_pct": 1.7664889725096813
+      },
+      "new": {
+        "rounds": [
+          93.89,
+          93.43,
+          93.93,
+          95.57,
+          95.53
+        ],
+        "median": 93.93,
+        "min": 93.43,
+        "max": 95.57,
+        "spread_pct": 2.2782923453635537
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 0.9818124804013798
+    },
+    "CT Point Ops / ct::k*P (scalar mul)": {
+      "base": {
+        "rounds": [
+          161.46,
+          161.76,
+          161.59,
+          157.84,
+          157.85
+        ],
+        "median": 161.46,
+        "min": 157.84,
+        "max": 161.76,
+        "spread_pct": 2.427845906106768
+      },
+      "new": {
+        "rounds": [
+          158.33,
+          157.84,
+          158.31,
+          162.09,
+          162.35
+        ],
+        "median": 158.33,
+        "min": 157.84,
+        "max": 162.35,
+        "spread_pct": 2.8484810206530606
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 0.980614393657872
+    },
+    "MSM / msm scatter only": {
+      "base": {
+        "rounds": [
+          171.48,
+          171.52,
+          171.83,
+          172.21,
+          172.16
+        ],
+        "median": 171.83,
+        "min": 171.48,
+        "max": 172.21,
+        "spread_pct": 0.42483850317175004
+      },
+      "new": {
+        "rounds": [
+          171.64,
+          171.64,
+          172.33,
+          172.28,
+          172.26
+        ],
+        "median": 172.26,
+        "min": 171.64,
+        "max": 172.33,
+        "spread_pct": 0.4005572971090364
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.002502473374847
+    },
+    "MSM / msm scatter+blockreduce": {
+      "base": {
+        "rounds": [
+          173.52,
+          174.21,
+          174.26,
+          174.21,
+          174.23
+        ],
+        "median": 174.21,
+        "min": 173.52,
+        "max": 174.26,
+        "spread_pct": 0.42477469720451216
+      },
+      "new": {
+        "rounds": [
+          173.64,
+          173.64,
+          174.29,
+          174.29,
+          174.31
+        ],
+        "median": 174.29,
+        "min": 173.64,
+        "max": 174.31,
+        "spread_pct": 0.38441677663664925
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0004592158888697
+    },
+    "MSM / msm sum(k_i*P_i)": {
+      "base": {
+        "rounds": [
+          173.61,
+          174.34,
+          174.33,
+          174.28,
+          174.31
+        ],
+        "median": 174.31,
+        "min": 173.61,
+        "max": 174.34,
+        "spread_pct": 0.4187941024611266
+      },
+      "new": {
+        "rounds": [
+          173.75,
+          173.74,
+          174.42,
+          174.38,
+          174.41
+        ],
+        "median": 174.38,
+        "min": 173.74,
+        "max": 174.42,
+        "spread_pct": 0.3899529762587329
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 1.0004015833859217
+    },
+    "CT ECDSA / ct::ecdsa_sign": {
+      "base": {
+        "rounds": [
+          173.9,
+          175.87,
+          175.78,
+          176.16,
+          176.53
+        ],
+        "median": 175.87,
+        "min": 173.9,
+        "max": 176.53,
+        "spread_pct": 1.4954227554443598
+      },
+      "new": {
+        "rounds": [
+          176.86,
+          176.63,
+          177.52,
+          176.87,
+          177.06
+        ],
+        "median": 176.87,
+        "min": 176.63,
+        "max": 177.52,
+        "spread_pct": 0.5031944365918555
+      },
+      "verdict": "regression",
+      "new_over_base_median": 1.0056860180815375
+    },
+    "CT Schnorr / ct::schnorr_sign": {
+      "base": {
+        "rounds": [
+          210.03,
+          211.39,
+          211.59,
+          211.03,
+          208.89
+        ],
+        "median": 211.03,
+        "min": 208.89,
+        "max": 211.59,
+        "spread_pct": 1.2794389423304824
+      },
+      "new": {
+        "rounds": [
+          209.28,
+          208.9,
+          209.14,
+          209.48,
+          208.52
+        ],
+        "median": 209.14,
+        "min": 208.52,
+        "max": 209.48,
+        "spread_pct": 0.45902266424403726
+      },
+      "verdict": "inconclusive",
+      "new_over_base_median": 0.9910439274036866
+    }
+  }
+}

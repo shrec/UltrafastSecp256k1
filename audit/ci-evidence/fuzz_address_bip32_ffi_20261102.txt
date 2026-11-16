@@ -1,0 +1,38 @@
+=== Fuzz: Address Encoders + BIP32 + FFI Boundary ===
+    Tasks: 2.3.4 (address), 2.3.5 (BIP32), 2.3.6 (FFI)
+
+
+[1] P2PKH Address Fuzz (Base58Check)
+
+[2] P2WPKH Address Fuzz (Bech32)
+
+[3] P2TR Address Fuzz (Bech32m)
+
+[4] WIF Encode/Decode Fuzz
+
+[5] BIP32 Master Key from Seed Fuzz
+
+[6] BIP32 Path Parser Fuzz
+
+[7] BIP32 Derive (single-step) Fuzz
+
+[8] FFI Context Lifecycle Stress
+
+[9] FFI ECDSA Sign/Verify Boundary Fuzz
+
+[10] FFI Schnorr Sign/Verify Boundary Fuzz
+
+[11] FFI ECDH + Tweaking Boundary Fuzz
+
+[12] FFI Taproot Output Key Boundary Fuzz
+
+[13] FFI Error Inspection
+    [##################..] 73728 OK
+
+[14] FFI ECDSA Recovery Boundary Fuzz
+
+[15] FFI ECDH Infinity / Edge Cases
+
+====================================================
+  PASSED: 82976   FAILED: 0   CRASHES: 0
+====================================================

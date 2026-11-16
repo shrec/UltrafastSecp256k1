@@ -1,0 +1,1435 @@
+{
+ "report_type": "cuda_verify_ab",
+ "generated_by": "secp256k1_cuda_bench, bench_zk, bench_snark_witness, bench_compare --json; raw outputs parsed by a script, no number typed by hand",
+ "date": "2026-10-02",
+ "gpu": {
+  "name": "NVIDIA GeForce RTX 5060 Ti",
+  "compute_capability": "12.0",
+  "sm_count": 36,
+  "clock_mhz": 2602,
+  "memory_mb": 15844
+ },
+ "driver": "580.178.04",
+ "cuda": "13.2",
+ "method": "baseline (base) and changed (new) binaries of each bench run back to back inside one hold of the GPU lock; order alternates per run; 5 runs each; ns_per_op_runs lists the per-run values in run order",
+ "what_changed": "CUDA verify paths call field_inv_var / scalar_inv_var instead of the Fermat inverses (docs/AUDIT_CHANGELOG.md 2026-10-02)",
+ "bench_invocations": {
+  "secp256k1_cuda_bench": "(no arguments)",
+  "bench_zk": "(no arguments)",
+  "bench_snark_witness": "(no arguments)",
+  "bench_compare": "--cpu-n 1000 --json <file>"
+ },
+ "binary_sha256": {
+  "base": {
+   "secp256k1_cuda_bench": "10b16d725f3b59099affc6b7329a4e69f10fa4db39057feda73eb60b3df76bfb",
+   "bench_zk": "ba4eba554c802bdab4befbed70a2df330e8b4f65af33733c6e42da9cf14601b3",
+   "bench_snark_witness": "02df8dce66ccffef19ffcaf07a0379cd84f20ce92f5e88f9f2cdfe8d1e6d8c73",
+   "bench_compare": "679fe00552bf76ecb9d7d97b0565ae3159ab5cecc48df1dd60c92c46b26cd909"
+  },
+  "new": {
+   "secp256k1_cuda_bench": "0e4b858bc91dfbee6f3a3d6bd2d0180eb1403430346705d4323478643ecdf667",
+   "bench_zk": "427441328b547bbebed76167c0be6e64c3755a548f0c1dcf0022ca31de0fa252",
+   "bench_snark_witness": "0aa2bb8a481ab735f97913d55411d9b5235190480a713bfd5cae014a2eacf161",
+   "bench_compare": "8fd9a87d5884df7d803af39a8d6d1c701be757fdb1fc6571ff9270d1c6cde22e"
+  }
+ },
+ "runs_per_tag": 5,
+ "tags": [
+  "base",
+  "new"
+ ],
+ "rows": [
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Field Mul",
+   "base": {
+    "ns_per_op_runs": [
+     0.2,
+     0.2,
+     0.2,
+     0.2,
+     0.2
+    ],
+    "median": 0.2,
+    "min": 0.2,
+    "max": 0.2
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.2,
+     0.2,
+     0.2,
+     0.2,
+     0.2
+    ],
+    "median": 0.2,
+    "min": 0.2,
+    "max": 0.2
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Field Add",
+   "base": {
+    "ns_per_op_runs": [
+     0.2,
+     0.2,
+     0.2,
+     0.2,
+     0.2
+    ],
+    "median": 0.2,
+    "min": 0.2,
+    "max": 0.2
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.2,
+     0.2,
+     0.2,
+     0.2,
+     0.2
+    ],
+    "median": 0.2,
+    "min": 0.2,
+    "max": 0.2
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Field Inverse",
+   "base": {
+    "ns_per_op_runs": [
+     11.0,
+     11.0,
+     11.0,
+     11.0,
+     11.0
+    ],
+    "median": 11.0,
+    "min": 11.0,
+    "max": 11.0
+   },
+   "new": {
+    "ns_per_op_runs": [
+     11.0,
+     11.0,
+     11.0,
+     11.0,
+     11.0
+    ],
+    "median": 11.0,
+    "min": 11.0,
+    "max": 11.0
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Point Add",
+   "base": {
+    "ns_per_op_runs": [
+     2.0,
+     1.9,
+     2.0,
+     1.9,
+     1.9
+    ],
+    "median": 1.9,
+    "min": 1.9,
+    "max": 2.0
+   },
+   "new": {
+    "ns_per_op_runs": [
+     2.0,
+     1.9,
+     1.9,
+     1.9,
+     1.9
+    ],
+    "median": 1.9,
+    "min": 1.9,
+    "max": 2.0
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Point Double",
+   "base": {
+    "ns_per_op_runs": [
+     0.8,
+     0.8,
+     0.8,
+     0.8,
+     0.8
+    ],
+    "median": 0.8,
+    "min": 0.8,
+    "max": 0.8
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.8,
+     0.8,
+     0.8,
+     0.8,
+     0.8
+    ],
+    "median": 0.8,
+    "min": 0.8,
+    "max": 0.8
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Scalar Mul (P*k)",
+   "base": {
+    "ns_per_op_runs": [
+     214.9,
+     214.9,
+     215.0,
+     214.9,
+     214.9
+    ],
+    "median": 214.9,
+    "min": 214.9,
+    "max": 215.0
+   },
+   "new": {
+    "ns_per_op_runs": [
+     214.9,
+     214.9,
+     215.0,
+     215.0,
+     214.9
+    ],
+    "median": 214.9,
+    "min": 214.9,
+    "max": 215.0
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Generator Mul (G*k)",
+   "base": {
+    "ns_per_op_runs": [
+     205.4,
+     202.3,
+     198.8,
+     200.2,
+     203.3
+    ],
+    "median": 202.3,
+    "min": 198.8,
+    "max": 205.4
+   },
+   "new": {
+    "ns_per_op_runs": [
+     203.6,
+     202.7,
+     198.2,
+     200.3,
+     202.9
+    ],
+    "median": 202.7,
+    "min": 198.2,
+    "max": 203.6
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Affine Add (2M+1S+inv)",
+   "base": {
+    "ns_per_op_runs": [
+     0.4,
+     0.4,
+     0.4,
+     0.4,
+     0.4
+    ],
+    "median": 0.4,
+    "min": 0.4,
+    "max": 0.4
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.4,
+     0.4,
+     0.4,
+     0.4,
+     0.4
+    ],
+    "median": 0.4,
+    "min": 0.4,
+    "max": 0.4
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Affine Lambda (2M+1S)",
+   "base": {
+    "ns_per_op_runs": [
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5
+    ],
+    "median": 0.5,
+    "min": 0.5,
+    "max": 0.5
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.5,
+     0.5,
+     0.5,
+     0.5,
+     0.5
+    ],
+    "median": 0.5,
+    "min": 0.5,
+    "max": 0.5
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Affine X-Only (1M+1S)",
+   "base": {
+    "ns_per_op_runs": [
+     0.4,
+     0.4,
+     0.4,
+     0.4,
+     0.4
+    ],
+    "median": 0.4,
+    "min": 0.4,
+    "max": 0.4
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.4,
+     0.4,
+     0.4,
+     0.4,
+     0.4
+    ],
+    "median": 0.4,
+    "min": 0.4,
+    "max": 0.4
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Batch Inv (Montgomery)",
+   "base": {
+    "ns_per_op_runs": [
+     3.2,
+     3.1,
+     2.9,
+     3.0,
+     2.8
+    ],
+    "median": 3.0,
+    "min": 2.8,
+    "max": 3.2
+   },
+   "new": {
+    "ns_per_op_runs": [
+     3.7,
+     3.0,
+     3.2,
+     3.0,
+     3.0
+    ],
+    "median": 3.0,
+    "min": 3.0,
+    "max": 3.7
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Jac->Affine (per-pt)",
+   "base": {
+    "ns_per_op_runs": [
+     15.7,
+     15.5,
+     15.9,
+     15.3,
+     15.2
+    ],
+    "median": 15.5,
+    "min": 15.2,
+    "max": 15.9
+   },
+   "new": {
+    "ns_per_op_runs": [
+     16.7,
+     15.3,
+     15.5,
+     15.4,
+     15.3
+    ],
+    "median": 15.4,
+    "min": 15.3,
+    "max": 16.7
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "ECDSA Sign",
+   "base": {
+    "ns_per_op_runs": [
+     174.9,
+     176.6,
+     180.6,
+     176.5,
+     177.2
+    ],
+    "median": 176.6,
+    "min": 174.9,
+    "max": 180.6
+   },
+   "new": {
+    "ns_per_op_runs": [
+     176.8,
+     177.0,
+     184.7,
+     177.0,
+     177.1
+    ],
+    "median": 177.0,
+    "min": 176.8,
+    "max": 184.7
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "ECDSA Verify",
+   "base": {
+    "ns_per_op_runs": [
+     231.4,
+     234.1,
+     243.7,
+     243.7,
+     232.8
+    ],
+    "median": 234.1,
+    "min": 231.4,
+    "max": 243.7
+   },
+   "new": {
+    "ns_per_op_runs": [
+     151.8,
+     152.4,
+     159.8,
+     159.9,
+     152.1
+    ],
+    "median": 152.4,
+    "min": 151.8,
+    "max": 159.9
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "ECDSA Sign+Recid",
+   "base": {
+    "ns_per_op_runs": [
+     176.6,
+     185.8,
+     186.0,
+     185.5,
+     179.6
+    ],
+    "median": 185.5,
+    "min": 176.6,
+    "max": 186.0
+   },
+   "new": {
+    "ns_per_op_runs": [
+     182.7,
+     185.2,
+     187.0,
+     186.4,
+     180.4
+    ],
+    "median": 185.2,
+    "min": 180.4,
+    "max": 187.0
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Schnorr Sign",
+   "base": {
+    "ns_per_op_runs": [
+     220.1,
+     222.0,
+     222.6,
+     220.4,
+     221.1
+    ],
+    "median": 221.1,
+    "min": 220.1,
+    "max": 222.6
+   },
+   "new": {
+    "ns_per_op_runs": [
+     221.1,
+     221.0,
+     221.9,
+     221.7,
+     222.3
+    ],
+    "median": 221.7,
+    "min": 221.0,
+    "max": 222.3
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Schnorr Verify",
+   "base": {
+    "ns_per_op_runs": [
+     167.8,
+     169.3,
+     169.5,
+     169.6,
+     169.3
+    ],
+    "median": 169.3,
+    "min": 167.8,
+    "max": 169.6
+   },
+   "new": {
+    "ns_per_op_runs": [
+     146.1,
+     146.7,
+     146.9,
+     146.7,
+     147.0
+    ],
+    "median": 146.7,
+    "min": 146.1,
+    "max": 147.0
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "FROST Partial Verify",
+   "base": {
+    "ns_per_op_runs": [
+     690.7,
+     694.3,
+     691.1,
+     696.5,
+     691.2
+    ],
+    "median": 691.2,
+    "min": 690.7,
+    "max": 696.5
+   },
+   "new": {
+    "ns_per_op_runs": [
+     671.4,
+     673.0,
+     672.2,
+     675.4,
+     672.7
+    ],
+    "median": 672.7,
+    "min": 671.4,
+    "max": 675.4
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "secp256k1_cuda_bench",
+   "row": "Batch J->Compressed",
+   "base": {
+    "ns_per_op_runs": [
+     10.6,
+     10.6,
+     10.6,
+     10.6,
+     10.7
+    ],
+    "median": 10.6,
+    "min": 10.6,
+    "max": 10.7
+   },
+   "new": {
+    "ns_per_op_runs": [
+     10.7,
+     10.7,
+     10.6,
+     10.6,
+     10.7
+    ],
+    "median": 10.7,
+    "min": 10.6,
+    "max": 10.7
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "knowledge_prove(G)",
+   "base": {
+    "ns_per_op_runs": [
+     247.2,
+     247.2,
+     247.2,
+     247.1,
+     247.2
+    ],
+    "median": 247.2,
+    "min": 247.1,
+    "max": 247.2
+   },
+   "new": {
+    "ns_per_op_runs": [
+     248.3,
+     249.0,
+     247.2,
+     248.6,
+     247.8
+    ],
+    "median": 248.3,
+    "min": 247.2,
+    "max": 249.0
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "knowledge_verify",
+   "base": {
+    "ns_per_op_runs": [
+     551.0,
+     551.3,
+     550.8,
+     551.3,
+     551.2
+    ],
+    "median": 551.2,
+    "min": 550.8,
+    "max": 551.3
+   },
+   "new": {
+    "ns_per_op_runs": [
+     529.8,
+     529.8,
+     530.7,
+     529.7,
+     530.0
+    ],
+    "median": 529.8,
+    "min": 529.7,
+    "max": 530.7
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "dleq_prove",
+   "base": {
+    "ns_per_op_runs": [
+     618.4,
+     620.4,
+     618.9,
+     612.9,
+     613.9
+    ],
+    "median": 618.4,
+    "min": 612.9,
+    "max": 620.4
+   },
+   "new": {
+    "ns_per_op_runs": [
+     613.7,
+     618.9,
+     618.4,
+     616.9,
+     618.4
+    ],
+    "median": 618.4,
+    "min": 613.7,
+    "max": 618.9
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "dleq_verify",
+   "base": {
+    "ns_per_op_runs": [
+     1253.0,
+     1245.1,
+     1245.5,
+     1251.7,
+     1250.7
+    ],
+    "median": 1250.7,
+    "min": 1245.1,
+    "max": 1253.0
+   },
+   "new": {
+    "ns_per_op_runs": [
+     1143.5,
+     1141.0,
+     1139.7,
+     1140.6,
+     1140.2
+    ],
+    "median": 1140.6,
+    "min": 1139.7,
+    "max": 1143.5
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "pedersen_commit",
+   "base": {
+    "ns_per_op_runs": [
+     62.7,
+     63.1,
+     62.6,
+     62.7,
+     62.7
+    ],
+    "median": 62.7,
+    "min": 62.6,
+    "max": 63.1
+   },
+   "new": {
+    "ns_per_op_runs": [
+     62.9,
+     63.0,
+     63.1,
+     62.8,
+     62.7
+    ],
+    "median": 62.9,
+    "min": 62.7,
+    "max": 63.1
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "range_prove",
+   "base": {
+    "ns_per_op_runs": [
+     5797688.5,
+     4667655.5,
+     4785074.2,
+     4698881.6,
+     4716576.1
+    ],
+    "median": 4716576.1,
+    "min": 4667655.5,
+    "max": 5797688.5
+   },
+   "new": {
+    "ns_per_op_runs": [
+     4820071.7,
+     4714450.8,
+     4932309.6,
+     4731058.6,
+     5852674.5
+    ],
+    "median": 4820071.7,
+    "min": 4714450.8,
+    "max": 5852674.5
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "range_verify",
+   "base": {
+    "ns_per_op_runs": [
+     685636.5,
+     685742.5,
+     686020.1,
+     685836.4,
+     685893.0
+    ],
+    "median": 685836.4,
+    "min": 685636.5,
+    "max": 686020.1
+   },
+   "new": {
+    "ns_per_op_runs": [
+     683403.5,
+     683026.3,
+     683372.3,
+     683396.4,
+     683272.5
+    ],
+    "median": 683372.3,
+    "min": 683026.3,
+    "max": 683403.5
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "range_verify_warp",
+   "base": {
+    "ns_per_op_runs": [
+     185390.4,
+     185051.5,
+     184079.6,
+     185652.5,
+     184055.4
+    ],
+    "median": 185051.5,
+    "min": 184055.4,
+    "max": 185652.5
+   },
+   "new": {
+    "ns_per_op_runs": [
+     169413.7,
+     169809.7,
+     169814.5,
+     169837.3,
+     170343.9
+    ],
+    "median": 169814.5,
+    "min": 169413.7,
+    "max": 170343.9
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "range_prove_warp",
+   "base": {
+    "ns_per_op_runs": [
+     6112843.0,
+     6085232.3,
+     6110315.8,
+     6113685.6,
+     6136624.3
+    ],
+    "median": 6112843.0,
+    "min": 6085232.3,
+    "max": 6136624.3
+   },
+   "new": {
+    "ns_per_op_runs": [
+     6114137.2,
+     6131442.5,
+     6119535.9,
+     6097515.6,
+     6147036.6
+    ],
+    "median": 6119535.9,
+    "min": 6097515.6,
+    "max": 6147036.6
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "prove_warp_lut4",
+   "base": {
+    "ns_per_op_runs": [
+     4861064.9,
+     4853500.4,
+     4860651.5,
+     4835067.3,
+     4877023.7
+    ],
+    "median": 4860651.5,
+    "min": 4835067.3,
+    "max": 4877023.7
+   },
+   "new": {
+    "ns_per_op_runs": [
+     4841997.6,
+     4853487.0,
+     4854568.0,
+     4859896.7,
+     4844443.3
+    ],
+    "median": 4853487.0,
+    "min": 4841997.6,
+    "max": 4859896.7
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "verify_warp_w4",
+   "base": {
+    "ns_per_op_runs": [
+     176781.5,
+     174987.3,
+     175215.4,
+     175219.4,
+     176107.2
+    ],
+    "median": 175219.4,
+    "min": 174987.3,
+    "max": 176781.5
+   },
+   "new": {
+    "ns_per_op_runs": [
+     161792.8,
+     161099.1,
+     162289.5,
+     161309.1,
+     162724.6
+    ],
+    "median": 161792.8,
+    "min": 161099.1,
+    "max": 162724.6
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "verify_warp_w8",
+   "base": {
+    "ns_per_op_runs": [
+     175103.0,
+     174100.8,
+     173826.8,
+     172427.1,
+     173841.7
+    ],
+    "median": 173841.7,
+    "min": 172427.1,
+    "max": 175103.0
+   },
+   "new": {
+    "ns_per_op_runs": [
+     160196.0,
+     161301.7,
+     161534.8,
+     159964.2,
+     160483.4
+    ],
+    "median": 160483.4,
+    "min": 159964.2,
+    "max": 161534.8
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "verify_warp_lut4",
+   "base": {
+    "ns_per_op_runs": [
+     154008.4,
+     153871.1,
+     154595.0,
+     153385.3,
+     154252.4
+    ],
+    "median": 154008.4,
+    "min": 153385.3,
+    "max": 154595.0
+   },
+   "new": {
+    "ns_per_op_runs": [
+     142276.4,
+     142548.9,
+     141973.1,
+     141610.0,
+     141390.2
+    ],
+    "median": 141973.1,
+    "min": 141390.2,
+    "max": 142548.9
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_zk",
+   "row": "verify_p1par_lut4",
+   "base": {
+    "ns_per_op_runs": [
+     13786.7,
+     13684.0,
+     13630.6,
+     13597.0,
+     13582.6
+    ],
+    "median": 13630.6,
+    "min": 13582.6,
+    "max": 13786.7
+   },
+   "new": {
+    "ns_per_op_runs": [
+     11836.0,
+     11701.9,
+     11755.9,
+     11740.5,
+     11792.1
+    ],
+    "median": 11755.9,
+    "min": 11701.9,
+    "max": 11836.0
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_snark_witness",
+   "row": "GPU ecdsa_snark_witness_batch_kernel",
+   "base": {
+    "ns_per_op_runs": [
+     225.4,
+     225.4,
+     225.2,
+     225.1,
+     225.2
+    ],
+    "median": 225.2,
+    "min": 225.1,
+    "max": 225.4
+   },
+   "new": {
+    "ns_per_op_runs": [
+     140.2,
+     140.3,
+     140.3,
+     140.3,
+     140.5
+    ],
+    "median": 140.3,
+    "min": 140.2,
+    "max": 140.5
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Field / mul (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     0.11,
+     0.12,
+     0.11,
+     0.11,
+     0.11
+    ],
+    "median": 0.11,
+    "min": 0.11,
+    "max": 0.12
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.1,
+     0.11,
+     0.11,
+     0.11,
+     0.13
+    ],
+    "median": 0.11,
+    "min": 0.1,
+    "max": 0.13
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Field / sqr (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     0.11,
+     0.11,
+     0.11,
+     0.1,
+     0.11
+    ],
+    "median": 0.11,
+    "min": 0.1,
+    "max": 0.11
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.11,
+     0.11,
+     0.11,
+     0.11,
+     0.13
+    ],
+    "median": 0.11,
+    "min": 0.11,
+    "max": 0.13
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Field / add (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     0.13,
+     0.14,
+     0.14,
+     0.14,
+     0.14
+    ],
+    "median": 0.14,
+    "min": 0.13,
+    "max": 0.14
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.13,
+     0.14,
+     0.14,
+     0.14,
+     0.16
+    ],
+    "median": 0.14,
+    "min": 0.13,
+    "max": 0.16
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Field / sub (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     0.14,
+     0.14,
+     0.14,
+     0.14,
+     0.14
+    ],
+    "median": 0.14,
+    "min": 0.14,
+    "max": 0.14
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.13,
+     0.14,
+     0.14,
+     0.14,
+     0.15
+    ],
+    "median": 0.14,
+    "min": 0.13,
+    "max": 0.15
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Field / inv (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     11.01,
+     11.01,
+     11.01,
+     11.01,
+     11.02
+    ],
+    "median": 11.01,
+    "min": 11.01,
+    "max": 11.02
+   },
+   "new": {
+    "ns_per_op_runs": [
+     11.01,
+     11.01,
+     11.01,
+     11.01,
+     11.01
+    ],
+    "median": 11.01,
+    "min": 11.01,
+    "max": 11.01
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Point / add (Jacobian) (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     0.83,
+     0.84,
+     0.83,
+     0.84,
+     0.85
+    ],
+    "median": 0.84,
+    "min": 0.83,
+    "max": 0.85
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.83,
+     0.84,
+     0.83,
+     0.83,
+     0.83
+    ],
+    "median": 0.83,
+    "min": 0.83,
+    "max": 0.84
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Point / double (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     0.5,
+     0.51,
+     0.51,
+     0.51,
+     0.51
+    ],
+    "median": 0.51,
+    "min": 0.5,
+    "max": 0.51
+   },
+   "new": {
+    "ns_per_op_runs": [
+     0.51,
+     0.5,
+     0.51,
+     0.51,
+     0.51
+    ],
+    "median": 0.51,
+    "min": 0.5,
+    "max": 0.51
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "ScalarMul / k*G (generator) (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     136.04,
+     136.06,
+     136.07,
+     136.14,
+     136.07
+    ],
+    "median": 136.07,
+    "min": 136.04,
+    "max": 136.14
+   },
+   "new": {
+    "ns_per_op_runs": [
+     136.04,
+     136.2,
+     136.0,
+     136.14,
+     136.14
+    ],
+    "median": 136.14,
+    "min": 136.0,
+    "max": 136.2
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "ECDSA / sign (RFC 6979) (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     184.93,
+     185.23,
+     185.11,
+     185.07,
+     184.99
+    ],
+    "median": 185.07,
+    "min": 184.93,
+    "max": 185.23
+   },
+   "new": {
+    "ns_per_op_runs": [
+     185.1,
+     185.06,
+     185.01,
+     185.46,
+     185.53
+    ],
+    "median": 185.1,
+    "min": 185.01,
+    "max": 185.53
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "ECDSA / verify (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     233.5,
+     233.71,
+     233.56,
+     227.84,
+     233.72
+    ],
+    "median": 233.56,
+    "min": 227.84,
+    "max": 233.72
+   },
+   "new": {
+    "ns_per_op_runs": [
+     149.36,
+     149.35,
+     149.46,
+     149.35,
+     149.74
+    ],
+    "median": 149.36,
+    "min": 149.35,
+    "max": 149.74
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Schnorr / sign (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     219.01,
+     218.22,
+     218.49,
+     218.45,
+     218.81
+    ],
+    "median": 218.49,
+    "min": 218.22,
+    "max": 219.01
+   },
+   "new": {
+    "ns_per_op_runs": [
+     218.47,
+     218.81,
+     219.09,
+     218.61,
+     218.99
+    ],
+    "median": 218.81,
+    "min": 218.47,
+    "max": 219.09
+   },
+   "ranges": "overlap"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Schnorr / verify (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     168.24,
+     168.46,
+     168.43,
+     168.11,
+     181.36
+    ],
+    "median": 168.43,
+    "min": 168.11,
+    "max": 181.36
+   },
+   "new": {
+    "ns_per_op_runs": [
+     147.46,
+     147.49,
+     147.48,
+     148.65,
+     145.32
+    ],
+    "median": 147.48,
+    "min": 145.32,
+    "max": 148.65
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Pipeline / ECDSA (keygen+sign+verify) (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     565.79,
+     565.79,
+     566.11,
+     565.6,
+     564.91
+    ],
+    "median": 565.79,
+    "min": 564.91,
+    "max": 566.11
+   },
+   "new": {
+    "ns_per_op_runs": [
+     476.94,
+     476.94,
+     476.61,
+     481.21,
+     481.25
+    ],
+    "median": 476.94,
+    "min": 476.61,
+    "max": 481.25
+   },
+   "ranges": "improved (no overlap)"
+  },
+  {
+   "bench": "bench_compare",
+   "row": "Pipeline / Schnorr (keygen+sign+verify) (GPU)",
+   "base": {
+    "ns_per_op_runs": [
+     547.86,
+     547.65,
+     547.63,
+     547.41,
+     548.43
+    ],
+    "median": 547.65,
+    "min": 547.41,
+    "max": 548.43
+   },
+   "new": {
+    "ns_per_op_runs": [
+     523.86,
+     523.29,
+     523.79,
+     525.32,
+     525.79
+    ],
+    "median": 523.86,
+    "min": 523.29,
+    "max": 525.79
+   },
+   "ranges": "improved (no overlap)"
+  }
+ ]
+}

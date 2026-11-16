@@ -3,6 +3,7 @@
 
 #include <secp256k1/field_asm.hpp>
 #include <secp256k1/field.hpp>
+#include <secp256k1/cpu_features.hpp>
 #include <cstring>
 
 #if defined(__x86_64__) || defined(_M_X64)
@@ -67,38 +68,14 @@ namespace secp256k1::fast {
     return (c == '1' || c == 'T' || c == 't' || c == 'Y' || c == 'y');
 }
 
-// Check CPU support for BMI2
+// Check CPU support for BMI2 (masked cpu_features() view: honours UFSECP_CPU_DISABLE)
 bool has_bmi2_support() {
-    #if defined(_MSC_VER)
-        int cpuInfo[4];
-        __cpuidex(cpuInfo, 7, 0);
-        return (cpuInfo[1] & (1 << 8)) != 0;
-    #elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
-        unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
-        if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
-            return (ebx & (1u << 8)) != 0;
-        }
-        return false;
-    #else
-        return false;
-    #endif
+    return ::secp256k1::cpu_features().bmi2;
 }
 
-// Check CPU support for ADX (ADCX/ADOX)
+// Check CPU support for ADX (ADCX/ADOX) (masked cpu_features() view)
 bool has_adx_support() {
-    #if defined(_MSC_VER)
-        int cpuInfo[4];
-        __cpuidex(cpuInfo, 7, 0);
-        return (cpuInfo[1] & (1 << 19)) != 0;
-    #elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
-        unsigned int eax = 0, ebx = 0, ecx = 0, edx = 0;
-        if (__get_cpuid_count(7, 0, &eax, &ebx, &ecx, &edx)) {
-            return (ebx & (1u << 19)) != 0;
-        }
-        return false;
-    #else
-        return false;
-    #endif
+    return ::secp256k1::cpu_features().adx;
 }
 
 namespace detail {

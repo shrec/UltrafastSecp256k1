@@ -1,6 +1,28 @@
 # FFI Hostile-Caller Coverage
 
-**Last updated**: 2026-09-22 | **Version**: 4.6.2
+**Last updated**: 2026-11-02 | **Version**: 4.7.0
+
+### 2026-11-02 - MuSig2 session blob and key_agg input: caller contract stated (doc-only, paired with `include/ufsecp/ufsecp.h`)
+
+No ABI or behaviour change. Two caller contracts that the header had not
+stated are now written down:
+
+- **Session blob is signer-local.** `ufsecp_musig2_partial_sign_v2` signs with
+  the nonce coefficient `b` and challenge `e` stored in the session blob and
+  does not re-derive them. This is the same contract as libsecp256k1's
+  `secp256k1_musig_session` from `secp256k1_musig_nonce_process`. A hostile
+  party that gets a signer to use a session it built picks `e`, and so picks
+  what the signer signs. Each signer must therefore produce the session itself
+  with `ufsecp_musig2_start_sign_session`, from the aggregate nonce it received
+  and the message it intends to sign, and must never pass in a session received
+  from a coordinator or peer. A wrong aggregate nonce from an untrusted
+  aggregator only makes the final signature invalid, as BIP-327 allows.
+- **`ufsecp_musig2_key_agg` reads `n * 33` bytes** (compressed BIP-327 plain
+  public keys). The header used to say 32-byte x-only. A caller that follows
+  the old text passes `n * 32` bytes and the function reads `n` bytes past them.
+
+Coverage: the official BIP-327 key_agg vectors now run through the core in
+`audit/test_musig2_bip327_vectors.cpp` (module `musig2_bip327`).
 
 ### 2026-09-22 - `ufsecp_release_process_resources` hostile-caller contract (GitHub #430, paired with `include/ufsecp/ufsecp.h`)
 
@@ -406,6 +428,8 @@ shallow batch-verify paths. All gaps are closed by `test_i1_*`–`test_i5_*` in
 | I.5 | `ufsecp_schnorr_batch_verify`, `ufsecp_ecdsa_batch_verify`, `ufsecp_batch_identify_invalid` | Valid entry passes, tampered sig fails, identify_invalid returns correct index, count=0 vacuously OK |
 | I.5a | `ufsecp_ecdsa_batch_verify_mt` | NULL ctx/entries rejected; valid batch passes (smoke) and result is identical to serial for every thread count, including counts above the former 64-thread cap (no arbitrary upper limit; dynamic `std::vector<std::thread>` pool, reduced only to `hardware_concurrency`); tampered/invalid sig fails; count=0 (n=0) vacuously OK; max_threads=0 auto, 1 serial — public-data variable-time verify, threading has no side-channel relevance |
 | I.5b | `ufsecp_schnorr_batch_verify_mt`, `ufsecp_ecdsa_verify_opaque_rows_mt` | Schnorr / opaque-row MT twins of I.5a: NULL ctx/entries/rows rejected; count=0 (n=0) vacuously OK; stride<129 (opaque-rows) → `UFSECP_ERR_BAD_INPUT`; valid batch result identical to the serial `ufsecp_schnorr_batch_verify` / `ufsecp_ecdsa_verify_opaque_rows` for every thread count; max_threads=0 auto, 1 serial — public-data variable-time verify, threading has no side-channel relevance (negatives in `test_c_abi_negative`; MT per-row parity + 4096-boundary in `test_lbtc_bridge`) |
+| I.5c | `ufsecp_bch_schnorr_verify`, `ufsecp_bch_schnorr_batch_verify`, `ufsecp_bch_schnorr_batch_identify` | BCH 2019 Schnorr (not BIP-340), rows `pubkey33 \| msg32 \| sig64`: NULL ctx/entries rejected (`UFSECP_ERR_NULL_ARG`); n=0 (empty batch) OK; n > kMaxBatchN → `UFSECP_ERR_BAD_INPUT`; bad pubkey prefix/off-curve → `UFSECP_ERR_BAD_PUBKEY`; r >= p, s >= n, s == 0 → `UFSECP_ERR_BAD_SIG`; one tampered entry → `UFSECP_ERR_VERIFY_FAIL`; identify returns per-entry verdicts equal to the single verifies and zeroes every result on a structural error (fail closed). Public-data variable-time verify (`audit/test_bch_schnorr_differential.cpp` `test_abi_batch`) |
+| I.5d | `ufsecp_gpu_bch_schnorr_verify_batch` | GPU twin of I.5c with per-item results and the `ufsecp_gpu_schnorr_verify_batch` contract: NULL ctx → `UFSECP_ERR_NULL_ARG`; count=0 OK; count > kMaxGpuBatchN → `UFSECP_ERR_BAD_INPUT`; `out_results` (when non-NULL) is cleared before the pointer checks, then NULL msgs/pubkeys/sigs/results → `UFSECP_ERR_NULL_ARG`; a non-canonical SEC1 key makes only its own item 0; every item equals `ufsecp_bch_schnorr_verify` on valid and invalid inputs (`audit/test_gpu_host_api_negative.cpp`, `audit/test_gpu_abi_gate.cpp`, `audit/test_gpu_ops_equivalence.cpp`) |
 | I.6 | `ufsecp_context_randomize` | NULL ctx rejected; zero-seed (all-zero 32 bytes) accepted — clears/resets blinding; valid random seed succeeds (smoke); signing after randomize produces valid signature |
 | I.7 | `ufsecp_ecdsa_sign` with non-NULL `noncefp` | NULL noncefp treated as RFC 6979 default; custom noncefp returning valid scalar succeeds; custom noncefp returning zero scalar triggers retry; output valid after custom nonce |
 

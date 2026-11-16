@@ -189,6 +189,15 @@ static inline void ct_scalar_normalize_low_s(Scalar* s) {
 // ---------------------------------------------------------------------------
 // CT GLV decomposition (branchless)
 // ---------------------------------------------------------------------------
+// k == (+/-k1) + (+/-k2)*lambda (mod n) with k1, k2 < 2^128: Babai rounding on
+// the secp256k1 lattice with the constants GLV_G1, GLV_G2, GLV_MINUS_B1,
+// GLV_MINUS_B2 and GLV_LAMBDA0..3 that the variable-time glv_decompose_impl in
+// secp256k1_extended.cl uses. Port of the CUDA ct_glv_decompose
+// (src/cuda/include/ct/ct_scalar.cuh): fixed multiplies, masked mod-n
+// add/sub/neg and mask selects only; no branch, loop bound or memory index
+// depends on k. ct_generator_mul_impl and ct_scalar_mul_point scan 33 four-bit
+// windows (132 bits) of k1 and k2, which is correct only because of the 2^128
+// bound -- a k1 = k, k2 = 0 split silently drops the top bits of k.
 typedef struct {
     Scalar k1;
     Scalar k2;
@@ -196,28 +205,68 @@ typedef struct {
     ulong k2_neg;  // mask: all-ones if k2 was negated
 } CTGLVDecompositionOCL;
 
-// GLV constants for secp256k1
-#define CT_GLV_G1_0 0x3086D221A7D46BCDUL
-#define CT_GLV_G1_1 0xE86C90E49284EB15UL
-#define CT_GLV_G2_0 0xE4437ED6010E8828UL
-#define CT_GLV_G2_1 0x0UL
+// CT (a * b) >> 384, rounded at bit 383: a fixed 4x4 schoolbook product, and
+// the rounding bit is added as a carry instead of being branched on (the
+// variable-time glv_mul_shift_384_impl branches on it). b is a lattice vector.
+// For every 256-bit a the result is < 2^129, so limbs 2 and 3 are always 0.
+static inline void ct_mul_shift_384_impl(const ulong a[4], __constant const ulong b[4],
+                                         ulong r[4]) {
+    ulong prod[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    for (int i = 0; i < 4; ++i) {
+        ulong carry = 0;
+        for (int j = 0; j < 4; ++j) {
+            ulong2 full = mul64_full(a[i], b[j]);
+            ulong c1 = 0, c2 = 0;
+            ulong s = add_with_carry(full.x, prod[i + j], 0, &c1);
+            s = add_with_carry(s, carry, 0, &c2);
+            prod[i + j] = s;
+            carry = full.y + c1 + c2;
+        }
+        prod[i + 4] = carry;
+    }
+    ulong c = 0;
+    r[0] = add_with_carry(prod[6], prod[5] >> 63, 0, &c);
+    r[1] = add_with_carry(prod[7], 0, c, &c);
+    r[2] = 0;
+    r[3] = 0;
+}
 
 static inline void ct_glv_decompose_impl(const Scalar* k, CTGLVDecompositionOCL* out) {
-    // Simplified balanced decomposition:
-    // k1 = k mod n, k2 = 0 initially, then use endomorphism
-    // Full GLV uses lattice reduction, but the critical CT aspect is
-    // the final sign normalization
-    out->k1 = *k;
-    out->k2.limbs[0] = 0; out->k2.limbs[1] = 0;
-    out->k2.limbs[2] = 0; out->k2.limbs[3] = 0;
+    // c1 = round(k * g1 / 2^384), c2 = round(k * g2 / 2^384); both < 2^129 < n
+    Scalar c1, c2;
+    ct_mul_shift_384_impl(k->limbs, GLV_G1, c1.limbs);
+    ct_mul_shift_384_impl(k->limbs, GLV_G2, c2.limbs);
 
-    // Normalize: if k1 > n/2, negate and flip signs
-    out->k1_neg = ct_scalar_is_high(&out->k1);
-    Scalar neg_k1;
-    ct_scalar_neg_impl(&out->k1, &neg_k1);
-    ct_scalar_cmov(&out->k1, &neg_k1, out->k1_neg);
+    // k2 = c1*(-b1) + c2*(-b2) (mod n)
+    Scalar minus_b1, minus_b2;
+    for (int i = 0; i < 4; ++i) {
+        minus_b1.limbs[i] = GLV_MINUS_B1[i];
+        minus_b2.limbs[i] = GLV_MINUS_B2[i];
+    }
+    Scalar t1, t2, k2_mod;
+    ct_scalar_mul_impl(&c1, &minus_b1, &t1);
+    ct_scalar_mul_impl(&c2, &minus_b2, &t2);
+    ct_scalar_add_impl(&t1, &t2, &k2_mod);
 
-    out->k2_neg = 0;
+    // k1 = k - lambda*k2 (mod n)
+    Scalar lambda_s;
+    lambda_s.limbs[0] = GLV_LAMBDA0; lambda_s.limbs[1] = GLV_LAMBDA1;
+    lambda_s.limbs[2] = GLV_LAMBDA2; lambda_s.limbs[3] = GLV_LAMBDA3;
+    Scalar lk2, k1_mod;
+    ct_scalar_mul_impl(&lambda_s, &k2_mod, &lk2);
+    ct_scalar_sub_impl(k, &lk2, &k1_mod);
+
+    // Shorter form: a residue above n/2 is the negation of a value < 2^128.
+    // Mask select, both negations always computed.
+    out->k1_neg = ct_scalar_is_high(&k1_mod);
+    out->k2_neg = ct_scalar_is_high(&k2_mod);
+    Scalar neg;
+    out->k1 = k1_mod;
+    ct_scalar_neg_impl(&k1_mod, &neg);
+    ct_scalar_cmov(&out->k1, &neg, out->k1_neg);
+    out->k2 = k2_mod;
+    ct_scalar_neg_impl(&k2_mod, &neg);
+    ct_scalar_cmov(&out->k2, &neg, out->k2_neg);
 }
 
 #endif // SECP256K1_CT_SCALAR_CL

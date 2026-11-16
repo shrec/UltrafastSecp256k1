@@ -252,6 +252,16 @@
 **Test files:** `audit/test_adversarial_protocol.cpp`, `audit/test_batch_randomness.cpp`
 **GPU:** CUDA batch verify kernels (`src/cuda/include/batch_verify.cuh`) -- parallel per-thread verification
 
+### 14a. BCH 2019 Schnorr verification (3 functions, not BIP-340)
+
+| Function | Unit Test | Fuzz | Adversarial | Differential | CT Path | GPU | Ext. Vectors | Zeroization |
+|----------|-----------|------|-------------|--------------|---------|-----|-------------|-------------|
+| `ufsecp_bch_schnorr_verify` | Y | - | Y | Y (BCHN shim) | N/A (public) | - | - | N/A |
+| `ufsecp_bch_schnorr_batch_verify` | Y | - | Y | Y (BCHN shim) | N/A (public) | - | - | N/A |
+| `ufsecp_bch_schnorr_batch_identify` | Y | - | Y | Y (BCHN shim) | N/A (public) | - | - | N/A |
+
+**Test files:** `audit/test_bch_schnorr_differential.cpp`, `audit/test_exploit_bch_schnorr_batch_forgery.cpp`, `audit/test_regression_bch_schnorr_spec.cpp`
+
 ---
 
 ## 15. Multi-Scalar Multiplication (2 functions)
@@ -622,6 +632,7 @@ Backend-neutral GPU acceleration surface (`ufsecp_gpu.h`). Separate opaque conte
 | `ufsecp_gpu_ecdsa_verify_opaque_rows` | Y | Y | Y | Y (GPU==CPU opaque row) | Strided `hash|pubkey|opaque-sig|tail` rows; parses copied libsecp-compatible signature storage in-kernel |
 | `ufsecp_gpu_ecdsa_verify_lbtc_rows` | Y | Y | Y | Y (alias parity) | Libbitcoin compatibility alias for opaque ECDSA rows; fail-closed null/stride checks before forwarding |
 | `ufsecp_gpu_schnorr_verify_batch` | Y | Y | Y | - | BIP-340 batch verify |
+| `ufsecp_gpu_bch_schnorr_verify_batch` | Y | Y | Y (code-complete, not runtime-verified) | Y (GPU==CPU per item: valid, each field corrupted, r >= p, r off-curve, R negated, s >= n, s = 0, bad and non-canonical keys, mixed batch) | Bitcoin Cash 2019 Schnorr (NOT BIP-340), variable-time on public data; per-item results equal `ufsecp_bch_schnorr_verify`. Throughput: not yet measured |
 | `ufsecp_gpu_ecdsa_verify_collect` | Y | Y | Y | Y (GPU==CPU==libsecp) | libbitcoin collect: native on-device kernel on all 3 backends (verbatim clone of `*_verify_lbtc_columns` verify, collect output store). OpenCL verified on-device (NVIDIA); Metal native, runtime parity pending Apple validation |
 | `ufsecp_gpu_schnorr_verify_collect` | Y | Y | Y | Y (GPU==CPU==libsecp) | libbitcoin collect: native on-device kernel on all 3 backends (verbatim clone of `*_verify_lbtc_columns` verify, collect output store). OpenCL verified on-device (NVIDIA); Metal native, runtime parity pending Apple validation |
 | `ufsecp_gpu_ecdh_batch` | Y | Y | Y | - | SECRET-BEARING |

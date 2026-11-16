@@ -1,0 +1,326 @@
+{
+  "report_type": "ab_reproduction",
+  "generated_by": "bench_unified --suite extended --json <file>; per-run JSON parsed by a script, no number typed by hand",
+  "date": "2026-11-01",
+  "purpose": "independent manager reproduction of schnorr_batch_short_weights_ab_2026-11-01_i5-14400f.json on a different core",
+  "cpu": "Intel Core i5-14400F",
+  "compiler": "GCC 14.2.0",
+  "conditions": {
+    "pinning": "taskset -c 6 (P-core; HT sibling cpu7 idle at start)",
+    "scaling_governor": "powersave",
+    "intel_pstate_no_turbo": "0",
+    "note": "no root: governor and turbo could not be changed; unrelated CPU-heavy jobs were running on other cores, and whole runs were disturbed (base run-to-run spread far above 3%). NOT a canonical bench_unified run."
+  },
+  "method": "base (14e803b2) and new bench_unified built from the same out/audit build.ninja, run alternately base,new,... 5 whole-binary runs each; each value is bench_unified's own 11-pass IQR median",
+  "bench_invocation": "taskset -c 6 bench_unified --suite extended --json <file>",
+  "binary_sha256": {
+    "base": "fee60ba08c87efd3264d864e2e3b1df13b7463a0d830e5e3805af0238732117e",
+    "new": "b2a22eecf977f3b34ad8e907a64f9bf681a58f83bc7f80f3196db36290cb2c95"
+  },
+  "bench_unified_json_header": {
+    "generated_by": "bench_unified --json",
+    "date": "2026-11-01",
+    "cpu": "Intel(R) Core(TM) i5-14400F",
+    "compiler": "GCC 14.2.0",
+    "arch": "x86-64",
+    "timer": "RDTSCP",
+    "tsc_ghz": 2.496,
+    "passes": 11,
+    "warmup": 500,
+    "pool_size": 64,
+    "turbo": "enabled",
+    "run_mode": "full"
+  },
+  "rows": [
+    {
+      "row": "schnorr_batch_verify(N=4)",
+      "base": {
+        "ns_per_op_runs": [
+          84428.87,
+          75306.12,
+          138801.07,
+          82757.53,
+          76366.47
+        ],
+        "median": 82757.53,
+        "min": 75306.12,
+        "max": 138801.07
+      },
+      "new": {
+        "ns_per_op_runs": [
+          89183.41,
+          84437.34,
+          84101.66,
+          84298.86,
+          83958.66
+        ],
+        "median": 84298.86,
+        "min": 83958.66,
+        "max": 89183.41
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": 1.9
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=4)",
+      "base": {
+        "ns_per_op_runs": [
+          86512.67,
+          80942.57,
+          177121.15,
+          85827.07,
+          79891.91
+        ],
+        "median": 85827.07,
+        "min": 79891.91,
+        "max": 177121.15
+      },
+      "new": {
+        "ns_per_op_runs": [
+          162776.75,
+          86266.58,
+          86018.63,
+          86334.08,
+          77858.18
+        ],
+        "median": 86266.58,
+        "min": 77858.18,
+        "max": 162776.75
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": 0.5
+    },
+    {
+      "row": "schnorr_batch_verify(N=16)",
+      "base": {
+        "ns_per_op_runs": [
+          302717.82,
+          326045.21,
+          622842.44,
+          320537.52,
+          307482.87
+        ],
+        "median": 320537.52,
+        "min": 302717.82,
+        "max": 622842.44
+      },
+      "new": {
+        "ns_per_op_runs": [
+          317230.89,
+          368053.23,
+          302198.7,
+          318229.89,
+          301617.09
+        ],
+        "median": 317230.89,
+        "min": 301617.09,
+        "max": 368053.23
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": -1.0
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=16)",
+      "base": {
+        "ns_per_op_runs": [
+          345221.09,
+          344853.66,
+          635756.19,
+          307421.49,
+          363428.54
+        ],
+        "median": 345221.09,
+        "min": 307421.49,
+        "max": 635756.19
+      },
+      "new": {
+        "ns_per_op_runs": [
+          324952.14,
+          344877.38,
+          345273.62,
+          345317.04,
+          309341.03
+        ],
+        "median": 344877.38,
+        "min": 309341.03,
+        "max": 345317.04
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": -0.1
+    },
+    {
+      "row": "schnorr_batch_verify(N=64)",
+      "base": {
+        "ns_per_op_runs": [
+          1269296.38,
+          1221563.06,
+          2042814.79,
+          1207000.32,
+          1154219.52
+        ],
+        "median": 1221563.06,
+        "min": 1154219.52,
+        "max": 2042814.79
+      },
+      "new": {
+        "ns_per_op_runs": [
+          991650.89,
+          990697.83,
+          1142837.23,
+          981507.95,
+          973405.36
+        ],
+        "median": 990697.83,
+        "min": 973405.36,
+        "max": 1142837.23
+      },
+      "ranges": "no overlap, faster",
+      "median_change_pct": -18.9
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=64)",
+      "base": {
+        "ns_per_op_runs": [
+          1150794.89,
+          1056869.15,
+          1812824.24,
+          1071556.49,
+          998877.13
+        ],
+        "median": 1071556.49,
+        "min": 998877.13,
+        "max": 1812824.24
+      },
+      "new": {
+        "ns_per_op_runs": [
+          913618.97,
+          849546.47,
+          936761.1,
+          861515.11,
+          864678.13
+        ],
+        "median": 864678.13,
+        "min": 849546.47,
+        "max": 936761.1
+      },
+      "ranges": "no overlap, faster",
+      "median_change_pct": -19.3
+    },
+    {
+      "row": "schnorr_batch_verify(N=128)",
+      "base": {
+        "ns_per_op_runs": [
+          1927082.7,
+          2004173.33,
+          3780139.43,
+          1841077.16,
+          1883074.46
+        ],
+        "median": 1927082.7,
+        "min": 1841077.16,
+        "max": 3780139.43
+      },
+      "new": {
+        "ns_per_op_runs": [
+          1653531.29,
+          1550672.66,
+          1704408.48,
+          1569929.0,
+          1495644.98
+        ],
+        "median": 1569929.0,
+        "min": 1495644.98,
+        "max": 1704408.48
+      },
+      "ranges": "no overlap, faster",
+      "median_change_pct": -18.5
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=128)",
+      "base": {
+        "ns_per_op_runs": [
+          1713862.79,
+          1768897.7,
+          3168849.53,
+          1760636.35,
+          1754988.85
+        ],
+        "median": 1760636.35,
+        "min": 1713862.79,
+        "max": 3168849.53
+      },
+      "new": {
+        "ns_per_op_runs": [
+          1535443.35,
+          1535030.36,
+          2842244.99,
+          1369436.7,
+          1374628.09
+        ],
+        "median": 1535030.36,
+        "min": 1369436.7,
+        "max": 2842244.99
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": -12.8
+    },
+    {
+      "row": "schnorr_batch_verify(N=192)",
+      "base": {
+        "ns_per_op_runs": [
+          2780989.35,
+          2731450.3,
+          2668196.44,
+          2594416.13,
+          2661648.66
+        ],
+        "median": 2668196.44,
+        "min": 2594416.13,
+        "max": 2780989.35
+      },
+      "new": {
+        "ns_per_op_runs": [
+          2933753.26,
+          2684497.28,
+          2124450.29,
+          2130627.84,
+          2047638.74
+        ],
+        "median": 2130627.84,
+        "min": 2047638.74,
+        "max": 2933753.26
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": -20.1
+    },
+    {
+      "row": "schnorr_batch_verify(cached,N=192)",
+      "base": {
+        "ns_per_op_runs": [
+          2632817.56,
+          2408146.29,
+          2639154.86,
+          2831522.81,
+          2376903.41
+        ],
+        "median": 2632817.56,
+        "min": 2376903.41,
+        "max": 2831522.81
+      },
+      "new": {
+        "ns_per_op_runs": [
+          2135809.75,
+          2482459.65,
+          2058139.94,
+          2028262.09,
+          1899728.17
+        ],
+        "median": 2058139.94,
+        "min": 1899728.17,
+        "max": 2482459.65
+      },
+      "ranges": "overlap (inconclusive)",
+      "median_change_pct": -21.8
+    }
+  ]
+}

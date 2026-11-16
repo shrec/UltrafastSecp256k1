@@ -37,6 +37,26 @@
 //          vacuously if the guard were deleted
 //   OKC-4  no #else sits at the top level of a SCAN_ONLY-guarded region, which
 //          is the one shape the guard evaluator below does not model
+//   OKC-5  the variable-time SafeGCD inverses (field_inv_var_impl,
+//          scalar_inv_var_impl, modinv30_var_impl) are referenced by no
+//          secp256k1_ct_*.cl file, no macro and no function whose name
+//          contains sign, ecdh, keygen, derive or prove -- they take public
+//          data only
+//   OKC-6  that scan sees the real verifier call sites (positive control)
+//   OKC-7  the scan rejects the inverse when it is put into the real signing
+//          / ECDH code and into a real secp256k1_ct_*.cl file (negative
+//          control), so OKC-5 cannot pass vacuously
+//   OKC-8  Metal: the same rule for the Metal variable-time inverses
+//          (field_inv_var, scalar_inv_var, modinv30_var_impl,
+//          jacobian_to_affine_var) across every file in src/metal/shaders/:
+//          no secp256k1_ct_*.h file, no macro and no sign / ecdh / keygen /
+//          derive / prove function references them
+//   OKC-9  that scan sees the real Metal verifier call sites (positive
+//          control)
+//   OKC-10 the Metal scan rejects the inverse when it is put into the real
+//          Metal ECDH and recoverable-signing code and into a real
+//          secp256k1_ct_*.h file (negative control), so OKC-8 cannot pass
+//          vacuously
 //
 // The evaluator is deliberately not a C preprocessor. It copies every line
 // except the regions opened by a directive that mentions
@@ -330,6 +350,209 @@ std::vector<std::string> list_cl_kernel_files() {
     return names;
 }
 
+constexpr const char* kMetalShaderDir = "src/metal/shaders/";
+
+// Enumerates *.h and *.metal files directly under src/metal/shaders/, resolved
+// the same way as list_cl_kernel_files(). An empty result is treated by the
+// caller as a hard failure (OKC-8).
+std::vector<std::string> list_metal_shader_files() {
+    std::string const dir =
+#ifdef UFSECP_SOURCE_ROOT
+        std::string(UFSECP_SOURCE_ROOT) + "/" + kMetalShaderDir;
+#else
+        std::string(kMetalShaderDir);
+#endif
+    std::vector<std::string> names;
+    std::error_code ec;
+    for (auto const& entry : std::filesystem::directory_iterator(dir, ec)) {
+        std::error_code file_ec;
+        if (!entry.is_regular_file(file_ec)) continue;
+        std::string const name = entry.path().filename().string();
+        bool const is_h = name.size() > 2 && name.compare(name.size() - 2, 2, ".h") == 0;
+        bool const is_metal = name.size() > 6 && name.compare(name.size() - 6, 6, ".metal") == 0;
+        if (is_h || is_metal) names.push_back(name);
+    }
+    std::sort(names.begin(), names.end());
+    return names;
+}
+
+// ---------------------------------------------------------------------------
+// Public-only guard for the variable-time SafeGCD inverses (OKC-5..OKC-7).
+//
+// field_inv_var_impl / scalar_inv_var_impl / modinv30_var_impl (defined in
+// secp256k1_field.cl and secp256k1_extended.cl) run in a time that depends on
+// the value they invert, so only public data may reach them. CUDA fences its
+// equivalents off with deleted declarations in namespace ct; OpenCL C has no
+// namespaces, so this scan is the fence. With comments stripped it rejects
+//   - any reference in a secp256k1_ct_*.cl file,
+//   - any reference on a preprocessor line (a macro could hide a call),
+//   - any reference inside a top-level function body whose name contains
+//     sign, ecdh, keygen, derive or prove (case-insensitive).
+// It is a direct-reference text scan, not a call graph: a secret path that
+// reaches a verifier helper indirectly is not seen, which is why each helper
+// that calls a _var inverse documents that its callers are all verifiers.
+// The same scan guards the Metal port (OKC-8..OKC-10) with the Metal names:
+// MSL has no deleted declarations to use as a fence either, and there the
+// secret files are secp256k1_ct_*.h.
+// ---------------------------------------------------------------------------
+const std::vector<std::string> kVarInverseNames = {
+    "field_inv_var_impl", "scalar_inv_var_impl", "modinv30_var_impl",
+};
+// Metal (src/metal/shaders/secp256k1_field.h and secp256k1_extended.h): the
+// core, the two inverse wrappers and the public-point affine helper.
+const std::vector<std::string> kMetalVarInverseNames = {
+    "field_inv_var", "scalar_inv_var", "modinv30_var_impl", "jacobian_to_affine_var",
+};
+const char* const kSecretNameParts[] = { "sign", "ecdh", "keygen", "derive", "prove" };
+
+bool references_var_inverse(const std::string& code,
+                            const std::vector<std::string>& names) {
+    for (auto const& n : names) {
+        if (contains_word(code, n)) return true;
+    }
+    return false;
+}
+
+// Same line count as `src`; every preprocessor line (and its backslash
+// continuations) becomes empty, so macro bodies do not count as braces.
+std::string blank_directives_keep_lines(const std::string& src) {
+    std::string out;
+    out.reserve(src.size());
+    bool continuation = false;
+    for (auto const& line : split_lines(src)) {
+        bool const is_dir = continuation || !directive(line).empty();
+        continuation = is_dir && !line.empty() && line.back() == '\\';
+        if (!is_dir) out += line;
+        out += '\n';
+    }
+    return out;
+}
+
+// The function name in a top-level declaration header: the identifier just
+// before the last '(' that opens at parenthesis depth 0 (so an
+// __attribute__((...)) prefix is skipped). "" when there is no '(' -- a
+// struct, an initialized array.
+std::string function_name_from_header(const std::string& header) {
+    int depth = 0;
+    std::size_t last_open = std::string::npos;
+    for (std::size_t i = 0; i < header.size(); ++i) {
+        if (header[i] == '(') {
+            if (depth == 0) last_open = i;
+            ++depth;
+        } else if (header[i] == ')' && depth > 0) {
+            --depth;
+        }
+    }
+    if (last_open == std::string::npos) return "";
+    std::size_t e = last_open;
+    while (e > 0 && (header[e - 1] == ' ' || header[e - 1] == '\t'
+                     || header[e - 1] == '\n' || header[e - 1] == '\r')) --e;
+    std::size_t b = e;
+    while (b > 0 && ident_char(header[b - 1])) --b;
+    return header.substr(b, e - b);
+}
+
+struct TopLevelBody {
+    std::string name;   // "" for a non-function brace block
+    std::string body;   // text between the outermost { and }
+};
+
+// Every brace block at file scope, with the name of the function it belongs
+// to. Comments and preprocessor lines are removed first.
+std::vector<TopLevelBody> top_level_bodies(const std::string& src) {
+    std::string const code = blank_directives_keep_lines(strip_comments_keep_lines(src));
+    std::vector<TopLevelBody> out;
+    std::string header, name;
+    int depth = 0;
+    std::size_t body_start = 0;
+    for (std::size_t i = 0; i < code.size(); ++i) {
+        char const c = code[i];
+        if (depth == 0) {
+            if (c == '{') {
+                name = function_name_from_header(header);
+                depth = 1;
+                body_start = i + 1;
+            } else if (c == ';') {
+                header.clear();
+            } else {
+                header += c;
+            }
+            continue;
+        }
+        if (c == '{') {
+            ++depth;
+        } else if (c == '}' && --depth == 0) {
+            out.push_back({name, code.substr(body_start, i - body_start)});
+            header.clear();
+        }
+    }
+    return out;
+}
+
+bool is_secret_path_name(const std::string& name) {
+    std::string lower = name;
+    for (auto& ch : lower) {
+        if (ch >= 'A' && ch <= 'Z') ch = static_cast<char>(ch - 'A' + 'a');
+    }
+    for (auto const* part : kSecretNameParts) {
+        if (lower.find(part) != std::string::npos) return true;
+    }
+    return false;
+}
+
+// Scans one OpenCL (or, with kMetalVarInverseNames, Metal) source. Appends
+// "label: reason" per violation to `offenders` and the name of every
+// non-secret function that calls a _var inverse to `public_callers`. Returns
+// the number of violations.
+int scan_var_inverse_use(const std::string& src, const std::string& file_name,
+                         const std::string& label,
+                         std::vector<std::string>& offenders,
+                         std::vector<std::string>& public_callers,
+                         const std::vector<std::string>& names = kVarInverseNames) {
+    int bad = 0;
+    std::string const code = strip_comments_keep_lines(src);
+    if (file_name.rfind("secp256k1_ct_", 0) == 0 && references_var_inverse(code, names)) {
+        offenders.push_back(label + ": a secp256k1_ct_* file references a "
+                            "variable-time inverse");
+        ++bad;
+    }
+    std::vector<std::string> const lines = split_lines(code);
+    for (std::size_t i = 0; i < lines.size(); ++i) {
+        if (!directive(lines[i]).empty() && references_var_inverse(lines[i], names)) {
+            offenders.push_back(label + ":" + std::to_string(i + 1)
+                                + ": preprocessor line references a variable-time inverse");
+            ++bad;
+        }
+    }
+    for (auto const& fn : top_level_bodies(src)) {
+        if (!references_var_inverse(fn.body, names)) continue;
+        if (is_secret_path_name(fn.name)) {
+            offenders.push_back(label + ": " + fn.name + "() calls a variable-time inverse");
+            ++bad;
+        } else {
+            public_callers.push_back(fn.name);
+        }
+    }
+    return bad;
+}
+
+bool has_entry(const std::vector<std::string>& v, const std::string& needle) {
+    for (auto const& s : v) {
+        if (s.find(needle) != std::string::npos) return true;
+    }
+    return false;
+}
+
+// Replaces every occurrence of `from` in `s` with `to`.
+std::string replace_all(std::string s, const std::string& from, const std::string& to) {
+    std::size_t pos = 0;
+    while ((pos = s.find(from, pos)) != std::string::npos) {
+        s.replace(pos, from.size(), to);
+        pos += to.size();
+    }
+    return s;
+}
+
 } // namespace
 
 int test_regression_opencl_kernel_closure_run() {
@@ -387,6 +610,184 @@ int test_regression_opencl_kernel_closure_run() {
     // The guard must remove lines, not merely exist.
     CHECK(guarded.size() < plain.size(),
           "OKC-3: the guard removes source from the embed");
+
+    // OKC-5 -- the variable-time SafeGCD inverses see public data only: no
+    // secp256k1_ct_*.cl file, no macro and no sign / ecdh / keygen / derive /
+    // prove function references them, in any kernel file or in the OpenCL C
+    // embedded in opencl_context.cpp.
+    std::vector<std::string> var_offenders, var_public_callers;
+    std::vector<std::string> const all_cl = list_cl_kernel_files();
+    bool all_cl_read = !all_cl.empty();
+    for (auto const& name : all_cl) {
+        std::string const rel = std::string(kKernelDir) + name;
+        std::string const src = audit_read_source_file(rel.c_str());
+        if (src.empty()) { all_cl_read = false; continue; }
+        scan_var_inverse_use(src, name, rel, var_offenders, var_public_callers);
+    }
+    {
+        std::string const ctx_src = audit_read_source_file("src/opencl/src/opencl_context.cpp");
+        if (ctx_src.empty()) all_cl_read = false;
+        scan_var_inverse_use(extract_kernel_parts(ctx_src), "opencl_context.cpp",
+                             "src/opencl/src/opencl_context.cpp (kernel_parts)",
+                             var_offenders, var_public_callers);
+    }
+    for (auto const& off : var_offenders) std::printf("    VAR-INVERSE OFFENDER: %s\n", off.c_str());
+    std::printf("  variable-time inverse callers (public paths): %zu\n", var_public_callers.size());
+    for (auto const& c : var_public_callers) std::printf("    %s\n", c.c_str());
+    CHECK(all_cl_read, "OKC-5: every OpenCL kernel file and opencl_context.cpp is readable");
+    CHECK(var_offenders.empty(),
+          "OKC-5: field_inv_var_impl / scalar_inv_var_impl / modinv30_var_impl appear in "
+          "no secp256k1_ct_*.cl file, no macro and no sign/ecdh/keygen/derive/prove function");
+
+    // OKC-6 -- live positive control: the scan sees the real verifier call
+    // sites, so OKC-5 cannot pass because the body extractor found nothing.
+    CHECK(has_entry(var_public_callers, "ecdsa_verify_impl")
+              && has_entry(var_public_callers, "schnorr_verify_impl")
+              && has_entry(var_public_callers, "ecdsa_recover_impl"),
+          "OKC-6: the scan finds the variable-time inverse in ecdsa_verify_impl, "
+          "schnorr_verify_impl and ecdsa_recover_impl");
+
+    // OKC-7 -- live negative control: put the variable-time inverse into the
+    // real signing and ECDH code and into a real secp256k1_ct_*.cl file; the
+    // scan must reject each. A synthetic verifier must stay accepted.
+    {
+        std::string const ext =
+            audit_read_source_file((std::string(kKernelDir) + "secp256k1_extended.cl").c_str());
+        std::vector<std::string> mut_off, mut_pub;
+        scan_var_inverse_use(replace_all(ext, "field_inv_impl(", "field_inv_var_impl("),
+                             "secp256k1_extended.cl", "<mutated extended.cl>", mut_off, mut_pub);
+        for (auto const& off : mut_off) std::printf("    mutation caught: %s\n", off.c_str());
+        CHECK(!ext.empty() && has_entry(mut_off, "ecdsa_sign_impl()")
+                  && has_entry(mut_off, "schnorr_sign_impl()")
+                  && has_entry(mut_off, "ecdh_compute_raw_impl()"),
+              "OKC-7: field_inv_impl -> field_inv_var_impl in the real extended.cl is "
+              "rejected in ecdsa_sign_impl, schnorr_sign_impl and ecdh_compute_raw_impl");
+
+        std::string const ct_src =
+            audit_read_source_file((std::string(kKernelDir) + "secp256k1_ct_field.cl").c_str());
+        std::vector<std::string> ct_off, ct_pub;
+        scan_var_inverse_use(ct_src + "\nstatic inline void probe(FieldElement* r, "
+                                      "const FieldElement* a) { field_inv_var_impl(r, a); }\n",
+                             "secp256k1_ct_field.cl", "<mutated secp256k1_ct_field.cl>",
+                             ct_off, ct_pub);
+        CHECK(!ct_src.empty() && !ct_off.empty(),
+              "OKC-7: a variable-time inverse call added to the real secp256k1_ct_field.cl "
+              "is rejected");
+
+        std::vector<std::string> mac_off, mac_pub;
+        scan_var_inverse_use("#define INV(r, a) field_inv_var_impl(r, a)\n",
+                             "secp256k1_demo.cl", "<macro>", mac_off, mac_pub);
+        std::vector<std::string> ok_off, ok_pub;
+        scan_var_inverse_use("static inline int demo_verify(const Scalar* s, Scalar* r) {\n"
+                             "    // field_inv_var_impl in a comment does not count\n"
+                             "    scalar_inv_var_impl(s, r); return 1;\n}\n"
+                             "static inline int demo_sign(const Scalar* k, Scalar* r) {\n"
+                             "    /* scalar_inv_var_impl(k, r); */ scalar_inverse_impl(k, r);"
+                             " return 1;\n}\n",
+                             "secp256k1_demo.cl", "<synthetic>", ok_off, ok_pub);
+        CHECK(!mac_off.empty(), "OKC-7: a macro wrapping a variable-time inverse is rejected");
+        CHECK(ok_off.empty() && ok_pub.size() == 1 && ok_pub[0] == "demo_verify",
+              "OKC-7: a verifier calling scalar_inv_var_impl is accepted and a commented-out "
+              "call in a signer is ignored");
+    }
+
+    // OKC-8 -- Metal: the variable-time SafeGCD inverses (field_inv_var,
+    // scalar_inv_var, modinv30_var_impl, jacobian_to_affine_var) see public
+    // data only: no secp256k1_ct_*.h file, no macro and no sign / ecdh /
+    // keygen / derive / prove function references them, in any *.h or *.metal
+    // file under src/metal/shaders/.
+    {
+        std::vector<std::string> m_off, m_pub;
+        std::vector<std::string> const shaders = list_metal_shader_files();
+        bool all_read = !shaders.empty();
+        for (auto const& name : shaders) {
+            std::string const rel = std::string(kMetalShaderDir) + name;
+            std::string const src = audit_read_source_file(rel.c_str());
+            if (src.empty()) { all_read = false; continue; }
+            scan_var_inverse_use(src, name, rel, m_off, m_pub, kMetalVarInverseNames);
+        }
+        for (auto const& off : m_off) std::printf("    METAL VAR-INVERSE OFFENDER: %s\n", off.c_str());
+        std::printf("  Metal variable-time inverse callers (public paths): %zu\n", m_pub.size());
+        for (auto const& c : m_pub) std::printf("    %s\n", c.c_str());
+        CHECK(all_read, "OKC-8: every Metal shader file (*.h, *.metal) is readable");
+        CHECK(m_off.empty(),
+              "OKC-8: field_inv_var / scalar_inv_var / modinv30_var_impl / jacobian_to_affine_var "
+              "appear in no secp256k1_ct_*.h file, no macro and no sign/ecdh/keygen/derive/prove "
+              "function of the Metal shaders");
+
+        // OKC-9 -- live positive control: the real Metal verifier call sites.
+        CHECK(has_entry(m_pub, "ecdsa_verify") && has_entry(m_pub, "schnorr_verify")
+                  && has_entry(m_pub, "ecdsa_recover") && has_entry(m_pub, "ecdsa_recover_metal")
+                  && has_entry(m_pub, "ecdsa_snark_witness_batch")
+                  && has_entry(m_pub, "lbtc_commitment_verify")
+                  && has_entry(m_pub, "frost_jac_equal")
+                  && has_entry(m_pub, "field_inv_var") && has_entry(m_pub, "scalar_inv_var"),
+              "OKC-9: the Metal scan finds the variable-time inverse in ecdsa_verify, "
+              "schnorr_verify, ecdsa_recover, ecdsa_recover_metal, ecdsa_snark_witness_batch, "
+              "lbtc_commitment_verify, frost_jac_equal and the two wrappers");
+    }
+
+    // OKC-10 -- live negative control for the Metal scan: put the
+    // variable-time inverse into the real Metal ECDH code, into the real
+    // recoverable signer and into a real secp256k1_ct_*.h file; the scan must
+    // reject each. A synthetic Metal verifier must stay accepted.
+    {
+        std::string const ext =
+            audit_read_source_file((std::string(kMetalShaderDir) + "secp256k1_extended.h").c_str());
+        std::string const mut_ext =
+            replace_all(replace_all(ext, "jacobian_to_affine(", "jacobian_to_affine_var("),
+                        "field_inv(", "field_inv_var(");
+        std::vector<std::string> mut_off, mut_pub;
+        scan_var_inverse_use(mut_ext, "secp256k1_extended.h", "<mutated extended.h>",
+                             mut_off, mut_pub, kMetalVarInverseNames);
+        for (auto const& off : mut_off) std::printf("    Metal mutation caught: %s\n", off.c_str());
+        CHECK(!ext.empty() && has_entry(mut_off, "ecdh_compute_raw()")
+                  && has_entry(mut_off, "ecdh_compute()")
+                  && has_entry(mut_off, "ecdh_shared_secret_xonly()"),
+              "OKC-10: jacobian_to_affine / field_inv -> the _var forms in the real Metal "
+              "extended.h is rejected in ecdh_compute_raw, ecdh_compute and "
+              "ecdh_shared_secret_xonly");
+
+        std::string const rec =
+            audit_read_source_file((std::string(kMetalShaderDir) + "secp256k1_recovery.h").c_str());
+        std::vector<std::string> rec_off, rec_pub;
+        scan_var_inverse_use(replace_all(rec, "scalar_inverse(", "scalar_inv_var("),
+                             "secp256k1_recovery.h", "<mutated recovery.h>",
+                             rec_off, rec_pub, kMetalVarInverseNames);
+        for (auto const& off : rec_off) std::printf("    Metal mutation caught: %s\n", off.c_str());
+        CHECK(!rec.empty() && has_entry(rec_off, "ecdsa_sign_recoverable_metal()"),
+              "OKC-10: scalar_inverse -> scalar_inv_var in the real Metal recoverable signer "
+              "(the nonce inverse k^-1) is rejected");
+
+        std::string const ct_src =
+            audit_read_source_file((std::string(kMetalShaderDir) + "secp256k1_ct_point.h").c_str());
+        std::vector<std::string> ct_off, ct_pub;
+        scan_var_inverse_use(ct_src + "\ninline FieldElement probe(thread const FieldElement &a) "
+                                      "{ return field_inv_var(a); }\n",
+                             "secp256k1_ct_point.h", "<mutated secp256k1_ct_point.h>",
+                             ct_off, ct_pub, kMetalVarInverseNames);
+        CHECK(!ct_src.empty() && !ct_off.empty(),
+              "OKC-10: a variable-time inverse call added to the real Metal "
+              "secp256k1_ct_point.h is rejected");
+
+        std::vector<std::string> mac_off, mac_pub;
+        scan_var_inverse_use("#define INV(a) field_inv_var(a)\n",
+                             "secp256k1_demo.h", "<metal macro>", mac_off, mac_pub,
+                             kMetalVarInverseNames);
+        std::vector<std::string> ok_off, ok_pub;
+        scan_var_inverse_use("inline bool demo_verify(thread const Scalar256 &s) {\n"
+                             "    // field_inv_var in a comment does not count\n"
+                             "    Scalar256 r = scalar_inv_var(s); return r.limbs[0] != 0;\n}\n"
+                             "inline bool demo_sign(thread const Scalar256 &k) {\n"
+                             "    /* scalar_inv_var(k); */ Scalar256 r = scalar_inverse(k);"
+                             " return r.limbs[0] != 0;\n}\n",
+                             "secp256k1_demo.h", "<metal synthetic>", ok_off, ok_pub,
+                             kMetalVarInverseNames);
+        CHECK(!mac_off.empty(), "OKC-10: a Metal macro wrapping a variable-time inverse is rejected");
+        CHECK(ok_off.empty() && ok_pub.size() == 1 && ok_pub[0] == "demo_verify",
+              "OKC-10: a Metal verifier calling scalar_inv_var is accepted and a commented-out "
+              "call in a signer is ignored");
+    }
 
     std::printf("\n[regression_opencl_kernel_closure] %d/%d checks passed\n",
                 g_pass, g_pass + g_fail);

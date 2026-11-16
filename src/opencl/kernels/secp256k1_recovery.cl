@@ -252,8 +252,10 @@ static inline int ecdsa_recover_impl(const uchar msg_hash[32],
     Scalar z_msg;
     scalar_from_bytes_impl(msg_hash, &z_msg);
 
+    // r is public signature data: variable-time SafeGCD inverse
+    // (scalar_inv_var_impl(in, out), defined in secp256k1_extended.cl).
     Scalar r_inv;
-    scalar_inverse_impl(&r_inv, sig_r);
+    scalar_inv_var_impl(sig_r, &r_inv);
 
     JacobianPoint sR;
     scalar_mul_impl(&sR, &R, sig_s);

@@ -15,6 +15,16 @@
 # Fails if a blocking freshness SLO is violated, a tracked artifact has no
 # refresh disposition, an auto producer is unverifiable, or a documented residual
 # no longer resolves.
+#
+# Which branch it watches: dev. The schedule fires on the default branch (main),
+# but main is the release branch and only changes when a version is cut, so
+# nothing on it can refresh evidence between releases and a wall-clock age check
+# there goes red about 30 days after every release. This workflow therefore checks
+# out dev (ref: dev below): the branch where evidence is refreshed
+# (caas-evidence-refresh.yml commits to dev) and the next release is cut from, and
+# it measures against the wall clock (AUDIT_SLA_AS_OF unset). main's evidence is
+# checked as of its release commit instead, by audit-report.yml
+# (AUDIT_SLA_AS_OF=head).
 # ===========================================================================
 
 name: CAAS Freshness Check
@@ -41,6 +51,9 @@ jobs:
 
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
+          # The schedule starts on main, the release branch; watch dev instead
+          # (see the header: main is checked as of its release by audit-report.yml).
+          ref: dev
           # CAAS-08: full history. A shallow clone (was fetch-depth: 10) cannot
           # reach the last commit that touched an evidence file when it is older
           # than the window (e.g. AUDIT_DASHBOARD.md, refreshed nightly, can be

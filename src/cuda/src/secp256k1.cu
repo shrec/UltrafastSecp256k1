@@ -1,6 +1,7 @@
 #include "secp256k1.cuh"
 #include "ecdsa.cuh"
 #include "schnorr.cuh"
+#include "bch_schnorr.cuh"
 #include "recovery.cuh"
 #include "ct/ct_sign.cuh"
 
@@ -242,6 +243,25 @@ void schnorr_verify_batch_kernel(
         const uint8_t* pk  = pubkeys_x + static_cast<size_t>(idx) * 32;
         const uint8_t* msg = msgs + static_cast<size_t>(idx) * 32;
         results[idx] = schnorr_verify(pk, msg, &sigs[idx]);
+    }
+}
+
+// Bitcoin Cash 2019 Schnorr verify batch (NOT BIP-340) -- one thread per
+// signature, wire-form inputs, variable-time on public data. results[i] = 1
+// valid / 0 invalid; every thread idx < count writes its byte.
+__global__ __launch_bounds__(128, 2)
+void bch_schnorr_verify_batch_kernel(
+    const uint8_t* __restrict__ msgs32,       // count x 32 bytes
+    const uint8_t* __restrict__ pubkeys33,    // count x 33 bytes (SEC1 compressed)
+    const uint8_t* __restrict__ sigs64,       // count x 64 bytes (r || s)
+    uint8_t*       __restrict__ results,
+    int count)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) {
+        const size_t i = static_cast<size_t>(idx);
+        results[idx] = bch_schnorr_verify_device(
+            sigs64 + i * 64, msgs32 + i * 32, pubkeys33 + i * 33) ? 1u : 0u;
     }
 }
 

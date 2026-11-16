@@ -123,6 +123,24 @@ public:
         const uint8_t* sigs64, size_t count,
         uint8_t* out_results) = 0;
 
+    /* Bitcoin Cash 2019 Schnorr (NOT BIP-340), one verdict per item:
+     *   msgs32[count][32] | pubkeys33[count][33 compressed] | sigs64[count][64 r||s].
+     * Fail if r >= p, s >= n, s == 0 or the key does not decompress;
+     * e = SHA256(r || pubkey33 || msg32) mod n; R = s*G - e*P; fail if R = O,
+     * R.y is not a quadratic residue (Jacobi of Y*Z) or X != r*Z^2.
+     * PUBLIC-DATA, variable-time. The C ABI wrapper masks non-canonical keys
+     * (x >= p) per item. Native on CUDA, OpenCL and Metal; the default below is
+     * only for a backend that has not implemented it. */
+    virtual GpuError bch_schnorr_verify_batch(
+        const uint8_t* msgs32, const uint8_t* pubkeys33,
+        const uint8_t* sigs64, size_t count,
+        uint8_t* out_results)
+    {
+        (void)msgs32; (void)pubkeys33; (void)sigs64;
+        (void)count; (void)out_results;
+        return GpuError::Unsupported;
+    }
+
     /* Libbitcoin ECDSA/Schnorr COLUMN path (Structure-of-Arrays), the sibling of
      * ecdsa_verify_lbtc_rows for libbitcoin's parallel column spans:
      *   digests32[count][32] | pubkeys[count][33 compressed | 32 x-only] |

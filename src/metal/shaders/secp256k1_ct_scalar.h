@@ -178,8 +178,17 @@ inline Scalar256 ct_scalar_normalize_low_s(thread const Scalar256 &s) {
 }
 
 // ---------------------------------------------------------------------------
-// CT GLV decomposition
+// CT GLV decomposition (branchless)
 // ---------------------------------------------------------------------------
+// Line-for-line mirror of ct_glv_decompose_impl in
+// src/opencl/kernels/secp256k1_ct_scalar.cl, in 8x32-bit limbs.
+// k == (+/-k1) + (+/-k2)*lambda (mod n) with k1, k2 < 2^128: Babai rounding on
+// the secp256k1 lattice with the same g1, g2, -b1, -b2 and lambda as the
+// variable-time GLV decomposition. Fixed multiplies, masked mod-n add/sub/neg
+// and mask selects only; no branch, loop bound or memory index depends on k.
+// ct_generator_mul_metal and ct_scalar_mul_point scan 33 four-bit windows
+// (132 bits) of k1 and k2, which is correct only because of the 2^128 bound --
+// a k1 = k, k2 = 0 split silently drops the top bits of k.
 struct CTGLVDecompositionMetal {
     Scalar256 k1;
     Scalar256 k2;
@@ -187,15 +196,88 @@ struct CTGLVDecompositionMetal {
     uint k2_neg;  // mask
 };
 
-inline CTGLVDecompositionMetal ct_glv_decompose(thread const Scalar256 &k) {
-    CTGLVDecompositionMetal out;
-    out.k1 = k;
-    for (int i = 0; i < 8; ++i) out.k2.limbs[i] = 0;
+// GLV lattice constants in 8x32 LE (same values as GLV_G1, GLV_G2,
+// GLV_MINUS_B1, GLV_MINUS_B2 and GLV_LAMBDA0..3 in secp256k1_extended.cl)
+constant uint CT_GLV_G1_METAL[8] = {
+    0x45DBB031u, 0xE893209Au, 0x71E8CA7Fu, 0x3DAA8A14u,
+    0x9284EB15u, 0xE86C90E4u, 0xA7D46BCDu, 0x3086D221u
+};
+constant uint CT_GLV_G2_METAL[8] = {
+    0x8AC47F71u, 0x1571B4AEu, 0x9DF506C6u, 0x221208ACu,
+    0x0ABFE4C4u, 0x6F547FA9u, 0x010E8828u, 0xE4437ED6u
+};
+constant uint CT_GLV_MINUS_B1_METAL[8] = {
+    0x0ABFE4C3u, 0x6F547FA9u, 0x010E8828u, 0xE4437ED6u,
+    0x00000000u, 0x00000000u, 0x00000000u, 0x00000000u
+};
+constant uint CT_GLV_MINUS_B2_METAL[8] = {
+    0x3DB1562Cu, 0xD765CDA8u, 0x0774346Du, 0x8A280AC5u,
+    0xFFFFFFFEu, 0xFFFFFFFFu, 0xFFFFFFFFu, 0xFFFFFFFFu
+};
+constant uint CT_GLV_LAMBDA_METAL[8] = {
+    0x1B23BD72u, 0xDF02967Cu, 0x20816678u, 0x122E22EAu,
+    0x8812645Au, 0xA5261C02u, 0xC05C30E0u, 0x5363AD4Cu
+};
 
-    out.k1_neg = ct_scalar_is_high_mask(out.k1);
-    Scalar256 neg_k1 = ct_scalar_neg(out.k1);
-    ct_scalar_cmov(out.k1, neg_k1, out.k1_neg);
-    out.k2_neg = 0;
+// CT (a * b) >> 384, rounded at bit 383: a fixed 8x8 schoolbook product, and
+// the rounding bit is added as a carry instead of being branched on.
+// For every 256-bit a the result is < 2^129, so limbs 4..7 are always 0.
+inline Scalar256 ct_mul_shift_384(thread const Scalar256 &a, constant const uint *b) {
+    uint prod[16];
+    for (int i = 0; i < 16; ++i) prod[i] = 0u;
+    for (int i = 0; i < 8; ++i) {
+        ulong carry = 0;
+        for (int j = 0; j < 8; ++j) {
+            ulong t = (ulong)a.limbs[i] * (ulong)b[j] + (ulong)prod[i + j] + carry;
+            prod[i + j] = (uint)t;
+            carry = t >> 32;
+        }
+        prod[i + 8] = (uint)carry;
+    }
+    Scalar256 r;
+    ulong c = (ulong)(prod[11] >> 31);
+    for (int i = 0; i < 4; ++i) {
+        ulong t = (ulong)prod[12 + i] + c;
+        r.limbs[i] = (uint)t;
+        c = t >> 32;
+    }
+    for (int i = 4; i < 8; ++i) r.limbs[i] = 0u;
+    return r;
+}
+
+inline CTGLVDecompositionMetal ct_glv_decompose(thread const Scalar256 &k) {
+    // c1 = round(k * g1 / 2^384), c2 = round(k * g2 / 2^384); both < 2^129 < n
+    Scalar256 c1 = ct_mul_shift_384(k, CT_GLV_G1_METAL);
+    Scalar256 c2 = ct_mul_shift_384(k, CT_GLV_G2_METAL);
+
+    // k2 = c1*(-b1) + c2*(-b2) (mod n)
+    Scalar256 minus_b1, minus_b2;
+    for (int i = 0; i < 8; ++i) {
+        minus_b1.limbs[i] = CT_GLV_MINUS_B1_METAL[i];
+        minus_b2.limbs[i] = CT_GLV_MINUS_B2_METAL[i];
+    }
+    Scalar256 t1 = ct_scalar_mul(c1, minus_b1);
+    Scalar256 t2 = ct_scalar_mul(c2, minus_b2);
+    Scalar256 k2_mod = ct_scalar_add(t1, t2);
+
+    // k1 = k - lambda*k2 (mod n)
+    Scalar256 lambda_s;
+    for (int i = 0; i < 8; ++i) lambda_s.limbs[i] = CT_GLV_LAMBDA_METAL[i];
+    Scalar256 lk2 = ct_scalar_mul(lambda_s, k2_mod);
+    Scalar256 k1_mod = ct_scalar_sub(k, lk2);
+
+    // Shorter form: a residue above n/2 is the negation of a value < 2^128.
+    // Mask select, both negations always computed.
+    CTGLVDecompositionMetal out;
+    out.k1_neg = ct_scalar_is_high_mask(k1_mod);
+    out.k2_neg = ct_scalar_is_high_mask(k2_mod);
+    Scalar256 neg;
+    out.k1 = k1_mod;
+    neg = ct_scalar_neg(k1_mod);
+    ct_scalar_cmov(out.k1, neg, out.k1_neg);
+    out.k2 = k2_mod;
+    neg = ct_scalar_neg(k2_mod);
+    ct_scalar_cmov(out.k2, neg, out.k2_neg);
     return out;
 }
 

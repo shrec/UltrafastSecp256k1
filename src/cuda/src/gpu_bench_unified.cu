@@ -13,6 +13,8 @@
 //   2. Point Operations     (add, double, Jac->Affine)
 //   3. Scalar Mul           (k*G, k*P batch)
 //   4. Affine Pipeline      (affine add, batch inverse)
+//   4b. Verification        (ECDSA verify, BIP-340 verify, ecrecover, hash160;
+//                            CPU-made inputs, every result checked, core suite)
 //   5. ECDSA                (sign, verify, recoverable sign)
 //   6. Schnorr/BIP-340      (sign, verify)
 //   7. Throughput Summary    (derived, ops/sec)
@@ -48,7 +50,20 @@
 #include "ct/ct_sign.cuh"
 #include "msm.cuh"
 
+// ---- CPU library (host-side input generation and result reference) ----
+#include "secp256k1/scalar.hpp"
+#include "secp256k1/point.hpp"
+#include "secp256k1/ecdsa.hpp"
+#include "secp256k1/schnorr.hpp"
+#include "secp256k1/recovery.hpp"
+#include "secp256k1/address.hpp"
+#include "secp256k1/ct/point.hpp"
+#include "secp256k1/ct/sign.hpp"
+#include "secp256k1/bch_schnorr.hpp"
+#include "secp256k1/sha256.hpp"
+
 #include <cuda_runtime.h>
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -116,6 +131,7 @@ struct BenchEntry {
     double ns_per_op;
     double throughput_mops;
     int batch_size;
+    bool valid;   // false: written as INVALID with no ns/throughput value
 };
 
 static constexpr int MAX_BENCH_ENTRIES = 128;
@@ -139,7 +155,7 @@ struct BenchReport {
     char arch[32];
 
     void add(const char* section, const char* name,
-             double ns_val, double mops, int bsz) {
+             double ns_val, double mops, int bsz, bool valid = true) {
         if (count >= MAX_BENCH_ENTRIES) return;
         auto& e = entries[count++];
         std::snprintf(e.section, sizeof(e.section), "%s", section);
@@ -147,6 +163,7 @@ struct BenchReport {
         e.ns_per_op = ns_val;
         e.throughput_mops = mops;
         e.batch_size = bsz;
+        e.valid = valid;
     }
 };
 
@@ -246,6 +263,7 @@ struct BenchResult {
     int batch_size;
     double throughput_mops;
     double ns_per_op;
+    bool valid = true;   // false: result check failed, no timing is reported
 };
 
 // ============================================================================
@@ -304,6 +322,21 @@ __global__ void bench_field_sub_k(const FieldElement* a, const FieldElement* b,
 __global__ void bench_field_inv_k(const FieldElement* a, FieldElement* r, int count) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx < count) field_inv(&a[idx], &r[idx]);
+}
+
+__global__ void bench_field_inv_var_k(const FieldElement* a, FieldElement* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) field_inv_var(&a[idx], &r[idx]);
+}
+
+__global__ void bench_scalar_inv_k(const Scalar* a, Scalar* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) scalar_inverse(&a[idx], &r[idx]);
+}
+
+__global__ void bench_scalar_inv_var_k(const Scalar* a, Scalar* r, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < count) scalar_inv_var(&a[idx], &r[idx]);
 }
 
 __global__ void bench_field_sqr_k(const FieldElement* a, FieldElement* r, int count) {
@@ -519,6 +552,40 @@ static BenchResult bench_field_inv_impl(const BenchConfig& cfg) {
     inv_cfg.batch_size = N;
     auto result = run_bench("Field Arithmetic", "inv", inv_cfg, [&]() {
         bench_field_inv_k<<<blocks, cfg.threads_per_block>>>(d_a, d_r, N);
+    });
+
+    cudaFree(d_a); cudaFree(d_r);
+    return result;
+}
+
+// Inverse entries added with modinv_var.cuh ("inv (var)", "scalar inv",
+// "scalar inv (var)"). Same batch size, input generator (seed 49, non-zero,
+// top bit clear so every value is below p and n) and launch shape as
+// bench_field_inv_impl above, so the rows compare directly with "inv".
+template <typename Elem>
+static BenchResult bench_inverse_impl(const char* section, const char* name, const BenchConfig& cfg,
+                                      void (*kernel)(const Elem*, Elem*, int)) {
+    static_assert(sizeof(Elem) == sizeof(FieldElement), "element must be 256 bits");
+    int N = std::min(cfg.batch_size, 1 << 16);
+    std::vector<FieldElement> h_a(N);
+    gen_field_elements(h_a.data(), N, 49);
+    for (int i = 0; i < N; ++i) {
+        if (h_a[i].limbs[0] == 0 && h_a[i].limbs[1] == 0 &&
+            h_a[i].limbs[2] == 0 && h_a[i].limbs[3] == 0)
+            h_a[i].limbs[0] = 1;
+    }
+
+    Elem *d_a, *d_r;
+    size_t sz = N * sizeof(Elem);
+    CUDA_CHECK(cudaMalloc(&d_a, sz));
+    CUDA_CHECK(cudaMalloc(&d_r, sz));
+    CUDA_CHECK(cudaMemcpy(d_a, h_a.data(), sz, cudaMemcpyHostToDevice));
+
+    int blocks = (N + cfg.threads_per_block - 1) / cfg.threads_per_block;
+    BenchConfig inv_cfg = cfg;
+    inv_cfg.batch_size = N;
+    auto result = run_bench(section, name, inv_cfg, [&]() {
+        kernel<<<blocks, cfg.threads_per_block>>>(d_a, d_r, N);
     });
 
     cudaFree(d_a); cudaFree(d_r);
@@ -1071,6 +1138,484 @@ static BenchResult bench_ct_schnorr_sign_impl(const BenchConfig& cfg) {
 #endif
 
 // ============================================================================
+// Verification rows -- ECDSA verify, BIP-340 verify, ecrecover, hash160
+// ============================================================================
+// Kernel-only timing of the kernels the C ABI backend (src/gpu/src/
+// gpu_backend_cuda.cu) launches, with the backend's launch shape. Host<->device
+// copies are outside the timed region; the on-device conversion the backend
+// runs on every call is inside it:
+//   ECDSA verify : compressed-pubkey decompress + ecdsa_verify_batch_kernel
+//   BIP-340      : schnorr_verify_batch_kernel (the ABI parses sigs on the host)
+//   ecrecover    : ecdsa_recover_batch_kernel + Jacobian -> 33-byte compress
+//   hash160      : hash160_pubkey_kernel
+// Inputs are valid data made once on the host by the CPU library (CT signing,
+// low-S ECDSA). After the timed passes every result is read back and checked
+// against the CPU data; any mismatch makes the row INVALID (no timing value).
+
+static_assert(sizeof(bool) == 1, "device bool results are copied as bytes");
+
+#if !SECP256K1_CUDA_LIMBS_32
+namespace secp256k1 {
+namespace cuda {
+// Defined in src/cuda/src/secp256k1.cu (secp256k1_cuda_lib). The declarations
+// repeat the definitions' __restrict__ qualifiers exactly, as the backend does
+// (MSVC mangles __restrict into the symbol name).
+extern __global__ void ecdsa_verify_batch_kernel(
+    const uint8_t* __restrict__ msg_hashes,
+    const JacobianPoint* __restrict__ public_keys,
+    const uint8_t* __restrict__ sigs64,
+    bool*          __restrict__ results,
+    int count);
+extern __global__ void schnorr_verify_batch_kernel(
+    const uint8_t* __restrict__ pubkeys_x,
+    const uint8_t* __restrict__ msgs,
+    const SchnorrSignatureGPU* __restrict__ sigs,
+    bool*          __restrict__ results,
+    int count);
+extern __global__ void bch_schnorr_verify_batch_kernel(
+    const uint8_t* __restrict__ msgs32,
+    const uint8_t* __restrict__ pubkeys33,
+    const uint8_t* __restrict__ sigs64,
+    uint8_t*       __restrict__ results,
+    int count);
+#if SECP256K1_GPU_HAS_ECRECOVER
+extern __global__ void ecdsa_recover_batch_kernel(
+    const uint8_t* __restrict__ msg_hashes,
+    const ECDSASignatureGPU* __restrict__ sigs,
+    const int*     __restrict__ recids,
+    JacobianPoint* __restrict__ recovered_keys,
+    bool*          __restrict__ results,
+    int count);
+#endif
+} // namespace cuda
+} // namespace secp256k1
+
+// The backend launches its verify / recover kernels with 128 threads per block
+// (the kernels are declared __launch_bounds__(128, 2)).
+static constexpr int kVerifyThreads = 128;
+
+// Same bodies as batch_compressed_to_jac_kernel / batch_jac_to_compressed_kernel
+// in gpu_backend_cuda.cu, which are file-local there.
+__global__ void bench_compressed_to_jac_k(const uint8_t* pubs33, JacobianPoint* out,
+                                          bool* ok, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+    ok[idx] = point_from_compressed(pubs33 + idx * 33, &out[idx]);
+}
+
+__global__ void bench_jac_to_compressed_k(const JacobianPoint* pts, uint8_t* out33, int count) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= count) return;
+    if (!point_to_compressed(&pts[idx], out33 + idx * 33)) {
+        memset(out33 + idx * 33, 0, 33);
+    }
+}
+
+// Big-endian 32 bytes -> GPU scalar limbs, as the backend's bytes_to_scalar.
+static void be32_to_gpu_scalar(const uint8_t be[32], secp256k1::cuda::Scalar* out) {
+    for (int limb = 0; limb < 4; ++limb) {
+        uint64_t v = 0;
+        for (int b = 0; b < 8; ++b) v = (v << 8) | be[(3 - limb) * 8 + b];
+        out->limbs[limb] = v;
+    }
+}
+#endif // !SECP256K1_CUDA_LIMBS_32
+
+// Host-side input set shared by every verification row.
+struct VerifyInputs {
+    int n = 0;
+    bool ok = false;
+    std::vector<uint8_t> msgs;           // n x 32 message hashes
+    std::vector<uint8_t> pub33;          // n x 33 SEC1 compressed pubkeys
+    std::vector<uint8_t> pub65;          // n x 65 SEC1 uncompressed pubkeys
+    std::vector<uint8_t> ecdsa_sig64;    // n x 64 compact r||s, low-S
+    std::vector<uint8_t> xonly32;        // n x 32 BIP-340 x-only pubkeys
+    std::vector<uint8_t> schnorr_sig64;  // n x 64 BIP-340 r||s
+    std::vector<uint8_t> bch_sig64;      // n x 64 BCH 2019 Schnorr r||s (key = pub33)
+    std::vector<uint8_t> rec_sig64;      // n x 64 recoverable compact r||s
+    std::vector<int>     recids;         // n recovery ids
+    std::vector<uint8_t> h160_33;        // n x 20 CPU hash160(pub33)
+    std::vector<uint8_t> h160_65;        // n x 20 CPU hash160(pub65)
+};
+
+// Builds n valid inputs with the CPU library (CT signing paths). Sequential:
+// it runs once per process, outside every timed region, and the CPU CT tables
+// initialise lazily on first use.
+static bool build_verify_inputs(int n, VerifyInputs& in) {
+    in = VerifyInputs{};
+    if (n <= 0) return false;
+    const size_t un = static_cast<size_t>(n);
+    in.n = n;
+    in.msgs.resize(un * 32);
+    in.pub33.resize(un * 33);
+    in.pub65.resize(un * 65);
+    in.ecdsa_sig64.resize(un * 64);
+    in.xonly32.resize(un * 32);
+    in.schnorr_sig64.resize(un * 64);
+    in.bch_sig64.resize(un * 64);
+    in.rec_sig64.resize(un * 64);
+    in.recids.resize(un);
+    in.h160_33.resize(un * 20);
+    in.h160_65.resize(un * 20);
+
+    std::mt19937_64 rng(80);
+    auto fill32 = [&](std::array<uint8_t, 32>& b) {
+        for (int j = 0; j < 4; ++j) {
+            const uint64_t v = rng();
+            for (int k = 0; k < 8; ++k) b[j * 8 + k] = static_cast<uint8_t>(v >> (8 * k));
+        }
+    };
+
+    for (size_t i = 0; i < un; ++i) {
+        std::array<uint8_t, 32> skb{}, msg{}, aux{};
+        secp256k1::fast::Scalar sk;
+        do { fill32(skb); } while (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(skb, sk));
+        fill32(msg);
+        fill32(aux);
+
+        const auto P   = secp256k1::ct::generator_mul(sk);
+        const auto c33 = P.to_compressed();
+        const auto u65 = P.to_uncompressed();
+
+        const auto esig = secp256k1::ct::ecdsa_sign(msg, sk);
+        if (!esig.is_valid() || !esig.is_low_s()) return false;
+        const auto e64 = esig.to_compact();
+
+        const auto kp   = secp256k1::ct::schnorr_keypair_create(sk);
+        const auto ssig = secp256k1::ct::schnorr_sign(kp, msg, aux);
+        const auto s64  = ssig.to_bytes();
+
+        const auto rsig = secp256k1::ct::ecdsa_sign_recoverable(msg, sk);
+        if (!rsig.sig.is_valid() || rsig.recid < 0 || rsig.recid > 3) return false;
+        const auto r64 = rsig.sig.to_compact();
+
+        const auto h33 = secp256k1::hash160(c33.data(), c33.size());
+        const auto h65 = secp256k1::hash160(u65.data(), u65.size());
+
+        std::memcpy(&in.msgs[i * 32], msg.data(), 32);
+        std::memcpy(&in.pub33[i * 33], c33.data(), 33);
+        std::memcpy(&in.pub65[i * 65], u65.data(), 65);
+        std::memcpy(&in.ecdsa_sig64[i * 64], e64.data(), 64);
+        std::memcpy(&in.xonly32[i * 32], kp.px.data(), 32);
+        std::memcpy(&in.schnorr_sig64[i * 64], s64.data(), 64);
+
+        // Bitcoin Cash 2019 Schnorr (benchmark key and nonce, never real
+        // secrets): R = k*G, e = SHA256(r || P33 || m) mod n, s = e*x +/- k,
+        // whichever sign the CPU verifier accepts (the R or -R whose y is a
+        // quadratic residue).
+        {
+            std::array<uint8_t, 32> kb{}, ea{};
+            secp256k1::fast::Scalar k;
+            do { fill32(kb); } while (!secp256k1::fast::Scalar::parse_bytes_strict_nonzero(kb, k));
+            const auto R33 = secp256k1::ct::generator_mul(k).to_compressed();
+            uint8_t chal[97];
+            std::memcpy(chal, R33.data() + 1, 32);
+            std::memcpy(chal + 32, c33.data(), 33);
+            std::memcpy(chal + 65, msg.data(), 32);
+            const auto eh = secp256k1::SHA256::hash(chal, sizeof(chal));
+            std::memcpy(ea.data(), eh.data(), 32);
+            const auto ex = secp256k1::fast::Scalar::from_bytes(ea) * sk;
+            uint8_t* dst = &in.bch_sig64[i * 64];
+            bool bch_ok = false;
+            for (int c = 0; c < 2 && !bch_ok; ++c) {
+                const auto sb = ((c == 0) ? (ex + k) : (ex - k)).to_bytes();
+                std::memcpy(dst, R33.data() + 1, 32);
+                std::memcpy(dst + 32, sb.data(), 32);
+                bch_ok = secp256k1::bch_schnorr_verify(dst, msg.data(), c33.data());
+            }
+            kb.fill(0);
+            if (!bch_ok) return false;
+        }
+        std::memcpy(&in.rec_sig64[i * 64], r64.data(), 64);
+        in.recids[i] = rsig.recid;
+        std::memcpy(&in.h160_33[i * 20], h33.data(), 20);
+        std::memcpy(&in.h160_65[i * 20], h65.data(), 20);
+        skb.fill(0);  // benchmark key; never copied to the GPU
+    }
+    in.ok = true;
+    return true;
+}
+
+[[maybe_unused]] static BenchResult invalid_result(const char* section, const char* name, int n) {
+    BenchResult r{ section, name, 0.0, n, 0.0, 0.0 };
+    r.valid = false;
+    return r;
+}
+
+// Launch / execution errors make the row INVALID instead of reporting a time.
+[[maybe_unused]] static bool device_ok(const char* what) {
+    cudaError_t e = cudaGetLastError();
+    if (e == cudaSuccess) e = cudaDeviceSynchronize();
+    if (e != cudaSuccess) {
+        std::fprintf(stderr, "  %s: CUDA error: %s\n", what, cudaGetErrorString(e));
+        return false;
+    }
+    return true;
+}
+
+[[maybe_unused]] static BenchResult finish_checked(BenchResult r, int bad, int first_bad, int n) {
+    if (bad > 0) {
+        std::fprintf(stderr, "  %s %s: %d of %d results did not match the CPU reference "
+                     "(first at index %d) -- row INVALID\n", r.section, r.name, bad, n, first_bad);
+        r.valid = false;
+    }
+    return r;
+}
+
+#if !SECP256K1_CUDA_LIMBS_32
+static BenchResult bench_ecdsa_verify_impl(const BenchConfig& cfg, const VerifyInputs& in) {
+    if (!in.ok) return invalid_result("ECDSA", "verify", in.n);
+    const int N = in.n;
+    const size_t un = static_cast<size_t>(N);
+
+    uint8_t *d_msg = nullptr, *d_pub33 = nullptr, *d_sig = nullptr;
+    JacobianPoint* d_pub = nullptr;
+    bool *d_pub_ok = nullptr, *d_res = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_msg, un * 32));
+    CUDA_CHECK(cudaMalloc(&d_pub33, un * 33));
+    CUDA_CHECK(cudaMalloc(&d_sig, un * 64));
+    CUDA_CHECK(cudaMalloc(&d_pub, un * sizeof(JacobianPoint)));
+    CUDA_CHECK(cudaMalloc(&d_pub_ok, un * sizeof(bool)));
+    CUDA_CHECK(cudaMalloc(&d_res, un * sizeof(bool)));
+    CUDA_CHECK(cudaMemcpy(d_msg, in.msgs.data(), un * 32, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_pub33, in.pub33.data(), un * 33, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_sig, in.ecdsa_sig64.data(), un * 64, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(d_pub_ok, 0, un * sizeof(bool)));
+    CUDA_CHECK(cudaMemset(d_res, 0, un * sizeof(bool)));
+
+    const int blocks = (N + kVerifyThreads - 1) / kVerifyThreads;
+    BenchConfig v_cfg = cfg;
+    v_cfg.batch_size = N;
+    auto result = run_bench("ECDSA", "verify", v_cfg, [&]() {
+        bench_compressed_to_jac_k<<<blocks, kVerifyThreads>>>(d_pub33, d_pub, d_pub_ok, N);
+        ecdsa_verify_batch_kernel<<<blocks, kVerifyThreads>>>(d_msg, d_pub, d_sig, d_res, N);
+    });
+
+    std::vector<uint8_t> h_ok(un, 0), h_res(un, 0);
+    const bool ran = device_ok("ECDSA verify");
+    if (ran) {
+        CUDA_CHECK(cudaMemcpy(h_ok.data(), d_pub_ok, un * sizeof(bool), cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(h_res.data(), d_res, un * sizeof(bool), cudaMemcpyDeviceToHost));
+    }
+    int bad = 0, first_bad = -1;
+    for (int i = 0; i < N; ++i) {
+        if (!ran || !h_ok[i] || !h_res[i]) {
+            if (first_bad < 0) first_bad = i;
+            ++bad;
+        }
+    }
+
+    cudaFree(d_msg); cudaFree(d_pub33); cudaFree(d_sig);
+    cudaFree(d_pub); cudaFree(d_pub_ok); cudaFree(d_res);
+    return finish_checked(result, bad, first_bad, N);
+}
+
+static BenchResult bench_schnorr_verify_impl(const BenchConfig& cfg, const VerifyInputs& in) {
+    if (!in.ok) return invalid_result("Schnorr/BIP-340", "verify (x-only)", in.n);
+    const int N = in.n;
+    const size_t un = static_cast<size_t>(N);
+
+    // Host-side signature conversion, as the backend's bytes_to_schnorr_sig.
+    std::vector<SchnorrSignatureGPU> h_sigs(un);
+    for (size_t i = 0; i < un; ++i) {
+        std::memcpy(h_sigs[i].r, &in.schnorr_sig64[i * 64], 32);
+        be32_to_gpu_scalar(&in.schnorr_sig64[i * 64 + 32], &h_sigs[i].s);
+    }
+
+    uint8_t *d_pks = nullptr, *d_msg = nullptr;
+    SchnorrSignatureGPU* d_sigs = nullptr;
+    bool* d_res = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_pks, un * 32));
+    CUDA_CHECK(cudaMalloc(&d_msg, un * 32));
+    CUDA_CHECK(cudaMalloc(&d_sigs, un * sizeof(SchnorrSignatureGPU)));
+    CUDA_CHECK(cudaMalloc(&d_res, un * sizeof(bool)));
+    CUDA_CHECK(cudaMemcpy(d_pks, in.xonly32.data(), un * 32, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_msg, in.msgs.data(), un * 32, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_sigs, h_sigs.data(), un * sizeof(SchnorrSignatureGPU),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(d_res, 0, un * sizeof(bool)));
+
+    const int blocks = (N + kVerifyThreads - 1) / kVerifyThreads;
+    BenchConfig v_cfg = cfg;
+    v_cfg.batch_size = N;
+    auto result = run_bench("Schnorr/BIP-340", "verify (x-only)", v_cfg, [&]() {
+        schnorr_verify_batch_kernel<<<blocks, kVerifyThreads>>>(d_pks, d_msg, d_sigs, d_res, N);
+    });
+
+    std::vector<uint8_t> h_res(un, 0);
+    const bool ran = device_ok("BIP-340 verify");
+    if (ran)
+        CUDA_CHECK(cudaMemcpy(h_res.data(), d_res, un * sizeof(bool), cudaMemcpyDeviceToHost));
+    int bad = 0, first_bad = -1;
+    for (int i = 0; i < N; ++i) {
+        if (!ran || !h_res[i]) {
+            if (first_bad < 0) first_bad = i;
+            ++bad;
+        }
+    }
+
+    cudaFree(d_pks); cudaFree(d_msg); cudaFree(d_sigs); cudaFree(d_res);
+    return finish_checked(result, bad, first_bad, N);
+}
+
+// Bitcoin Cash 2019 Schnorr verify, kernel only (no transfers in the timed
+// region). Compare with bench_gpu_abi_batch's bch_schnorr_verify op (ABI call
+// including transfers) for the transfer overhead. Every input was accepted by
+// the CPU secp256k1::bch_schnorr_verify, so every GPU verdict must be 1.
+// Throughput: not yet measured -- benchmark required.
+static BenchResult bench_bch_schnorr_verify_impl(const BenchConfig& cfg, const VerifyInputs& in) {
+    if (!in.ok) return invalid_result("BCH Schnorr", "BCH Schnorr verify", in.n);
+    const int N = in.n;
+    const size_t un = static_cast<size_t>(N);
+
+    uint8_t *d_msg = nullptr, *d_pub33 = nullptr, *d_sig = nullptr, *d_res = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_msg, un * 32));
+    CUDA_CHECK(cudaMalloc(&d_pub33, un * 33));
+    CUDA_CHECK(cudaMalloc(&d_sig, un * 64));
+    CUDA_CHECK(cudaMalloc(&d_res, un));
+    CUDA_CHECK(cudaMemcpy(d_msg, in.msgs.data(), un * 32, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_pub33, in.pub33.data(), un * 33, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_sig, in.bch_sig64.data(), un * 64, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(d_res, 0, un));
+
+    const int blocks = (N + kVerifyThreads - 1) / kVerifyThreads;
+    BenchConfig v_cfg = cfg;
+    v_cfg.batch_size = N;
+    auto result = run_bench("BCH Schnorr", "BCH Schnorr verify", v_cfg, [&]() {
+        bch_schnorr_verify_batch_kernel<<<blocks, kVerifyThreads>>>(d_msg, d_pub33, d_sig, d_res, N);
+    });
+
+    std::vector<uint8_t> h_res(un, 0);
+    const bool ran = device_ok("BCH Schnorr verify");
+    if (ran)
+        CUDA_CHECK(cudaMemcpy(h_res.data(), d_res, un, cudaMemcpyDeviceToHost));
+    int bad = 0, first_bad = -1;
+    for (int i = 0; i < N; ++i) {
+        if (!ran || h_res[static_cast<size_t>(i)] != 1) {
+            if (first_bad < 0) first_bad = i;
+            ++bad;
+        }
+    }
+
+    cudaFree(d_msg); cudaFree(d_pub33); cudaFree(d_sig); cudaFree(d_res);
+    return finish_checked(result, bad, first_bad, N);
+}
+
+#if SECP256K1_GPU_HAS_ECRECOVER
+static BenchResult bench_ecrecover_impl(const BenchConfig& cfg, const VerifyInputs& in) {
+    if (!in.ok) return invalid_result("ECDSA", "ecrecover", in.n);
+    const int N = in.n;
+    const size_t un = static_cast<size_t>(N);
+
+    // Host-side signature conversion, as the backend's bytes_to_ecdsa_sig.
+    std::vector<ECDSASignatureGPU> h_sigs(un);
+    for (size_t i = 0; i < un; ++i) {
+        be32_to_gpu_scalar(&in.rec_sig64[i * 64], &h_sigs[i].r);
+        be32_to_gpu_scalar(&in.rec_sig64[i * 64 + 32], &h_sigs[i].s);
+    }
+
+    uint8_t *d_msg = nullptr, *d_out33 = nullptr;
+    ECDSASignatureGPU* d_sigs = nullptr;
+    int* d_recids = nullptr;
+    JacobianPoint* d_keys = nullptr;
+    bool* d_res = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_msg, un * 32));
+    CUDA_CHECK(cudaMalloc(&d_sigs, un * sizeof(ECDSASignatureGPU)));
+    CUDA_CHECK(cudaMalloc(&d_recids, un * sizeof(int)));
+    CUDA_CHECK(cudaMalloc(&d_keys, un * sizeof(JacobianPoint)));
+    CUDA_CHECK(cudaMalloc(&d_res, un * sizeof(bool)));
+    CUDA_CHECK(cudaMalloc(&d_out33, un * 33));
+    CUDA_CHECK(cudaMemcpy(d_msg, in.msgs.data(), un * 32, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_sigs, h_sigs.data(), un * sizeof(ECDSASignatureGPU),
+                          cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemcpy(d_recids, in.recids.data(), un * sizeof(int), cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(d_res, 0, un * sizeof(bool)));
+    CUDA_CHECK(cudaMemset(d_out33, 0, un * 33));
+
+    const int blocks = (N + kVerifyThreads - 1) / kVerifyThreads;
+    BenchConfig v_cfg = cfg;
+    v_cfg.batch_size = N;
+    auto result = run_bench("ECDSA", "ecrecover", v_cfg, [&]() {
+        ecdsa_recover_batch_kernel<<<blocks, kVerifyThreads>>>(d_msg, d_sigs, d_recids,
+                                                               d_keys, d_res, N);
+        bench_jac_to_compressed_k<<<blocks, kVerifyThreads>>>(d_keys, d_out33, N);
+    });
+
+    std::vector<uint8_t> h_res(un, 0), h_out(un * 33, 0);
+    const bool ran = device_ok("ecrecover");
+    if (ran) {
+        CUDA_CHECK(cudaMemcpy(h_res.data(), d_res, un * sizeof(bool), cudaMemcpyDeviceToHost));
+        CUDA_CHECK(cudaMemcpy(h_out.data(), d_out33, un * 33, cudaMemcpyDeviceToHost));
+    }
+    int bad = 0, first_bad = -1;
+    for (int i = 0; i < N; ++i) {
+        const size_t o = static_cast<size_t>(i) * 33;
+        if (!ran || !h_res[i] || std::memcmp(&h_out[o], &in.pub33[o], 33) != 0) {
+            if (first_bad < 0) first_bad = i;
+            ++bad;
+        }
+    }
+
+    cudaFree(d_msg); cudaFree(d_sigs); cudaFree(d_recids);
+    cudaFree(d_keys); cudaFree(d_res); cudaFree(d_out33);
+    return finish_checked(result, bad, first_bad, N);
+}
+#endif  // SECP256K1_GPU_HAS_ECRECOVER
+#endif  // !SECP256K1_CUDA_LIMBS_32
+
+#if SECP256K1_GPU_HAS_HASH160
+// hash160 is cheap per element, so the CPU-made keys are tiled up to the batch
+// size (capped at 4M) and each output is checked against the CPU hash160 of
+// the key it was given.
+static BenchResult bench_hash160_impl(const BenchConfig& cfg, const VerifyInputs& in,
+                                      int pubkey_len, const char* name) {
+    const int N = std::min(cfg.batch_size, 1 << 22);
+    if (!in.ok || N <= 0 || (pubkey_len != 33 && pubkey_len != 65))
+        return invalid_result("Hash160", name, N);
+    const size_t un = static_cast<size_t>(N);
+    const size_t len = static_cast<size_t>(pubkey_len);
+    const size_t K = static_cast<size_t>(in.n);
+    const std::vector<uint8_t>& src = (pubkey_len == 33) ? in.pub33 : in.pub65;
+    const std::vector<uint8_t>& ref = (pubkey_len == 33) ? in.h160_33 : in.h160_65;
+
+    std::vector<uint8_t> h_in(un * len);
+    for (size_t i = 0; i < un; ++i)
+        std::memcpy(&h_in[i * len], &src[(i % K) * len], len);
+
+    uint8_t *d_in = nullptr, *d_out = nullptr;
+    CUDA_CHECK(cudaMalloc(&d_in, un * len));
+    CUDA_CHECK(cudaMalloc(&d_out, un * 20));
+    CUDA_CHECK(cudaMemcpy(d_in, h_in.data(), un * len, cudaMemcpyHostToDevice));
+    CUDA_CHECK(cudaMemset(d_out, 0, un * 20));
+
+    // The backend launches hash160_pubkey_kernel with 256 threads per block
+    // (declared __launch_bounds__(256, 4)).
+    constexpr int kThreads = 256;
+    const int blocks = (N + kThreads - 1) / kThreads;
+    BenchConfig h_cfg = cfg;
+    h_cfg.batch_size = N;
+    auto result = run_bench("Hash160", name, h_cfg, [&]() {
+        hash160_pubkey_kernel<<<blocks, kThreads>>>(d_in, pubkey_len, d_out, N);
+    });
+
+    std::vector<uint8_t> h_out(un * 20, 0);
+    const bool ran = device_ok(name);
+    if (ran)
+        CUDA_CHECK(cudaMemcpy(h_out.data(), d_out, un * 20, cudaMemcpyDeviceToHost));
+    int bad = 0, first_bad = -1;
+    for (size_t i = 0; i < un; ++i) {
+        if (!ran || std::memcmp(&h_out[i * 20], &ref[(i % K) * 20], 20) != 0) {
+            if (first_bad < 0) first_bad = static_cast<int>(i);
+            ++bad;
+        }
+    }
+
+    cudaFree(d_in); cudaFree(d_out);
+    return finish_checked(result, bad, first_bad, N);
+}
+#endif  // SECP256K1_GPU_HAS_HASH160
+
+// ============================================================================
 // GPU device info
 // ============================================================================
 static void fill_gpu_info(BenchReport& rpt, int device_id) {
@@ -1167,6 +1712,14 @@ static void write_json_report(const char* path, const BenchReport& rpt) {
     std::fprintf(f, "  \"results\": [\n");
     for (int i = 0; i < rpt.count; ++i) {
         auto& e = rpt.entries[i];
+        if (!e.valid) {
+            // Result check failed: no timing value is written for this row.
+            std::fprintf(f, "    { \"section\": \"%s\", \"name\": \"%s\", \"status\": \"INVALID\", "
+                         "\"ns_per_op\": null, \"throughput_mops\": null, \"batch_size\": %d }%s\n",
+                         e.section, e.name, e.batch_size,
+                         (i + 1 < rpt.count) ? "," : "");
+            continue;
+        }
         std::fprintf(f, "    { \"section\": \"%s\", \"name\": \"%s\", "
                      "\"ns_per_op\": %.2f, \"throughput_mops\": %.2f, \"batch_size\": %d }%s\n",
                      e.section, e.name,
@@ -1183,6 +1736,10 @@ static void write_json_report(const char* path, const BenchReport& rpt) {
 // ============================================================================
 static void print_result(const BenchResult& r) {
     std::printf("  %-28s | ", r.name);
+    if (!r.valid) {
+        std::printf("%11s | %14s | batch=%d\n", "INVALID", "-", r.batch_size);
+        return;
+    }
     if (r.ns_per_op >= 1e6) {
         std::printf("%8.2f ms | ", r.ns_per_op / 1e6);
     } else if (r.ns_per_op >= 1e3) {
@@ -1302,6 +1859,26 @@ int main(int argc, char** argv) {
         auto r = bench_field_inv_impl(cfg); print_result(r); results.push_back(r);
         rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
     }
+    {
+        auto r = bench_inverse_impl<FieldElement>("Field Arithmetic", "inv (var)", cfg, bench_field_inv_var_k);
+        print_result(r); results.push_back(r);
+        rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
+
+    // =================================================================
+    // Section 1b: Scalar Arithmetic (inverse mod n)
+    // =================================================================
+    std::printf("\n=== Scalar Arithmetic ===\n");
+    {
+        auto r = bench_inverse_impl<Scalar>("Scalar Arithmetic", "scalar inv", cfg, bench_scalar_inv_k);
+        print_result(r); results.push_back(r);
+        rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
+    {
+        auto r = bench_inverse_impl<Scalar>("Scalar Arithmetic", "scalar inv (var)", cfg, bench_scalar_inv_var_k);
+        print_result(r); results.push_back(r);
+        rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
 
     // =================================================================
     // Section 2: Point Operations
@@ -1336,6 +1913,43 @@ int main(int argc, char** argv) {
     {
         auto r = bench_affine_add_impl(cfg); print_result(r); results.push_back(r);
         rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size);
+    }
+
+    // =================================================================
+    // Section 4b: Verification (ECDSA / BIP-340 verify, ecrecover, hash160)
+    // =================================================================
+    // Core suite. Inputs are made once on the host by the CPU library; every
+    // GPU result is checked after the timed passes. A row with any mismatch is
+    // reported INVALID (no timing value) and the run exits non-zero.
+    std::printf("\n=== Verification ===\n");
+    {
+        const int vn = std::min(cfg.batch_size, 1 << 16);
+        VerifyInputs vin;
+        std::printf("  (signing %d inputs on the CPU ...)\n", vn);
+        if (!build_verify_inputs(vn, vin))
+            std::fprintf(stderr, "  ERROR: CPU input generation failed; verification rows are INVALID\n");
+        auto emit = [&](const BenchResult& r) {
+            print_result(r); results.push_back(r);
+            rpt.add(r.section, r.name, r.ns_per_op, r.throughput_mops, r.batch_size, r.valid);
+        };
+#if !SECP256K1_CUDA_LIMBS_32
+        emit(bench_ecdsa_verify_impl(cfg, vin));
+        emit(bench_schnorr_verify_impl(cfg, vin));
+        emit(bench_bch_schnorr_verify_impl(cfg, vin));
+#if SECP256K1_GPU_HAS_ECRECOVER
+        emit(bench_ecrecover_impl(cfg, vin));
+#else
+        std::printf("  %-28s | skipped (GPU ECRECOVER module disabled at build time)\n", "ecrecover");
+#endif
+#else
+        std::printf("  verify / ecrecover rows skipped (no verify kernels in the 32-bit limb build)\n");
+#endif
+#if SECP256K1_GPU_HAS_HASH160
+        emit(bench_hash160_impl(cfg, vin, 33, "hash160 (33B pubkey)"));
+        emit(bench_hash160_impl(cfg, vin, 65, "hash160 (65B pubkey)"));
+#else
+        std::printf("  hash160 rows skipped (GPU HASH160 module disabled at build time)\n");
+#endif
     }
 
     // =================================================================
@@ -1419,6 +2033,10 @@ int main(int argc, char** argv) {
                 "------------", "--------");
     for (auto& r : results) {
         std::printf("  %-28s | ", r.name);
+        if (!r.valid) {
+            std::printf("%10s | %14s | %d\n", "INVALID", "-", r.batch_size);
+            continue;
+        }
         if (r.ns_per_op >= 1e6) std::printf("%8.2f ms", r.ns_per_op / 1e6);
         else if (r.ns_per_op >= 1e3) std::printf("%8.2f us", r.ns_per_op / 1e3);
         else std::printf("%8.1f ns", r.ns_per_op);
@@ -1430,6 +2048,16 @@ int main(int argc, char** argv) {
     if (!cfg.json_path.empty()) {
         write_json_report(cfg.json_path.c_str(), rpt);
         std::printf("JSON report: %s\n", cfg.json_path.c_str());
+    }
+
+    int invalid_rows = 0;
+    for (auto& r : results) {
+        if (!r.valid) ++invalid_rows;
+    }
+    if (invalid_rows > 0) {
+        std::fprintf(stderr, "ERROR: %d benchmark row(s) INVALID: GPU results did not match "
+                     "the CPU reference (no timing reported for them)\n", invalid_rows);
+        return 1;
     }
 
     std::printf("Benchmark complete.\n");

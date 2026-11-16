@@ -156,12 +156,22 @@ inline CTJacobianPoint ct_point_add_mixed(thread const CTJacobianPoint &p,
     result.z = field_add(result.z, result.z);
 
     // Degenerate case: h==0 && rr==0 -> P==Q, double
+    // Degenerate case: h==0 && rr!=0 -> P==-Q, the sum is the point at
+    // infinity. The formula above then gives z3 = 2*z1*h = 0, so the result
+    // must carry the infinity flag (and canonical infinity coordinates), or the
+    // Z = 0 value would be treated as a finite point by every later addition.
+    // Masks are 32-bit (0 or 0xFFFFFFFF), the same width as CTJacobianPoint.infinity.
     uint h_zero = ct_field_is_zero_mask(h);
     uint rr_zero = ct_field_is_zero_mask(rr);
     uint same_point = h_zero & rr_zero;
+    uint neg_point = h_zero & ~rr_zero & ~p.infinity & ~q.infinity;
 
     CTJacobianPoint p_dbl = ct_point_dbl(p);
     ct_point_cmov(result, p_dbl, same_point & ~p.infinity & ~q.infinity);
+
+    // P == -Q -> result = O
+    CTJacobianPoint inf = ct_point_infinity();
+    ct_point_cmov(result, inf, neg_point);
 
     // P is infinity -> result = Q
     CTJacobianPoint q_jac;
@@ -173,7 +183,8 @@ inline CTJacobianPoint ct_point_add_mixed(thread const CTJacobianPoint &p,
     // Q is infinity -> result = P
     ct_point_cmov(result, p, q.infinity);
 
-    result.infinity = p.infinity & q.infinity;
+    // Final infinity flag: O + O, or P + (-P)
+    result.infinity = (p.infinity & q.infinity) | neg_point;
     return result;
 }
 

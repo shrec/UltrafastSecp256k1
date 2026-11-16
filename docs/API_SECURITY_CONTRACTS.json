@@ -1,7 +1,7 @@
 {
   "version": "1.5.0",
-  "last_updated": "2026-09-21",
-  "update_note": "2026-09-21: CAAS residual-evidence refresh. Re-verified against the current headers with ci/check_api_contracts.py — PASS, 11 entries, no drift. The changed-file review for this cycle covers the dead co-Z helper removal in src/cpu/src/point.cpp (8c25dd3e: a static function that lost its only caller in 49925a1a and failed the -Werror gate) and the OpenCL SECP256K1_OPENCL_SCAN_ONLY guard (#415). Neither touches include/ufsecp/ or any declared C ABI surface: the first deletes a file-local function with no callers, the second adds preprocessor guards inside .cl kernel sources that the repo's own build never activates.",
+  "last_updated": "2026-11-02",
+  "update_note": "2026-11-02: CAAS residual-evidence refresh (automated: ci/refresh_residual_evidence.py in the caas-evidence-refresh lane, HEAD 9df529d7). Re-verified with python3 ci/check_api_contracts.py --json: PASS, 11 entries, no issues (entry structure, evidence tests and docs resolve, and no sensitive API/security source is changed without a contract update). The stamp records the re-verification, not a content edit, and does not replace the human review of an API change.",
   "entries": [
     {
       "api": "ufsecp_schnorr_sign",

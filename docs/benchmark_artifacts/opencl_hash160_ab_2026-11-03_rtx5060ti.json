@@ -1,0 +1,80 @@
+{
+  "report_type": "ab_ocl-hash160",
+  "generated_by": "scratch A/B driver (ab_driver.py): every value parsed from the tool's own output; no number typed by hand",
+  "date": "2026-11-03T15:57:03.403814+00:00",
+  "host": "parking",
+  "platform": "Linux-6.8.0-147-generic-x86_64-with-glibc2.39",
+  "rounds": 5,
+  "order": "single binary, both forms inside each run",
+  "verdict_rule": "improvement iff new_max < base_min; regression iff new_min > base_max; else inconclusive",
+  "what_changed": "2ca4a2b3 (rebased 39044386): OpenCL hash160 registers-only sha256_33 + unrolled ripemd160_32 vs the previous loop/table form kept in the harness",
+  "runtime": "NVIDIA OpenCL ICD",
+  "harness": "src/opencl/benchmarks/hash160_ab_bench.cpp, keys=2^20, iters=20, reps=11",
+  "binary": {
+    "path": "opencl_hash160_ab_bench (src/opencl/benchmarks/hash160_ab_bench.cpp at 39044386), opencl-release preset",
+    "sha256": "a3bfade9b28be13bfce259d3eb905d97432c1f7e0c493230a86c20cfa39fae76"
+  },
+  "ops": {
+    "hash160 len=33": {
+      "old": {
+        "rounds": [
+          0.9313,
+          0.931,
+          0.931,
+          0.9322,
+          0.9314
+        ],
+        "median": 0.9313,
+        "min": 0.931,
+        "max": 0.9322,
+        "spread_pct": 0.12885214216686125
+      },
+      "new": {
+        "rounds": [
+          0.3968,
+          0.3966,
+          0.3968,
+          0.3967,
+          0.3966
+        ],
+        "median": 0.3967,
+        "min": 0.3966,
+        "max": 0.3968,
+        "spread_pct": 0.0504159314343277
+      },
+      "verdict": "improvement",
+      "new_over_old_median": 0.425963706646623
+    },
+    "hash160 len=65": {
+      "old": {
+        "rounds": [
+          1.2515,
+          1.3092,
+          1.2517,
+          1.3011,
+          1.2656
+        ],
+        "median": 1.2656,
+        "min": 1.2515,
+        "max": 1.3092,
+        "spread_pct": 4.559102402022745
+      },
+      "new": {
+        "rounds": [
+          0.963,
+          1.0024,
+          0.9649,
+          0.9752,
+          1.0012
+        ],
+        "median": 0.9752,
+        "min": 0.963,
+        "max": 1.0024,
+        "spread_pct": 4.040196882690729
+      },
+      "verdict": "improvement",
+      "new_over_old_median": 0.770543615676359
+    }
+  },
+  "last_run_stdout": "device: NVIDIA GeForce RTX 5060 Ti\nkeys=1048576 iters=20 reps=11 (median over reps; ns/hash is device kernel time / (keys*iters))\nlen=33  old=0.9314 ns/hash  new=0.3966 ns/hash  old/new=2.348  agree=yes\n  old min..max: 0.9303..0.9330   new min..max: 0.3957..0.3970\nlen=65  old=1.2656 ns/hash  new=1.0012 ns/hash  old/new=1.264  agree=yes\n  old min..max: 1.2423..1.3134   new min..max: 0.9544..1.0078\nRESULT: old and new agree on every key\n"
+}

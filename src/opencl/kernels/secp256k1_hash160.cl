@@ -1,14 +1,18 @@
 // =============================================================================
 // UltrafastSecp256k1 OpenCL — Hash160 (SHA-256 → RIPEMD-160)
 // =============================================================================
-// Self-contained one-shot SHA-256 + RIPEMD-160 for public key hashing.
-// Matches CUDA hash160.cuh output byte-for-byte.
+// Self-contained SHA-256 + RIPEMD-160 for public key hashing.
+// Matches CUDA hash160.cuh output byte-for-byte and mirrors its structure
+// (NF-2026-00033, port of commit d86d3bbf; fast path contributed by zeroxbee,
+// VanityPlate, https://github.com/zeroxbee/VanityPlate).
 //
 // Functions:
-//   sha256_oneshot_impl  — One-shot SHA-256 (up to 128 bytes input)
-//   ripemd_f_impl        — RIPEMD-160 round function selector (5 variants)
-//   ripemd160_32_impl    — RIPEMD-160 optimized for exactly 32-byte input
-//   hash160_pubkey_impl  — SHA-256 then RIPEMD-160 (Bitcoin Hash160)
+//   sha256_oneshot_impl  — Generic one-shot SHA-256 (up to 128 bytes input)
+//   sha256_33_impl       — Registers-only SHA-256 of exactly 33 bytes
+//   ripemd160_32_impl    — Fully unrolled RIPEMD-160 of exactly 32 bytes
+//   hash160_pubkey_impl  — SHA-256 then RIPEMD-160 (Bitcoin Hash160); 33-byte
+//                          keys take sha256_33_impl, any other length takes
+//                          sha256_oneshot_impl
 //
 // Kernel:
 //   hash160_batch        — Batch Hash160 of compressed/uncompressed pubkeys
@@ -129,141 +133,328 @@ static inline void sha256_oneshot_impl(const uchar* data, uint len, uchar out[32
 }
 
 // =============================================================================
-// RIPEMD-160 Constants
+// SHA-256 for exactly 33 bytes (compressed secp256k1 pubkey), registers only
 // =============================================================================
+// The 33-byte message fits in a single 64-byte block:
+//   bytes  0-32: input data
+//   byte   33  : 0x80 (padding)
+//   bytes 34-55: 0x00
+//   bytes 56-63: 0x00 00 00 00 00 00 01 08 (264 bits, big-endian)
+// That is 16 big-endian words w[0..15]. Padding and length are baked in as
+// constants and rounds 16-63 expand a rolling w[16] window, so there is no
+// block[] and no w[64] array. Same structure as sha256_33 in
+// src/cuda/include/hash160.cuh.
 
-// Message schedule indices — left chain
-__constant uchar RIPEMD_R[80] = {
-    0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,
-    7,4,13,1,10,6,15,3,12,0,9,5,2,14,11,8,
-    3,10,14,4,9,15,8,1,2,7,0,6,13,11,5,12,
-    1,9,11,10,0,8,12,4,13,3,7,15,14,5,6,2,
-    4,0,5,9,7,12,2,10,14,1,3,8,11,6,15,13
-};
+static inline void sha256_33_impl(const uchar* data, uchar out[32]) {
+    uint w[16];
+    w[0]  = ((uint)data[0] <<24)|((uint)data[1] <<16)|((uint)data[2] <<8)|data[3];
+    w[1]  = ((uint)data[4] <<24)|((uint)data[5] <<16)|((uint)data[6] <<8)|data[7];
+    w[2]  = ((uint)data[8] <<24)|((uint)data[9] <<16)|((uint)data[10]<<8)|data[11];
+    w[3]  = ((uint)data[12]<<24)|((uint)data[13]<<16)|((uint)data[14]<<8)|data[15];
+    w[4]  = ((uint)data[16]<<24)|((uint)data[17]<<16)|((uint)data[18]<<8)|data[19];
+    w[5]  = ((uint)data[20]<<24)|((uint)data[21]<<16)|((uint)data[22]<<8)|data[23];
+    w[6]  = ((uint)data[24]<<24)|((uint)data[25]<<16)|((uint)data[26]<<8)|data[27];
+    w[7]  = ((uint)data[28]<<24)|((uint)data[29]<<16)|((uint)data[30]<<8)|data[31];
+    // w[8]: data[32] in the top byte, 0x80 padding in the next, then zeros
+    w[8]  = ((uint)data[32]<<24)|0x00800000U;
+    w[9]  = 0U; w[10] = 0U; w[11] = 0U; w[12] = 0U; w[13] = 0U;
+    w[14] = 0U;       // message length high word: 264 < 2^32, so 0
+    w[15] = 264U;     // message length low word:  33 * 8 = 264 bits
 
-// Message schedule indices — right chain
-__constant uchar RIPEMD_R2[80] = {
-    5,14,7,0,9,2,11,4,13,6,15,8,1,10,3,12,
-    6,11,3,7,0,13,5,10,14,15,8,12,4,9,1,2,
-    15,5,1,3,7,14,6,9,11,8,12,2,10,0,4,13,
-    8,6,4,1,3,11,15,0,5,12,2,13,9,7,10,14,
-    12,15,10,4,1,5,8,7,6,2,13,14,0,3,9,11
-};
+    uint a = 0x6a09e667U, b = 0xbb67ae85U, c = 0x3c6ef372U, d = 0xa54ff53aU;
+    uint e = 0x510e527fU, f = 0x9b05688cU, g = 0x1f83d9abU, h = 0x5be0cd19U;
 
-// Shift amounts — left chain
-__constant uchar RIPEMD_S[80] = {
-    11,14,15,12,5,8,7,9,11,13,14,15,6,7,9,8,
-    7,6,8,13,11,9,7,15,7,12,15,9,11,7,13,12,
-    11,13,6,7,14,9,13,15,14,8,13,6,5,12,7,5,
-    11,12,14,15,14,15,9,8,9,14,5,6,8,6,5,12,
-    9,15,5,11,6,8,13,12,5,12,13,14,11,8,5,6
-};
+// One SHA-256 round using the rolling window
+#define S256_RND(i) do { \
+    uint S1 = hash_rotr32(e,6)^hash_rotr32(e,11)^hash_rotr32(e,25); \
+    uint ch = (e&f)^(~e&g); \
+    uint t1 = h + S1 + ch + SHA256_K[i] + w[(i)&15]; \
+    uint S0 = hash_rotr32(a,2)^hash_rotr32(a,13)^hash_rotr32(a,22); \
+    uint maj = (a&b)^(a&c)^(b&c); \
+    h=g; g=f; f=e; e=d+t1; d=c; c=b; b=a; a=t1+S0+maj; \
+} while(0)
 
-// Shift amounts — right chain
-__constant uchar RIPEMD_S2[80] = {
-    8,9,9,11,13,15,15,5,7,7,8,11,14,14,12,6,
-    9,13,15,7,12,8,9,11,7,7,12,7,6,15,13,11,
-    9,7,15,11,8,6,6,14,12,13,5,14,13,13,7,5,
-    15,5,8,11,14,14,6,14,6,9,12,9,12,5,15,8,
-    8,5,12,9,12,5,14,6,8,13,6,5,15,13,11,11
-};
+// Expand one message schedule word in-place (rolling w[16])
+#define S256_EXP(i) do { \
+    uint wi15 = w[((i)-15)&15]; \
+    uint wi2  = w[((i)- 2)&15]; \
+    uint s0 = hash_rotr32(wi15,7)^hash_rotr32(wi15,18)^(wi15>>3); \
+    uint s1 = hash_rotr32(wi2,17)^hash_rotr32(wi2,19)^(wi2>>10); \
+    w[(i)&15] = w[(i)&15] + s0 + w[((i)-7)&15] + s1; \
+} while(0)
 
-// Round constants — left chain
-__constant uint RIPEMD_K[5] = {
-    0x00000000U, 0x5A827999U, 0x6ED9EBA1U, 0x8F1BBCDCU, 0xA953FD4EU
-};
+    // Rounds 0-15: use the message words as-is
+    S256_RND(0);  S256_RND(1);  S256_RND(2);  S256_RND(3);
+    S256_RND(4);  S256_RND(5);  S256_RND(6);  S256_RND(7);
+    S256_RND(8);  S256_RND(9);  S256_RND(10); S256_RND(11);
+    S256_RND(12); S256_RND(13); S256_RND(14); S256_RND(15);
 
-// Round constants — right chain
-__constant uint RIPEMD_K2[5] = {
-    0x50A28BE6U, 0x5C4DD124U, 0x6D703EF3U, 0x7A6D76E9U, 0x00000000U
-};
+    // Rounds 16-63: expand then round
+#define S256_ER(i) S256_EXP(i); S256_RND(i)
+    S256_ER(16); S256_ER(17); S256_ER(18); S256_ER(19);
+    S256_ER(20); S256_ER(21); S256_ER(22); S256_ER(23);
+    S256_ER(24); S256_ER(25); S256_ER(26); S256_ER(27);
+    S256_ER(28); S256_ER(29); S256_ER(30); S256_ER(31);
+    S256_ER(32); S256_ER(33); S256_ER(34); S256_ER(35);
+    S256_ER(36); S256_ER(37); S256_ER(38); S256_ER(39);
+    S256_ER(40); S256_ER(41); S256_ER(42); S256_ER(43);
+    S256_ER(44); S256_ER(45); S256_ER(46); S256_ER(47);
+    S256_ER(48); S256_ER(49); S256_ER(50); S256_ER(51);
+    S256_ER(52); S256_ER(53); S256_ER(54); S256_ER(55);
+    S256_ER(56); S256_ER(57); S256_ER(58); S256_ER(59);
+    S256_ER(60); S256_ER(61); S256_ER(62); S256_ER(63);
+#undef S256_RND
+#undef S256_EXP
+#undef S256_ER
 
-// =============================================================================
-// RIPEMD-160 Round Function Selector (5 boolean functions)
-// =============================================================================
+    a += 0x6a09e667U; b += 0xbb67ae85U; c += 0x3c6ef372U; d += 0xa54ff53aU;
+    e += 0x510e527fU; f += 0x9b05688cU; g += 0x1f83d9abU; h += 0x5be0cd19U;
 
-static inline uint ripemd_f_impl(int j, uint x, uint y, uint z) {
-    if (j <= 15) return x ^ y ^ z;           // XOR
-    if (j <= 31) return (x & y) | (~x & z);  // IF
-    if (j <= 47) return (x | ~y) ^ z;        // ONX
-    if (j <= 63) return (x & z) | (y & ~z);  // IFX
-    return x ^ (y | ~z);                      // OXN
+    // Store big-endian output (8 words -> 32 bytes)
+    out[ 0]=(uchar)(a>>24); out[ 1]=(uchar)(a>>16); out[ 2]=(uchar)(a>>8); out[ 3]=(uchar)a;
+    out[ 4]=(uchar)(b>>24); out[ 5]=(uchar)(b>>16); out[ 6]=(uchar)(b>>8); out[ 7]=(uchar)b;
+    out[ 8]=(uchar)(c>>24); out[ 9]=(uchar)(c>>16); out[10]=(uchar)(c>>8); out[11]=(uchar)c;
+    out[12]=(uchar)(d>>24); out[13]=(uchar)(d>>16); out[14]=(uchar)(d>>8); out[15]=(uchar)d;
+    out[16]=(uchar)(e>>24); out[17]=(uchar)(e>>16); out[18]=(uchar)(e>>8); out[19]=(uchar)e;
+    out[20]=(uchar)(f>>24); out[21]=(uchar)(f>>16); out[22]=(uchar)(f>>8); out[23]=(uchar)f;
+    out[24]=(uchar)(g>>24); out[25]=(uchar)(g>>16); out[26]=(uchar)(g>>8); out[27]=(uchar)g;
+    out[28]=(uchar)(h>>24); out[29]=(uchar)(h>>16); out[30]=(uchar)(h>>8); out[31]=(uchar)h;
 }
 
 // =============================================================================
-// RIPEMD-160 — Optimized for exactly 32-byte input (single block)
+// RIPEMD-160 round functions and step, for the fully unrolled ripemd160_32_impl()
+// =============================================================================
+// Every word index, shift amount, function and constant below is a literal:
+// no __constant tables, no runtime-indexed register arrays, no per-step
+// branches. Same structure as src/cuda/include/hash160.cuh (ripemd160_32).
+
+#define RMD_F1(x, y, z) ((x) ^ (y) ^ (z))
+#define RMD_F2(x, y, z) (((x) & (y)) | (~(x) & (z)))
+#define RMD_F3(x, y, z) (((x) | ~(y)) ^ (z))
+#define RMD_F4(x, y, z) (((x) & (z)) | ((y) & ~(z)))
+#define RMD_F5(x, y, z) ((x) ^ ((y) | ~(z)))
+
+// One step with rotating variable roles: instead of shifting a<-e<-d<-c<-b
+// every step, the caller rotates which variable plays which role. After 80
+// steps (a multiple of 5) the roles line up with the original names again.
+#define RMD_STEP(a, b, c, d, e, F, x, k, s) do { \
+    (a) = hash_rotl32((a) + F(b, c, d) + (x) + (k), (s)) + (e); \
+    (c) = hash_rotl32((c), 10); \
+} while (0)
+
+// =============================================================================
+// RIPEMD-160 -- fully unrolled, exactly 32-byte input (single block)
 // =============================================================================
 // Input: 32 bytes (SHA-256 digest)
 // Output: 20 bytes, little-endian (standard RIPEMD-160 byte order)
+//
+// The 32-byte message fits in one 64-byte block: bytes 0-31 data, byte 32
+// 0x80, bytes 33-55 zero, bytes 56-63 the 256-bit length little-endian. That
+// maps to 16 little-endian words X[0..15] built straight in registers.
 
 static inline void ripemd160_32_impl(const uchar data[32], uchar out[20]) {
-    // Pad to 64-byte block: data ∥ 0x80 ∥ zeros ∥ LE-bitlen
-    uchar block[64];
-    for (int i = 0; i < 64; ++i) block[i] = 0;
-    for (int i = 0; i < 32; ++i) block[i] = data[i];
-    block[32] = 0x80;
-    // bit_len = 256 = 0x100 → LE: block[56]=0x00, block[57]=0x01
-    const ulong bit_len = 32UL * 8UL;
-    block[56] = (uchar)(bit_len);
-    block[57] = (uchar)(bit_len >> 8);
-    block[58] = (uchar)(bit_len >> 16);
-    block[59] = (uchar)(bit_len >> 24);
-    block[60] = (uchar)(bit_len >> 32);
-    block[61] = (uchar)(bit_len >> 40);
-    block[62] = (uchar)(bit_len >> 48);
-    block[63] = (uchar)(bit_len >> 56);
-
-    // Parse block into 16 little-endian 32-bit words
     uint X[16];
-    for (int i = 0; i < 16; ++i) {
-        const int j = i * 4;
-        X[i] = (uint)block[j] |
-               ((uint)block[j + 1] << 8) |
-               ((uint)block[j + 2] << 16) |
-               ((uint)block[j + 3] << 24);
-    }
+    X[ 0] = (uint)data[ 0]|((uint)data[ 1]<<8)|((uint)data[ 2]<<16)|((uint)data[ 3]<<24);
+    X[ 1] = (uint)data[ 4]|((uint)data[ 5]<<8)|((uint)data[ 6]<<16)|((uint)data[ 7]<<24);
+    X[ 2] = (uint)data[ 8]|((uint)data[ 9]<<8)|((uint)data[10]<<16)|((uint)data[11]<<24);
+    X[ 3] = (uint)data[12]|((uint)data[13]<<8)|((uint)data[14]<<16)|((uint)data[15]<<24);
+    X[ 4] = (uint)data[16]|((uint)data[17]<<8)|((uint)data[18]<<16)|((uint)data[19]<<24);
+    X[ 5] = (uint)data[20]|((uint)data[21]<<8)|((uint)data[22]<<16)|((uint)data[23]<<24);
+    X[ 6] = (uint)data[24]|((uint)data[25]<<8)|((uint)data[26]<<16)|((uint)data[27]<<24);
+    X[ 7] = (uint)data[28]|((uint)data[29]<<8)|((uint)data[30]<<16)|((uint)data[31]<<24);
+    X[ 8] = 0x00000080U;   // 0x80 padding byte
+    X[ 9] = 0U; X[10] = 0U; X[11] = 0U; X[12] = 0U; X[13] = 0U;
+    X[14] = 256U;          // 32 * 8 = 256 bits, little-endian low word
+    X[15] = 0U;
 
-    // Initial hash values
-    uint h0 = 0x67452301U;
-    uint h1 = 0xEFCDAB89U;
-    uint h2 = 0x98BADCFEU;
-    uint h3 = 0x10325476U;
-    uint h4 = 0xC3D2E1F0U;
+    uint h0 = 0x67452301U, h1 = 0xEFCDAB89U, h2 = 0x98BADCFEU,
+         h3 = 0x10325476U, h4 = 0xC3D2E1F0U;
 
-    // Two parallel chains: left (a,b0,c,d,e) and right (a2,b2,c2,d2,e2)
-    uint a = h0, b0 = h1, c = h2, d = h3, e = h4;
+    uint a = h0, b = h1, c = h2, d = h3, e = h4;
     uint a2 = h0, b2 = h1, c2 = h2, d2 = h3, e2 = h4;
 
-    // 80 rounds — left and right chains in parallel
-    for (int j = 0; j < 80; ++j) {
-        const uint t = hash_rotl32(a + ripemd_f_impl(j, b0, c, d) +
-                                   X[RIPEMD_R[j]] + RIPEMD_K[j / 16],
-                                   RIPEMD_S[j]) + e;
-        a = e; e = d; d = hash_rotl32(c, 10); c = b0; b0 = t;
+    // 80 left-line and 80 right-line steps, interleaved
+    RMD_STEP(a,b,c,d,e, RMD_F1, X[ 0], 0, 11);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F5, X[ 5], 0x50A28BE6U,  8);
+    RMD_STEP(e,a,b,c,d, RMD_F1, X[ 1], 0, 14);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F5, X[14], 0x50A28BE6U,  9);
+    RMD_STEP(d,e,a,b,c, RMD_F1, X[ 2], 0, 15);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F5, X[ 7], 0x50A28BE6U,  9);
+    RMD_STEP(c,d,e,a,b, RMD_F1, X[ 3], 0, 12);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F5, X[ 0], 0x50A28BE6U, 11);
+    RMD_STEP(b,c,d,e,a, RMD_F1, X[ 4], 0,  5);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F5, X[ 9], 0x50A28BE6U, 13);
+    RMD_STEP(a,b,c,d,e, RMD_F1, X[ 5], 0,  8);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F5, X[ 2], 0x50A28BE6U, 15);
+    RMD_STEP(e,a,b,c,d, RMD_F1, X[ 6], 0,  7);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F5, X[11], 0x50A28BE6U, 15);
+    RMD_STEP(d,e,a,b,c, RMD_F1, X[ 7], 0,  9);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F5, X[ 4], 0x50A28BE6U,  5);
+    RMD_STEP(c,d,e,a,b, RMD_F1, X[ 8], 0, 11);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F5, X[13], 0x50A28BE6U,  7);
+    RMD_STEP(b,c,d,e,a, RMD_F1, X[ 9], 0, 13);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F5, X[ 6], 0x50A28BE6U,  7);
+    RMD_STEP(a,b,c,d,e, RMD_F1, X[10], 0, 14);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F5, X[15], 0x50A28BE6U,  8);
+    RMD_STEP(e,a,b,c,d, RMD_F1, X[11], 0, 15);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F5, X[ 8], 0x50A28BE6U, 11);
+    RMD_STEP(d,e,a,b,c, RMD_F1, X[12], 0,  6);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F5, X[ 1], 0x50A28BE6U, 14);
+    RMD_STEP(c,d,e,a,b, RMD_F1, X[13], 0,  7);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F5, X[10], 0x50A28BE6U, 14);
+    RMD_STEP(b,c,d,e,a, RMD_F1, X[14], 0,  9);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F5, X[ 3], 0x50A28BE6U, 12);
+    RMD_STEP(a,b,c,d,e, RMD_F1, X[15], 0,  8);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F5, X[12], 0x50A28BE6U,  6);
+    RMD_STEP(e,a,b,c,d, RMD_F2, X[ 7], 0x5A827999U,  7);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F4, X[ 6], 0x5C4DD124U,  9);
+    RMD_STEP(d,e,a,b,c, RMD_F2, X[ 4], 0x5A827999U,  6);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F4, X[11], 0x5C4DD124U, 13);
+    RMD_STEP(c,d,e,a,b, RMD_F2, X[13], 0x5A827999U,  8);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F4, X[ 3], 0x5C4DD124U, 15);
+    RMD_STEP(b,c,d,e,a, RMD_F2, X[ 1], 0x5A827999U, 13);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F4, X[ 7], 0x5C4DD124U,  7);
+    RMD_STEP(a,b,c,d,e, RMD_F2, X[10], 0x5A827999U, 11);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F4, X[ 0], 0x5C4DD124U, 12);
+    RMD_STEP(e,a,b,c,d, RMD_F2, X[ 6], 0x5A827999U,  9);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F4, X[13], 0x5C4DD124U,  8);
+    RMD_STEP(d,e,a,b,c, RMD_F2, X[15], 0x5A827999U,  7);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F4, X[ 5], 0x5C4DD124U,  9);
+    RMD_STEP(c,d,e,a,b, RMD_F2, X[ 3], 0x5A827999U, 15);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F4, X[10], 0x5C4DD124U, 11);
+    RMD_STEP(b,c,d,e,a, RMD_F2, X[12], 0x5A827999U,  7);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F4, X[14], 0x5C4DD124U,  7);
+    RMD_STEP(a,b,c,d,e, RMD_F2, X[ 0], 0x5A827999U, 12);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F4, X[15], 0x5C4DD124U,  7);
+    RMD_STEP(e,a,b,c,d, RMD_F2, X[ 9], 0x5A827999U, 15);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F4, X[ 8], 0x5C4DD124U, 12);
+    RMD_STEP(d,e,a,b,c, RMD_F2, X[ 5], 0x5A827999U,  9);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F4, X[12], 0x5C4DD124U,  7);
+    RMD_STEP(c,d,e,a,b, RMD_F2, X[ 2], 0x5A827999U, 11);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F4, X[ 4], 0x5C4DD124U,  6);
+    RMD_STEP(b,c,d,e,a, RMD_F2, X[14], 0x5A827999U,  7);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F4, X[ 9], 0x5C4DD124U, 15);
+    RMD_STEP(a,b,c,d,e, RMD_F2, X[11], 0x5A827999U, 13);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F4, X[ 1], 0x5C4DD124U, 13);
+    RMD_STEP(e,a,b,c,d, RMD_F2, X[ 8], 0x5A827999U, 12);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F4, X[ 2], 0x5C4DD124U, 11);
+    RMD_STEP(d,e,a,b,c, RMD_F3, X[ 3], 0x6ED9EBA1U, 11);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F3, X[15], 0x6D703EF3U,  9);
+    RMD_STEP(c,d,e,a,b, RMD_F3, X[10], 0x6ED9EBA1U, 13);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F3, X[ 5], 0x6D703EF3U,  7);
+    RMD_STEP(b,c,d,e,a, RMD_F3, X[14], 0x6ED9EBA1U,  6);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F3, X[ 1], 0x6D703EF3U, 15);
+    RMD_STEP(a,b,c,d,e, RMD_F3, X[ 4], 0x6ED9EBA1U,  7);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F3, X[ 3], 0x6D703EF3U, 11);
+    RMD_STEP(e,a,b,c,d, RMD_F3, X[ 9], 0x6ED9EBA1U, 14);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F3, X[ 7], 0x6D703EF3U,  8);
+    RMD_STEP(d,e,a,b,c, RMD_F3, X[15], 0x6ED9EBA1U,  9);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F3, X[14], 0x6D703EF3U,  6);
+    RMD_STEP(c,d,e,a,b, RMD_F3, X[ 8], 0x6ED9EBA1U, 13);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F3, X[ 6], 0x6D703EF3U,  6);
+    RMD_STEP(b,c,d,e,a, RMD_F3, X[ 1], 0x6ED9EBA1U, 15);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F3, X[ 9], 0x6D703EF3U, 14);
+    RMD_STEP(a,b,c,d,e, RMD_F3, X[ 2], 0x6ED9EBA1U, 14);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F3, X[11], 0x6D703EF3U, 12);
+    RMD_STEP(e,a,b,c,d, RMD_F3, X[ 7], 0x6ED9EBA1U,  8);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F3, X[ 8], 0x6D703EF3U, 13);
+    RMD_STEP(d,e,a,b,c, RMD_F3, X[ 0], 0x6ED9EBA1U, 13);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F3, X[12], 0x6D703EF3U,  5);
+    RMD_STEP(c,d,e,a,b, RMD_F3, X[ 6], 0x6ED9EBA1U,  6);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F3, X[ 2], 0x6D703EF3U, 14);
+    RMD_STEP(b,c,d,e,a, RMD_F3, X[13], 0x6ED9EBA1U,  5);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F3, X[10], 0x6D703EF3U, 13);
+    RMD_STEP(a,b,c,d,e, RMD_F3, X[11], 0x6ED9EBA1U, 12);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F3, X[ 0], 0x6D703EF3U, 13);
+    RMD_STEP(e,a,b,c,d, RMD_F3, X[ 5], 0x6ED9EBA1U,  7);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F3, X[ 4], 0x6D703EF3U,  7);
+    RMD_STEP(d,e,a,b,c, RMD_F3, X[12], 0x6ED9EBA1U,  5);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F3, X[13], 0x6D703EF3U,  5);
+    RMD_STEP(c,d,e,a,b, RMD_F4, X[ 1], 0x8F1BBCDCU, 11);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F2, X[ 8], 0x7A6D76E9U, 15);
+    RMD_STEP(b,c,d,e,a, RMD_F4, X[ 9], 0x8F1BBCDCU, 12);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F2, X[ 6], 0x7A6D76E9U,  5);
+    RMD_STEP(a,b,c,d,e, RMD_F4, X[11], 0x8F1BBCDCU, 14);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F2, X[ 4], 0x7A6D76E9U,  8);
+    RMD_STEP(e,a,b,c,d, RMD_F4, X[10], 0x8F1BBCDCU, 15);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F2, X[ 1], 0x7A6D76E9U, 11);
+    RMD_STEP(d,e,a,b,c, RMD_F4, X[ 0], 0x8F1BBCDCU, 14);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F2, X[ 3], 0x7A6D76E9U, 14);
+    RMD_STEP(c,d,e,a,b, RMD_F4, X[ 8], 0x8F1BBCDCU, 15);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F2, X[11], 0x7A6D76E9U, 14);
+    RMD_STEP(b,c,d,e,a, RMD_F4, X[12], 0x8F1BBCDCU,  9);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F2, X[15], 0x7A6D76E9U,  6);
+    RMD_STEP(a,b,c,d,e, RMD_F4, X[ 4], 0x8F1BBCDCU,  8);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F2, X[ 0], 0x7A6D76E9U, 14);
+    RMD_STEP(e,a,b,c,d, RMD_F4, X[13], 0x8F1BBCDCU,  9);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F2, X[ 5], 0x7A6D76E9U,  6);
+    RMD_STEP(d,e,a,b,c, RMD_F4, X[ 3], 0x8F1BBCDCU, 14);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F2, X[12], 0x7A6D76E9U,  9);
+    RMD_STEP(c,d,e,a,b, RMD_F4, X[ 7], 0x8F1BBCDCU,  5);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F2, X[ 2], 0x7A6D76E9U, 12);
+    RMD_STEP(b,c,d,e,a, RMD_F4, X[15], 0x8F1BBCDCU,  6);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F2, X[13], 0x7A6D76E9U,  9);
+    RMD_STEP(a,b,c,d,e, RMD_F4, X[14], 0x8F1BBCDCU,  8);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F2, X[ 9], 0x7A6D76E9U, 12);
+    RMD_STEP(e,a,b,c,d, RMD_F4, X[ 5], 0x8F1BBCDCU,  6);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F2, X[ 7], 0x7A6D76E9U,  5);
+    RMD_STEP(d,e,a,b,c, RMD_F4, X[ 6], 0x8F1BBCDCU,  5);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F2, X[10], 0x7A6D76E9U, 15);
+    RMD_STEP(c,d,e,a,b, RMD_F4, X[ 2], 0x8F1BBCDCU, 12);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F2, X[14], 0x7A6D76E9U,  8);
+    RMD_STEP(b,c,d,e,a, RMD_F5, X[ 4], 0xA953FD4EU,  9);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F1, X[12], 0,  8);
+    RMD_STEP(a,b,c,d,e, RMD_F5, X[ 0], 0xA953FD4EU, 15);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F1, X[15], 0,  5);
+    RMD_STEP(e,a,b,c,d, RMD_F5, X[ 5], 0xA953FD4EU,  5);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F1, X[10], 0, 12);
+    RMD_STEP(d,e,a,b,c, RMD_F5, X[ 9], 0xA953FD4EU, 11);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F1, X[ 4], 0,  9);
+    RMD_STEP(c,d,e,a,b, RMD_F5, X[ 7], 0xA953FD4EU,  6);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F1, X[ 1], 0, 12);
+    RMD_STEP(b,c,d,e,a, RMD_F5, X[12], 0xA953FD4EU,  8);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F1, X[ 5], 0,  5);
+    RMD_STEP(a,b,c,d,e, RMD_F5, X[ 2], 0xA953FD4EU, 13);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F1, X[ 8], 0, 14);
+    RMD_STEP(e,a,b,c,d, RMD_F5, X[10], 0xA953FD4EU, 12);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F1, X[ 7], 0,  6);
+    RMD_STEP(d,e,a,b,c, RMD_F5, X[14], 0xA953FD4EU,  5);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F1, X[ 6], 0,  8);
+    RMD_STEP(c,d,e,a,b, RMD_F5, X[ 1], 0xA953FD4EU, 12);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F1, X[ 2], 0, 13);
+    RMD_STEP(b,c,d,e,a, RMD_F5, X[ 3], 0xA953FD4EU, 13);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F1, X[13], 0,  6);
+    RMD_STEP(a,b,c,d,e, RMD_F5, X[ 8], 0xA953FD4EU, 14);
+    RMD_STEP(a2,b2,c2,d2,e2, RMD_F1, X[14], 0,  5);
+    RMD_STEP(e,a,b,c,d, RMD_F5, X[11], 0xA953FD4EU, 11);
+    RMD_STEP(e2,a2,b2,c2,d2, RMD_F1, X[ 0], 0, 15);
+    RMD_STEP(d,e,a,b,c, RMD_F5, X[ 6], 0xA953FD4EU,  8);
+    RMD_STEP(d2,e2,a2,b2,c2, RMD_F1, X[ 3], 0, 13);
+    RMD_STEP(c,d,e,a,b, RMD_F5, X[15], 0xA953FD4EU,  5);
+    RMD_STEP(c2,d2,e2,a2,b2, RMD_F1, X[ 9], 0, 11);
+    RMD_STEP(b,c,d,e,a, RMD_F5, X[13], 0xA953FD4EU,  6);
+    RMD_STEP(b2,c2,d2,e2,a2, RMD_F1, X[11], 0, 11);
 
-        const uint t2 = hash_rotl32(a2 + ripemd_f_impl(79 - j, b2, c2, d2) +
-                                    X[RIPEMD_R2[j]] + RIPEMD_K2[j / 16],
-                                    RIPEMD_S2[j]) + e2;
-        a2 = e2; e2 = d2; d2 = hash_rotl32(c2, 10); c2 = b2; b2 = t2;
-    }
-
-    // Final combination
     const uint t = h1 + c + d2;
     h1 = h2 + d + e2;
     h2 = h3 + e + a2;
     h3 = h4 + a + b2;
-    h4 = h0 + b0 + c2;
+    h4 = h0 + b + c2;
     h0 = t;
 
-    // Output: 5 × 32-bit words, little-endian byte order
-    const uint hh[5] = {h0, h1, h2, h3, h4};
-    for (int i = 0; i < 5; ++i) {
-        out[i * 4 + 0] = (uchar)(hh[i]);
-        out[i * 4 + 1] = (uchar)(hh[i] >> 8);
-        out[i * 4 + 2] = (uchar)(hh[i] >> 16);
-        out[i * 4 + 3] = (uchar)(hh[i] >> 24);
-    }
+    // Output: 5 x 32-bit words, little-endian byte order
+    out[ 0]=(uchar)h0; out[ 1]=(uchar)(h0>>8); out[ 2]=(uchar)(h0>>16); out[ 3]=(uchar)(h0>>24);
+    out[ 4]=(uchar)h1; out[ 5]=(uchar)(h1>>8); out[ 6]=(uchar)(h1>>16); out[ 7]=(uchar)(h1>>24);
+    out[ 8]=(uchar)h2; out[ 9]=(uchar)(h2>>8); out[10]=(uchar)(h2>>16); out[11]=(uchar)(h2>>24);
+    out[12]=(uchar)h3; out[13]=(uchar)(h3>>8); out[14]=(uchar)(h3>>16); out[15]=(uchar)(h3>>24);
+    out[16]=(uchar)h4; out[17]=(uchar)(h4>>8); out[18]=(uchar)(h4>>16); out[19]=(uchar)(h4>>24);
 }
+#undef RMD_STEP
+#undef RMD_F1
+#undef RMD_F2
+#undef RMD_F3
+#undef RMD_F4
+#undef RMD_F5
 
 // =============================================================================
 // Hash160 — SHA-256 then RIPEMD-160 (Bitcoin public key hash)
@@ -271,9 +462,14 @@ static inline void ripemd160_32_impl(const uchar data[32], uchar out[20]) {
 // Input: pubkey (33 or 65 bytes)
 // Output: 20 bytes
 
+// Length dispatch: 33-byte (compressed) keys take the registers-only
+// sha256_33_impl; any other length (65-byte uncompressed keys) takes the
+// generic sha256_oneshot_impl. Callers pass a runtime length, so the dispatch
+// must stay -- dropping it would hash 65-byte keys wrongly.
 static inline void hash160_pubkey_impl(const uchar* pubkey, uint pubkey_len, uchar out[20]) {
     uchar sha[32];
-    sha256_oneshot_impl(pubkey, pubkey_len, sha);
+    if (pubkey_len == 33u) sha256_33_impl(pubkey, sha);
+    else sha256_oneshot_impl(pubkey, pubkey_len, sha);
     ripemd160_32_impl(sha, out);
 }
 

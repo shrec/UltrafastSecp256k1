@@ -453,6 +453,41 @@ inline Scalar256 scalar_inverse(thread const Scalar256 &a) {
     return result;
 }
 
+// a^-1 mod n. VARIABLE TIME, PUBLIC DATA ONLY: never a private key, nonce,
+// signing share or ECDH scalar (see modinv30_var_impl in secp256k1_field.h).
+// Same value as scalar_inverse for every input (0 for a == 0 mod n).
+inline Scalar256 scalar_inv_var(thread const Scalar256 &a) {
+    Scalar256 r;
+    modinv30_var_impl(a.limbs, r.limbs, true, MODINV30_MAX_ITERS);
+    return r;
+}
+
+// Jacobian -> affine for a PUBLIC point; same results as jacobian_to_affine,
+// bit for bit, including (0, 0) for infinity. VARIABLE TIME: the point must be
+// public AND must not be the output of a secret scalar multiplication (k*G,
+// sk*G, sk*P), whose Z depends on the secret. Verification code only; every
+// shared helper and every secret-bearing path keeps jacobian_to_affine.
+// Z == 1 exactly (parsed or lifted points) skips the inversion: the inverse
+// of 1 is 1, so x and y are still put through the same multiplications.
+inline AffinePoint jacobian_to_affine_var(thread const JacobianPoint &p) {
+    AffinePoint r;
+    if (p.infinity != 0) {
+        r.x = field_zero();
+        r.y = field_zero();
+        return r;
+    }
+
+    bool z_is_one = (p.z.limbs[0] == 1u);
+    for (int i = 1; i < 8; i++) z_is_one = z_is_one && (p.z.limbs[i] == 0u);
+    FieldElement z_inv = z_is_one ? field_one() : field_inv_var(p.z);
+    FieldElement z_inv2 = field_sqr(z_inv);
+    FieldElement z_inv3 = field_mul(z_inv2, z_inv);
+
+    r.x = field_mul(p.x, z_inv2);
+    r.y = field_mul(p.y, z_inv3);
+    return r;
+}
+
 // Scalar utilities
 inline bool scalar256_is_even(thread const Scalar256 &s) { return (s.limbs[0] & 1u) == 0; }
 
@@ -833,6 +868,53 @@ inline JacobianPoint scalar_mul_glv(device const AffinePoint &base,
     return scalar_mul_glv(local_base, k);
 }
 
+// a*A + b*B as one Shamir dual multiplication: both scalars are GLV-split
+// exactly as in scalar_mul_glv (same decomposition, endomorphism and sign
+// handling) and the four half-length scalars share one doubling chain
+// (interleaved binary double-and-add with mixed additions, which handle the
+// doubling and P + (-P) cases). Returns infinity when a*A + b*B is.
+// VARIABLE TIME: public scalars and points only (verification / recovery).
+inline JacobianPoint dual_scalar_mul_glv(thread const AffinePoint &A, thread const Scalar256 &a,
+                                         thread const AffinePoint &B, thread const Scalar256 &b) {
+    Scalar256 a1, a2, b1, b2;
+    int a1_neg, a2_neg, b1_neg, b2_neg;
+    glv_decompose(a, a1, a2, a1_neg, a2_neg);
+    glv_decompose(b, b1, b2, b1_neg, b2_neg);
+
+    FieldElement beta;
+    for (int i = 0; i < 8; i++) beta.limbs[i] = BETA_LIMBS[i];
+
+    // A1 = (+/-)A, A2 = (+/-)phi(A); likewise for B (as in scalar_mul_glv)
+    AffinePoint A1 = A;
+    if (a1_neg) A1.y = field_negate(A1.y);
+    AffinePoint A2;
+    A2.x = field_mul(A1.x, beta);
+    A2.y = (a1_neg != a2_neg) ? field_negate(A1.y) : A1.y;
+
+    AffinePoint B1 = B;
+    if (b1_neg) B1.y = field_negate(B1.y);
+    AffinePoint B2;
+    B2.x = field_mul(B1.x, beta);
+    B2.y = (b1_neg != b2_neg) ? field_negate(B1.y) : B1.y;
+
+    int max_bit = scalar256_bitlen(a1);
+    int bl = scalar256_bitlen(a2); if (bl > max_bit) max_bit = bl;
+    bl = scalar256_bitlen(b1);     if (bl > max_bit) max_bit = bl;
+    bl = scalar256_bitlen(b2);     if (bl > max_bit) max_bit = bl;
+
+    JacobianPoint R = point_at_infinity();
+    for (int i = max_bit - 1; i >= 0; --i) {
+        if (R.infinity == 0) R = jacobian_double(R);
+
+        const int w = i >> 5, sh = i & 31;
+        if ((a1.limbs[w] >> sh) & 1u) R = jacobian_add_mixed(R, A1);
+        if ((a2.limbs[w] >> sh) & 1u) R = jacobian_add_mixed(R, A2);
+        if ((b1.limbs[w] >> sh) & 1u) R = jacobian_add_mixed(R, B1);
+        if ((b2.limbs[w] >> sh) & 1u) R = jacobian_add_mixed(R, B2);
+    }
+    return R;
+}
+
 // Precomputed generator multiplication (4-bit window)
 inline JacobianPoint scalar_mul_generator_windowed(thread const Scalar256 &k) {
     AffinePoint G = generator_affine();
@@ -1040,6 +1122,55 @@ inline bool ecdsa_sign(thread const uchar msg_hash[32], thread const Scalar256 &
 }
 #endif // !SECP256K1_METAL_SCAN_ONLY
 
+// x(R) mod n == r for a non-infinity Jacobian R = (X, Y, Z), without inverting
+// Z. x = X/Z^2 is in [0, p) and p < 2n, so x mod n == r iff x == r, or
+// x == r + n and r + n < p (i.e. r < p - n). Each candidate c (< p) is tested
+// projectively as X == c*Z^2 (mod p), compared as canonical bytes. r must be
+// in [1, n); ecdsa_verify checks that first. Same verdict as the affine check
+// (CUDA / OpenCL ecdsa_jacobian_x_eq_r_var). Variable time; public data only.
+inline bool ecdsa_jacobian_x_eq_r_var(thread const JacobianPoint &R,
+                                      thread const Scalar256 &r) {
+    // p - n = 0x14551231950B75FC4402DA1722FC9BAEE, 8 x 32-bit LE limbs.
+    const uint P_MINUS_N[8] = {
+        0x2FC9BAEEu, 0x402DA172u, 0x50B75FC4u, 0x45512319u,
+        0x00000001u, 0x00000000u, 0x00000000u, 0x00000000u
+    };
+
+    FieldElement zz = field_sqr(R.z);
+    uchar x_bytes[32];
+    field_to_bytes(R.x, x_bytes);                // canonical X mod p
+
+    FieldElement cand;                           // candidate x: r, then r + n
+    for (int i = 0; i < 8; i++) cand.limbs[i] = r.limbs[i];
+    for (int pass = 0; pass < 2; pass++) {
+        // cand < p in both passes, so it is a canonical field element.
+        FieldElement czz = field_mul(cand, zz);
+        uchar czz_bytes[32];
+        field_to_bytes(czz, czz_bytes);
+        bool eq = true;
+        for (int i = 0; i < 32; i++) eq = eq && (czz_bytes[i] == x_bytes[i]);
+        if (eq) return true;
+        if (pass == 1) break;
+
+        // x == r + n is only possible when r < p - n.
+        bool lt = false;
+        for (int i = 7; i >= 0; i--) {
+            if (r.limbs[i] != P_MINUS_N[i]) { lt = r.limbs[i] < P_MINUS_N[i]; break; }
+        }
+        if (!lt) return false;
+        // cand = r + n; r < p - n, so r + n < p < 2^256 (no carry out).
+        ulong carry = 0;
+        for (int i = 0; i < 8; i++) {
+            ulong s = ulong(r.limbs[i]) + ulong(SECP256K1_N[i]) + carry;
+            cand.limbs[i] = uint(s);
+            carry = s >> 32;
+        }
+    }
+    return false;
+}
+
+// All inputs (signature, public key, message hash) are public: the
+// inversions here use the variable-time SafeGCD (CT-VERIFY).
 inline bool ecdsa_verify(thread const uchar msg_hash[32], thread const JacobianPoint &pubkey,
                           thread const ECDSASignature &sig) {
     if (scalar256_is_zero(sig.r) || scalar256_is_zero(sig.s)) return false;
@@ -1052,25 +1183,22 @@ inline bool ecdsa_verify(thread const uchar msg_hash[32], thread const JacobianP
     if (scalar256_ge(sig.r, order_n) || scalar256_ge(sig.s, order_n)) return false;
 
     Scalar256 z = scalar_from_bytes(msg_hash);
-    Scalar256 s_inv = scalar_inverse(sig.s);
+    Scalar256 s_inv = scalar_inv_var(sig.s);
     Scalar256 u1 = scalar_mul_mod_n(z, s_inv);
     Scalar256 u2 = scalar_mul_mod_n(sig.r, s_inv);
 
     AffinePoint G = generator_affine();
     JacobianPoint u1G = scalar_mul_glv(G, u1);
 
-    AffinePoint pub_aff = jacobian_to_affine(pubkey);
+    // Z == 1 (parsed keys, every in-tree caller) skips the inversion.
+    AffinePoint pub_aff = jacobian_to_affine_var(pubkey);
     JacobianPoint u2Q = scalar_mul_glv(pub_aff, u2);
 
     JacobianPoint R = jacobian_add(u1G, u2Q);
     if (R.infinity != 0) return false;
 
-    AffinePoint R_aff = jacobian_to_affine(R);
-    uchar rx_bytes[32];
-    field_to_bytes(R_aff.x, rx_bytes);
-    Scalar256 rx_scalar = scalar_from_bytes(rx_bytes);
-
-    return scalar256_eq(rx_scalar, sig.r);
+    // x(R) mod n == r, checked projectively: no inversion of R.z.
+    return ecdsa_jacobian_x_eq_r_var(R, sig.r);
 }
 
 // =============================================================================
@@ -1196,7 +1324,8 @@ inline bool schnorr_verify(thread const uchar pubkey_x[32], thread const uchar m
     AffinePoint G = generator_affine();
     JacobianPoint sG = scalar_mul_glv(G, sig.s);
 
-    AffinePoint p_aff = jacobian_to_affine(P);
+    // P comes from lift_x (Z == 1): no inversion, x and y are canonicalized.
+    AffinePoint p_aff = jacobian_to_affine_var(P);
     JacobianPoint eP = scalar_mul_glv(p_aff, e);
 
     // Negate eP
@@ -1205,7 +1334,8 @@ inline bool schnorr_verify(thread const uchar pubkey_x[32], thread const uchar m
     JacobianPoint Rpt = jacobian_add(sG, eP);
     if (Rpt.infinity != 0) return false;
 
-    AffinePoint Rpt_aff = jacobian_to_affine(Rpt);
+    // R = s*G - e*P from the signature, the x-only key and the message: public.
+    AffinePoint Rpt_aff = jacobian_to_affine_var(Rpt);
     uchar ry_bytes[32];
     field_to_bytes(Rpt_aff.y, ry_bytes);
     if (ry_bytes[31] & 1) return false;
@@ -1373,20 +1503,19 @@ inline bool ecdsa_recover(thread const uchar msg_hash[32], thread const ECDSASig
     JacobianPoint Rpt;
     if (!lift_x_field(rx_fe, recid & 1, Rpt)) return false;
 
+    // Q = r^-1 * (s*R - z*G) = u1*G + u2*R with u1 = -z*r^-1, u2 = s*r^-1:
+    // one dual multiplication and one inversion of r, as in verification.
+    // Every input (r, s, recid, the message hash) is public.
     Scalar256 z = scalar_from_bytes(msg_hash);
-    Scalar256 r_inv = scalar_inverse(sig.r);
+    Scalar256 r_inv = scalar_inv_var(sig.r);
+    Scalar256 z_r_inv = scalar_mul_mod_n(z, r_inv);
+    Scalar256 u1 = scalar_negate(z_r_inv);
+    Scalar256 u2 = scalar_mul_mod_n(sig.s, r_inv);
 
-    AffinePoint r_aff = jacobian_to_affine(Rpt);
-    JacobianPoint sR = scalar_mul_glv(r_aff, sig.s);
-
+    // Rpt has Z == 1, so this costs no inversion; it only canonicalizes x, y.
+    AffinePoint r_aff = jacobian_to_affine_var(Rpt);
     AffinePoint G = generator_affine();
-    JacobianPoint zG = scalar_mul_glv(G, z);
-    zG.y = field_negate(zG.y); // negate
-
-    JacobianPoint sR_minus_zG = jacobian_add(sR, zG);
-
-    AffinePoint diff_aff = jacobian_to_affine(sR_minus_zG);
-    Q = scalar_mul_glv(diff_aff, r_inv);
+    Q = dual_scalar_mul_glv(G, u1, r_aff, u2);
 
     if (Q.infinity != 0) return false;
     return true;
@@ -1540,7 +1669,8 @@ inline bool ecdsa_recover(thread const Scalar256 &msg_scalar, thread const Scala
     sig.r = r; sig.s = s;
     JacobianPoint Q;
     if (!ecdsa_recover(msg_hash, sig, (int)recid, Q)) return false;
-    recovered = jacobian_to_affine(Q);
+    // Q is built from r, s, recid and the message hash only: public.
+    recovered = jacobian_to_affine_var(Q);
     return true;
 }
 

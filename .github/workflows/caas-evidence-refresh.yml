@@ -7,16 +7,28 @@ name: CAAS Evidence Refresh
 #
 # Evidence-refresh coverage contract (Bastion B19, docs/AUDIT_SLA.json
 # `freshness_artifacts`, gated by ci/check_evidence_refresh_coverage.py / G-19):
-#   AUTO (regenerated + committed by this lane):
+#   AUTO (refreshed + committed by this lane):
 #     - assurance_report   (out/reports/assurance_report.json via export_assurance.py)
 #     - incident_drill_log (docs/INCIDENT_DRILL_LOG.json — security_autonomy_check.py
 #                           runs incident_drills.py, which rewrites the log)
-#   RESIDUAL (intentionally NOT regenerated here — authored / golden / build-only /
-#     owner-chosen manual; see docs/RESIDUAL_RISK_REGISTER.md RR-BAS-01):
-#     - ct_evidence (audit/ci-evidence), api_contracts (API_SECURITY_CONTRACTS.json),
-#       assurance_claims (ASSURANCE_CLAIMS.json), determinism_golden, risk_coverage_report
+#     - ct_evidence (audit/ci-evidence), determinism_golden, api_contracts and
+#       assurance_claims, plus the INT-SHIM-PARITY row of docs/INTEGRATION_EVIDENCE_STATUS.json
+#       — owner decision 2026-11-02 (RR-BAS-01). Each is refreshed ONLY by re-running its
+#       real verifier and written ONLY when that verifier passes (ci/refresh_residual_evidence.py):
+#       a failed group writes nothing, and nothing it produced is committed unless the whole
+#       lane is green. A group is due once its artifact is 7 days old, so the second build
+#       below runs about once a week, not nightly.
+#   RESIDUAL (intentionally NOT refreshed here; see docs/RESIDUAL_RISK_REGISTER.md RR-BAS-01):
+#     - risk_coverage_report (a build-only artifact under the gitignored out/ tree)
+#     - owner-gated evidence (GPU hardware, ROCm, Bitcoin Core suite, libbitcoin bridge):
+#       a GitHub-hosted runner cannot produce it, and this lane never writes or stamps it.
 #   The "Verify evidence-refresh coverage" step below fails the lane if a blocking
 #   freshness artifact ever loses both its auto-producer and its documented residual.
+#
+# Scheduled runs use the copy of this workflow on the default branch (main), so the schedule
+# picks the residual refresh up at the next release. Until then run it from dev:
+#   gh workflow run caas-evidence-refresh.yml --ref dev
+# (add `-f force_residual_refresh=true` to refresh artifacts younger than 7 days).
 #
 # Safe: only commits when something actually changed, and only on dev.
 
@@ -29,6 +41,12 @@ on:
     inputs:
       force_commit:
         description: 'Commit even if no JSON changed (touches mtime via no-op edit)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+      force_residual_refresh:
+        description: 'Refresh the residual evidence (CT/fuzz snapshots, determinism golden, API-contract / assurance-claim / shim-parity stamps) even if it is younger than 7 days; every group still needs its verifier to pass'
         required: false
         default: 'false'
         type: choice
@@ -49,7 +67,11 @@ jobs:
   refresh:
     name: Refresh CAAS evidence on dev
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    # 25 minutes was the budget before the residual refresh. It now also covers a second
+    # configure + compile of the core library with the audit/fuzz targets (only on the nights
+    # the CT evidence is due) and the five suite runs, each of which ci/refresh_residual_evidence.py
+    # bounds at 5-15 minutes. A budget, not a measurement: raise it if a first run shows more.
+    timeout-minutes: 90
     if: github.repository == 'shrec/UltrafastSecp256k1'
     # Needs write to push refreshed evidence JSONs back to the dev branch.
     permissions:
@@ -114,6 +136,71 @@ jobs:
 
       - name: Build source graph
         run: python3 tools/source_graph_kit/source_graph.py build -i
+
+      - name: Plan residual evidence refresh
+        id: residual_plan
+        # Which residual groups are due: at least --min-age-days old by audit_sla_check.py's
+        # own age function, or forced. Runs nothing and writes nothing. The three residual
+        # steps are continue-on-error so a failure in them cannot stop the rest of the lane;
+        # their outcomes feed GATE_VERDICT and the last step of the job turns a failure into
+        # a red lane.
+        continue-on-error: true
+        env:
+          FORCE_RESIDUAL: ${{ github.event.inputs.force_residual_refresh }}
+        run: |
+          mkdir -p out/residual-evidence
+          ARGS=()
+          if [ "${FORCE_RESIDUAL}" = "true" ]; then ARGS+=(--force); fi
+          python3 ci/refresh_residual_evidence.py --plan "${ARGS[@]}" > out/residual-evidence/plan.json
+          cat out/residual-evidence/plan.json
+          python3 - out/residual-evidence/plan.json >> "$GITHUB_OUTPUT" <<'EOF'
+          import json, sys
+          plan = json.load(open(sys.argv[1], encoding="utf-8"))
+          print("needs_test_build=" + ("true" if plan["needs_test_build"] else "false"))
+          EOF
+
+      - name: Build audit and fuzz binaries (only when CT evidence is due)
+        id: residual_build
+        if: steps.residual_plan.outputs.needs_test_build == 'true'
+        # A second build directory: the one above is BUILD_TESTING=OFF. Only the five suites
+        # whose output becomes audit/ci-evidence/<suite>_<YYYYMMDD>.txt are built, and only
+        # when the plan says the CT evidence is due, so most nights this step is skipped. A
+        # failed build leaves binaries missing, which fails the ct_evidence group (nothing
+        # is written).
+        continue-on-error: true
+        run: |
+          cmake -S . -B out/ci-evidence-build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_COMPILER=g++-14 \
+            -DBUILD_TESTING=ON \
+            -DSECP256K1_BUILD_FUZZ_TESTS=ON
+          cmake --build out/ci-evidence-build -j $(nproc) --target \
+            test_adversarial_protocol_standalone \
+            test_ecies_regression_standalone \
+            test_regression_ct_ops_standalone \
+            test_fuzz_parsers \
+            test_fuzz_address_bip32_ffi
+
+      - name: Refresh residual evidence (ci/refresh_residual_evidence.py)
+        id: residual_evidence
+        # RR-BAS-01. Each group is refreshed ONLY by re-running its real verifier and written
+        # ONLY when that verifier passes; a failed group writes nothing and the others still
+        # refresh. Runs before the assurance report, the bundle and the KPI so they see the
+        # current files. --lib points the determinism gate at the shared library built above.
+        continue-on-error: true
+        env:
+          FORCE_RESIDUAL: ${{ github.event.inputs.force_residual_refresh }}
+        run: |
+          mkdir -p out/residual-evidence
+          ARGS=()
+          if [ "${FORCE_RESIDUAL}" = "true" ]; then ARGS+=(--force); fi
+          rc=0
+          python3 ci/refresh_residual_evidence.py \
+            --build-dir out/ci-evidence-build \
+            --lib out/ci-audit \
+            "${ARGS[@]}" > out/residual-evidence/summary.json || rc=$?
+          cat out/residual-evidence/summary.json
+          exit "$rc"
 
       - name: Regenerate suite-root assurance_report.json
         id: assurance_report
@@ -217,7 +304,13 @@ jobs:
             docs/AUDIT_DASHBOARD.md \
             docs/EXPLOIT_TRACEABILITY_JOIN.md \
             docs/AUDIT_TREND_TIMELINE.json \
+            docs/API_SECURITY_CONTRACTS.json \
+            docs/ASSURANCE_CLAIMS.json \
+            docs/DETERMINISM_GOLDEN.json \
+            docs/INTEGRATION_EVIDENCE_STATUS.json \
             || true
+          echo "New residual CT/fuzz snapshots (untracked, so not in the diff above):"
+          git ls-files --others --exclude-standard -- audit/ci-evidence
 
       - name: Upload refreshed artifacts (diagnostic fallback if push fails)
         # B-4 fix: if the git push fails (PAT revoked, branch protection error),
@@ -235,6 +328,12 @@ jobs:
             docs/AUDIT_DASHBOARD.md
             docs/EXPLOIT_TRACEABILITY_JOIN.md
             docs/EVIDENCE_CHAIN.json
+            audit/ci-evidence/
+            docs/API_SECURITY_CONTRACTS.json
+            docs/ASSURANCE_CLAIMS.json
+            docs/DETERMINISM_GOLDEN.json
+            docs/INTEGRATION_EVIDENCE_STATUS.json
+            out/residual-evidence/
           if-no-files-found: warn
           retention-days: 90
 
@@ -264,10 +363,16 @@ jobs:
           # F-14 fix: also check assurance_report step — a failed export_assurance.py
           # run should not produce a "pass" evidence chain entry.
           GATE_VERDICT="pass"
+          # The residual evidence refresh (plan, build, refresh) is part of the verdict: a failed
+          # group means evidence it would have refreshed is NOT current, so the run records
+          # verdict=fail and the fail path below commits nothing but the chain record.
           if [ "${{ steps.bundle_verify.outcome }}" != "success" ] || \
              [ "${{ steps.autonomy_kpi.outcome }}" != "success" ] || \
              [ "${{ steps.exploit_wiring.outcome }}" != "success" ] || \
-             [ "${{ steps.assurance_report.outcome }}" != "success" ]; then
+             [ "${{ steps.assurance_report.outcome }}" != "success" ] || \
+             [ "${{ steps.residual_plan.outcome }}" != "success" ] || \
+             [ "${{ steps.residual_build.outcome }}" = "failure" ] || \
+             [ "${{ steps.residual_evidence.outcome }}" != "success" ]; then
             GATE_VERDICT="fail"
             echo "::warning::One or more gate steps failed; recording verdict=fail in evidence chain"
           fi
@@ -309,12 +414,22 @@ jobs:
                      docs/AUDIT_DASHBOARD.md \
                      docs/EXPLOIT_TRACEABILITY_JOIN.md \
                      docs/INCIDENT_DRILL_LOG.json \
+                     docs/API_SECURITY_CONTRACTS.json \
+                     docs/ASSURANCE_CLAIMS.json \
+                     docs/DETERMINISM_GOLDEN.json \
+                     docs/INTEGRATION_EVIDENCE_STATUS.json \
                      docs/EVIDENCE_CHAIN.json; do
               if [ -f "$f" ] && ! git diff --quiet -- "$f"; then
                 git add "$f"
                 CHANGED=1
               fi
             done
+            # The residual refresh writes NEW dated snapshot files. They are untracked, which
+            # `git diff --quiet` cannot see, so stage the directory whenever it holds any.
+            if [ -n "$(git ls-files --others --exclude-standard -- audit/ci-evidence)" ]; then
+              git add audit/ci-evidence
+              CHANGED=1
+            fi
           fi
 
           if [ "$CHANGED" -eq 0 ] && [ "${FORCE_COMMIT}" != "true" ]; then
@@ -327,7 +442,19 @@ jobs:
             exit 1
           fi
 
+          RESIDUAL_NOTE="$(python3 -c 'import json,sys; s=json.load(open(sys.argv[1])); print("Residual evidence: " + ", ".join(g["name"] + "=" + g["status"] for g in s["groups"]))' out/residual-evidence/summary.json 2>/dev/null || echo 'Residual evidence: no summary available')"
           git commit -m "[bot] CAAS evidence refresh ($(date -u +%Y-%m-%d))" \
-                     -m "Automated nightly refresh of CAAS evidence artifacts so the audit_sla_check.py max_stale_evidence_days SLO cannot silently trip. Includes audit dashboard (H-9), exploit traceability join (G-9b), and evidence chain record. See docs/CAAS_HARDENING_TODO.md (H-1)."
+                     -m "Automated nightly refresh of CAAS evidence artifacts so the audit_sla_check.py max_stale_evidence_days SLO cannot silently trip. Includes audit dashboard (H-9), exploit traceability join (G-9b), and evidence chain record. See docs/CAAS_HARDENING_TODO.md (H-1)." \
+                     -m "The residual evidence (audit/ci-evidence CT and fuzz snapshots, determinism golden, API-contract and assurance-claim stamps, INT-SHIM-PARITY stamp) is refreshed only by re-running its real verifier and only when that verifier passes (ci/refresh_residual_evidence.py, RR-BAS-01). ${RESIDUAL_NOTE}."
 
           git push origin dev
+
+      - name: Fail the lane when the residual evidence refresh failed
+        # The plan, the build and the refresh are continue-on-error so one failed group cannot
+        # stop the rest of the lane and the failure is recorded in the evidence chain above.
+        # This step makes it loud instead of silently green; nothing the refresh produced was
+        # committed on this path (the verdict was fail).
+        if: always() && (steps.residual_plan.outcome == 'failure' || steps.residual_build.outcome == 'failure' || steps.residual_evidence.outcome == 'failure')
+        run: |
+          echo "::error::The residual evidence refresh failed (plan, build or refresh step); nothing it produced was committed. See that step's log and out/residual-evidence/summary.json in the uploaded caas-evidence-refresh artifact."
+          exit 1
