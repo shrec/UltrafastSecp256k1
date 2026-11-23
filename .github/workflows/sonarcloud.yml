@@ -68,7 +68,7 @@ jobs:
         run: pip install --require-hashes -r .github/requirements/audit-deps.txt
 
       - name: Install SonarCloud build-wrapper
-        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        uses: SonarSource/sonarqube-scan-action/install-build-wrapper@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v8.5.0
 
       - name: Build with build-wrapper (coverage-instrumented)
         run: |
