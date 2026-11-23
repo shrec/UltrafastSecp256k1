@@ -489,21 +489,21 @@ jobs:
 
       - name: Download Linux GCC artifact
         if: needs.verdict.outputs.linux_gcc_artifact_id != ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.verdict.outputs.linux_gcc_artifact_id }}
           path: audit-artifacts/audit-report-linux-gcc14
 
       - name: Download Linux Clang artifact
         if: needs.verdict.outputs.linux_clang_artifact_id != ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.verdict.outputs.linux_clang_artifact_id }}
           path: audit-artifacts/audit-report-linux-clang17
 
       - name: Download Windows MSVC artifact
         if: needs.verdict.outputs.windows_msvc_artifact_id != ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.verdict.outputs.windows_msvc_artifact_id }}
           path: audit-artifacts/audit-report-windows-msvc
@@ -574,21 +574,21 @@ jobs:
 
       - name: Download Linux GCC report
         if: needs.linux-gcc.outputs.audit_artifact_id != ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.linux-gcc.outputs.audit_artifact_id }}
           path: audit-artifacts/audit-report-linux-gcc14
 
       - name: Download Linux Clang report
         if: needs.linux-clang.outputs.audit_artifact_id != ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.linux-clang.outputs.audit_artifact_id }}
           path: audit-artifacts/audit-report-linux-clang17
 
       - name: Download Windows MSVC report
         if: needs.windows-msvc.outputs.audit_artifact_id != ''
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           artifact-ids: ${{ needs.windows-msvc.outputs.audit_artifact_id }}
           path: audit-artifacts/audit-report-windows-msvc
